@@ -514,11 +514,14 @@ setMethod("create_target_m_df",
               ##Get selected dates and ids
               selected_ids <- features_m_df@data %>% dplyr::pull(id)
               selected_daily_returns_m_df <- daily_returns_m_df@data %>% dplyr::filter(id %in% selected_ids)
-              selected_dates <- selected_daily_returns_m_df %>% dplyr::pull(dates) %>% unique()
-              selected_daily_bench_returns_m_xts <- daily_bench_returns_m_xts@data[, selected_bench]
+              selected_dates <- selected_daily_returns_m_df %>% dplyr::pull(dates) %>% unique() %>% sort()
+
 
               ##Build fwd_date_process fun
               fwd_date_process <- function(i){
+
+                ###Select bench
+                selected_daily_bench_returns_m_xts <- daily_bench_returns_m_xts@data[, selected_bench]
 
                 ###Subset current row and date
                 current_date <- selected_dates[i]
@@ -536,7 +539,7 @@ setMethod("create_target_m_df",
 
                 ###Compute forward dates
                 fwd_dates <- lubridate::add_with_rollback(current_date, months(0:fwd_horizon))
-                seq_fwd_dates <- seq.Date(from = fwd_dates[1], to = fwd_dates[length(fwd_dates)], by = "days")
+                seq_fwd_dates <- seq.Date(from = fwd_dates[1] + 1, to = fwd_dates[length(fwd_dates)], by = "days")
 
                 ###If any of the dates in exceed current_date, return NA
                 if (any(seq_fwd_dates > daily_returns_m_df@current_date)){
@@ -900,6 +903,11 @@ setMethod("create_tickers_catalog",
 
             if (nrow(invalid_dates) > 0) {
               stop("date_last_quote must be greater than or equal to date_first_quote for all tickers.")
+            }
+
+            ##Check that no date_last_quote is > current_date
+            if (any(date_last_quote$date_last_quote[which(!is.na(date_last_quote$date_last_quote))] > raw_features_m_df@current_date)){
+              warning("Some date_last_quote values are greater than the current_date. This may indicate future dates or errors in the data.")
             }
 
             #############

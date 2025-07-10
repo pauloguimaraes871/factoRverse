@@ -152,8 +152,8 @@ check_inputs_port_backtest <- function(
     stop("rebalancing_months should be numeric.")
   }
 
-  if(rebalancing_months < 0 || rebalancing_months > 12){
-    stop("rebalancing_months should be between 1 and 12.")
+  if (any(rebalancing_months < 1 | rebalancing_months > 12)) {
+    stop("All values of rebalancing_months should be between 1 and 12.")
   }
 
   #Check that initial_buffer_period is positive and higher than 1

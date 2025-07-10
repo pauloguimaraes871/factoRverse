@@ -1,5 +1,5 @@
 # compute_window ----------------------------------------------------
-#' Compute Rolling or Fwd Seasonal Calculations for a Given Metric in meta_dataframe or meta_xts
+#' Compute Rolling or Seasonal Calculations for a Given Metric in meta_dataframe or meta_xts
 #'
 #' This method computes rolling or seasonal statistics for a specified metric in a `meta_dataframe` or `meta_xts` object.
 #' The function applies a predefined calculation (`FUN`) to values within a specified time window.
@@ -10,9 +10,7 @@
 #'
 #' @param data A `meta_dataframe` or `meta_xts` object.
 #' @param period A `numeric` value indicating the time window:
-#'   - For `rolling`, the number of months to look back.
-#'   - For `fwd_seasonal`, the number of months to look ahead.
-#' @param window A `character` specifying the window type: either "rolling" (default) or "fwd_seasonal".
+#' @param window A `character` specifying the window type: either "rolling" (default) or "seasonal".
 #' @param FUN A `character` specifying the function to apply. Supported options:
 #'   - "median", "sd", "cagr", "skew", "sur", "mean_std", "res_mom", "idio_vol".
 #' @param signal (For `meta_dataframe`) A `character` specifying the column name on which the rolling function is computed.
@@ -26,6 +24,7 @@
 #'   - Exception: For `FUN = "cagr"`, the default is `period + 1` to ensure sufficient periods.
 #' @param count_condition_fun A function that takes a numeric vector and returns a logical vector.
 #' The function should return `TRUE` for elements that should be counted. Only used for FUN = "count_if".
+#' @param offset_months A `numeric` value specifying the number of months to offset ahead or backwards for `seasonal` window type.
 #' @param ... Additional arguments passed to the function.
 #'
 #' @return A modified `meta_dataframe` or `meta_xts` object with an additional column named `"<metric>_<window>_<period>_<FUN>"`,
@@ -60,8 +59,10 @@ setGeneric("compute_window", function(data, period, FUN, ...){
 #' @rdname compute_window
 setMethod("compute_window",
           signature(data = "meta_dataframe", period = "numeric", FUN = "character"),
-          function(data, period, FUN, window = "rolling", signal, benchmark_returns_m_xts = NULL, selected_bench = NULL, na.rm = TRUE, only_unique = FALSE,
-                   feature_name = NULL, min_non_na = 0, count_condition_fun = NULL) {
+          function(data, period, FUN, window = "rolling",
+                   signal, benchmark_returns_m_xts = NULL, selected_bench = NULL, na.rm = TRUE,
+                   only_unique = FALSE, feature_name = NULL, min_non_na = 0,
+                   count_condition_fun = NULL, offset_months = 0) {
 
             #Extract data
             ############
@@ -87,27 +88,45 @@ setMethod("compute_window",
             if (!is.numeric(pre_silver_features_m_df[[signal]])) {
               stop("The signal column must be numeric.")
             }
+            ##Check if min_non_na is >= 0
+            if (min_non_na < 0) {
+              stop("The 'min_non_na' argument must be greater or equal to 0.")
+            }
             ##Check if period is >= 0
-            if (FUN != "lag" && period < 0) {
+            if (period < 0) {
               stop("The period must be greater or equal to 0.")
             }
+            ##Check if offset_months is provided when window is "seasonal"
+            if (window == "seasonal" && is.null(offset_months) || !is.numeric(offset_months)) {
+              stop("The 'offset_months' argument must be provided when window is 'seasonal'.")
+            }
             ##Check for only unique and FUN
-            if (only_unique && FUN %in% c("cagr", "res_mom", "idio_vol", "lag", "geom_mean")){
+            if (only_unique && FUN %in% c("cagr", "res_mom", "idio_vol", "lag", "geom_mean_ret")){
               stop("The 'only_unique' is not supported for FUN ", FUN)
             }
+            ##Check for min_non_na and cagr or lag (If CAGR, only begin and end are needed)
+            if (min_non_na > 0 && FUN %in% c("cagr", "lag")) {
+              stop("The 'min_non_na' argument is not supported for FUN ", FUN)
+            }
             ##Additional Checks for FUN types
-            if (FUN %in% c("res_mom", "idio_vol")) {
+            if (FUN %in% c("res_mom", "idio_vol", "lag")) {
               if (window != "rolling"){
                 stop("The 'window' argument must be 'rolling' for FUN ", FUN)
               }
+            }
+            if (FUN %in% c("res_mom", "idio_vol")){
               if (!is_returns_meta_xts) {
                 stop("benchmark_returns_m_xts must be provided for FUN ", FUN)
               }
               if (is.null(selected_bench)) {
                 stop("The 'selected_bench' argument must be provided for FUN ", FUN)
               }
+              ##Check that dates in benchmark_returns_m_xts match those in pre_silver_features_m_df
+              if (!all(pre_silver_features_m_df$dates %in% zoo::index(benchmark_returns_m_xts))) {
+                stop("The dates in 'benchmark_returns_m_xts' must match those in 'pre_silver_features_m_df'.")
+              }
             }
-            if (!FUN == "count_if" && !is.null(count_condition_fun)) {
+            if (FUN != "count_if" && !is.null(count_condition_fun)) {
               stop("The 'count_condition_fun' argument is only supported for FUN 'count_if'.")
             }
             if (FUN == "count_if" && !is.function(count_condition_fun)){
@@ -122,88 +141,113 @@ setMethod("compute_window",
             rolling_values <- purrr::map_dbl(seq_len(nrow(pre_silver_features_m_df)), function(i) {
 
               ##Get current row values
-              ###Extract from mdf
-              current_row <- pre_silver_features_m_df[i, ]
-              ticker_i <- current_row$tickers
-              current_row_date <- current_row$dates
+                ###Extract from mdf
+                current_row <- pre_silver_features_m_df[i, ]
+                ticker_i <- current_row$tickers
+                current_row_date <- current_row$dates
 
-              ###Compute the lower bound date by subtracting 'period' months
-              lower_date <- lubridate::add_with_rollback(current_row_date, -months(period))
+                ###Compute the lower bound date by subtracting 'period' months
+                lower_date <- lubridate::add_with_rollback(current_row_date, -months(period))
 
-              ###Depending on the window type, filter the data accordingly
-              if (window == "rolling"){
-                ####Find rows with the same ticker and with dates in the range [lower_date, current_row_date]
-                selected_pre_silver_features_m_df <- pre_silver_features_m_df %>%
-                  dplyr::filter(tickers == ticker_i) %>%
-                  dplyr::filter(dates >= lower_date & dates <= current_row_date)
-              } else if (window == "fwd_seasonal"){
-                ####Determine seasonal months: consecutive months following the current month (wrapping around if needed)
-                current_month <- lubridate::month(current_row_date)
-                fwd_months <- if (period == 0) months(0) else months(1:period)
-                seasonal_months <- lubridate::month(lubridate::add_with_rollback(current_row_date, fwd_months, roll = TRUE))
+                ###Depending on the window type, filter the data accordingly
+                if (window == "rolling"){
+                  ####Find rows with the same ticker and with dates in the range [lower_date, current_row_date]
+                  selected_pre_silver_features_m_df <- pre_silver_features_m_df %>%
+                    dplyr::filter(tickers == ticker_i) %>%
+                    dplyr::filter(dates >= lower_date & dates <= current_row_date)
 
-                ####Filter
-                selected_pre_silver_features_m_df <- pre_silver_features_m_df %>%
-                  dplyr::filter(tickers == ticker_i) %>%
-                  dplyr::filter(dates <= current_row_date) %>% #This is crucial to avoid foward looking bias
-                  dplyr::filter(lubridate::month(dates) %in% seasonal_months)
-              } else {
-                stop("Invalid window type. Must be either 'rolling' or 'fwd_seasonal'.")
-              }
+                } else if (window == "seasonal"){
+                  ####Determine seasonal months: consecutive months following the current month (wrapping around if needed)
+                  current_month <- lubridate::month(current_row_date)
+                  offset_duration <- months(offset_months)
+                  seasonal_months <- lubridate::month(lubridate::add_with_rollback(current_row_date, offset_duration, roll = TRUE))
 
-              ###If no matching observation is found, return NA
-              if (nrow(selected_pre_silver_features_m_df) == 0) return(NA_real_)
+                  ####Filter
+                  selected_pre_silver_features_m_df <- pre_silver_features_m_df %>%
+                    dplyr::filter(tickers == ticker_i) %>%
+                    dplyr::filter(dates >= lower_date & dates <= current_row_date) %>% #This is crucial to avoid forward looking bias
+                    dplyr::filter(lubridate::month(dates) %in% seasonal_months)
+
+                } else {
+                  stop("Invalid window type. Must be either 'rolling' or 'seasonal'.")
+                }
+
+                ###If no matching observation is found, return NA
+                if (nrow(selected_pre_silver_features_m_df) == 0) return(NA_real_)
 
               ##Get the filtered values for the signal
               values <- selected_pre_silver_features_m_df %>% dplyr::pull(!!rlang::sym(signal))
-              ###Get begin and final (useful for cagr and sur)
-              begin_value <- utils::head(values, 1)
-              final_value <- utils::tail(values, 1)
 
-              ###Get only unique
-              if (only_unique) {
-                if (FUN == "sur"){
-                  ####For SUR, remove last value first
-                  past_values <- values[-length(values)]
-                  past_values <- unique(past_values)
-                } else {
-                  values <- unique(values) #Get unique values
+                ###Get lagged
+                lagged_value <- NA_real_
+                if (FUN == "lag"){
+                  ####Get lagged date
+                  lagged_date <- lubridate::add_with_rollback(current_row_date, months(-period), roll = TRUE)
+                  ####Check if lagged date is present and return NA if not
+                  if (lagged_date %in% selected_pre_silver_features_m_df$dates){
+                    lagged_value <- selected_pre_silver_features_m_df %>%
+                      dplyr::filter(dates == lagged_date) %>%
+                      dplyr::pull(!!rlang::sym(signal))
+                  }
                 }
+                ###Get begin and final (useful for cagr and sur)
+                  ####Begin
+                  begin_date <- lubridate::add_with_rollback(current_row_date, months(-period), roll = TRUE)
+                    ####Check if begin date is present and return NA if not
+                    if (!(begin_date %in% selected_pre_silver_features_m_df$dates)){
+                      begin_value <- NA_real_
+                    } else {
+                      begin_value <- selected_pre_silver_features_m_df %>%
+                        dplyr::filter(dates == begin_date) %>%
+                        dplyr::pull(!!rlang::sym(signal)) %>%
+                        as.numeric()
+                    }
+                  ####Final
+                  final_date <- current_row_date
+                    ####Check if final date is present and return NA if not
+                    if (!(final_date %in% selected_pre_silver_features_m_df$dates)){
+                      final_value <- NA_real_
+                    } else {
+                      final_value <- selected_pre_silver_features_m_df %>%
+                        dplyr::filter(dates == final_date) %>%
+                        dplyr::pull(!!rlang::sym(signal)) %>%
+                        as.numeric()
+                    }
+
+              ##Get only unique
+              if (only_unique) {
+                values <- unique(values) #Get unique values
               }
-              ##Do the same for benchmark if it is not NULL
-              if (!is.null(benchmark_returns_m_xts)){
-                ####Extract rolling window for benchmark from benchmark_returns_m_xts
-                selected_bench_ret_values <- as.numeric(benchmark_returns_m_xts[zoo::index(benchmark_returns_m_xts) >= lower_date & zoo::index(benchmark_returns_m_xts) <= current_row_date, selected_bench])
-              }
+                ###Do the same for benchmark if it is not NULL
+                if (!is.null(benchmark_returns_m_xts)){
+                  ####Extract rolling window for benchmark from benchmark_returns_m_xts
+                  selected_bench_ret_values <- as.numeric(benchmark_returns_m_xts[zoo::index(benchmark_returns_m_xts) >= lower_date & zoo::index(benchmark_returns_m_xts) <= current_row_date, selected_bench])
+                }
 
               ##Returns NA in case of certain conditions
-              ###Return NA in case min_non_na is not filled
-              if (FUN %in% c("cagr", "lag", "geom_mean") && length(values) < period + 1){
-                if (FUN == "cagr") message("For cagr, the should be at least ", period + 1, " values")
-                if (FUN == "lag") message("For lag, the should be at least ", period + 1, " values")
-                if (FUN == "geom_mean") message("For geom_mean, the should be at least ", period + 1, " values")
-                return(NA_real_)
-              }
-              if (FUN != "cagr" && length(values) < min_non_na) return(NA_real_)
+                ###Return NA in case min_non_na is not filled
+                if (!FUN %in% c("cagr") && sum(!is.na(values)) < min_non_na) return(NA_real_)
 
-              ###Return NA in case values is not of class numeric
-              if (!is.numeric(values)) {
-                return(NA_real_)
-              }
-              ###Return NA in case selected_bench_ret_values length is 0
-              if (!is.null(benchmark_returns_m_xts) && length(selected_bench_ret_values) == 0) {
-                NA_real_
-              }
+                ###Return NA in case values is not of class numeric
+                if (!is.numeric(values)) {
+                  return(NA_real_)
+                }
+                ###Return NA in case selected_bench_ret_values length is 0
+                if (!is.null(benchmark_returns_m_xts) && length(selected_bench_ret_values) == 0) {
+                  return(NA_real_)
+                }
+
 
               ##Depending on FUN, compute the rolling metric
               switch(FUN,
                      "sum" = sum(values, na.rm = na.rm),
                      "mean" = mean(values, na.rm = na.rm),
+                     "geom_mean_ret" = geometric_mean_return(values, na.rm = na.rm),
                      "median" = stats::median(values, na.rm = na.rm),
                      "sd" = stats::sd(values, na.rm = na.rm),
                      "skew" = skew(values, na.rm = na.rm),
                      "sur" = {
-                       sur(final_value = final_value, past_values = past_values, na.rm = na.rm)
+                       sur(final_value = final_value, past_values = values, na.rm = na.rm)
                      },
                      "cagr" = {
                        if (length(values) < 2) return(NA_real_) ##Guarantes NA for less than 2 inputs
@@ -219,7 +263,7 @@ setMethod("compute_window",
                      "lag" = {
                        if (length(values) < 2) return(NA_real_)
                        #Just provied begin value
-                       return(begin_value)
+                       return(lagged_value)
                      },
                      stop("Unsupported function type")
               )
@@ -230,7 +274,7 @@ setMethod("compute_window",
             # Create a new column name dynamically if feature_name is NULL
             ##Use short_window_name
             if (window == "rolling") short_window_name <- "roll"
-            if (window == "fwd_seasonal") short_window_name <- "fwd_seas"
+            if (window == "seasonal") short_window_name <- "seas"
             if (is.null(feature_name)){
               new_col_name <- paste0(signal, "_", FUN, "_", short_window_name, "_", period, "m")
             } else {
@@ -277,37 +321,75 @@ setMethod("compute_window",
 
 #' @rdname compute_window
 setMethod("compute_window",
-          signature(data = "metrics_meta_xts", period = "numeric", FUN = "character"),
-          function(data, period, FUN, window = "rolling", metric, na.rm = TRUE, only_unique = FALSE,
-                   feature_name = NULL, min_non_na = 0) {
+          signature(data = "meta_xts", period = "numeric", FUN = "character"),
+          function(data, period, FUN, window = "rolling",
+                   col_name, benchmark_returns_m_xts = NULL, selected_bench = NULL, na.rm = TRUE,
+                   only_unique = FALSE, feature_name = NULL, min_non_na = 0) {
 
             #Extract relevant elements
             ###############
             meta_xts_workflow <- data@workflow
             meta_xts_name <- data@meta_xts_name
+            if (class(data) == "metrics_meta_xts") {
+              meta_xts_type <-  "metrics"
+            } else if (class(data) == "returns_meta_xts"){
+              meta_xts_type <- "returns"
+            } else {
+              stop("Unsupported meta_xts class. Only 'metrics_meta_xts' and 'returns_meta_xts' are supported.")
+            }
             current_date <- data@current_date
             source <- data@source
             pre_silver_m_xts <- data@data
+
+            ###Benchmark
+            is_returns_meta_xts <- inherits(benchmark_returns_m_xts, "returns_meta_xts")
+            benchmark_returns_m_xts_name <- if(is_returns_meta_xts) benchmark_returns_m_xts@meta_xts_name else NULL
+            benchmark_returns_m_xts <- if(is_returns_meta_xts) benchmark_returns_m_xts@data else NULL
 
             ###############
 
             #Initial checks
             ###############
-            if (!metric %in% colnames(pre_silver_m_xts)) {
-              stop("The metric column does not exist in the xts object.")
+            if (!col_name %in% colnames(pre_silver_m_xts)) {
+              stop("The col_name column does not exist in the xts object.")
             }
-            if (!is.numeric(pre_silver_m_xts[, metric])) {
-              stop("The metric column must be numeric.")
+            if (!is.numeric(pre_silver_m_xts[, col_name])) {
+              stop("The col_name column must be numeric.")
             }
             if (period < 0) {
               stop("The period must be greater or equal to 0.")
             }
-            if (only_unique && FUN %in% c("cagr")){
+            if (only_unique && FUN %in% c("cagr", "res_mom", "idio_vol", "geom_mean_ret")){
               stop("The 'only_unique' is not supported for FUN ", FUN)
             }
-            if (FUN %in% c("res_mom", "idio_vol")) {
-              stop("The FUN ", FUN, " is not supported for metrics_meta_xts")
+            if (window != "rolling"){
+              stop("The window argument must be rolling for meta_xts method")
             }
+            ##Additional Checks for FUN types
+            if (FUN %in% c("res_mom", "idio_vol", "lag")) {
+              if (window != "rolling"){
+                stop("The 'window' argument must be 'rolling' for FUN ", FUN)
+              }
+            }
+            if (FUN %in% c("res_mom", "idio_vol")){
+              if (!is_returns_meta_xts) {
+                stop("benchmark_returns_m_xts must be provided for FUN ", FUN)
+              }
+              if (is.null(selected_bench)) {
+                stop("The 'selected_bench' argument must be provided for FUN ", FUN)
+              }
+              ##Check that dates between benchmark and pre_silver_m_xts match
+              if (!all(zoo::index(pre_silver_m_xts) %in% zoo::index(benchmark_returns_m_xts))) {
+                stop("The dates in pre_silver_m_xts do not match the dates in benchmark_returns_m_xts.")
+              }
+            }
+            if (meta_xts_type == "returns" && FUN %in% c("cagr")) {
+              stop("The FUN ", FUN, " is not supported for returns_meta_xts. Use metrics_meta_xts instead.")
+            }
+            if (meta_xts_type == "metrics" && FUN %in% c("geom_mean_ret", "idio_vol", "res_mom")) {
+              stop("The FUN ", FUN, " is not supported for metrics_meta_xts. Use returns_meta_xts instead.")
+            }
+
 
             ###############
 
@@ -321,35 +403,46 @@ setMethod("compute_window",
                 lower_date <- lubridate::add_with_rollback(current_row_date, -months(period))
 
                 ###Rolling window
-                if (window == "rolling") {
-                  selected_xts <- pre_silver_m_xts[zoo::index(pre_silver_m_xts) >= lower_date &
-                                                 zoo::index(pre_silver_m_xts) <= current_row_date, metric]
-                ###Seasonal window
-                } else if (window == "fwd_seasonal") {
-                  current_month <- lubridate::month(current_row_date)
-                  fwd_months <- if (period == 0) months(0) else months(1:period)
-                  seasonal_months <- lubridate::month(lubridate::add_with_rollback(current_row_date, fwd_months, roll = TRUE))
-                  selected_xts <- pre_silver_m_xts[lubridate::month(zoo::index(pre_silver_m_xts)) %in% seasonal_months &
-                                                            zoo::index(pre_silver_m_xts) <= current_row_date, metric]
-                } else {
-                  stop("Invalid window type. Must be either 'rolling' or 'fwd_seasonal'.")
-                }
+                selected_xts <- pre_silver_m_xts[zoo::index(pre_silver_m_xts) >= lower_date &
+                                                 zoo::index(pre_silver_m_xts) <= current_row_date, col_name]
+
 
                 ###If length is 0, skip
-                if (length(selected_xts) == 0) next
+                if (length(selected_xts) == 0) return(NA_real_)
 
                 ###Adjust values
                 values <- as.numeric(selected_xts)
-                begin_value <- utils::head(values, 1)
-                final_value <- utils::tail(values, 1)
+
+                ###Get begin and final (useful for cagr and sur)
+                ####Begin
+                begin_date <- lubridate::add_with_rollback(current_row_date, months(-period), roll = TRUE)
+                  ####Check if begin date is present and return NA if not
+                  if (!(begin_date %in% zoo::index(selected_xts))){
+                    begin_value <- NA_real_
+                  } else {
+                    begin_value <- as.numeric(selected_xts[zoo::index(selected_xts) == begin_date])
+                  }
+                ####Final
+                final_date <- current_row_date
+                  ####Check if final date is present and return NA if not
+                  if (!(final_date %in% zoo::index(selected_xts))){
+                    final_value <- NA_real_
+                  } else {
+                    final_value <- as.numeric(selected_xts[zoo::index(selected_xts) == final_date])
+                  }
+
+                ###Get only unique
                 if (only_unique) {
                   values <- unique(values)
                 }
-                if (FUN == "cagr" && length(values) < period + 1) {
-                  rolling_values[i] <- NA_real_
-                  next
+                ###Do the same for benchmark if it is not NULL
+                if (!is.null(benchmark_returns_m_xts)){
+                  ####Extract rolling window for benchmark from benchmark_returns_m_xts
+                  selected_bench_ret_values <- as.numeric(benchmark_returns_m_xts[zoo::index(benchmark_returns_m_xts) >= lower_date & zoo::index(benchmark_returns_m_xts) <= current_row_date, selected_bench])
                 }
-                if (FUN != "cagr" && length(values) < min_non_na) {
+
+                ###Return NA in case min_non_na is not filled
+                if (!FUN %in% c("cagr") && sum(!is.na(values)) < min_non_na) {
                   rolling_values[i] <- NA_real_
                   next
                 }
@@ -357,23 +450,34 @@ setMethod("compute_window",
                   rolling_values[i] <- NA_real_
                   next
                 }
+                ###Return NA in case selected_bench_ret_values length is 0
+                if (!is.null(benchmark_returns_m_xts) && length(selected_bench_ret_values) == 0) {
+                  rolling_values[i] <- NA_real_
+                  next
+                }
 
                 ###Apply FUN
                 rolling_values[i] <- switch(FUN,
+                                            "mean" = stats::mean(values, na.rm = na.rm),
                                             "median" = stats::median(values, na.rm = na.rm),
+                                            "geom_mean_ret" = geometric_mean_return(values, na.rm = na.rm),
+                                            "max" = max(values, na.rm = na.rm),
+                                            "min" = min(values, na.rm = na.rm),
                                             "sd" = stats::sd(values, na.rm = na.rm),
                                             "skew" = skew(values, na.rm = na.rm),
-                                            "sur" = sur(final_value = final_value, past_values = values[-length(values)], na.rm = na.rm),
+                                            "sur" = sur(final_value = final_value, past_values = values, na.rm = na.rm),
                                             "cagr" = cagr(begin = begin_value, final = final_value, period = period),
                                             "mean_std" = mean_std(values, na.rm = na.rm),
+                                            "res_mom" = res_mom(ret_values = values, bench_ret_values = selected_bench_ret_values, na.rm = na.rm),
+                                            "idio_vol" = idio_vol(ret_values = values, bench_ret_values = selected_bench_ret_values, na.rm = na.rm),
                                             stop("Unsupported function type"))
               }
             ###############
 
             #Assign computed values to a new column
             ###############
-            short_window_name <- if (window == "rolling") "roll" else "fwd_seas"
-            new_col_name <- if (is.null(feature_name)) paste0(metric, "_", FUN, "_", short_window_name, "_", period, "m") else feature_name
+            short_window_name <- if (window == "rolling") "roll" else "seas"
+            new_col_name <- if (is.null(feature_name)) paste0(col_name, "_", FUN, "_", short_window_name, "_", period, "m") else feature_name
             pre_silver_m_xts <- cbind(pre_silver_m_xts, rolling_values)
             colnames(pre_silver_m_xts)[ncol(pre_silver_m_xts)] <- new_col_name
 
@@ -381,7 +485,7 @@ setMethod("compute_window",
             new_workflow <- list(
               list(current_date = current_date,
                    timestamp = Sys.time(),
-                   metric = metric,
+                   col_name = col_name,
                    period = period,
                    window = window,
                    feature_name = new_col_name,
@@ -389,20 +493,22 @@ setMethod("compute_window",
                    call = match.call(),
                    na.rm = na.rm,
                    only_unique = only_unique,
-                   min_non_na = min_non_na)
+                   min_non_na = min_non_na,
+                   benchmark_returns_m_xts_name = benchmark_returns_m_xts_name
+                   )
             )
 
             #Recreate the meta_xts object
             pre_silver_m_xts <- create_meta_xts(pre_silver_m_xts,
                                                 meta_xts_name = meta_xts_name,
                                                 workflow = c(meta_xts_workflow, new_workflow),
-                                                type = "metrics",
+                                                type = meta_xts_type,
                                                 source = c(source,
-                                                           paste0("compute_", metric, "_", FUN, "_", short_window_name, "_", period, "m", "_", current_date))
+                                                           paste0("compute_", col_name, "_", FUN, "_", short_window_name, "_", period, "m", "_", current_date))
             )
 
             names(pre_silver_m_xts@workflow)[length(pre_silver_m_xts@workflow)] <-
-              paste0("compute_", metric, "_", FUN, "_", short_window_name, "_", period, "m", "_", current_date)
+              paste0("compute_", col_name, "_", FUN, "_", short_window_name, "_", period, "m", "_", current_date)
 
 
             return(pre_silver_m_xts)
@@ -471,6 +577,53 @@ sur <- function(final_value, past_values, na.rm = TRUE) {
   if (is.na(sd_val) || sd_val == 0) return(NA_real_)
   (final_value - mean(past_values, na.rm = na.rm)) / sd_val
 
+}
+
+
+#' Geometric Mean Return (percentage-point scale)
+#'
+#' Computes the geometric mean of a vector of returns expressed **in percentage
+#' points** (e.g. `2` for 2 %, `-0.75` for -0.75 %).
+#' Internally the function converts the input to decimal form, performs the
+#' compounding, and returns the result **in the same percentage-point scale**.
+#'
+#' @param returns Numeric vector of returns. Each return must be greater than
+#'   `-100` (i.e. no return worse than -100 %).
+#' @param na.rm Logical. Should `NA` values be removed?  Default `FALSE`.
+#' @param scale Numeric divisor/multiplier used to convert between percentage
+#'   points and decimals.  Default `100`.
+#'
+#' @return A single numeric value (in percentage points) representing the
+#'   compounded average return.
+#'
+#' @details
+#' The computation is
+#' \deqn{\left(\prod_{i=1}^{n}\left(1 + \frac{r_i}{\text{scale}}\right)\right)^{1/n} - 1}
+#' converted back to percentage-point scale by multiplying the decimal result by
+#' `scale`.
+#'
+#' @examples
+#' # 2 % , 0.5 % and -1 % expressed as 2, 0.5, -1
+#' geometric_mean_return(c(2, 0.5, -1))        # ≈ 0.498 (% points)
+#' geometric_mean_return(c(2, NA, 1), na.rm = TRUE)
+#'
+#' @export
+geometric_mean_return <- function(returns, na.rm = FALSE, scale = 100) {
+
+  if (na.rm) returns <- returns[!is.na(returns)]
+
+  if (any(returns <= -scale)) {
+    stop("All returns must be greater than -", scale, " (i.e. > -100%).")
+  }
+
+  ## convert to decimals
+  r_dec <- returns / scale
+
+  ## geometric mean in decimals
+  gm_dec <- prod(1 + r_dec)^(1 / length(r_dec)) - 1
+
+  ## return to caller in percentage-point scale
+  gm_dec * scale
 }
 
 

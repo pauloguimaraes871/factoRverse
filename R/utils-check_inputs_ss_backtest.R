@@ -562,8 +562,8 @@ check_inputs_ss_backtest <- function(
     stop("rebalancing_months should be numeric.")
   }
 
-  if(rebalancing_months < 0 || rebalancing_months > 12){
-    stop("rebalancing_months should be between 1 and 12.")
+  if (any(rebalancing_months < 1 | rebalancing_months > 12)) {
+    stop("All values of rebalancing_months should be between 1 and 12.")
   }
 
   #market_factor_proxy

@@ -146,7 +146,7 @@ setMethod("compute_formula",
 
               # Rename workflow entry
               names(pre_silver_features_m_df@workflow)[length(pre_silver_features_m_df@workflow)] <-
-                paste0("compute_", feature_name)
+                paste0("compute_", feature_name, "_", features_m_df@current_date)
 
             return(pre_silver_features_m_df)
           })

@@ -107,16 +107,16 @@ test_that("create_target_m_df works for a base case with happy, ipo, delisted, i
   ticker_5 <- tickers_catalog_features@perm_id["wrong"] %>% unname() #happy
 
 
-  #Get obs for next 3 months beginning in 2000-01-15
+  #Get obs for next 3 months beginning in 2000-01-15 + 1
   ticker_1_fwd_ret <- pre_silver_daily_returns_m_df@data %>%
-    dplyr::filter(tickers == ticker_1, dates >= as.Date("2000-01-15"), dates <= as.Date("2000-04-15"))
+    dplyr::filter(tickers == ticker_1, dates > as.Date("2000-01-15"), dates <= as.Date("2000-04-15"))
   ticker_2_fwd_ret <- pre_silver_daily_returns_m_df@data %>%
-    dplyr::filter(tickers == ticker_2, dates >= as.Date("2000-01-15"), dates <= as.Date("2000-04-15"))
+    dplyr::filter(tickers == ticker_2, dates > as.Date("2000-01-15"), dates <= as.Date("2000-04-15"))
   ticker_4_fwd_ret <- pre_silver_daily_returns_m_df@data %>%
-    dplyr::filter(tickers == ticker_4, dates >= as.Date("2000-01-15"), dates <= as.Date("2000-04-15"))
+    dplyr::filter(tickers == ticker_4, dates > as.Date("2000-01-15"), dates <= as.Date("2000-04-15"))
 
   #Get bench returns for next 3 months
-  bench_fwd <- daily_bench_returns_m_xts@data["2000-01-15/2000-04-15", "ibov"]
+  bench_fwd <- daily_bench_returns_m_xts@data["2000-01-16/2000-04-15", "ibov"]
 
   #get meta_xts
   joined_tickers_df <- ticker_1_fwd_ret %>% dplyr::bind_rows(ticker_2_fwd_ret)  %>%
@@ -161,18 +161,18 @@ test_that("create_target_m_df works for a base case with happy, ipo, delisted, i
 
   #Get obs for next 3 months beginning in 2001-01-15
   ticker_1_fwd_ret <- pre_silver_daily_returns_m_df@data %>%
-    dplyr::filter(tickers == ticker_1, dates >= as.Date("2001-01-15"), dates <= as.Date("2001-04-15"))
+    dplyr::filter(tickers == ticker_1, dates > as.Date("2001-01-15"), dates <= as.Date("2001-04-15"))
   ticker_2_fwd_ret <- pre_silver_daily_returns_m_df@data %>%
-    dplyr::filter(tickers == ticker_2, dates >= as.Date("2001-01-15"), dates <= as.Date("2001-04-15"))
+    dplyr::filter(tickers == ticker_2, dates > as.Date("2001-01-15"), dates <= as.Date("2001-04-15"))
   ticker_3_fwd_ret <- pre_silver_daily_returns_m_df@data %>%
-    dplyr::filter(tickers == ticker_3, dates >= as.Date("2001-01-15"), dates <= as.Date("2001-04-15"))
+    dplyr::filter(tickers == ticker_3, dates > as.Date("2001-01-15"), dates <= as.Date("2001-04-15"))
   ticker_4_fwd_ret <- pre_silver_daily_returns_m_df@data %>%
-    dplyr::filter(tickers == ticker_4, dates >= as.Date("2001-01-15"), dates <= as.Date("2001-04-15"))
+    dplyr::filter(tickers == ticker_4, dates > as.Date("2001-01-15"), dates <= as.Date("2001-04-15"))
   ticker_5_fwd_ret <- pre_silver_daily_returns_m_df@data %>%
-    dplyr::filter(tickers == ticker_5, dates >= as.Date("2001-01-15"), dates <= as.Date("2001-04-15"))
+    dplyr::filter(tickers == ticker_5, dates > as.Date("2001-01-15"), dates <= as.Date("2001-04-15"))
 
   #Get bench returns for next 3 months
-  bench_fwd <- daily_bench_returns_m_xts@data["2001-01-15/2001-04-15", "ibov"]
+  bench_fwd <- daily_bench_returns_m_xts@data["2001-01-16/2001-04-15", "ibov"]
 
 
   #get meta_xts
@@ -216,18 +216,18 @@ test_that("create_target_m_df works for a base case with happy, ipo, delisted, i
 
   #Get obs for next 3 months beginning in 2001-11-15
   ticker_1_fwd_ret <- pre_silver_daily_returns_m_df@data %>%
-    dplyr::filter(tickers == ticker_1, dates >= as.Date("2001-11-15"), dates <= as.Date("2002-02-15"))
+    dplyr::filter(tickers == ticker_1, dates > as.Date("2001-11-15"), dates <= as.Date("2002-02-15"))
   ticker_2_fwd_ret <- pre_silver_daily_returns_m_df@data %>%
-    dplyr::filter(tickers == ticker_2, dates >= as.Date("2001-11-15"), dates <= as.Date("2002-02-15"))
+    dplyr::filter(tickers == ticker_2, dates > as.Date("2001-11-15"), dates <= as.Date("2002-02-15"))
   ticker_3_fwd_ret <- pre_silver_daily_returns_m_df@data %>%
-    dplyr::filter(tickers == ticker_3, dates >= as.Date("2001-11-15"), dates <= as.Date("2002-02-15"))
+    dplyr::filter(tickers == ticker_3, dates > as.Date("2001-11-15"), dates <= as.Date("2002-02-15"))
   ticker_4_fwd_ret <- pre_silver_daily_returns_m_df@data %>%
-    dplyr::filter(tickers == ticker_4, dates >= as.Date("2001-11-15"), dates <= as.Date("2002-02-15"))
+    dplyr::filter(tickers == ticker_4, dates > as.Date("2001-11-15"), dates <= as.Date("2002-02-15"))
   ticker_5_fwd_ret <- pre_silver_daily_returns_m_df@data %>%
-    dplyr::filter(tickers == ticker_5, dates >= as.Date("2001-11-15"), dates <= as.Date("2002-02-15"))
+    dplyr::filter(tickers == ticker_5, dates > as.Date("2001-11-15"), dates <= as.Date("2002-02-15"))
 
   #Get bench returns for next 3 months
-  bench_fwd <- daily_bench_returns_m_xts@data["2001-11-15/2002-02-15", "ibov"]
+  bench_fwd <- daily_bench_returns_m_xts@data["2001-11-16/2002-02-15", "ibov"]
 
   #get meta_xts
   joined_tickers_df <- ticker_1_fwd_ret %>% dplyr::bind_rows(ticker_2_fwd_ret) %>% dplyr::bind_rows(ticker_3_fwd_ret) %>%
@@ -242,8 +242,8 @@ test_that("create_target_m_df works for a base case with happy, ipo, delisted, i
   )
 
   #Replace NAs in delisted with bench ret
-  third_fwd_ret_xts@data[c(4:93), 1] <- bench_fwd[4:93]
-  third_fwd_ret_xts@data[93, 5] <- bench_fwd[93]
+  third_fwd_ret_xts@data[c(3:92), 1] <- bench_fwd[3:92]
+  third_fwd_ret_xts@data[92, 5] <- bench_fwd[92]
 
   tickers_universe_m_d_ref <- summarize_performance(third_fwd_ret_xts@data, bench_fwd,
                                                     model_structure = "no_pooled",
@@ -389,14 +389,14 @@ test_that("create_target_m_df works for a base case with happy, ipo, delisted, i
 
   #Get obs for next 1 months beginning in 2000-01-15
   ticker_1_fwd_ret <- pre_silver_daily_returns_m_df@data %>%
-    dplyr::filter(tickers == ticker_1, dates >= as.Date("2000-01-15"), dates <= as.Date("2000-02-15"))
+    dplyr::filter(tickers == ticker_1, dates > as.Date("2000-01-15"), dates <= as.Date("2000-02-15"))
   ticker_2_fwd_ret <- pre_silver_daily_returns_m_df@data %>%
-    dplyr::filter(tickers == ticker_2, dates >= as.Date("2000-01-15"), dates <= as.Date("2000-02-15"))
+    dplyr::filter(tickers == ticker_2, dates > as.Date("2000-01-15"), dates <= as.Date("2000-02-15"))
   ticker_4_fwd_ret <- pre_silver_daily_returns_m_df@data %>%
-    dplyr::filter(tickers == ticker_4, dates >= as.Date("2000-01-15"), dates <= as.Date("2000-02-15"))
+    dplyr::filter(tickers == ticker_4, dates > as.Date("2000-01-15"), dates <= as.Date("2000-02-15"))
 
   #Get bench returns for next 3 months
-  bench_fwd <- daily_bench_returns_m_xts@data["2000-01-15/2000-02-15", "ibov"]
+  bench_fwd <- daily_bench_returns_m_xts@data["2000-01-16/2000-02-15", "ibov"]
 
   #get meta_xts
   joined_tickers_df <- ticker_1_fwd_ret %>% dplyr::bind_rows(ticker_2_fwd_ret)  %>%
@@ -441,18 +441,18 @@ test_that("create_target_m_df works for a base case with happy, ipo, delisted, i
 
   #Get obs for next 1 months beginning in 2001-01-15
   ticker_1_fwd_ret <- pre_silver_daily_returns_m_df@data %>%
-    dplyr::filter(tickers == ticker_1, dates >= as.Date("2001-01-15"), dates <= as.Date("2001-02-15"))
+    dplyr::filter(tickers == ticker_1, dates > as.Date("2001-01-15"), dates <= as.Date("2001-02-15"))
   ticker_2_fwd_ret <- pre_silver_daily_returns_m_df@data %>%
-    dplyr::filter(tickers == ticker_2, dates >= as.Date("2001-01-15"), dates <= as.Date("2001-02-15"))
+    dplyr::filter(tickers == ticker_2, dates > as.Date("2001-01-15"), dates <= as.Date("2001-02-15"))
   ticker_3_fwd_ret <- pre_silver_daily_returns_m_df@data %>%
-    dplyr::filter(tickers == ticker_3, dates >= as.Date("2001-01-15"), dates <= as.Date("2001-02-15"))
+    dplyr::filter(tickers == ticker_3, dates > as.Date("2001-01-15"), dates <= as.Date("2001-02-15"))
   ticker_4_fwd_ret <- pre_silver_daily_returns_m_df@data %>%
-    dplyr::filter(tickers == ticker_4, dates >= as.Date("2001-01-15"), dates <= as.Date("2001-02-15"))
+    dplyr::filter(tickers == ticker_4, dates > as.Date("2001-01-15"), dates <= as.Date("2001-02-15"))
   ticker_5_fwd_ret <- pre_silver_daily_returns_m_df@data %>%
-    dplyr::filter(tickers == ticker_5, dates >= as.Date("2001-01-15"), dates <= as.Date("2001-02-15"))
+    dplyr::filter(tickers == ticker_5, dates > as.Date("2001-01-15"), dates <= as.Date("2001-02-15"))
 
   #Get bench returns for next 3 months
-  bench_fwd <- daily_bench_returns_m_xts@data["2001-01-15/2001-02-15", "ibov"]
+  bench_fwd <- daily_bench_returns_m_xts@data["2001-01-16/2001-02-15", "ibov"]
 
 
   #get meta_xts
@@ -496,18 +496,18 @@ test_that("create_target_m_df works for a base case with happy, ipo, delisted, i
 
   #Get obs for next 1 months beginning in 2001-11-15
   ticker_1_fwd_ret <- pre_silver_daily_returns_m_df@data %>%
-    dplyr::filter(tickers == ticker_1, dates >= as.Date("2001-11-15"), dates <= as.Date("2001-12-15"))
+    dplyr::filter(tickers == ticker_1, dates > as.Date("2001-11-15"), dates <= as.Date("2001-12-15"))
   ticker_2_fwd_ret <- pre_silver_daily_returns_m_df@data %>%
-    dplyr::filter(tickers == ticker_2, dates >= as.Date("2001-11-15"), dates <= as.Date("2001-12-15"))
+    dplyr::filter(tickers == ticker_2, dates > as.Date("2001-11-15"), dates <= as.Date("2001-12-15"))
   ticker_3_fwd_ret <- pre_silver_daily_returns_m_df@data %>%
-    dplyr::filter(tickers == ticker_3, dates >= as.Date("2001-11-15"), dates <= as.Date("2001-12-15"))
+    dplyr::filter(tickers == ticker_3, dates > as.Date("2001-11-15"), dates <= as.Date("2001-12-15"))
   ticker_4_fwd_ret <- pre_silver_daily_returns_m_df@data %>%
-    dplyr::filter(tickers == ticker_4, dates >= as.Date("2001-11-15"), dates <= as.Date("2001-12-15"))
+    dplyr::filter(tickers == ticker_4, dates > as.Date("2001-11-15"), dates <= as.Date("2001-12-15"))
   ticker_5_fwd_ret <- pre_silver_daily_returns_m_df@data %>%
-    dplyr::filter(tickers == ticker_5, dates >= as.Date("2001-11-15"), dates <= as.Date("2001-12-15"))
+    dplyr::filter(tickers == ticker_5, dates > as.Date("2001-11-15"), dates <= as.Date("2001-12-15"))
 
   #Get bench returns for next 3 months
-  bench_fwd <- daily_bench_returns_m_xts@data["2001-11-15/2001-12-15", "ibov"]
+  bench_fwd <- daily_bench_returns_m_xts@data["2001-11-16/2001-12-15", "ibov"]
 
   #get meta_xts
   joined_tickers_df <- ticker_1_fwd_ret %>% dplyr::bind_rows(ticker_2_fwd_ret) %>% dplyr::bind_rows(ticker_3_fwd_ret) %>%
@@ -522,7 +522,7 @@ test_that("create_target_m_df works for a base case with happy, ipo, delisted, i
   )
 
   #Replace NAs in delisted with bench ret
-  third_fwd_ret_xts@data[c(4:31), 1] <- bench_fwd[4:31]
+  third_fwd_ret_xts@data[c(3:30), 1] <- bench_fwd[3:30]
 
   tickers_universe_m_d_ref <- summarize_performance(third_fwd_ret_xts@data, bench_fwd,
                                                     model_structure = "no_pooled",
@@ -801,14 +801,14 @@ test_that("create_target_m_df works in an update workflow", {
 
   #Get obs for next 3 months beginning in 2000-01-15
   ticker_1_fwd_ret <- update_presilver_daily_m_df@data %>%
-    dplyr::filter(tickers == ticker_1, dates >= as.Date("2000-01-15"), dates <= as.Date("2000-04-15"))
+    dplyr::filter(tickers == ticker_1, dates > as.Date("2000-01-15"), dates <= as.Date("2000-04-15"))
   ticker_3_fwd_ret <- update_presilver_daily_m_df@data %>%
-    dplyr::filter(tickers == ticker_3, dates >= as.Date("2000-01-15"), dates <= as.Date("2000-04-15"))
+    dplyr::filter(tickers == ticker_3, dates > as.Date("2000-01-15"), dates <= as.Date("2000-04-15"))
   ticker_4_fwd_ret <- update_presilver_daily_m_df@data %>%
-    dplyr::filter(tickers == ticker_4, dates >= as.Date("2000-01-15"), dates <= as.Date("2000-04-15"))
+    dplyr::filter(tickers == ticker_4, dates > as.Date("2000-01-15"), dates <= as.Date("2000-04-15"))
 
   #Get bench returns for next 3 months
-  bench_fwd <- daily_bench_returns_m_xts@data["2000-01-15/2000-04-15", "ibov"]
+  bench_fwd <- daily_bench_returns_m_xts@data["2000-01-16/2000-04-15", "ibov"]
 
   #get meta_xts
   joined_tickers_df <- ticker_1_fwd_ret %>%
@@ -854,21 +854,21 @@ test_that("create_target_m_df works in an update workflow", {
 
   #Get obs for next 3 months beginning in 2001-01-15
   ticker_1_fwd_ret <- update_presilver_daily_m_df@data %>%
-    dplyr::filter(tickers == ticker_1, dates >= as.Date("2001-01-15"), dates <= as.Date("2001-04-15"))
+    dplyr::filter(tickers == ticker_1, dates > as.Date("2001-01-15"), dates <= as.Date("2001-04-15"))
   ticker_2_fwd_ret <- update_presilver_daily_m_df@data %>%
-    dplyr::filter(tickers == ticker_2, dates >= as.Date("2001-01-15"), dates <= as.Date("2001-04-15"))
+    dplyr::filter(tickers == ticker_2, dates > as.Date("2001-01-15"), dates <= as.Date("2001-04-15"))
   ticker_3_fwd_ret <- update_presilver_daily_m_df@data %>%
-    dplyr::filter(tickers == ticker_3, dates >= as.Date("2001-01-15"), dates <= as.Date("2001-04-15"))
+    dplyr::filter(tickers == ticker_3, dates > as.Date("2001-01-15"), dates <= as.Date("2001-04-15"))
   ticker_4_fwd_ret <- update_presilver_daily_m_df@data %>%
-    dplyr::filter(tickers == ticker_4, dates >= as.Date("2001-01-15"), dates <= as.Date("2001-04-15"))
+    dplyr::filter(tickers == ticker_4, dates > as.Date("2001-01-15"), dates <= as.Date("2001-04-15"))
   ticker_5_fwd_ret <- update_presilver_daily_m_df@data %>%
-    dplyr::filter(tickers == ticker_5, dates >= as.Date("2001-01-15"), dates <= as.Date("2001-04-15"))
+    dplyr::filter(tickers == ticker_5, dates > as.Date("2001-01-15"), dates <= as.Date("2001-04-15"))
   ticker_6_fwd_ret <- update_presilver_daily_m_df@data %>%
-    dplyr::filter(tickers == ticker_6, dates >= as.Date("2001-01-15"), dates <= as.Date("2001-04-15"))
+    dplyr::filter(tickers == ticker_6, dates > as.Date("2001-01-15"), dates <= as.Date("2001-04-15"))
 
 
   #Get bench returns for next 3 months
-  bench_fwd <- daily_bench_returns_m_xts@data["2001-01-15/2001-04-15", "ibov"]
+  bench_fwd <- daily_bench_returns_m_xts@data["2001-01-16/2001-04-15", "ibov"]
 
 
   #get meta_xts
@@ -911,20 +911,20 @@ test_that("create_target_m_df works in an update workflow", {
 
   #Get obs for next 3 months beginning in 2001-11-15
   ticker_1_fwd_ret <- update_presilver_daily_m_df@data %>%
-    dplyr::filter(tickers == ticker_1, dates >= as.Date("2001-11-15"), dates <= as.Date("2002-02-15"))
+    dplyr::filter(tickers == ticker_1, dates > as.Date("2001-11-15"), dates <= as.Date("2002-02-15"))
   ticker_2_fwd_ret <- update_presilver_daily_m_df@data %>%
-    dplyr::filter(tickers == ticker_2, dates >= as.Date("2001-11-15"), dates <= as.Date("2002-02-15"))
+    dplyr::filter(tickers == ticker_2, dates > as.Date("2001-11-15"), dates <= as.Date("2002-02-15"))
   ticker_3_fwd_ret <- update_presilver_daily_m_df@data %>%
-    dplyr::filter(tickers == ticker_3, dates >= as.Date("2001-11-15"), dates <= as.Date("2002-02-15"))
+    dplyr::filter(tickers == ticker_3, dates > as.Date("2001-11-15"), dates <= as.Date("2002-02-15"))
   ticker_4_fwd_ret <- update_presilver_daily_m_df@data %>%
-    dplyr::filter(tickers == ticker_4, dates >= as.Date("2001-11-15"), dates <= as.Date("2002-02-15"))
+    dplyr::filter(tickers == ticker_4, dates > as.Date("2001-11-15"), dates <= as.Date("2002-02-15"))
   ticker_5_fwd_ret <- update_presilver_daily_m_df@data %>%
-    dplyr::filter(tickers == ticker_5, dates >= as.Date("2001-11-15"), dates <= as.Date("2002-02-15"))
+    dplyr::filter(tickers == ticker_5, dates > as.Date("2001-11-15"), dates <= as.Date("2002-02-15"))
   ticker_6_fwd_ret <- update_presilver_daily_m_df@data %>%
-    dplyr::filter(tickers == ticker_6, dates >= as.Date("2001-11-15"), dates <= as.Date("2002-02-15"))
+    dplyr::filter(tickers == ticker_6, dates > as.Date("2001-11-15"), dates <= as.Date("2002-02-15"))
 
   #Get bench returns for next 3 months
-  bench_fwd <- daily_bench_returns_m_xts@data["2001-11-15/2002-02-15", "ibov"]
+  bench_fwd <- daily_bench_returns_m_xts@data["2001-11-16/2002-02-15", "ibov"]
 
   #get meta_xts
   joined_tickers_df <- ticker_1_fwd_ret %>% dplyr::bind_rows(ticker_2_fwd_ret) %>% dplyr::bind_rows(ticker_3_fwd_ret) %>%
@@ -939,8 +939,8 @@ test_that("create_target_m_df works in an update workflow", {
   )
 
   #Replace NAs in delisted with bench ret
-  third_fwd_ret_xts@data[c(4:93), "h0ec000433"] <- bench_fwd[4:93]
-  third_fwd_ret_xts@data[93, "h4c37ff6e6"] <- bench_fwd[93]
+  third_fwd_ret_xts@data[c(3:92), "h0ec000433"] <- bench_fwd[3:92]
+  third_fwd_ret_xts@data[92, "h4c37ff6e6"] <- bench_fwd[92]
 
   tickers_universe_m_d_ref <- summarize_performance(third_fwd_ret_xts@data, bench_fwd,
                                                     model_structure = "no_pooled",
@@ -971,20 +971,20 @@ test_that("create_target_m_df works in an update workflow", {
 
   #Get obs for next 3 months beginning in 2001-11-15
   ticker_1_fwd_ret <- update_presilver_daily_m_df@data %>%
-    dplyr::filter(tickers == ticker_1, dates >= as.Date("2001-12-15"), dates <= as.Date("2002-03-15"))
+    dplyr::filter(tickers == ticker_1, dates > as.Date("2001-12-15"), dates <= as.Date("2002-03-15"))
   ticker_2_fwd_ret <- update_presilver_daily_m_df@data %>%
-    dplyr::filter(tickers == ticker_2, dates >= as.Date("2001-12-15"), dates <= as.Date("2002-03-15"))
+    dplyr::filter(tickers == ticker_2, dates > as.Date("2001-12-15"), dates <= as.Date("2002-03-15"))
   ticker_3_fwd_ret <- update_presilver_daily_m_df@data %>%
-    dplyr::filter(tickers == ticker_3, dates >= as.Date("2001-12-15"), dates <= as.Date("2002-03-15"))
+    dplyr::filter(tickers == ticker_3, dates > as.Date("2001-12-15"), dates <= as.Date("2002-03-15"))
   ticker_4_fwd_ret <- update_presilver_daily_m_df@data %>%
-    dplyr::filter(tickers == ticker_4, dates >= as.Date("2001-12-15"), dates <= as.Date("2002-03-15"))
+    dplyr::filter(tickers == ticker_4, dates > as.Date("2001-12-15"), dates <= as.Date("2002-03-15"))
   ticker_5_fwd_ret <- update_presilver_daily_m_df@data %>%
-    dplyr::filter(tickers == ticker_5, dates >= as.Date("2001-12-15"), dates <= as.Date("2002-03-15"))
+    dplyr::filter(tickers == ticker_5, dates > as.Date("2001-12-15"), dates <= as.Date("2002-03-15"))
   ticker_6_fwd_ret <- update_presilver_daily_m_df@data %>%
-    dplyr::filter(tickers == ticker_6, dates >= as.Date("2001-12-15"), dates <= as.Date("2002-03-15"))
+    dplyr::filter(tickers == ticker_6, dates > as.Date("2001-12-15"), dates <= as.Date("2002-03-15"))
 
   #Get bench returns for next 3 months
-  bench_fwd <- daily_bench_returns_m_xts@data["2001-12-15/2002-03-15", "ibov"]
+  bench_fwd <- daily_bench_returns_m_xts@data["2001-12-16/2002-03-15", "ibov"]
 
   #get meta_xts
   joined_tickers_df <- ticker_1_fwd_ret %>% dplyr::bind_rows(ticker_2_fwd_ret) %>% dplyr::bind_rows(ticker_3_fwd_ret) %>%
@@ -998,8 +998,8 @@ test_that("create_target_m_df works in an update workflow", {
     fourth_fwd_ret_xts <- create_meta_xts(joined_tickers_df, data_format = "long")
   )
 
-  fourth_fwd_ret_xts@data[c(63:91), "h4c37ff6e6"] <- bench_fwd[c(63:91)]
-  fourth_fwd_ret_xts@data[c(89:91), "h9f6bf2400"] <- bench_fwd[c(89:91)] #fill for ipo (was delisted)
+  fourth_fwd_ret_xts@data[c(62:90), "h4c37ff6e6"] <- bench_fwd[c(62:90)]
+  fourth_fwd_ret_xts@data[c(88:90), "h9f6bf2400"] <- bench_fwd[c(88:90)] #fill for ipo (was delisted)
 
 
   tickers_universe_m_d_ref <- summarize_performance(fourth_fwd_ret_xts@data, bench_fwd,

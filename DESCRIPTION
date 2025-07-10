@@ -1,6 +1,6 @@
 Package: factoRverse
 Title: Portfolio Construction with ML-Based and Characteristics-Based Signals
-Version: 0.3.0
+Version: 0.3.1
 Authors@R: 
 	person("Paulo", "Guimarães", , "paulo.guimaraes871@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "0009-0002-2719-7731"))

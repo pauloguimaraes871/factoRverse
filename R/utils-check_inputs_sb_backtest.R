@@ -100,8 +100,8 @@ check_inputs_sb_backtest <- function(
     stop("rebalancing_months should be numeric.")
   }
 
-  if(rebalancing_months < 0 || rebalancing_months > 12){
-    stop("rebalancing_months should be between 1 and 12.")
+  if (any(rebalancing_months < 1 | rebalancing_months > 12)) {
+    stop("All values of rebalancing_months should be between 1 and 12.")
   }
 
   #Check structure of target_fwd_name

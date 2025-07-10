@@ -343,8 +343,16 @@ setClass(
     # Check if any group does not satisfy the condition
     if(any(!res_long$check_sum)) {
       problematic <- res_long %>% dplyr::filter(!check_sum)
-      stop(paste("Weights do not sum to 1 for the following variable-date combinations:",
-                 paste0(problematic$variable, " at ", problematic$dates, collapse = "; ")))
+
+      ##If problematic$variable is only bench_weights, issue a warning instead of stopping
+      if(all(problematic$variable == "bench_weights")) {
+        warning(paste("Weights do not sum to 1 for the following variable-date combinations:",
+                      paste0(problematic$variable, " at ", problematic$dates, collapse = "; ")))
+        return(TRUE)
+      } else {
+        stop(paste("Weights do not sum to 1 for the following variable-date combinations:",
+                   paste0(problematic$variable, " at ", problematic$dates, collapse = "; ")))
+      }
     }
 
     return(TRUE)

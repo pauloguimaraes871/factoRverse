@@ -619,6 +619,19 @@ test_that("compute_window computes correct sd values for random NAs, only unique
   expect_equal(alpha_C[3], NA_real_) #Repeated
   expect_equal(alpha_C[4], sd(c(5,2)))
 
+  #For Stock A - Beta (note that min_non_na is appleid after only_unique)
+  features_m_df <- compute_window(features_m_df, period = 3, signal = "Beta", min_non_na = 3, FUN = "sd", only_unique = TRUE)
+
+  beta_A <- features_m_df@data %>%
+    dplyr::filter(tickers == "Stock A") %>%
+    dplyr::arrange(dates) %>%
+    dplyr::pull(Beta_sd_roll_3m)
+
+
+  expect_equal(beta_A[1], NA_real_)
+  expect_equal(beta_A[2], NA_real_)
+  expect_equal(beta_A[3], NA_real_) #Repeated
+  expect_equal(beta_A[4], sd(c(-3,4,6)))
 })
 
 test_that("compute_window computes correct mean_std values for Infs", {
@@ -704,51 +717,69 @@ test_that("compute_window works correctly window = SEASONAL", {
     features_names = c("Alpha", "Beta", "Gamma", "Delta")
   )
 
-  #Period = 1
-  features_m_df <- compute_window(features_m_df, period = 1, signal = "Alpha", FUN = "mean_std", window = "fwd_seasonal")
+  #Period = 24
+  features_m_df <- compute_window(features_m_df, period = 24, signal = "Alpha", FUN = "mean_std", window = "seasonal",
+                                  offset_months = c(1:3))
 
   # For Stock A
   alpha_A <- features_m_df@data %>%
     dplyr::filter(tickers == "Stock A") %>%
     dplyr::arrange(dates) %>%
-    dplyr::pull(Alpha_mean_std_fwd_seas_1m)
+    dplyr::pull(Alpha_mean_std_seas_24m)
 
   #Expect all NAs until there are at least two past obs
-  expect_true(all(is.na(alpha_A[1:23])))
-  expect_equal(alpha_A[24], mean_std(c(9,0)))
-  expect_equal(alpha_A[25], mean_std(c(-3,2)))
-  expect_equal(alpha_A[26], mean_std(c(5,12)))
-  expect_equal(alpha_A[35], mean_std(c(15,6)))
+  expect_true(all(is.na(alpha_A[1:10])))
+  expect_equal(alpha_A[11], mean_std(c(9,-3)))
+  expect_equal(alpha_A[12], mean_std(c(9,-3, 5)))
+  expect_equal(alpha_A[13], mean_std(c(-3, 5, 8)))
+  expect_equal(alpha_A[25], mean_std(c(-3,5,8,2,12,15)))
+  expect_equal(alpha_A[35], mean_std(c(15,0,2,6,8,9))) #Only 24 months
 
-  #Period = 3
-  features_m_df <- compute_window(features_m_df, period = 3, signal = "Beta", FUN = "sd", window = "fwd_seasonal")
+  #Period = 36m
+  features_m_df <- compute_window(features_m_df, period = 36, signal = "Beta", FUN = "sd", window = "seasonal",
+                                  offset_months = c(0)
+                                  )
 
   # For Stock A
   Beta_A <- features_m_df@data %>%
     dplyr::filter(tickers == "Stock A") %>%
     dplyr::arrange(dates) %>%
-    dplyr::pull(Beta_sd_fwd_seas_3m)
+    dplyr::pull(Beta_sd_seas_36m)
 
   #Expect all NAs until there are at least two past obs
-  expect_true(all(is.na(Beta_A[1:10])))
-  expect_equal(Beta_A[11], sd(c(0,5)))
-  expect_equal(Beta_A[20], sd(c(10,-3,6)))
-  expect_equal(Beta_A[35], sd(c(0,5,14,8,-4,5,14,-1)))
+  expect_true(all(is.na(Beta_A[1:12])))
+  expect_equal(Beta_A[13], sd(c(8,0)))
+  expect_equal(Beta_A[20], sd(c(15,14)))
+  expect_equal(Beta_A[35], sd(c(6,15,2)))
 
-  #Period = 0
-  features_m_df <- compute_window(features_m_df, period = 0, signal = "Gamma", FUN = "median", window = "fwd_seasonal")
+  #Period = 12
+  features_m_df <- compute_window(features_m_df, period = 12, signal = "Gamma", FUN = "median", window = "seasonal",
+                                  offset_months = c(1))
 
   # For Stock A
   Gamma_A <- features_m_df@data %>%
     dplyr::filter(tickers == "Stock A") %>%
     dplyr::arrange(dates) %>%
-    dplyr::pull(Gamma_median_fwd_seas_0m)
+    dplyr::pull(Gamma_median_seas_12m)
 
-  #For median, no NAs
-  expect_equal(Gamma_A[1], 12)
-  expect_equal(Gamma_A[20], median(c(6,11)))
-  expect_equal(Gamma_A[35], median(c(4,13,10)))
+  #NAs until 1 complete year
+  expect_true(all(is.na(Gamma_A[1:11])))
+  expect_equal(Gamma_A[12], 12)
+  expect_equal(Gamma_A[20], -4)
+  expect_equal(Gamma_A[35], median(c(0)))
 
+  #Period = 12
+  features_m_df <- compute_window(features_m_df, period = 12, signal = "Gamma", FUN = "median", window = "seasonal",
+                                  offset_months = c(1), min_non_na = 2)
+
+  # For Stock A
+  Gamma_A <- features_m_df@data %>%
+    dplyr::filter(tickers == "Stock A") %>%
+    dplyr::arrange(dates) %>%
+    dplyr::pull(Gamma_median_seas_12m)
+
+  #NAs until 1 complete year
+  expect_true(all(is.na(Gamma_A)))
 
 
 })
@@ -774,13 +805,13 @@ test_that("compute_window works when small meta_dataframe is being used", {
   )
 
   #Period = 1
-  features_m_df <- compute_window(features_m_df, period = 1, signal = "Alpha", FUN = "mean_std", window = "fwd_seasonal")
+  features_m_df <- compute_window(features_m_df, period = 1, signal = "Alpha", FUN = "mean_std", window = "seasonal")
 
   # For Stock A
   alpha_A <- features_m_df@data %>%
     dplyr::filter(tickers == "Stock A") %>%
     dplyr::arrange(dates) %>%
-    dplyr::pull(Alpha_mean_std_fwd_seas_1m)
+    dplyr::pull(Alpha_mean_std_seas_1m)
 
   #Expect all NAs until there are at least two past obs
   expect_true(all(is.na(alpha_A)))
@@ -849,7 +880,7 @@ test_that("compute_window correctly computes CAGR for different periods and sign
 
 })
 
-test_that("compute_window correctly sensibilizes periods for CAGR, assigning NA when length < period + 1", {
+test_that("compute_window correctly sensibilizes periods for CAGR, assigning NA when last value not available", {
 
   # Create meta_dataframe
   meta_df <- create_meta_dataframe(
@@ -879,7 +910,7 @@ test_that("compute_window correctly sensibilizes periods for CAGR, assigning NA 
     features_names = c("Alpha", "Beta", "Gamma", "Delta")
   )
 
-  meta_df <- compute_window(meta_df, period = 2, signal = "Alpha", FUN = "cagr", min_non_na = 1)
+  meta_df <- compute_window(meta_df, period = 2, signal = "Alpha", FUN = "cagr", min_non_na = 0)
 
   alpha_A <- meta_df@data %>%
     dplyr::filter(tickers == "Stock A") %>%
@@ -891,17 +922,6 @@ test_that("compute_window correctly sensibilizes periods for CAGR, assigning NA 
   expect_equal(alpha_A[3], cagr(3, 4, 2))
   expect_equal(alpha_A[4], cagr(3, 5, 2))
 
-  meta_df <- compute_window(meta_df, period = 3, signal = "Alpha", FUN = "cagr", min_non_na = 10)
-
-  alpha_A <- meta_df@data %>%
-    dplyr::filter(tickers == "Stock A") %>%
-    dplyr::arrange(dates) %>%
-    dplyr::pull(Alpha_cagr_roll_3m)
-
-  expect_true(is.na(alpha_A[1]))  # No previous record for first date
-  expect_true(is.na(alpha_A[2]))
-  expect_true(is.na(alpha_A[3]))
-  expect_equal(alpha_A[4], cagr(3, 5, 3))
 
   meta_df <- compute_window(meta_df, period = 1, signal = "Alpha", FUN = "cagr")
 
@@ -914,6 +934,22 @@ test_that("compute_window correctly sensibilizes periods for CAGR, assigning NA 
   expect_equal(alpha_A[2], cagr(3, 3, 1))
   expect_equal(alpha_A[3], cagr(3, 4, 1))
   expect_equal(alpha_A[4], cagr(4, 5, 1))
+
+
+  #Remove 2001-04-15 only for Ticker A
+  meta_df@data <- meta_df@data %>%
+    dplyr::filter(!id == "Stock A-2001-04-15")
+
+  meta_df <- compute_window(meta_df, period = 2, signal = "Alpha", FUN = "cagr", min_non_na = 0)
+
+  alpha_A <- meta_df@data %>%
+    dplyr::filter(tickers == "Stock A") %>%
+    dplyr::arrange(dates) %>%
+    dplyr::pull(Alpha_cagr_roll_2m)
+
+  expect_true(is.na(alpha_A[1]))  # No previous record for first date
+  expect_equal(alpha_A[2], cagr(begin = 3, final = 4, 2)) #For month 5, use month 3 as reference
+  expect_true(is.na(alpha_A[3]))
 
 })
 
@@ -981,9 +1017,9 @@ test_that("compute_window correctly computes sur using unique_values = TRUE and 
     dplyr::pull(Alpha_sur_roll_2m)
 
   expect_true(is.na(alpha_A[1]))  # No previous record for first date
-  expect_equal(alpha_A[2], sur(3, c(10)))
+  expect_equal(alpha_A[2], sur(3, c(10, 3)))
   expect_equal(alpha_A[3], sur(3, c(10, 3)))
-  expect_equal(alpha_A[4], (9 - mean(c(3)))/sd(c(3))) #Makes sure it takes 9 as most recent
+  expect_equal(alpha_A[4], (9 - mean(c(3,9)))/sd(c(3,9))) #Makes sure it takes 9 as most recent
 
   alpha_B <- features_m_df@data %>%
     dplyr::filter(tickers == "Stock B") %>%
@@ -991,9 +1027,9 @@ test_that("compute_window correctly computes sur using unique_values = TRUE and 
     dplyr::pull(Alpha_sur_roll_2m)
 
   expect_true(is.na(alpha_B[1]))  # No previous record for first date
-  expect_equal(alpha_B[2], sur(1, c(3)))
-  expect_equal(alpha_B[3], sur(4, c(1,3)))
-  expect_equal(alpha_B[4], (9 - mean(c(4,1)))/sd(c(4,1))) #Makes sure it takes 9 as most recent
+  expect_equal(alpha_B[2], sur(1, c(3,1)))
+  expect_equal(alpha_B[3], sur(4, c(1,3,4)))
+  expect_equal(alpha_B[4], (9 - mean(c(4,1,9)))/sd(c(4,1,9))) #Makes sure it takes 9 as most recent
 
   alpha_C <- features_m_df@data %>%
     dplyr::filter(tickers == "Stock C") %>%
@@ -1001,12 +1037,14 @@ test_that("compute_window correctly computes sur using unique_values = TRUE and 
     dplyr::pull(Alpha_sur_roll_2m)
 
   expect_true(is.na(alpha_C[1]))  # No previous record for first date
-  expect_equal(alpha_C[2], sur(5, c(10)))
-  expect_equal(alpha_C[3], sur(2, c(10,5)))
+  expect_equal(alpha_C[2], sur(5, c(10,5)))
+  expect_equal(alpha_C[3], sur(2, c(10,5,2)))
   expect_equal(alpha_C[4], sur(5, c(2,5))) #Makes sure it takes 5 as most recent
 
   #Compute sur
-  features_m_df <- compute_window(features_m_df, period = 3, signal = "Gamma", FUN = "sur", only_unique = TRUE)
+  features_m_df@data[1,6] <- NA
+  features_m_df <- compute_window(features_m_df, period = 3, signal = "Gamma", FUN = "sur", only_unique = TRUE,
+                                  min_non_na = 2)
 
   Gamma_A <- features_m_df@data %>%
     dplyr::filter(tickers == "Stock A") %>%
@@ -1014,9 +1052,9 @@ test_that("compute_window correctly computes sur using unique_values = TRUE and 
     dplyr::pull(Gamma_sur_roll_3m)
 
   expect_true(is.na(Gamma_A[1]))  # No previous record for first date
-  expect_equal(Gamma_A[2], (11 - mean(c(8)))/sd(c(8)))
-  expect_equal(Gamma_A[3], (13 - mean(c(11,8)))/sd(c(11,8)))
-  expect_equal(Gamma_A[4], (-3 - mean(c(13,11,8)))/sd(c(11,13,8))) #Makes sure it takes -3 as most recent
+  expect_equal(Gamma_A[2], NA_real_)
+  expect_equal(Gamma_A[3], (13 - mean(c(11,13)))/sd(c(11,13)))
+  expect_equal(Gamma_A[4], (-3 - mean(c(13,11,-3)))/sd(c(11,13,-3))) #Makes sure it takes -3 as most recent
 
   Gamma_B <- features_m_df@data %>%
     dplyr::filter(tickers == "Stock B") %>%
@@ -1026,7 +1064,7 @@ test_that("compute_window correctly computes sur using unique_values = TRUE and 
   expect_true(is.na(Gamma_B[1]))  # No previous record for first date
   expect_true(is.na(Gamma_B[2]))
   expect_true(is.na(Gamma_B[3]))
-  expect_equal(Gamma_B[4], (2 - mean(c(2)))/sd(c(2))) #Makes sure it takes 2 as most recent
+  expect_equal(Gamma_B[4], (2 - mean(c(2,11)))/sd(c(2,11))) #Makes sure it takes 2 as most recent
 
 
   Gamma_C <- features_m_df@data %>%
@@ -1035,9 +1073,54 @@ test_that("compute_window correctly computes sur using unique_values = TRUE and 
     dplyr::pull(Gamma_sur_roll_3m)
 
   expect_true(is.na(Gamma_C[1]))  # No previous record for first date
-  expect_equal(Gamma_C[2], (13 - mean(c(4)))/sd(c(4)))
-  expect_equal(Gamma_C[3], (10 - mean(c(13,4)))/sd(c(13,4)))
+  expect_equal(Gamma_C[2], (13 - mean(c(4,13)))/sd(c(4,13)))
+  expect_equal(Gamma_C[3], (10 - mean(c(13,4,10)))/sd(c(13,4,10)))
   expect_equal(Gamma_C[4], (13 - mean(c(10,13,4)))/sd(c(10,13,4))) #Makes sure it takes 9 as most recent
+
+
+})
+
+test_that("compute_window correctly computes sur using unique_values = TRUE and min_non_na > 3", {
+
+  features_m_df <- create_meta_dataframe(
+    list(
+      matrix(c(10, 3, 10, 3,
+               1, 5, 3, 4,
+               2, 9, 9, 5),
+             nrow = 3, ncol = 4),
+      matrix(c(4, 7, 5, 6,
+               5, 2, 4, 7,
+               6, -3, -2, 8),
+             nrow = 3, ncol = 4),
+      matrix(c(8, 11, 4, NA,
+               11, 13, 13, 11,
+               10, -3, 2, 13),
+             nrow = 3, ncol = 4),
+      matrix(c(3, 8, 5, 9,
+               7, -1, -2, 8,
+               9, 0, 0, 7),
+             nrow = 3, ncol = 4)
+    ),
+    tickers = c("Stock A", "Stock B", "Stock C"),
+    dates = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15", "2001-06-15")),
+    features_names = c("Alpha", "Beta", "Gamma", "Delta")
+  )
+
+
+  #Compute sur
+  features_m_df <- compute_window(features_m_df, period = 3, signal = "Gamma", FUN = "sur", only_unique = TRUE,
+                                  min_non_na = 3)
+
+  Gamma_A <- features_m_df@data %>%
+    dplyr::filter(tickers == "Stock A") %>%
+    dplyr::arrange(dates) %>%
+    dplyr::pull(Gamma_sur_roll_3m)
+
+  expect_true(is.na(Gamma_A[1]))  # No previous record for first date
+  expect_equal(Gamma_A[2], NA_real_)
+  expect_equal(Gamma_A[3], (13 - mean(c(NA,8)))/sd(c(NA,8))) #Only 2 non-NAs
+  expect_equal(Gamma_A[4], (-3 - mean(c(13,8,-3)))/sd(c(13,8,-3))) #Makes sure it takes -3 as most recent
+
 
 
 })
@@ -1061,7 +1144,7 @@ test_that("compute_window correctly computes cagr - real data", {
 
 
   #Compute sur
-  features_m_df <- compute_window(panel, period = 2, signal = "ebit_12m", FUN = "cagr", only_unique = FALSE, feature_name = "ebit_12m_cagr_2m", min_non_na = 1)
+  features_m_df <- compute_window(panel, period = 2, signal = "ebit_12m", FUN = "cagr", only_unique = FALSE, feature_name = "ebit_12m_cagr_2m", min_non_na = 0)
 
   RRRP3 <- features_m_df@data %>%
     dplyr::filter(tickers == "RRRP3") %>%
@@ -1147,7 +1230,7 @@ test_that("compute_window errors if the window is wrong", {
 
   expect_error(
     compute_window(features_m_df, period = 1, signal = "Alpha", window = "organized", FUN = "cagr"),
-    "Invalid window type. Must be either 'rolling' or 'fwd_seasonal'."
+    "Invalid window type. Must be either 'rolling' or 'seasonal'."
   )
 })
 
@@ -1357,6 +1440,69 @@ test_that("compute_window computes correct idio_vol for period = 3 (Alpha)", {
 
 })
 
+test_that("compute_window computes correct idio_vol for period = 3 (Alpha) when there are holes in dates", {
+
+  features_m_df <- create_meta_dataframe(
+    list(
+      matrix(c(0, 3, 10, 3,
+               1, 7, 4, 4,
+               2, 9, 9, 5),
+             nrow = 3, ncol = 4),
+      matrix(c(4, 7, 5, 6,
+               5, 2, 4, 7,
+               6, -3, -2, 8),
+             nrow = 3, ncol = 4),
+      matrix(c(8, 11, 4, 11,
+               9, -2, 4, 12,
+               10, -3, 2, 13),
+             nrow = 3, ncol = 4),
+      matrix(c(3, 8, 5, 9,
+               7, -1, -2, 8,
+               9, 0, 0, 7),
+             nrow = 3, ncol = 4)
+    ),
+    tickers = c("Stock A", "Stock B", "Stock C"),
+    dates = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15", "2001-06-15")),
+    features_names = c("Alpha", "Beta", "Gamma", "Delta")
+  )
+
+  features_m_df@data <- features_m_df@data[-2,]
+
+  bench_returns_m_xts <- create_meta_xts(
+    xts::xts(data.frame(IBOV = c(-4,-2,4,5),
+                        SMLL = c(1,5,10,5)),
+             order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15", "2001-06-15"))
+    ))
+
+  # Compute sd for "Alpha" with period = 3;
+  features_m_df <- compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol",
+                                  benchmark_returns_m_xts = bench_returns_m_xts, selected_bench = "IBOV")
+
+  # For Stock A:
+  alpha_A <- features_m_df@data %>%
+    dplyr::filter(tickers == "Stock A") %>%
+    dplyr::arrange(dates) %>%
+    dplyr::pull(Alpha_idio_vol_roll_3m)
+
+  expect_equal(alpha_A[1], NA_real_)
+  expect_equal(alpha_A[2], idio_vol(c(0,4), c(-4,-2)))
+  expect_equal(alpha_A[3], idio_vol(c(9,4,0), c(5,4,-4)))
+
+
+  # For Stock B:
+  alpha_B <- features_m_df@data %>%
+    dplyr::filter(tickers == "Stock B") %>%
+    dplyr::arrange(dates) %>%
+    dplyr::pull(Alpha_idio_vol_roll_3m)
+
+  expect_equal(alpha_B[1], NA_real_)
+  expect_equal(alpha_B[2], idio_vol(c(3,1), c(-4,-2)))
+  expect_equal(alpha_B[3], idio_vol(c(3,1,4), c(-4,-2,4)))
+  expect_equal(alpha_B[4], idio_vol(c(3,1,4,9), c(-4,-2,4,5)))
+
+
+})
+
 test_that("compute_window throws an error when bench is wrong is different from features_m_df", {
 
   features_m_df <- create_meta_dataframe(
@@ -1393,7 +1539,7 @@ test_that("compute_window throws an error when bench is wrong is different from 
   # Bench length
   expect_error(compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol",
                               benchmark_returns_m_xts = bench_returns_m_xts, selected_bench = "IBOV"),
-               "Lengths of returns and benchmark returns differ")
+               "The dates in 'benchmark_returns_m_xts' must match those in 'pre_silver_features_m_df")
 
 
   expect_error(compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol",
@@ -1471,7 +1617,7 @@ test_that("compute_window throws an error when window seasonal is used for wrong
   )
 
   # Compute
-  expect_error(compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol", window = "fwd_seasonal", only_unique = FALSE),
+  expect_error(compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "idio_vol", window = "seasonal", only_unique = FALSE),
                "The 'window' argument must be 'rolling' for FUN idio_vol")
 
 })
@@ -1546,6 +1692,17 @@ test_that("compute_window throws an error for wrong data type", {
   expect_error(compute_window(features_m_df, period = 3, signal = "Alpha", FUN = "cagr"),
                "The signal column must be numeric.")
 
+  expect_error(compute_window(features_m_df, period = 3, min_non_na = -2, signal = "Beta", FUN = "cagr"),
+               "The 'min_non_na' argument must be greater or equal to 0.")
+
+  expect_error(compute_window(features_m_df, period = 3, min_non_na = 2, signal = "Beta", FUN = "cagr"),
+               "The 'min_non_na' argument is not supported for FUN cagr")
+
+
+  expect_error(compute_window(features_m_df, period = 3, window = "seasonal", signal = "Beta", FUN = "cagr",
+                              offset_months = NULL),
+               "The 'offset_months' argument must be provided when window is 'seasonal'.")
+
 })
 
 #meta_xts
@@ -1565,7 +1722,7 @@ test_that("compute_window computes correct median values for period = 1 (Alpha) 
   )
 
   # Compute median for "Alpha" with period = 1; new column name will be "Alpha_median_roll_1_m"
-  metrics_m_xts <- compute_window(metrics_m_xts, period = 1, metric = "A", FUN = "median", window = "rolling")
+  metrics_m_xts <- compute_window(metrics_m_xts, period = 1, col_name = "A", FUN = "median", window = "rolling")
 
   # Extract computed values
   metric_values <- metrics_m_xts@data[, "A_median_roll_1m"] %>% as.numeric()
@@ -1589,7 +1746,7 @@ test_that("compute_window computes correct sd values for period = 1 (A) in meta_
     meta_xts_name = "test_xts", type = "metrics"
   )
 
-  metrics_xts <- compute_window(metrics_xts, period = 1, metric = "A", FUN = "sd", min_non_na = 2)
+  metrics_xts <- compute_window(metrics_xts, period = 1, col_name = "A", FUN = "sd", min_non_na = 2)
 
   metric_values <- metrics_xts@data[, "A_sd_roll_1m"] %>% as.numeric()
 
@@ -1613,7 +1770,7 @@ test_that("compute_window computes correct CAGR values for period = 3 (A) in met
     meta_xts_name = "test_xts", type = "metrics"
   )
 
-  metrics_xts <- compute_window(metrics_xts, period = 3, metric = "A", FUN = "cagr")
+  metrics_xts <- compute_window(metrics_xts, period = 3, col_name = "A", FUN = "cagr")
 
   metric_values <- metrics_xts@data[, "A_cagr_roll_3m"] %>% as.numeric()
 
@@ -1622,6 +1779,33 @@ test_that("compute_window computes correct CAGR values for period = 3 (A) in met
   expect_true(is.na(metric_values[3]))
 
   expect_equal(metric_values[4], cagr(2, 1, 3))
+})
+
+test_that("compute_window computes correct CAGR values for period = 3 (A) in meta_xts even when there are missing dates", {
+  metrics_xts <- create_meta_xts(
+    xts::xts(
+      matrix(c(2, 3, 10, 3,
+               1, 7, 4, 4,
+               2, 9, 9, 5,
+               1, 6, 4, -2
+      ),
+      nrow = 4, ncol = 4, byrow = TRUE,
+      dimnames = list(NULL, c("A", "B", "C", "D"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15"))
+    ),
+    meta_xts_name = "test_xts", type = "metrics"
+  )
+
+  metrics_xts@data <- metrics_xts@data[-2,]
+
+  metrics_xts <- compute_window(metrics_xts, period = 2, col_name = "A", FUN = "cagr")
+
+  metric_values <- metrics_xts@data[, "A_cagr_roll_2m"] %>% as.numeric()
+
+  expect_true(is.na(metric_values[1]))  # No previous record for first date
+  expect_equal(metric_values[2], cagr(2,2,2))
+  expect_true(is.na(metric_values[3]))
+
 })
 
 test_that("compute_window computes correct sur values for period = 3 (A) in meta_xts and NAs", {
@@ -1641,23 +1825,107 @@ test_that("compute_window computes correct sur values for period = 3 (A) in meta
     meta_xts_name = "test_xts", type = "metrics"
   )
 
-  metrics_xts <- compute_window(metrics_xts, period = 3, metric = "A", FUN = "sur")
+  metrics_xts <- compute_window(metrics_xts, period = 3, col_name = "A", FUN = "sur")
 
   metric_values <- metrics_xts@data[, "A_sur_roll_3m"] %>% as.numeric()
 
   expect_equal(metric_values[1], sur(2, numeric(0)))
-  expect_equal(metric_values[2], sur(2, c(1)))
-  expect_equal(metric_values[3], sur(NA, c(1,2)))
-  expect_equal(metric_values[4], sur(1, c(NA, 1, 2)))
-  expect_equal(metric_values[5], sur(9, c(1, NA, 1)))
-  expect_equal(metric_values[6], sur(2, c(9, 1, NA)))
+  expect_equal(metric_values[2], sur(1, c(1,2)))
+  expect_equal(metric_values[3], NA_real_)
+  expect_equal(metric_values[4], sur(1, c(NA, 1, 2, 1)))
+  expect_equal(metric_values[5], sur(9, c(1, NA, 1,9)))
+  expect_equal(metric_values[6], sur(2, c(9, 1, NA,2)))
 
   expect_equal(zoo::index(metrics_xts@data) %>% as.character(), as.character(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15")))
 
 
 })
 
-test_that("compute_window computes correct mean_std values for period = 2 (A) in meta_xts and seasonal", {
+test_that("compute_window computes correct sur values for period = 3 (A) in meta_xts and NAs, with min_non_na > 0", {
+  metrics_xts <- create_meta_xts(
+    xts::xts(
+      matrix(c(2, 3, 10, 3,
+               1, 7, NA, 4,
+               NA, 9, 9, 5,
+               1, 6, 4, -2,
+               9, -2, 0, 4,
+               2, 5, 4, 9
+      ),
+      nrow = 6, ncol = 4, byrow = TRUE,
+      dimnames = list(NULL, c("A", "B", "C", "D"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15"))
+    ),
+    meta_xts_name = "test_xts", type = "metrics"
+  )
+
+  metrics_xts <- compute_window(metrics_xts, period = 3, col_name = "A", FUN = "sur", min_non_na = 3)
+
+  metric_values <- metrics_xts@data[, "A_sur_roll_3m"] %>% as.numeric()
+
+  expect_equal(metric_values[1], NA_real_)
+  expect_equal(metric_values[2], NA_real_)
+  expect_equal(metric_values[3], NA_real_)
+  expect_equal(metric_values[4], sur(1, c(1, NA, 1, 2)))
+  expect_equal(metric_values[5], sur(9, c(1, NA, 1, 9)))
+  expect_equal(metric_values[6], sur(2, c(9, 1, NA, 2)))
+
+  expect_equal(zoo::index(metrics_xts@data) %>% as.character(), as.character(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15")))
+
+
+})
+
+test_that("compute_window computes correct idio_vol values for period = 3 (A) in meta_xts, with min_non_na > 0", {
+
+  returns_xts <- create_meta_xts(
+    xts::xts(
+      matrix(c(2, 3, 10, 3,
+               1, 7, 0, 4,
+               0, 9, 9, 5,
+               1, 6, 4, -2,
+               9, -2, 0, 4,
+               2, 5, 4, 9
+      ),
+      nrow = 6, ncol = 4, byrow = TRUE,
+      dimnames = list(NULL, c("A", "B", "C", "D"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15"))
+    ),
+    meta_xts_name = "test_xts", type = "returns", asset_type = "stocks"
+  )
+
+  benchmark_ret_xts <- create_meta_xts(
+    xts::xts(
+      matrix(c(2, 3, 10, 3,
+               1, 7, 0, 4,
+               0, 9, 9, 5
+      ),
+      nrow = 6, ncol = 2, byrow = TRUE,
+      dimnames = list(NULL, c("ibov", "smll"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15"))
+    ),
+    meta_xts_name = "test_xts", type = "returns", asset_type = "benchmarks"
+  )
+
+  expect_warning(
+  returns_xts <- compute_window(returns_xts, period = 3, col_name = "A",
+                                FUN = "idio_vol", benchmark_returns_m_xts = benchmark_ret_xts, selected_bench = "ibov",
+                                min_non_na = 3),
+  "There are NA values in the time series.")
+
+  metric_values <- returns_xts@data[, "A_idio_vol_roll_3m"] %>% as.numeric()
+
+  expect_equal(metric_values[1], NA_real_)
+  expect_equal(metric_values[2], NA_real_)
+  expect_equal(metric_values[3], idio_vol(ret_values = c(0,1,2), bench_ret_values = c(1,10,2)))
+  expect_equal(metric_values[4], idio_vol(ret_values = c(1,0,1,2), bench_ret_values = c(0,1,10,2)))
+  expect_equal(metric_values[5], idio_vol(ret_values = c(9,1,0,1), bench_ret_values = c(0,0,1,10)))
+  expect_equal(metric_values[6], idio_vol(ret_values = c(2, 9,1,0), bench_ret_values = c(9,0,0,1)))
+
+  expect_equal(zoo::index(returns_xts@data) %>% as.character(), as.character(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15")))
+
+
+})
+
+test_that("compute_window computes correct mean_std values for period = 2 (A) in meta_xts", {
 
   dates <- seq.Date(as.Date("2001-03-15"), as.Date("2003-08-15"), by = "month")
   #Generate matrix
@@ -1670,16 +1938,15 @@ test_that("compute_window computes correct mean_std values for period = 2 (A) in
     meta_xts_name = "test_xts", type = "metrics"
   )
 
-  metrics_xts <- compute_window(metrics_xts, period = 2, metric = "A", FUN = "mean_std", window = "fwd_seasonal")
+  metrics_xts <- compute_window(metrics_xts, period = 24, col_name = "A", FUN = "mean_std", window = "rolling",
+                                min_non_na = 23)
 
-  metric_values <- metrics_xts@data[, "A_mean_std_fwd_seas_2m"] %>% as.numeric()
+  metric_values <- metrics_xts@data[, "A_mean_std_roll_24m"] %>% as.numeric()
 
-  expect_true(all(is.na(metric_values[1:11])))
-
-  expect_equal(metric_values[12], mean_std(metrics_xts@data[c(1,2), "A"]))
-  expect_equal(metric_values[15], mean_std(metrics_xts@data[c(4,5), "A"]))
-  expect_equal(metric_values[20], mean_std(metrics_xts@data[c(9,10), "A"]))
-  expect_equal(metric_values[30], mean_std(metrics_xts@data[c(7,8, 19,20), "A"]))
+  expect_true(all(is.na(metric_values[1:22])))
+  expect_equal(metric_values[23], mean_std(metrics_xts@data[c(1:23), "A"]))
+  expect_equal(metric_values[28], mean_std(metrics_xts@data[c(4:28), "A"]))
+  expect_equal(metric_values[30], mean_std(metrics_xts@data[c(6:30), "A"]))
 
 
 })
@@ -1701,7 +1968,7 @@ test_that("compute_window computes correct skew values for period = 3 (A) in met
     meta_xts_name = "test_xts", type = "metrics"
   )
 
-  metrics_xts <- compute_window(metrics_xts, period = 3, metric = "A", FUN = "skew", only_unique = TRUE)
+  metrics_xts <- compute_window(metrics_xts, period = 3, col_name = "A", FUN = "skew", only_unique = TRUE)
 
   metric_values <- metrics_xts@data[, "A_skew_roll_3m"] %>% as.numeric()
 
@@ -1733,8 +2000,8 @@ test_that("compute_window throws errors when metric col is wrong ", {
   )
 
   expect_error(
-    compute_window(metrics_xts, period = 3, metric = "A2", FUN = "skew", only_unique = TRUE),
-    "The metric column does not exist in the xts object."
+    compute_window(metrics_xts, period = 3, col_name = "A2", FUN = "skew", only_unique = TRUE),
+    "The col_name column does not exist in the xts object."
   )
 
   metrics_xts <- create_meta_xts(
@@ -1754,8 +2021,8 @@ test_that("compute_window throws errors when metric col is wrong ", {
   )
 
   expect_error(
-    compute_window(metrics_xts, period = 3, metric = "A", FUN = "skew", only_unique = TRUE),
-    "The metric column must be numeric."
+    compute_window(metrics_xts, period = 3, col_name = "A", FUN = "skew", only_unique = TRUE),
+    "The col_name column must be numeric."
   )
 
 
@@ -1779,29 +2046,96 @@ test_that("compute_window throws errors when FUN or period is wrong ", {
   )
 
   expect_error(
-    compute_window(metrics_xts, period = 3, metric = "A", FUN = "cagr", only_unique = TRUE),
+    compute_window(metrics_xts, period = 3, col_name = "A", FUN = "cagr", only_unique = TRUE),
     "The 'only_unique' is not supported for FUN cagr"
   )
 
   expect_error(
-    compute_window(metrics_xts, period = 3, metric = "A", FUN = "emb", only_unique = TRUE),
+    compute_window(metrics_xts, period = 3, col_name = "A", FUN = "emb", only_unique = TRUE),
     "Unsupported function type"
   )
 
+
   expect_error(
-    compute_window(metrics_xts, period = 3, metric = "A", FUN = "idio_vol", only_unique = FALSE),
-    "The FUN idio_vol is not supported for metrics_meta_xts"
+    compute_window(metrics_xts, period = -3, col_name = "A", FUN = "cagr", only_unique = FALSE)
   )
 
   expect_error(
-    compute_window(metrics_xts, period = -3, metric = "A", FUN = "cagr", only_unique = FALSE)
+    compute_window(metrics_xts, period = 3, col_name = "A", FUN = "cagr", window = "exp"),
+    "The window argument must be rolling for meta_xts method"
+  )
+
+  returns_xts <- create_meta_xts(
+    xts::xts(
+      matrix(c(2, 3, 10, 3,
+               1, 7, 4, 4,
+               2, 9, 9, 5,
+               6, 6, 4, -2,
+               6, 2, 1, 4,
+               2, 3, 4, -3
+      ),
+      nrow = 6, ncol = 4, byrow = TRUE,
+      dimnames = list(NULL, c("A", "B", "C", "D"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15"))
+    ),
+    meta_xts_name = "test_xts", type = "returns"
   )
 
   expect_error(
-    compute_window(metrics_xts, period = 3, metric = "A", FUN = "cagr", window = "exp"),
-    "Invalid window type. Must be either 'rolling' or 'fwd_seasonal'."
+    compute_window(returns_xts, period = 3, col_name = "A", FUN = "cagr"),
+    "The FUN cagr is not supported for returns_meta_xts. Use metrics_meta_xts instead."
   )
 
+  expect_error(
+    compute_window(metrics_xts, period = 3, col_name = "A", FUN = "idio_vol", benchmark_returns_m_xts = returns_xts, selected_bench = "A"),
+    "The FUN idio_vol is not supported for metrics_meta_xts. Use returns_meta_xts instead."
+  )
+
+  expect_error(
+    compute_window(metrics_xts, period = 3, col_name = "A", FUN = "idio_vol", benchmark_returns_m_xts = NULL, selected_bench = "A"),
+    "benchmark_returns_m_xts must be provided for FUN idio_vol"
+  )
+
+
+
+
+})
+
+test_that("compute_window throws errors when benchmark_m_xts does not match", {
+
+  returns_xts <- create_meta_xts(
+    xts::xts(
+      matrix(c(2, 3, 10, 3,
+               1, 7, 0, 4,
+               0, 9, 9, 5,
+               1, 6, 4, -2,
+               9, -2, 0, 4,
+               2, 5, 4, 9
+      ),
+      nrow = 6, ncol = 4, byrow = TRUE,
+      dimnames = list(NULL, c("A", "B", "C", "D"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15"))
+    ),
+    meta_xts_name = "test_xts", type = "returns", asset_type = "stocks"
+  )
+
+  benchmark_ret_xts <- create_meta_xts(
+    xts::xts(
+      matrix(c(2, 3, 10, 3,
+               1, 7, 0, 4
+      ),
+      nrow = 4, ncol = 2, byrow = TRUE,
+      dimnames = list(NULL, c("ibov", "smll"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15"))
+    ),
+    meta_xts_name = "test_xts", type = "returns", asset_type = "benchmarks"
+  )
+
+  expect_error(
+    returns_xts <- compute_window(returns_xts, period = 3, col_name = "A",
+                                  FUN = "idio_vol", benchmark_returns_m_xts = benchmark_ret_xts, selected_bench = "ibov",
+                                  min_non_na = 3),
+    "The dates in pre_silver_m_xts do not match the dates in benchmark_returns_m_xts.")
 
 })
 

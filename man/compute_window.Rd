@@ -3,8 +3,8 @@
 \name{compute_window}
 \alias{compute_window}
 \alias{compute_window,meta_dataframe,numeric,character-method}
-\alias{compute_window,metrics_meta_xts,numeric,character-method}
-\title{Compute Rolling or Fwd Seasonal Calculations for a Given Metric in meta_dataframe or meta_xts}
+\alias{compute_window,meta_xts,numeric,character-method}
+\title{Compute Rolling or Seasonal Calculations for a Given Metric in meta_dataframe or meta_xts}
 \usage{
 compute_window(data, period, FUN, ...)
 
@@ -20,15 +20,18 @@ compute_window(data, period, FUN, ...)
   only_unique = FALSE,
   feature_name = NULL,
   min_non_na = 0,
-  count_condition_fun = NULL
+  count_condition_fun = NULL,
+  offset_months = 0
 )
 
-\S4method{compute_window}{metrics_meta_xts,numeric,character}(
+\S4method{compute_window}{meta_xts,numeric,character}(
   data,
   period,
   FUN,
   window = "rolling",
-  metric,
+  col_name,
+  benchmark_returns_m_xts = NULL,
+  selected_bench = NULL,
   na.rm = TRUE,
   only_unique = FALSE,
   feature_name = NULL,
@@ -38,11 +41,7 @@ compute_window(data, period, FUN, ...)
 \arguments{
 \item{data}{A \code{meta_dataframe} or \code{meta_xts} object.}
 
-\item{period}{A \code{numeric} value indicating the time window:
-\itemize{
-\item For \code{rolling}, the number of months to look back.
-\item For \code{fwd_seasonal}, the number of months to look ahead.
-}}
+\item{period}{A \code{numeric} value indicating the time window:}
 
 \item{FUN}{A \code{character} specifying the function to apply. Supported options:
 \itemize{
@@ -51,7 +50,7 @@ compute_window(data, period, FUN, ...)
 
 \item{...}{Additional arguments passed to the function.}
 
-\item{window}{A \code{character} specifying the window type: either "rolling" (default) or "fwd_seasonal".}
+\item{window}{A \code{character} specifying the window type: either "rolling" (default) or "seasonal".}
 
 \item{signal}{(For \code{meta_dataframe}) A \code{character} specifying the column name on which the rolling function is computed.}
 
@@ -73,7 +72,9 @@ compute_window(data, period, FUN, ...)
 \item{count_condition_fun}{A function that takes a numeric vector and returns a logical vector.
 The function should return \code{TRUE} for elements that should be counted. Only used for FUN = "count_if".}
 
-\item{metric}{(For \code{meta_xts}) A \code{character} specifying the metric column name.}
+\item{offset_months}{A \code{numeric} value specifying the number of months to offset ahead or backwards for \code{seasonal} window type.}
+
+\item{col_name}{(For \code{meta_xts}) A \code{character} specifying the column name.}
 }
 \value{
 A modified \code{meta_dataframe} or \code{meta_xts} object with an additional column named \code{"<metric>_<window>_<period>_<FUN>"},
