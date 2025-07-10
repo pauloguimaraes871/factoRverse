@@ -14,7 +14,7 @@
 #' @param FUN A `character` specifying the function to apply. Supported options:
 #'   - "median", "sd", "cagr", "skew", "sur", "mean_std", "res_mom", "idio_vol".
 #' @param signal (For `meta_dataframe`) A `character` specifying the column name on which the rolling function is computed.
-#' @param metric (For `meta_xts`) A `character` specifying the metric column name.
+#' @param col_name (For `meta_xts`) A `character` specifying the column name.
 #' @param benchmark_returns_m_xts A `meta_xts` object. Required for `FUN` "res_mom" and "idio_vol".
 #' @param selected_bench A `character` specifying the column name in `benchmark_returns_m_xts@data` to use. Required for `FUN` "res_mom" and "idio_vol".
 #' @param na.rm A `logical` indicating whether to remove `NA` values (default: TRUE).
@@ -125,6 +125,10 @@ setMethod("compute_window",
               if (!all(pre_silver_features_m_df$dates %in% zoo::index(benchmark_returns_m_xts))) {
                 stop("The dates in 'benchmark_returns_m_xts' must match those in 'pre_silver_features_m_df'.")
               }
+              ##Check that dates in benchmark_returns_m_xts are ascending
+              if (!all(diff(zoo::index(benchmark_returns_m_xts)) > 0)) {
+                stop("The dates in 'benchmark_returns_m_xts' must be in ascending order.")
+              }
             }
             if (FUN != "count_if" && !is.null(count_condition_fun)) {
               stop("The 'count_condition_fun' argument is only supported for FUN 'count_if'.")
@@ -221,7 +225,7 @@ setMethod("compute_window",
                 ###Do the same for benchmark if it is not NULL
                 if (!is.null(benchmark_returns_m_xts)){
                   ####Extract rolling window for benchmark from benchmark_returns_m_xts
-                  selected_bench_ret_values <- as.numeric(benchmark_returns_m_xts[zoo::index(benchmark_returns_m_xts) >= lower_date & zoo::index(benchmark_returns_m_xts) <= current_row_date, selected_bench])
+                  selected_bench_ret_values <- as.numeric(benchmark_returns_m_xts[zoo::index(benchmark_returns_m_xts) %in% selected_pre_silver_features_m_df$dates, selected_bench])
                 }
 
               ##Returns NA in case of certain conditions
@@ -379,7 +383,7 @@ setMethod("compute_window",
                 stop("The 'selected_bench' argument must be provided for FUN ", FUN)
               }
               ##Check that dates between benchmark and pre_silver_m_xts match
-              if (!all(zoo::index(pre_silver_m_xts) %in% zoo::index(benchmark_returns_m_xts))) {
+              if (!identical(zoo::index(pre_silver_m_xts), zoo::index(benchmark_returns_m_xts))) {
                 stop("The dates in pre_silver_m_xts do not match the dates in benchmark_returns_m_xts.")
               }
             }
