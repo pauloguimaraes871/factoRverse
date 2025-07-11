@@ -1908,17 +1908,17 @@ test_that("compute_window computes correct idio_vol values for period = 3 (A) in
   expect_warning(
   returns_xts <- compute_window(returns_xts, period = 3, col_name = "A",
                                 FUN = "idio_vol", benchmark_returns_m_xts = benchmark_ret_xts, selected_bench = "ibov",
-                                min_non_na = 3),
+                                min_non_na = 3, specific_dates = as.Date(c("2001-04-15", "2001-06-15", "2001-07-15"))),
   "There are NA values in the time series.")
 
   metric_values <- returns_xts@data[, "A_idio_vol_roll_3m"] %>% as.numeric()
 
   expect_equal(metric_values[1], NA_real_)
   expect_equal(metric_values[2], NA_real_)
-  expect_equal(metric_values[3], idio_vol(ret_values = c(0,1,2), bench_ret_values = c(1,10,2)))
+  expect_equal(metric_values[3], NA_real_)
   expect_equal(metric_values[4], idio_vol(ret_values = c(1,0,1,2), bench_ret_values = c(0,1,10,2)))
   expect_equal(metric_values[5], idio_vol(ret_values = c(9,1,0,1), bench_ret_values = c(0,0,1,10)))
-  expect_equal(metric_values[6], idio_vol(ret_values = c(2, 9,1,0), bench_ret_values = c(9,0,0,1)))
+  expect_equal(metric_values[6], NA_real_)
 
   expect_equal(zoo::index(returns_xts@data) %>% as.character(), as.character(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15")))
 
@@ -1968,7 +1968,8 @@ test_that("compute_window computes correct skew values for period = 3 (A) in met
     meta_xts_name = "test_xts", type = "metrics"
   )
 
-  metrics_xts <- compute_window(metrics_xts, period = 3, col_name = "A", FUN = "skew", only_unique = TRUE)
+  metrics_xts <- compute_window(metrics_xts, period = 3, col_name = "A", FUN = "skew", only_unique = TRUE,
+                                specific_dates = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15", "2001-06-15", "2001-08-15")))
 
   metric_values <- metrics_xts@data[, "A_skew_roll_3m"] %>% as.numeric()
 
@@ -1976,7 +1977,7 @@ test_that("compute_window computes correct skew values for period = 3 (A) in met
   expect_equal(metric_values[2], skew(c(2, 1)))
   expect_equal(metric_values[3], skew(c(2, 1)))
   expect_equal(metric_values[4], skew(c(6, 2, 1)))
-  expect_equal(metric_values[5], skew(c(6, 2, 1)))
+  expect_equal(metric_values[5], NA_real_)
   expect_equal(metric_values[6], skew(c(6, 2)))
 
 

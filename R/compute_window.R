@@ -25,6 +25,7 @@
 #' @param count_condition_fun A function that takes a numeric vector and returns a logical vector.
 #' The function should return `TRUE` for elements that should be counted. Only used for FUN = "count_if".
 #' @param offset_months A `numeric` value specifying the number of months to offset ahead or backwards for `seasonal` window type.
+#' @param specific_dates A `Date` vector specifying specific dates to consider for the rolling calculation.
 #' @param ... Additional arguments passed to the function.
 #'
 #' @return A modified `meta_dataframe` or `meta_xts` object with an additional column named `"<metric>_<window>_<period>_<FUN>"`,
@@ -328,7 +329,7 @@ setMethod("compute_window",
           signature(data = "meta_xts", period = "numeric", FUN = "character"),
           function(data, period, FUN, window = "rolling",
                    col_name, benchmark_returns_m_xts = NULL, selected_bench = NULL, na.rm = TRUE,
-                   only_unique = FALSE, feature_name = NULL, min_non_na = 0) {
+                   only_unique = FALSE, feature_name = NULL, min_non_na = 0, specific_dates = NULL) {
 
             #Extract relevant elements
             ###############
@@ -369,6 +370,9 @@ setMethod("compute_window",
             if (window != "rolling"){
               stop("The window argument must be rolling for meta_xts method")
             }
+            if (!is.null(specific_dates) && !inherits(specific_dates, "Date")) {
+              stop("The specific_dates argument must be of class 'Date'.")
+            }
             ##Additional Checks for FUN types
             if (FUN %in% c("res_mom", "idio_vol", "lag")) {
               if (window != "rolling"){
@@ -399,12 +403,26 @@ setMethod("compute_window",
 
             #Compute rolling values
             ###############
-            rolling_values <- xts::xts(rep(NA_real_, nrow(pre_silver_m_xts)), order.by = zoo::index(pre_silver_m_xts))
+              ##Init object
+              rolling_values <- xts::xts(rep(NA_real_, nrow(pre_silver_m_xts)), order.by = zoo::index(pre_silver_m_xts))
+
+              ##Get indices
+              row_indices <- if (is.null(specific_dates)) {
+                seq_len(nrow(pre_silver_m_xts))
+              } else {
+                which(zoo::index(pre_silver_m_xts) %in% specific_dates)
+              }
 
               ##Loop through xts
-              for (i in seq_len(nrow(pre_silver_m_xts))) {
+              for (i in row_indices) {
                 current_row_date <- zoo::index(pre_silver_m_xts)[i]
                 lower_date <- lubridate::add_with_rollback(current_row_date, -months(period))
+
+                ###Check if the current row date is in the specific dates
+                if (!is.null(specific_dates) && !(current_row_date %in% specific_dates)) {
+                  rolling_values[i] <- NA_real_
+                  next
+                }
 
                 ###Rolling window
                 selected_xts <- pre_silver_m_xts[zoo::index(pre_silver_m_xts) >= lower_date &
@@ -442,7 +460,7 @@ setMethod("compute_window",
                 ###Do the same for benchmark if it is not NULL
                 if (!is.null(benchmark_returns_m_xts)){
                   ####Extract rolling window for benchmark from benchmark_returns_m_xts
-                  selected_bench_ret_values <- as.numeric(benchmark_returns_m_xts[zoo::index(benchmark_returns_m_xts) >= lower_date & zoo::index(benchmark_returns_m_xts) <= current_row_date, selected_bench])
+                  selected_bench_ret_values <- as.numeric(benchmark_returns_m_xts[zoo::index(selected_xts), selected_bench])
                 }
 
                 ###Return NA in case min_non_na is not filled

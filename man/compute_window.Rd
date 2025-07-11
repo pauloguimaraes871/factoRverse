@@ -35,7 +35,8 @@ compute_window(data, period, FUN, ...)
   na.rm = TRUE,
   only_unique = FALSE,
   feature_name = NULL,
-  min_non_na = 0
+  min_non_na = 0,
+  specific_dates = NULL
 )
 }
 \arguments{
@@ -75,6 +76,8 @@ The function should return \code{TRUE} for elements that should be counted. Only
 \item{offset_months}{A \code{numeric} value specifying the number of months to offset ahead or backwards for \code{seasonal} window type.}
 
 \item{col_name}{(For \code{meta_xts}) A \code{character} specifying the column name.}
+
+\item{specific_dates}{A \code{Date} vector specifying specific dates to consider for the rolling calculation.}
 }
 \value{
 A modified \code{meta_dataframe} or \code{meta_xts} object with an additional column named \code{"<metric>_<window>_<period>_<FUN>"},
