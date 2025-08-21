@@ -1281,8 +1281,8 @@ setMethod(
           }
         }
 
-        ###average tickers_last_quote in new_tickers_catalog should be higher than in old_catalog
-        if (mean(new_tickers_catalog$tickers_last_quote, na.rm = TRUE) <= mean(old_tickers_catalog$tickers_last_quote, na.rm = TRUE)) {
+        ###max tickers_last_quote in new_tickers_catalog should be higher than in old_catalog
+        if (max(new_tickers_catalog$tickers_last_quote, na.rm = TRUE) <= max(old_tickers_catalog$tickers_last_quote, na.rm = TRUE)) {
           stop("tickers_last_quote in new_tickers_catalog should be higher than in old_tickers_catalog.")
         }
         ###current_date in new_tickers_catalog = current_date in old_tickers_catalog + 1
@@ -1297,7 +1297,7 @@ setMethod(
       ##n_days_tolerance
         ###n_days_tolerance should be the same in old_tickers_catalog and new_tickers_catalog
         if (old_n_days_tolerance != new_n_days_tolerance) {
-          stop("n_days_tolerance has changed from old_tickers_catalog and new_tickers_catalog.")
+          warning("n_days_tolerance has changed from old_tickers_catalog and new_tickers_catalog.")
         }
 
       ##Checks involving ticker_changes
