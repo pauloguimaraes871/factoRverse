@@ -3838,11 +3838,21 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
   neon_hot_pink <- "#FF69B4"      # Hot Pink
   neon_lime_green <- "#32CD32"    # Lime Green
   neon_bright_orange <- "#FFA500" # Bright Orange
+  neon_turquoise    <- "#30D5C8" # Bright blue-green
+  neon_magenta      <- "#FF00FF" # Classic magenta
+  neon_red          <- "#FF073A" # Intense red
+  neon_cyan         <- "#00FFFF" # Aqua/cyan
+  neon_chartreuse   <- "#7FFF00" # Between yellow and green
+  neon_violet       <- "#EE82EE" # Lighter purple
+  neon_aqua         <- "#00FFEF" # Bright cyan variation
+  neon_gold         <- "#FFD700" # Bright metallic yellow
+  neon_sky_blue     <- "#87CEFA" # Bright pastel blue
 
   # Extended neon palette with 9 colors
   extended_neon_palette <- c(
     neon_blue, neon_pink, neon_yellow, neon_green, neon_orange, neon_purple,
-    neon_hot_pink, neon_lime_green, neon_bright_orange
+    neon_hot_pink, neon_lime_green, neon_bright_orange, neon_turquoise, neon_magenta,
+    neon_red, neon_cyan, neon_chartreuse, neon_violet, neon_aqua, neon_gold, neon_sky_blue
   )
 
   # Extract data from the sb_metabacktest_results object
@@ -6837,7 +6847,7 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_
   if (is.null(vertical_lines)){
     rebalance_dates <- readline(prompt = "Do you want to plot rebalance dates? (yes/no): ")
     if (rebalance_dates %in% c("y", "yes")) {
-      vertical_lines <- as.Date(x@port_backtest_workflow$rebalance_dates)
+      vertical_lines <- as.Date(x@port_backtest_workflow[[length(x@port_backtest_workflow)]]$rebalance_dates)
     }
   }
 

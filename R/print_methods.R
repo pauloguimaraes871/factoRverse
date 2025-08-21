@@ -34,12 +34,6 @@ setMethod("show", "meta_dataframe", function(object) {
   cat(" \nTickers:\n", unique(object@data$tickers), "\n")
   cat("  Number of unique tickers:", object@unique_tickers, "\n")
   cat("\nTotal Observations (n_obs):", object@n_obs, "\n")
-  cat("  \nWorkflow:\n")
-  if(length(object@workflow) == 0){
-    cat("  No workflow set.\n")
-  } else {
-    print(names(object@workflow))
-  }
 
   cat("=================================\n")
 
@@ -83,12 +77,6 @@ setMethod("show", "groups_m_df", function(object) {
   cat(" \nTickers:\n", unique(object@data$tickers), "\n")
   cat("  Number of unique tickers:", object@unique_tickers, "\n")
   cat("\nTotal Observations (n_obs):", object@n_obs, "\n")
-  cat("  \nWorkflow:\n")
-  if(length(object@workflow) == 0){
-    cat("  No workflow set.\n")
-  } else {
-    print(object@workflow)
-  }
 
   cat("=================================\n")
 
@@ -134,12 +122,6 @@ setMethod("show", "signal_universe_m_df", function(object) {
   cat(" \nTickers (Signals):\n", unique(object@data$tickers), "\n")
   cat("  Number of unique tickers:", object@unique_tickers, "\n")
   cat("\nTotal Observations (n_obs):", object@n_obs, "\n")
-  cat("  \nWorkflow:\n")
-  if(length(object@workflow) == 0){
-    cat("  No workflow set.\n")
-  } else {
-    print(object@workflow)
-  }
 
   cat("=================================\n")
 
@@ -243,12 +225,6 @@ setMethod("show", "meta_xts", function(object) {
   cat("Frequency:", object@frequency, "\n")
   cat("Source(s):", paste(unique(object@source), collapse = ", "), "\n")
 
-  cat("  \nWorkflow:\n")
-  if(length(object@workflow) == 0){
-    cat("  No workflow set.\n")
-  } else {
-    print(object@workflow)
-  }
 
   cat("=================================\n")
 
@@ -280,13 +256,6 @@ setMethod("show", "returns_meta_xts", function(object) {
   cat("Number of dates (n_dates):", object@n_dates, "\n")
   cat("Frequency:", object@frequency, "\n")
   cat("Source(s):", paste(unique(object@source), collapse = ", "), "\n")
-
-  cat("  \nWorkflow:\n")
-  if(length(object@workflow) == 0){
-    cat("  No workflow set.\n")
-  } else {
-    print(object@workflow)
-  }
 
   cat("\nAssets Info:\n")
   cat("  asset_type:", object@asset_type, "\n")
@@ -324,12 +293,6 @@ setMethod("show", "metrics_meta_xts", function(object) {
   cat("Frequency:", object@frequency, "\n")
   cat("Source(s):", paste(unique(object@source), collapse = ", "), "\n")
 
-  cat("  \nWorkflow:\n")
-  if(length(object@workflow) == 0){
-    cat("  No workflow set.\n")
-  } else {
-    print(object@workflow)
-  }
 
   cat("\nSeries Info:\n")
   cat("  Metric Name: ", object@metric_name, "\n")
@@ -934,13 +897,6 @@ setMethod("show", "sb_backtest_results", function(object) {
   cat("  Forward Target Name:", sb_backtest_workflow$target_fwd_name, "\n")
   cat("  Target Forward:", sb_backtest_workflow$target_fwd, "\n")
   cat("  Target Object:", sb_backtest_workflow$target_object, "\n")
-  cat("  Target Workflow:\n")
-  if(is.null(sb_backtest_workflow$target_workflow)){
-    cat("    No Target Workflow\n")
-  } else {
-    print(sb_backtest_workflow$target_workflow)
-    cat("\n")
-  }
   cat("\n")
 
 
@@ -951,14 +907,6 @@ setMethod("show", "sb_backtest_results", function(object) {
   cat("  Chosen Signals and Positions:\n")
   print(sb_backtest_workflow$chosen_signals_and_positions)
   cat("Features:", paste(sb_backtest_workflow$features, collapse = ", "), "\n")
-  cat("Features Workflow:\n")
-  if(is.null(sb_backtest_workflow$features_workflow)){
-    cat("    No Features Workflow\n")
-  } else {
-    print(sb_backtest_workflow$features_workflow)
-    cat("\n")
-  }
-
   cat("\n")
 
   if (!is.null(object@final_feature_importance_m_d_ref)){
@@ -1004,13 +952,6 @@ setMethod("show", "sb_backtest_results", function(object) {
   cat("  Elapsed Time:", sb_backtest_workflow$elapsed_time, "seconds\n")
   cat("  Parallel Processing:", sb_backtest_workflow$parallel, "\n")
   cat("=================================\n")
-
-
-  # Display Call Information
-  cat("Call:\n")
-  cat("  Function Call:\n")
-  print(sb_backtest_workflow$call)
-  cat("\n")
 
   cat("  Call Timestamp:\n")
   print(sb_backtest_workflow$timestamps, quotes = FALSE)
@@ -1442,10 +1383,6 @@ setMethod("show", "ss_backtest_results", function(object) {
   cat("  Number of Signals: ", ss_backtest_workflow$n_signals, "\n")
   cat("  Selected Signals with Corrected Positions:\n")
   cat("    ", paste(ss_backtest_workflow$selected_signals_corrected_positions, collapse = ", "), "\n")
-  if (!is.null(ss_backtest_workflow$signals_workflow)) {
-    cat("  Signals Workflow:\n")
-    print(ss_backtest_workflow$signals_workflow)
-  }
   if (!is.null(ss_backtest_workflow$signals_object)) {
     cat("  Signals Object Name: ", ss_backtest_workflow$signals_object, "\n")
   }
@@ -1454,8 +1391,6 @@ setMethod("show", "ss_backtest_results", function(object) {
   # Display Signal Themes Information
   if (!is.null(ss_backtest_workflow$signal_themes_workflow)) {
     cat("Signal Themes Information:\n")
-    cat("  Signal Themes Workflow:\n")
-    print(ss_backtest_workflow$signal_themes_workflow)
     cat("  Signal Themes Object Name: ", ss_backtest_workflow$signal_themes_object, "\n")
     cat("=========================================\n")
   }
@@ -1464,8 +1399,6 @@ setMethod("show", "ss_backtest_results", function(object) {
   if (ss_backtest_workflow$p_correction_method == "bayesian") {
     cat("Priors Information:\n")
     if (!is.null(ss_backtest_workflow$priors_workflow)) {
-      cat("  Priors Workflow:\n")
-      print(ss_backtest_workflow$priors_workflow)
       cat("  Priors Object Name: ", ss_backtest_workflow$priors_object, "\n")
     } else {
       cat("  No priors workflow information available.\n")
@@ -1488,13 +1421,7 @@ setMethod("show", "ss_backtest_results", function(object) {
   }
   cat("=========================================\n")
 
-  # Display Call Information
-  if (!is.null(ss_backtest_workflow$call)) {
-    cat("Call:\n")
-    cat("  Function Call:\n")
-    print(ss_backtest_workflow$call)
-    cat("=========================================\n")
-  }
+
 })
 
 
@@ -1911,11 +1838,6 @@ setMethod("show", "port_backtest_results", function(object) {
   methods::show(object@final_stock_port)
   cat("\n")
 
-  # Display workflow information (call)
-  cat("Call Information:\n")
-  cat("  Function Call:\n")
-  print(workflow$call)
-  cat("\n")
 
   invisible(object)
 })
