@@ -580,8 +580,18 @@ setMethod("run_sb_backtest",
             ##features_m_df
             features_workflow <- features_m_df@workflow #Get workflow
             ###Check for normalization
-            if (!"normalization" %in% unlist(features_workflow)){
-              warning ("Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest.")
+            recipe_idx <- which(stringr::str_detect(names(features_workflow), "preprocessing_recipe"))
+            # First check if there is a preprocessing_recipe
+            if (length(recipe_idx) == 0) {
+              warning("Normalization not found in features_m_df workflow. It is advisable that data is normalized before being fed to run_sb_backtest.")
+            }
+
+            # For each recipe found, check if any numeric transform step is present
+            for (rec in lapply(recipe_idx, function(i) features_workflow[[i]]$recipe)) {
+              steps <- vapply(rec$steps, function(s) class(s)[1], "")
+              if (!any(steps %in% c("step_center", "step_scale", "step_normalize", "step_range"))) {
+                warning("Normalization not found in features_m_df workflow. It is advisable that data is normalized before being fed to run_sb_backtest.")
+              }
             }
             features_object_name <- features_m_df@meta_dataframe_name #Get mdf name
             features_current_date <- features_m_df@current_date #Get current date
