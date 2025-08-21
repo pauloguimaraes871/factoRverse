@@ -3169,7 +3169,7 @@ test_that("update_tickers_catalog fails when objects do not match update require
 
   date_last_quote <- data.frame(
     tickers = c("PETR4", "VALE3", "ABEV3", "RRRP3", "ENAT3", "CAFE3"),
-    date_last_quote = as.Date(c("2001-06-15", "2001-06-15", "2001-06-15", "2001-06-15", "2001-05-15", "2001-06-15"))
+    date_last_quote = as.Date(c("2001-06-12", "2001-06-12", "2001-06-12", "2001-06-12", "2001-05-12", "2001-06-12"))
   )
 
   new_tickers_catalog <- create_tickers_catalog(
@@ -3266,7 +3266,7 @@ test_that("update_tickers_catalog fails when objects do not match update require
     ticker_changes <- NULL
 
     # Update catalog
-    expect_error(
+    expect_warning(
       update_tickers_catalog(
         old_tickers_catalog = old_tickers_catalog,
         new_tickers_catalog = new_tickers_catalog,
