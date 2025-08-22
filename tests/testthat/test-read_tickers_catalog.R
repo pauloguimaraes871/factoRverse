@@ -1599,7 +1599,11 @@ test_that("read_tickers_catalog throws an error when versions do not match", {
   ) %>% as.data.frame()
 
   #Get tickers catalog
-  tickers_catalog <- create_tickers_catalog(raw_features_m_df = raw_features_m_df, date_first_quote = date_first_quote, date_last_quote = date_last_quote)
+  testthat::expect_warning(
+    tickers_catalog <- create_tickers_catalog(raw_features_m_df = raw_features_m_df,
+                                              date_first_quote = date_first_quote, date_last_quote = date_last_quote),
+    "Some date_last_quote values are greater than the current_date. This may indicate future dates or errors in the data."
+  )
 
   #Now one updates raw_features_m-df
   raw_features_input <- load_inputs_outputs_panels_excel(csv_file_name = "toy_features.xlsx",
