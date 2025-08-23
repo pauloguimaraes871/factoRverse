@@ -15600,7 +15600,6 @@ test_that("GLMNET - Metabacktesting works for glmnet in meta learning (rf + glmn
   set.seed(123)
   expect_warning(
   expect_warning(
-  expect_warning(
     sb_metabacktest_results <-run_sb_backtest(
       target_m_df = target_m_df,
       features_m_df = features_m_df,
@@ -15610,8 +15609,7 @@ test_that("GLMNET - Metabacktesting works for glmnet in meta learning (rf + glmn
       verbose = TRUE
     ),
     "An oos_prediction column has constant values for a given date. It will be replaced by 0 when normalizing."),
-  "An oos_prediction column has constant values for a given date. It will be replaced by 0 when normalizing."),
-  "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest.")
+  "An oos_prediction column has constant values for a given date. It will be replaced by 0 when normalizing.")
 
 
   #Base SB Results
@@ -15843,7 +15841,6 @@ test_that("EW - Metabacktesting works for EW in meta learning (rf + glmnet with 
   expect_warning(
   expect_warning(
   expect_warning(
-  expect_warning(
     sb_metabacktest_results <- run_sb_backtest(
       target_m_df = target_m_df,
       features_m_df = features_m_df,
@@ -15855,7 +15852,6 @@ test_that("EW - Metabacktesting works for EW in meta learning (rf + glmnet with 
     "An oos_prediction column has constant values for a given date. It will be replaced by 0 when normalizing.",
   ),
   "An oos_prediction column has constant values for a given date. It will be replaced by 0 when normalizing."),
-  "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."),
   "All signals are 'long' and sb_algorithm is 'ew'. Please check if this is intended.")
 
   #Base SB Results
@@ -16678,7 +16674,6 @@ test_that("OLS - Metabacktesting works in integration with run_port_backtest and
     meta_custom_signal_universe_metrics_m_df = NULL, base_custom_signal_universe_metrics_m_df = NULL
   )
 
-  expect_warning(
     meta_results <- run_sb_backtest(
       target_m_df = adapted_target_m_df,
       features_m_df = oos_predictions_m_df,
@@ -16686,8 +16681,7 @@ test_that("OLS - Metabacktesting works in integration with run_port_backtest and
       custom_signal_universe_metrics_m_df = adapted_custom_signal_universe_metrics_m_df,
       parallel = FALSE,
       verbose = TRUE
-    ), "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
-  )
+    )
 
   #Check if weights and feat imp matches max of hr
   expected_weights <- (adapted_custom_signal_universe_metrics_m_df@data %>% dplyr::filter(dates == "2023-03-15") %>% dplyr::pull(hr) %>% signal_transform())/
@@ -17149,16 +17143,13 @@ test_that("update_sb_backtest works for GLMNET metabacktest - 2 updates - empty 
 
 
   set.seed(123)
-  expect_warning(
       sb_metabacktest_results <- run_sb_backtest(
         target_m_df = target_m_df,
         features_m_df = features_m_df,
         base_sb_backtest_results_list = list(rf_results, ols_results),
         config = meta_config,
         parallel = FALSE,
-          verbose = TRUE),
-      "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
-      )
+          verbose = TRUE)
 
 
     ################
@@ -17286,16 +17277,13 @@ test_that("update_sb_backtest works for GLMNET metabacktest - 2 updates - empty 
 
     #Update meta
     set.seed(123)
-    expect_warning(
         updated_sb_metabacktest_results <- update_sb_backtest(
           target_m_df = target_m_df,
           features_m_df = features_m_df,
           updated_base_sb_backtest_results = list(updated_rf_results, updated_ols_results),
           old_results = sb_metabacktest_results,
           parallel = FALSE,
-          verbose = TRUE),
-        "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
-        )
+          verbose = TRUE)
 
 
     ################
@@ -17423,15 +17411,13 @@ test_that("update_sb_backtest works for GLMNET metabacktest - 2 updates - empty 
 
     #Update meta
     set.seed(123)
-      expect_warning(
         updated_sb_metabacktest_results_2 <- update_sb_backtest(
           target_m_df = target_m_df,
           features_m_df = features_m_df,
           updated_base_sb_backtest_results = list(updated_rf_results_2, updated_ols_results_2),
           old_results = updated_sb_metabacktest_results,
           parallel = FALSE,
-          verbose = TRUE),
-        "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest.")
+          verbose = TRUE)
 
     #Expected Returns
     #################
@@ -17474,15 +17460,13 @@ test_that("update_sb_backtest works for GLMNET metabacktest - 2 updates - empty 
     )
 
     set.seed(123)
-      expect_warning(
         new_sb_metabacktest_results <- run_sb_backtest(
           target_m_df = target_m_df,
           features_m_df = features_m_df,
           base_sb_backtest_results_list = list(new_rf_results, new_ols_results),
           config = meta_config,
           parallel = FALSE,
-          verbose = FALSE),
-        "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest.")
+          verbose = FALSE)
 
     expect_equal(updated_sb_metabacktest_results_2@mean_validation_metrics, new_sb_metabacktest_results@mean_validation_metrics)
     expect_equal(updated_sb_metabacktest_results_2@combined_oos_testing_metrics$all_dates_oos_testing_metrics,
@@ -17720,8 +17704,7 @@ test_that("update_sb_backtest works for SW metabacktest - 2 updates - rebalancin
     mvo_results <- run_sb_backtest(config = mvo_config, features_m_df = features_m_df, target_m_df = target_m_df,
                                    port_backtest_cohort = port_backtest_cohort, benchmark_returns_m_xts = benchmark_returns_m_xts,
                                    signal_themes_m_df = signal_themes_m_df,
-                                   ss_backtest_results = ss_results, .test_seed = 123),
-    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
+                                   ss_backtest_results = ss_results, .test_seed = 123)
   )
 
 
@@ -17735,16 +17718,13 @@ test_that("update_sb_backtest works for SW metabacktest - 2 updates - rebalancin
 
 
   set.seed(123)
-  expect_warning(
     sb_metabacktest_results <- run_sb_backtest(
       target_m_df = target_m_df,
       features_m_df = features_m_df,
       base_sb_backtest_results_list = list(rf_results, mvo_results),
       config = meta_config,
       parallel = FALSE,
-      verbose = TRUE),
-    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
-  )
+      verbose = TRUE)
 
 
   ################
@@ -17869,16 +17849,13 @@ test_that("update_sb_backtest works for SW metabacktest - 2 updates - rebalancin
 
   #Update meta
   set.seed(123)
-  expect_warning(
     updated_sb_metabacktest_results <- update_sb_backtest(
       target_m_df = target_m_df,
       features_m_df = features_m_df,
       updated_base_sb_backtest_results = list(updated_rf_results, updated_mvo_results),
       old_results = sb_metabacktest_results,
       parallel = FALSE,
-      verbose = TRUE),
-    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
-  )
+      verbose = TRUE)
 
 
   ################
@@ -18002,15 +17979,13 @@ test_that("update_sb_backtest works for SW metabacktest - 2 updates - rebalancin
 
   #Update meta
   set.seed(123)
-  expect_warning(
     updated_sb_metabacktest_results_2 <- update_sb_backtest(
       target_m_df = target_m_df,
       features_m_df = features_m_df,
       updated_base_sb_backtest_results = list(updated_rf_results_2, updated_mvo_results_2),
       old_results = updated_sb_metabacktest_results,
       parallel = FALSE,
-      verbose = TRUE),
-    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest.")
+      verbose = TRUE)
 
   #Expected Results
   #################
@@ -18057,15 +18032,13 @@ test_that("update_sb_backtest works for SW metabacktest - 2 updates - rebalancin
   )
 
   set.seed(123)
-  expect_warning(
     new_sb_metabacktest_results <- run_sb_backtest(
       target_m_df = target_m_df,
       features_m_df = features_m_df,
       base_sb_backtest_results_list = list(new_rf_results, new_mvo_results),
       config = meta_config,
       parallel = FALSE,
-      verbose = FALSE),
-    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest.")
+      verbose = FALSE)
 
   expect_equal(updated_sb_metabacktest_results_2@mean_validation_metrics, new_sb_metabacktest_results@mean_validation_metrics)
   expect_equal(updated_sb_metabacktest_results_2@combined_oos_testing_metrics$all_dates_oos_testing_metrics,

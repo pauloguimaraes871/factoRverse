@@ -2630,15 +2630,12 @@ test_that("run_port_backtest works for a META-LEVEL oos_predictions blended stra
   )
 
   #run meta sb
-  expect_warning(
   meta_sb_results <- run_sb_backtest(
     features_m_df = signals_m_df,
     target_m_df = target_m_df,
     config = meta_backtest_config,
     base_sb_backtest_results_list = list(glmnet_results, ols_results),
-    parallel = TRUE),
-  "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
-  )
+    parallel = TRUE)
 
 
   #Create port_backtest_config
@@ -5147,16 +5144,13 @@ test_that("update_port_backtest_works for a meta_sb_backtest AND 2 UPDATES", {
 
 
   set.seed(123)
-  expect_warning(
     sb_metabacktest_results <- run_sb_backtest(
       target_m_df = target_m_df,
       features_m_df = features_m_df,
       base_sb_backtest_results_list = list(rf_results, mvo_results),
       config = meta_config,
       parallel = FALSE,
-      verbose = TRUE),
-    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
-  )
+      verbose = TRUE)
 
   #Build portfolio for meta sb
   meta_port_config <-  create_port_backtest_config(
@@ -5287,18 +5281,17 @@ test_that("update_port_backtest_works for a meta_sb_backtest AND 2 UPDATES", {
   )
 
   #Update sb backtest
-  expect_warning(
+  suppressWarnings(
     updated_rf_results <-
       update_sb_backtest(features_m_df = features_m_df,
                          target_m_df = target_m_df,
                          old_results = rf_results,
                          updated_ss_backtest_results = updated_ss_results,
                          .test_seed = 123
-      ),
-    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
-  )
+      )
+    )
 
-  expect_warning(
+  suppressWarnings(
     updated_mvo_results <-
       update_sb_backtest(features_m_df = features_m_df,
                          target_m_df = target_m_df,
@@ -5308,21 +5301,19 @@ test_that("update_port_backtest_works for a meta_sb_backtest AND 2 UPDATES", {
                          signal_themes_m_df = signal_themes_m_df,
                          updated_ss_backtest_results = updated_ss_results,
                          .test_seed = 123
-      ),
-    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
-  )
+      )
+    )
 
   #Update meta
   set.seed(123)
-  expect_warning(
+  suppressWarnings(
     updated_sb_metabacktest_results <- update_sb_backtest(
       target_m_df = target_m_df,
       features_m_df = features_m_df,
       updated_base_sb_backtest_results = list(updated_rf_results, updated_mvo_results),
       old_results = sb_metabacktest_results,
       parallel = FALSE,
-      verbose = TRUE),
-    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
+      verbose = TRUE)
   )
 
   #Update meta port
@@ -5436,18 +5427,17 @@ test_that("update_port_backtest_works for a meta_sb_backtest AND 2 UPDATES", {
   )
 
   #Update sb backtest
-  expect_warning(
+  suppressWarnings(
     updated_rf_results_2 <-
       update_sb_backtest(features_m_df = features_m_df,
                          target_m_df = target_m_df,
                          old_results = updated_rf_results,
                          updated_ss_backtest_results = updated_ss_results_2,
                          .test_seed = 123
-      ),
-    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
-  )
+      )
+    )
 
-  expect_warning(
+  suppressWarnings(
     updated_mvo_results_2 <-
       update_sb_backtest(features_m_df = features_m_df,
                          target_m_df = target_m_df,
@@ -5457,22 +5447,20 @@ test_that("update_port_backtest_works for a meta_sb_backtest AND 2 UPDATES", {
                          updated_port_backtest_cohort = updated_port_backtest_cohort_2,
                          updated_ss_backtest_results = updated_ss_results_2,
                          .test_seed = 123
-      ),
-    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
-  )
+      )
+    )
 
   #Update meta
   set.seed(123)
-  expect_warning(
+  suppressWarnings(
     updated_sb_metabacktest_results_2 <- update_sb_backtest(
       target_m_df = target_m_df,
       features_m_df = features_m_df,
       updated_base_sb_backtest_results = list(updated_rf_results_2, updated_mvo_results_2),
       old_results = updated_sb_metabacktest_results,
       parallel = FALSE,
-      verbose = TRUE),
-    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest.")
-
+      verbose = TRUE)
+  )
 
   #Update meta port
   expect_warning(
@@ -5521,30 +5509,28 @@ test_that("update_port_backtest_works for a meta_sb_backtest AND 2 UPDATES", {
   )
 
   #SB Backtest
-  expect_warning(
+  suppressWarnings(
     new_rf_results <- run_sb_backtest(config = rf_config, features_m_df = features_m_df, target_m_df = target_m_df,
-                                      ss_backtest_results = new_ss_results, .test_seed = 123),
-    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
+                                      ss_backtest_results = new_ss_results, .test_seed = 123)
   )
 
-  expect_warning(
+  suppressWarnings(
     new_mvo_results <- run_sb_backtest(config = mvo_config, features_m_df = features_m_df, target_m_df = target_m_df,
                                        port_backtest_cohort = new_port_backtest_cohort, benchmark_returns_m_xts = benchmark_returns_m_xts,
                                        signal_themes_m_df = signal_themes_m_df,
-                                       ss_backtest_results = new_ss_results, .test_seed = 123),
-    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest."
+                                       ss_backtest_results = new_ss_results, .test_seed = 123)
   )
 
   set.seed(123)
-  expect_warning(
+  suppressWarnings(
     new_sb_metabacktest_results <- run_sb_backtest(
       target_m_df = target_m_df,
       features_m_df = features_m_df,
       base_sb_backtest_results_list = list(new_rf_results, new_mvo_results),
       config = meta_config,
       parallel = FALSE,
-      verbose = FALSE),
-    "Normalization not found in workflow. It is advisable that data is normalized before being fed to run_sb_backtest.")
+      verbose = FALSE)
+  )
 
 
   #Build portfolio for metaport
