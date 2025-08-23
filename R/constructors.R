@@ -1276,7 +1276,8 @@ setMethod(
             dplyr::pull(tickers_first_quote)
 
           ####Check if tickers_first_quote of ipo tickers is either >= old_current_date or NA
-          if (!all(is.na(ipos_tickers_tickers_first_quote) | ipos_tickers_tickers_first_quote >= old_current_date)) {
+          if (!all(is.na(ipos_tickers_tickers_first_quote) |
+                   ipos_tickers_tickers_first_quote >= (old_current_date - new_n_days_tolerance))) {
             stop("tickers_first_quote of IPOs in new_tickers_catalog should be either >= old_current_date or NA.")
           }
         }

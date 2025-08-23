@@ -2976,7 +2976,7 @@ test_that("update_tickers_catalog fails when IPO ticker first quote is < current
 
   date_first_quote <- data.frame(
     tickers = c("PETR4", "ABEV3", "RRRP3", "ENAT3", "CAFE3", "VALE3"),
-    date_first_quote = as.Date(c("1995-05-15", "1995-03-15", "1999-03-15", "1999-05-15", "2001-05-10", "1995-04-15"))
+    date_first_quote = as.Date(c("1995-05-15", "1995-03-15", "1999-03-15", "1999-05-15", "2001-05-04", "1995-04-15"))
   )
 
   date_last_quote <- data.frame(
