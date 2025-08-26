@@ -3029,43 +3029,56 @@ setMethod("lookup_catalog", signature(tickers_catalog = "tickers_catalog"),
             #Check tickers_to_lookup
             if(!is.null(tickers_to_lookup)){
               #Get the data
-              query <- tickers_catalog@catalog %>% dplyr::filter(tickers %in% tickers_to_lookup) %>% dplyr::pull(perm_id)
-                ##Check if any tickers were not found
-                if(length(query) == 0){
-                  stop("Provided tickers were not found in the catalog.")
-                }
-                ##Check if all tickers were found and complain about. Tell the user which were not found.
-                if(length(unique(tickers_to_lookup)) != length(unique(query))){
-                  not_found <- setdiff(tickers_to_lookup, query)
-                  stop(paste("The following tickers were not found in the catalog: ", paste(not_found, collapse = ", ")))
-                }
-                ##If checks pass:
-                names(query) <- tickers_catalog@catalog %>% dplyr::filter(tickers %in% tickers_to_lookup) %>% dplyr::pull(tickers)
-                query <- query[tickers_to_lookup]
-                return(query)
+              query <- tickers_catalog@catalog %>%
+                dplyr::filter(tickers %in% tickers_to_lookup) %>%
+                dplyr::select(tickers, perm_id)
+
+              ##Check if any tickers were not found
+              if(nrow(query) == 0){
+                stop("Provided tickers were not found in the catalog.")
               }
+
+              ##Check if all tickers were found and complain about. Tell the user which were not found.
+              not_found <- setdiff(tickers_to_lookup, unique(query$tickers))
+              if (length(not_found) > 0) {
+                stop(paste("The following tickers were not found in the catalog: ",
+                           paste(not_found, collapse = ", ")))
+              }
+              ##If checks pass:
+              result <- setNames(query$perm_id, query$tickers)
+              return(result[tickers_to_lookup])
+
+            }
 
 
             #Check perm_id_to_lookup
             if(!is.null(perm_id_to_lookup)){
               #Get the data
-              query <- tickers_catalog@catalog %>% dplyr::filter(perm_id %in% perm_id_to_lookup) %>% dplyr::pull(tickers)
-                ##Check if any perm_ids were not found
-                if(length(query) == 0){
-                  stop("Provided perm_ids were not found in the catalog.")
-                }
-                ##Check if all perm_ids were found and complain about. Tell the user which were not found.
-                if(length(unique(perm_id_to_lookup)) != length(unique(query))){
-                  not_found <- setdiff(perm_id_to_lookup, query)
-                  stop(paste("The following perm_ids were not found in the catalog: ", paste(not_found, collapse = ", ")))
-                }
-                ##If checks pass:
-                names(query) <- tickers_catalog@catalog %>% dplyr::filter(perm_id %in% perm_id_to_lookup) %>% dplyr::pull(perm_id)
-                query <- query[perm_id_to_lookup]
-                return(query)
+              query <- tickers_catalog@catalog %>%
+                dplyr::filter(perm_id %in% perm_id_to_lookup) %>%
+                dplyr::arrange(dplyr::desc(tickers_last_quote)) %>%   # most recent first
+                dplyr::group_by(perm_id) %>%
+                dplyr::slice_head(n = 1) %>%
+                dplyr::ungroup() %>%
+                dplyr::select(perm_id, tickers)
 
+              ##Check if any perm_ids were not found
+              if(nrow(query) == 0){
+                stop("Provided perm_ids were not found in the catalog.")
+              }
+
+              ##Check if all perm_ids were found and complain about. Tell the user which were not found.
+              not_found <- setdiff(perm_id_to_lookup, unique(query$perm_id))
+
+              if (length(not_found) > 0) {
+                stop(paste("The following perm_ids were not found in the catalog: ",
+                           paste(not_found, collapse = ", ")))
+              }
+
+              ##If checks pass
+              result <- setNames(query$tickers, query$perm_id)
+              return(result[perm_id_to_lookup])
             }
-
 
           })
 
