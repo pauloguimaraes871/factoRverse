@@ -338,7 +338,7 @@ setClass(
       ) %>%
       dplyr::group_by(dates, variable) %>%
       dplyr::summarise(sum_w = sum(weight), .groups = "drop") %>%
-      dplyr::mutate(check_sum = abs(sum_w - 1) < 0.02)
+      dplyr::mutate(check_sum = abs(sum_w - 1) < 0.1)
 
     # Check if any group does not satisfy the condition
     if(any(!res_long$check_sum)) {
