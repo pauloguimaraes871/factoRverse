@@ -123,22 +123,46 @@ estimate_covariance_matrix <- function(tickers, returns_m_xts_upd_ref,
                                  },
                                  #PCA1
                                  pca1 = function(R){
+
+                                   #cov with NA safety
+                                   S <- stats::cov(R, use = "pairwise.complete.obs")
+                                   eig <- base::eigen(S, symmetric = TRUE, only.values = TRUE)$values
+
+                                   # Guard
+                                   tot_var <- sum(eig)
+                                   if (!is.finite(tot_var) || tot_var <= 0) stop("Covariance is singular / zero variance.")
+
+                                   #Explained variance by eigenvalues
+                                   prop <- eig/tot_var
+                                   #Number of factors = number that explains 90% of total variance
+                                   k90  <- which(cumsum(prop) >= 0.90)[1]
+
+                                   # guard k
+                                   k_max <- min(ncol(R), nrow(R) - 1)
+                                   if (k_max < 1) stop("Not enough observations to estimate factors.")
+                                   k_use <- max(1, min(k90, k_max))
+
+                                   #Get covariance matrix
                                    out <- list(sigma = PortfolioAnalytics::extractCovariance(
-                                     PortfolioAnalytics::statistical.factor.model(R,
-                                                                                  #Number of factors = number that explains 90% of total variance
-                                                                                  k = which(
-                                                                                    #Get the cumulative proportion of variance explanation
-                                                                                    cumsum(stats::prcomp(stats::cov(R))$sdev/sum(stats::prcomp(stats::cov(R))$sdev))
-                                                                                    #Which number equates 90% explained
-                                                                                    >= 0.90)[1])))
+                                     PortfolioAnalytics::statistical.factor.model(R, k = k_use)
+                                   ))
+
                                    out
                                  },
                                  #PCA2
                                  pca2 = function(R){
+
+                                   #Get k based on log ncol
+                                   k_raw <- round(log(ncol(R)))
+                                   k_max <- min(ncol(R), nrow(R) - 1)
+                                   if (k_max < 1) stop("Not enough observations to estimate factors.")
+                                   k_use <- max(1, min(k_raw, k_max))
+
+
                                    out <- list(sigma = PortfolioAnalytics::extractCovariance(
                                      PortfolioAnalytics::statistical.factor.model(R,
-                                                                                  #Number of factors = number that explains 66% of total variance
-                                                                                  k = round(log(ncol(R))))))
+                                                                                  #Number of factors = round log ncol
+                                                                                  k = k_use)))
                                    out
                                  },
                                  #Shrink ID
