@@ -4422,9 +4422,21 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
       elected_priors <- x@bayesian_results$elected_priors
     }
     #Extract tidy posteriores
+      ##Check if epred are needed
+      if (plot_name == "Waterfall Plot of Return Decomposition by Signal"){
+        compute_predictives_full <- TRUE
+        n_draws_predictive <- 200
+      } else {
+        compute_predictives_full <- FALSE
+        n_draws_predictive <- NULL
+      }
+
     tidy_posteriors_list <- summarize_posteriors_draws(brm_model = brm_model,
                                                        selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
-                                                       model_spec_theme_level = model_spec_theme_level)
+                                                       model_spec_theme_level = model_spec_theme_level,
+                                                       compute_predictives_full = compute_predictives_full,
+                                                       n_draws_predictive = n_draws_predictive
+                                                       )
   }
 
   # Plot 1: Time-Series Metrics by Ticker
@@ -5778,10 +5790,10 @@ setMethod(
       }
 
       # Build the main data frame (no filter yet; we will filter after user selection)
-      df_pie <- data.frame(Asset = asset_names, Weight = weights)
+      df_bar <- data.frame(Asset = asset_names, Weight = weights)
 
       # If all zero or the sum is zero, there's nothing sensible to plot
-      if (all(df_pie$Weight == 0) || sum(df_pie$Weight) == 0) {
+      if (all(df_bar$Weight == 0) || sum(df_bar$Weight) == 0) {
         stop("Sum of weights is zero or all weights are zero. Nothing to plot.")
       }
 
@@ -5814,8 +5826,8 @@ setMethod(
         }
 
         # Join and calculate Active_Weight = portfolio Weight - benchmark Weight
-        df_pie <- dplyr::left_join(
-          df_pie,
+        df_bar <- dplyr::left_join(
+          df_bar,
           universe_df %>% dplyr::select(tickers, !!bench_col),
           by = c("Asset" = "tickers")
         ) %>%
@@ -5838,11 +5850,11 @@ setMethod(
         # -- Option (i): Top x weights
         cat("How many assets do you want to show? ")
         n_choice <- as.integer(readline())
-        if (is.na(n_choice) || n_choice < 1 || n_choice > length(df_pie$Asset)) {
-          stop(paste0("Invalid number of assets. Must be between 1 and ", length(df_pie$Asset)))
+        if (is.na(n_choice) || n_choice < 1 || n_choice > length(df_bar$Asset)) {
+          stop(paste0("Invalid number of assets. Must be between 1 and ", length(df_bar$Asset)))
         }
         # Reorder by abs weight and keep top n_choice
-        df_pie <- df_pie %>%
+        df_bar <- df_bar %>%
           dplyr::arrange(dplyr::desc(abs(.data$Weight))) %>%
           dplyr::slice_head(n = n_choice)
 
@@ -5881,18 +5893,18 @@ setMethod(
             chosen_assets <- parts
           }
           # Subset to only selected assets
-          df_pie <- df_pie %>%
+          df_bar <- df_bar %>%
             dplyr::filter(.data$Asset %in% chosen_assets)
         }
       }
 
       # 4) Create proportions (for labeling) & assemble final data
-      total_weight <- sum(df_pie$Weight)
+      total_weight <- sum(df_bar$Weight)
       if (total_weight == 0) {
         stop("After selection, the sum of the weights is zero. Nothing to plot.")
       }
 
-      df_pie <- df_pie %>%
+      df_bar <- df_bar %>%
         dplyr::mutate(
           prop = .data$Weight / total_weight,
           label = paste0(
@@ -5919,7 +5931,7 @@ setMethod(
 
       # 5) Create bar plot - reorder x-axis by abs(Weight), but show actual sign
       p <- ggplot2::ggplot(
-        df_pie,
+        df_bar,
         ggplot2::aes(
           x = stats::reorder(.data$Asset, -abs(.data$Weight)),  # order by abs
           y = .data$Weight,
@@ -6412,16 +6424,52 @@ setMethod(
       opt_risk   <- sqrt(t(opt_w) %*% cov_mat %*% opt_w)
       opt_sharpe <- opt_return / opt_risk
 
+      # For base_weights and target_weights
+      base_risk   <- NA_real_
+      base_return <- NA_real_
+      if (!is.null(universe_df) && "base_weights" %in% colnames(universe_df)) {
+
+        base_df <- data.frame(tickers = asset_names) %>%
+          dplyr::left_join(universe_df %>%
+                             dplyr::select(tickers, base_weights), by = "tickers"
+                           )
+
+        base_w <- base_df$base_weights
+        base_return <- sum(base_w * exp_ret_score)
+        base_risk   <- sqrt(t(base_w) %*% cov_mat %*% base_w)
+        base_sharpe <- base_return / base_risk
+
+
+      }
+
+      target_risk <- NA_real_
+      target_return <- NA_real_
+      if (!is.null(universe_df) && "target_weights" %in% colnames(universe_df)) {
+
+        target_df <- data.frame(tickers = asset_names) %>%
+          dplyr::left_join(universe_df %>%
+                             dplyr::select(tickers, target_weights), by = "tickers"
+          )
+
+
+        target_w <- target_df$target_weights
+        target_return <- sum(target_w * exp_ret_score)
+        target_risk   <- sqrt(t(target_w) %*% cov_mat %*% target_w)
+        target_sharpe <- target_return / target_risk
+
+      }
+
       # Create the scatterplot
       p <- ggplot2::ggplot(frontier_df, ggplot2::aes(x = .data$Risk, y = .data$Return, color = .data$Sharpe)) +
         ggplot2::geom_point(size = 3, alpha = 0.7) +
         ggplot2::scale_color_gradient(low = neon_pink, high = neon_green) +
         # Add the "optimal" portfolio point
-        ggplot2::annotate(
-          "point",
-          x = opt_risk, y = opt_return,
-          color = "red", size = 4, shape = 17
-        ) +
+        ggplot2::annotate("point", x = opt_risk, y = opt_return, color = "red", size = 4, shape = 17) +
+        # Add base_weights point if available
+        {if (!is.na(base_risk) && !is.na(base_return)) ggplot2::annotate("point", x = base_risk, y = base_return, color = neon_blue, size = 4, shape = 15)} +
+        # Add target_weights point if available
+        {if (!is.na(target_risk) && !is.na(target_return)) ggplot2::annotate("point", x = target_risk, y = target_return, color = neon_orange, size = 4, shape = 18)} +
+        # Add labels for
         ggplot2::theme_minimal() +
         ggplot2::theme(
           plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
