@@ -550,8 +550,20 @@ derive_adapted_custom_signal_universe_m_df <- function(meta_custom_objective, ba
       adapted_custom_signal_universe_metrics_m_df <- NULL
     }
   } else {
-    adapted_custom_signal_universe_metrics_m_df <- dplyr::bind_rows(meta_custom_signal_universe_metrics_m_df@data, base_custom_signal_universe_metrics_m_df@data) %>% dplyr::arrange(id) %>%
-      create_meta_dataframe(meta_dataframe_name = paste0(meta_custom_signal_universe_metrics_m_df@meta_dataframe_name, "_", base_custom_signal_universe_metrics_m_df@meta_dataframe_name))
+
+    ## If base custom_signal_universe_metrics_m_df is NULL, just pass meta
+    if (is.null(base_custom_signal_universe_metrics_m_df)){
+      adapted_custom_signal_universe_metrics_m_df <- meta_custom_signal_universe_metrics_m_df
+    } else {
+      ##Bind meta and base custom_signal_universe_metrics_m_df
+      adapted_custom_signal_universe_metrics_m_df <-
+        dplyr::bind_rows(meta_custom_signal_universe_metrics_m_df@data, base_custom_signal_universe_metrics_m_df@data) %>%
+        dplyr::arrange(id) %>%
+        create_meta_dataframe(meta_dataframe_name = paste0(
+          meta_custom_signal_universe_metrics_m_df@meta_dataframe_name, "_", base_custom_signal_universe_metrics_m_df@meta_dataframe_name)
+          )
+    }
+
   }
 
   return(adapted_custom_signal_universe_metrics_m_df)
