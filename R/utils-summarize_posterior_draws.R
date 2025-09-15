@@ -15,6 +15,10 @@
 #'   - `"theme_specific_intercept_theme_specific_slope"`: Includes fixed intercepts and slopes for each theme.
 #'   - `"fixed_intercept_fixed_slope"`: Omits theme-level intercepts but includes random effects at the theme:signal level.
 #'
+#' @param compute_predictives_full If TRUE, computes the full posterior predictive distribution.
+#'
+#' @param n_draws_predictive Number of posterior draws to use for predictive computations. If NULL, all available draws are used.
+#'
 #' @return The `signal_universe_m_d_ref` data frame is updated in place with posterior summary statistics.
 #' @details The function performs the following operations for each theme:
 #' \itemize{
@@ -26,7 +30,8 @@
 #'   \item Computes and updates additional performance metrics like Appraisal Ratio (AP) and Treynor ratio.
 #' }
 #'
-summarize_posteriors_draws <- function(brm_model, signal_universe_m_d_ref = NULL, selected_signal_themes_m_d_ref, model_spec_theme_level){
+summarize_posteriors_draws <- function(brm_model, signal_universe_m_d_ref = NULL, selected_signal_themes_m_d_ref, model_spec_theme_level,
+                                       compute_predictives_full = FALSE, n_draws_predictive = NULL){
 
   #Get frequentist metrics
   frequentist_metrics <- colnames(signal_universe_m_d_ref)[-c(1:3)]
@@ -35,6 +40,7 @@ summarize_posteriors_draws <- function(brm_model, signal_universe_m_d_ref = NULL
   #####################
   vars <- tidybayes::get_variables(brm_model) #Get all variables in model
   theme_tickers_key <- selected_signal_themes_m_d_ref %>% dplyr::mutate(tickers = paste0(theme, "_", tickers)) %>% dplyr::select(tickers, theme) #Create key
+  cat("Summarizing Posterior Draws for Model Specification:", model_spec_theme_level, "\n")
 
     ##Alpha (Beta_0)
     ################
@@ -196,7 +202,9 @@ summarize_posteriors_draws <- function(brm_model, signal_universe_m_d_ref = NULL
 
       ##Expectation of Posterior Predictive (E(active_returns))
       ################
-      tidy_posterior_epred_draws <- brm_model$data %>% tidybayes::add_epred_draws(brm_model)
+      if (isTRUE(compute_predictives_full)){
+
+      tidy_posterior_epred_draws <- brm_model$data %>% tidybayes::add_epred_draws(brm_model, ndraws = n_draws_predictive)
 
       #Summarize median and 89% CI
       tidy_posterior_epred_draws_summary <- tidy_posterior_epred_draws %>%
@@ -205,25 +213,48 @@ summarize_posteriors_draws <- function(brm_model, signal_universe_m_d_ref = NULL
         #Select relevant columns
         dplyr::select(-.width, -.point, -.interval) %>% as.data.frame() #get df
 
+      } else {
+
+      tidy_posterior_epred_draws <- NULL
+      tidy_posterior_epred_draws_summary <- NULL
+
+      }
+
+        ##Collect garbage
+        gc()
+
       ################
 
       ##Posterior Predictive (active_returns ~ Normal(E(active_returns), sigma))
       ################
-      tidy_posterior_predicted_draws <- brm_model$data %>% tidybayes::add_predicted_draws(brm_model)
+
+      tidy_posterior_predicted_draws <- brm_model$data %>% tidybayes::add_predicted_draws(brm_model, ndraws = n_draws_predictive) #n_draws_predictive can be NULL
+      # This must stay outside the compute_predictives_full bco it is needed to compute performance metrics
 
       #Summarize median and 89% CI
+      if (isTRUE(compute_predictives_full)){
+
       tidy_posterior_predicted_draws_summary <- tidy_posterior_predicted_draws %>%
         #Compute CIs with 89% width (more stable)
         tidybayes::median_qi(.width = 0.89) %>% #Quantile interval
         #Select relevant columns
         dplyr::select(-.width, -.point, -.interval) %>% as.data.frame() #get df
 
+      } else {
+
+      tidy_posterior_predicted_draws_summary <- NULL
+
+      }
+
+        ##Collect garbage
+        gc()
+
       ################
 
       #####################
 
       #Add posterior results to signal_universe_m_d_ref
-      if(!is.null(signal_universe_m_d_ref)){
+      if (!is.null(signal_universe_m_d_ref)){
       #####################
       theme_tickers_key <- selected_signal_themes_m_d_ref %>% dplyr::mutate(theme_tickers = paste0(theme, "_", tickers)) %>% dplyr::select(tickers, theme_tickers) #Redefine key
       signal_universe_m_d_ref <- signal_universe_m_d_ref %>% dplyr::left_join(theme_tickers_key, by = "tickers") #Add key to signal_universe_m_d_ref
@@ -267,6 +298,10 @@ summarize_posteriors_draws <- function(brm_model, signal_universe_m_d_ref = NULL
           dplyr::mutate(posterior_treynor_ratio = posterior_geom_mean_ret/posterior_individual_beta, #Posterior Treynor Ratio
                         posterior_appraisal_ratio = posterior_individual_alpha/posterior_specific_risk #Posterior Appraisal Ratio
           )
+
+        ##Clean tidy_posterior_predicted_draws to save memory
+        tidy_posterior_predicted_draws <- NULL
+        gc()
 
 
       #####################
