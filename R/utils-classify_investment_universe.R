@@ -68,6 +68,8 @@
 #' - `max_abs_active_group_weight`: The maximum absolute group active weight used for creating group constraints in `generate_group_constraints`.
 #' If a given group has no eligible asset, the one with the greatest signal will be automatically promoted.
 #' Note that, in the context of `generate_group_constraints`, a `benchmark_weights_m_d_ref` data frame must also be supplied.
+#' @param target_port_m_d_ref Optional. A data frame containing columns for id, tickers, dates, and target portfolio weights.
+#' @param ridge_pen Optional. A numeric value indicating the ridge penalty to be used when shrinking MVO weights towards the target portfolio.
 #' @param liquidity_floor_cutoffs Mandatory if `turnover_constraint_policy` and/or `liquidity_constraint_policy` are provided.
 #' A list of named vectors containing cutoff values to classify stocks according to liquidity.
 #' Each element must be named according to the 5 following liquidity classifications: ("micro_caps", "small_caps", "mid_caps", "large_caps" and "mega_caps)
@@ -89,29 +91,45 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
                                          liquidity_floor_cutoffs = NULL, liquidity_m_d_ref = NULL, liquidity_constraint_policy= NULL, #Liquidity policy
                                          updated_port_weights_m_lstd_ref = NULL, turnover_constraint_policy = NULL, #Turnover policy
                                          benchmark_weights_m_d_ref = NULL, groups_m_d_ref = NULL, concentration_constraint_policy = NULL, #Concentration policy
+                                         target_port_m_d_ref = NULL, ridge_pen = NULL, #Shrinkage
                                          user_defined_AND_rules_m_d_ref = NULL, user_defined_OR_rules_m_d_ref = NULL, #User defined rules
-                                         asset_object = "stocks", verbose = TRUE
+                                         asset_object = "stocks", use_raw_for_eligibility = FALSE, verbose = TRUE
 
 ){
   ###Check objects
   #################
   ##Check if last col is exp_ret_score
-  if (!"exp_ret_score" == colnames(universe_m_d_ref)[length(colnames(universe_m_d_ref))]){
+  if (!identical(tail(names(universe_m_d_ref), 1), "exp_ret_score")){
     stop("last column of universe_m_d_ref must be exp_ret_score")
   }
 
+  #Check if exp_ret_score_raw columns exists if use_raw_for_eligibility is TRUE
+  if (use_raw_for_eligibility && !("exp_ret_score_raw" %in% colnames(universe_m_d_ref))){
+    stop("use_raw_for_eligibility is TRUE but exp_ret_score_raw column does not exist in universe_m_d_ref")
+  }
+
+  #Throw an error if use_raw_for_eligibility is TRUE and asset_object is signals
+  if (use_raw_for_eligibility && asset_object == "signals"){
+    stop("use_raw_for_eligibility is TRUE but asset_object is signals. This is not allowed.")
+  }
+
   ##Check if liquidity_m_d_ref is for only one date
-  if (!is.null(liquidity_m_d_ref) && !length(unique(dplyr::pull(liquidity_m_d_ref, dates))) == 1){
+  if (!is.null(liquidity_m_d_ref) && length(unique(dplyr::pull(liquidity_m_d_ref, dates))) != 1){
     stop("liquidity_m_d_ref should have only one date")
   }
 
   ##Check if updated_port_weights_m_lstd_ref is for only one date
-  if (!is.null(updated_port_weights_m_lstd_ref) && !length(unique(dplyr::pull(updated_port_weights_m_lstd_ref, dates))) == 1){
+  if (!is.null(updated_port_weights_m_lstd_ref) && length(unique(dplyr::pull(updated_port_weights_m_lstd_ref, dates))) != 1){
     stop("updated_port_weights_m_lstd_ref should have only one date")
   }
 
+  ###Check if target_port_m_d_ref is for only one date
+  if (!is.null(target_port_m_d_ref) && length(unique(dplyr::pull(target_port_m_d_ref, dates))) != 1){
+    stop("target_port_m_d_ref should have only one date")
+  }
+
   ##Check if benchmark_weights_m_d_ref is for only one date
-  if (!is.null(benchmark_weights_m_d_ref) && !length(unique(dplyr::pull(benchmark_weights_m_d_ref, dates))) == 1){
+  if (!is.null(benchmark_weights_m_d_ref) && length(unique(dplyr::pull(benchmark_weights_m_d_ref, dates))) != 1){
     stop("benchmark_weights_m_d_ref should have only one date")
   }
 
@@ -226,21 +244,37 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
   ###Eligility Quantile Rule for Stocks
   else {
 
+    ####Create a working copy that will use exp_ret_score_raw for eligibility if use_raw_for_eligibility is TRUE
+    pre_eligibility_m_d_ref <- universe_m_d_ref
+    if (isTRUE(use_raw_for_eligibility)){
+      # Temporarily substitute exp_ret_score with the raw version for ELIGIBILITY ONLY
+      pre_eligibility_m_d_ref$exp_ret_score <- pre_eligibility_m_d_ref$exp_ret_score_raw
+    }
+
     ####Get pre_eligible_assets, performing a while loop if min_eligible_assets_fallback is not NULL
-    universe_m_d_ref <- apply_stocks_pre_eligibility(
-      stock_universe_m_d_ref = universe_m_d_ref, #Stock Universe
-      eligibility_quantile_range = eligibility_quantile_range, min_eligible_assets_fallback = min_eligible_assets_fallback, #Quantile range and fallback
+    eligibility_m_d_ref <- apply_stocks_pre_eligibility(
+      stock_universe_m_d_ref = pre_eligibility_m_d_ref, #Stock Universe Pre eligibility
+      eligibility_quantile_range = eligibility_quantile_range,
+      min_eligible_assets_fallback = min_eligible_assets_fallback, #Quantile range and fallback
       verbose = verbose
     )
 
+    #### Bring back only flag
+    universe_m_d_ref <- universe_m_d_ref %>%
+      dplyr::left_join(eligibility_m_d_ref %>%
+                         dplyr::select(id, pre_eligible_assets), by = "id")
+
     # Print
     if (verbose) {
+      gate_col_label <- if (use_raw_for_eligibility) "exp_ret_score_raw" else "exp_ret_score"
       pre_eligible_assets <- universe_m_d_ref %>% dplyr::filter(pre_eligible_assets == 1) %>% dplyr::pull(tickers)
       eligibility_proportion <- length(pre_eligible_assets) / nrow(universe_m_d_ref)
-      cat(paste0("\nThe following ", crayon::magenta(length(pre_eligible_assets)), " assets (", round(eligibility_proportion * 100, 2), "% of the total) ",
-                 "have an exp_ret_score inside the quantile range for pre_eligible_assets: ",
-                 paste(pre_eligible_assets, collapse = ", "), "\n")
-      )
+      cat(paste0(
+        "\nThe following ", crayon::magenta(length(pre_eligible_assets)), " assets (",
+        round(eligibility_proportion * 100, 2), "% of the total) ",
+        "are inside the quantile range for pre_eligible_assets based on ", gate_col_label, ": ",
+        paste(pre_eligible_assets, collapse = ", "), "\n"
+      ))
     }
   }
 
@@ -293,9 +327,15 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
     universe_m_d_ref <- universe_m_d_ref %>% dplyr::rename_with(.cols = dplyr::all_of(selected_benchmark), .fn = ~ paste0(., "_bench_weights"))
 
   }
-
-
   #######################
+
+  ###Target Portfolio
+  if (!is.null(ridge_pen) && !is.null(target_port_m_d_ref)){
+
+    ###Include in universe_m_d_ref
+    universe_m_d_ref <- universe_m_d_ref %>% dplyr::left_join(target_port_m_d_ref %>% dplyr::select(-id, -dates), by = "tickers")
+
+  }
 
   ###Turnover Policy
   ######################
@@ -404,14 +444,15 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
       ineligible_groups <- setdiff(group_classification_m_d_ref[,groups[i]], eligible_groups) #groups with ineligible stocks
 
       #If there are ineligible groups
-      if(length(ineligible_groups > 0)){ #Check if there are ineglibile groups
+      if(length(ineligible_groups) > 0){ #Check if there are ineglibile groups
         for(j in seq_along(ineligible_groups)){
           ##For each ineligible group
           assets_in_ineligible_groups <- universe_m_d_ref[ #Get stocks that belong to the ineligible group
             which(universe_m_d_ref[,groups[i]] == ineligible_groups[j]),]
 
           ##Replace is_eligible for 1 for that asset high highest signal
-          best_ineligible_asset <- assets_in_ineligible_groups$tickers[which.max(assets_in_ineligible_groups$exp_ret_score)]
+          elig_col <- if (use_raw_for_eligibility) "exp_ret_score_raw" else "exp_ret_score"
+          best_ineligible_asset <- assets_in_ineligible_groups$tickers[which.max(assets_in_ineligible_groups[[elig_col]])]
           universe_m_d_ref[which(universe_m_d_ref$tickers == best_ineligible_asset),"is_eligible"] <- 1
 
           ##Print
