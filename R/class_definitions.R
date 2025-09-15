@@ -1066,11 +1066,40 @@ setClass("mvo_parameters",
 #' @export
 setClass("rp_parameters",
          slots = list(
-           rp_method = "character"
+           rp_method = "character",
+           exp_ret_score_tilt = "ANY",
+           exp_ret_score_tilt_eta = "ANY"
+
          ),
          prototype = list(
            rp_method = "cyclical-spinu"
-         )
+         ),
+         validity = function(object){
+
+           #Check that exp_ret_score_tilt is a length 1 logical if not NULL
+           if(!is.null(object@exp_ret_score_tilt)){
+             if(!is.logical(object@exp_ret_score_tilt) || length(object@exp_ret_score_tilt) != 1){
+               stop("exp_ret_score_tilt must be a single logical value (TRUE or FALSE).")
+             }
+           }
+
+           #Check that exp_ret_score_tilt_eta is NULL or a single positive numeric value
+           if(!is.null(object@exp_ret_score_tilt_eta)){
+             if(!is.numeric(object@exp_ret_score_tilt_eta) || length(object@exp_ret_score_tilt_eta) != 1 || object@exp_ret_score_tilt_eta <= 0){
+               stop("exp_ret_score_tilt_eta must be a single positive numeric value.")
+             }
+           }
+
+           #Check that exp_ret_score_tilt_eta is provided if exp_ret_score_tilt is TRUE
+           if(!is.null(object@exp_ret_score_tilt)){
+             if(object@exp_ret_score_tilt){
+               if(is.null(object@exp_ret_score_tilt_eta)){
+                 stop("If exp_ret_score_tilt is TRUE, exp_ret_score_tilt_eta must be provided.")
+               }
+             }
+           }
+
+         }
 )
 
 
@@ -1125,7 +1154,7 @@ setClass(
   ),
   validity = function(object) {
 
-  validate_liquidity_constraint_policy(as.list(object))
+    validate_liquidity_constraint_policy(as.list(object))
 
   }
 )
@@ -1227,7 +1256,7 @@ setClass(
         stop("concentration_constraint_policy must be of class 'concentration_constraint_policy'")
       }
       if(!object@concentration_constraint_policy@benchmark %in% c("theme_ss", "theme_sb")){
-          stop("Only allowed benchmarks for concentration_constraint_policy in 'signal_port_parameters' are 'theme_ss' and 'theme_sb'")
+        stop("Only allowed benchmarks for concentration_constraint_policy in 'signal_port_parameters' are 'theme_ss' and 'theme_sb'")
       }
 
     }
@@ -1693,14 +1722,14 @@ setClass(
   validity = function(object) {
 
     ##Chosen Signals and Positions
-      if (!is.null(object@chosen_signals_and_positions)){
-        if (length(object@chosen_signals_and_positions) == 1 && !object@chosen_signals_and_positions == "all"){
-            stop("chosen_signals_and_positions should be 'all' or a named vector with signals and positions")
-        }
-        if (length(object@chosen_signals_and_positions) > 1 && any(!object@chosen_signals_and_positions %in% c("long", "short"))){
-          stop("chosen_signals_and_positions should be either 'long' or 'short'.")
-        }
+    if (!is.null(object@chosen_signals_and_positions)){
+      if (length(object@chosen_signals_and_positions) == 1 && !object@chosen_signals_and_positions == "all"){
+        stop("chosen_signals_and_positions should be 'all' or a named vector with signals and positions")
       }
+      if (length(object@chosen_signals_and_positions) > 1 && any(!object@chosen_signals_and_positions %in% c("long", "short"))){
+        stop("chosen_signals_and_positions should be either 'long' or 'short'.")
+      }
+    }
 
     #Check for valid sb_algorithm
     valid_sb_algorithms <- c("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "mvo", "custom_weights")
@@ -2337,6 +2366,9 @@ setClass(
 #' @slot chosen_score_metric_and_position A character string representing the chosen score metric and position.
 #' @slot eligibility_quantile_range A numeric vector of length 2 representing the quantile range for stock selection.
 #' @slot min_eligible_assets_fallback A numeric value representing the minimum number of eligible assets.
+#' @slot chosen_scaler A character string representing the chosen scaler method.
+#' @slot scaler_shrinkage A numeric value representing the scaler shrinkage parameter.
+#' @slot use_raw_for_eligibility Logical; if TRUE, uses raw scores for eligibility instead of scaled scores.
 #' @slot selected_benchmark A character string representing the selected benchmark.
 #' @slot initial_buffer_period A numeric value representing the initial buffer period.
 #' @slot rebalancing_months A numeric value representing the number of months for rebalancing.
@@ -2391,6 +2423,9 @@ setClass(
     chosen_score_metric_and_position = "ANY",
     eligibility_quantile_range = "numeric",
     min_eligible_assets_fallback = "ANY",
+    chosen_scaler = "ANY",
+    scaler_shrinkage = "ANY",
+    use_raw_for_eligibility = "ANY",
     selected_benchmark = "ANY",
     initial_buffer_period = "numeric",
     rebalancing_months = "numeric",
@@ -2439,19 +2474,54 @@ setClass(
       }
     }
 
+    #chosen_scaler checks
+    if (is.null(object@chosen_scaler)){
+      if (!is.null(object@use_raw_for_eligibility)){
+        stop("chosen_scaler must be provided if use_raw_for_eligibility is not NULL")
+      }
+
+      if (!is.null(object@scaler_shrinkage)){
+        stop("chosen_scaler must be provided if scaler_shrinkage is not NULL")
+      }
+    } else {
+      if (!is.null(object@use_raw_for_eligibility) && !is.logical(object@use_raw_for_eligibility)){
+        stop("use_raw_for_eligibility must be a logical value (TRUE or FALSE).")
+      }
+
+      # Check that scaler_shrinkage is between 0 and 1
+      if (!is.null(object@scaler_shrinkage) && (
+        !is.numeric(object@scaler_shrinkage) || is.na(object@scaler_shrinkage) ||
+        length(object@scaler_shrinkage) != 1 ||
+        object@scaler_shrinkage < 0 || object@scaler_shrinkage > 1
+      )) {
+        stop("scaler_shrinkage must be a single number between 0 and 1")
+      }
+
+      #Check that use_raw_for_eligibility is FALSE if scaler_shrinkage is 0
+      # or if scaler_shrinkage is NULL
+      if (!is.null(object@scaler_shrinkage) && object@scaler_shrinkage == 0 &&
+          !is.null(object@use_raw_for_eligibility) && isTRUE(object@use_raw_for_eligibility)){
+        stop("use_raw_for_eligibility must be FALSE if scaler_shrinkage is 0")
+      }
+      if (is.null(object@scaler_shrinkage) &&
+          !is.null(object@use_raw_for_eligibility) && isTRUE(object@use_raw_for_eligibility)){
+        stop("use_raw_for_eligibility must be FALSE if scaler_shrinkage is NULL")
+      }
+    }
+
     ###Check classes
-      ####MVO
-      if (!is.null(object@mvo_parameters)){
-        if(!inherits(object@mvo_parameters, "mvo_parameters")){
-          stop("mvo_parameters must be an object of class mvo_parameters.")
-        }
+    ####MVO
+    if (!is.null(object@mvo_parameters)){
+      if(!inherits(object@mvo_parameters, "mvo_parameters")){
+        stop("mvo_parameters must be an object of class mvo_parameters.")
       }
-      ####RP Pars
-      if (!is.null(object@rp_parameters)){
-        if(!inherits(object@rp_parameters, "rp_parameters")){
-          stop("rp_parameters must be an object of class rp_parameters.")
-        }
+    }
+    ####RP Pars
+    if (!is.null(object@rp_parameters)){
+      if(!inherits(object@rp_parameters, "rp_parameters")){
+        stop("rp_parameters must be an object of class rp_parameters.")
       }
+    }
 
     ##Check chosen_score_metric_and_position
     if(!is.null(object@chosen_score_metric_and_position) &&
@@ -2535,6 +2605,10 @@ setClass(
 #' @slot mvo_port_spec An object of class \code{portfolio.spec} (from the \pkg{PortfolioAnalytics} or similar package) used for Markowitz optimization.
 #' @slot ind_max_weights A numeric vector specifying maximum weight constraints per asset.
 #' @slot ind_min_weights A numeric vector specifying minimum weight constraints per asset.
+#' @slot star_group_weights An object for storing STAR group weights (used in STAR HRP).
+#' @slot star_group_cov_matrix An object for storing STAR group covariance matrix (used in STAR HRP).
+#' @slot star_clustering An object for storing STAR clustering results (used in STAR HRP).
+#' @slot star_intra_ports An object for storing STAR intra-group portfolios (used in STAR HRP).
 #' @slot random_port_weights An object for storing random portfolio weights (used in MVO).
 #' @slot groups An object for grouping assets (e.g., sectors).
 #' @slot port_name A \code{character} giving a unique name or label for the configuration.
@@ -2583,18 +2657,24 @@ setClass(
     correlation_matrix = "ANY",
     weights = "numeric",
     rel_risk_contr = "ANY",
+    clusters = "ANY",
     mvo_port_spec = "ANY",
     ind_max_weights = "ANY",
     ind_min_weights = "ANY",
     random_port_weights = "ANY",
     groups = "ANY",
+    mmaf_method = "ANY",
+    group_cov_matrix = "ANY",
+    group_col = "ANY",
+    micro = "ANY",
+    macro = "ANY",
     port_name = "character"
   ),
   validity = function(object) {
 
     # port_construction_method must be one of the allowed
-    if (!object@port_construction_method %in% c("ew","sw","cw","cs","rp","mvo","custom_weights")) {
-      stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'mvo' or 'custom_weights'.")
+    if (!object@port_construction_method %in% c("ew","sw","cw","cs","rp","mvo","custom_weights", "hrp", "mmaf")) {
+      stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'mvo', 'custom_weights', 'hrp' or 'mmaf'.")
     }
 
     #weights and eligible_assets
@@ -2607,9 +2687,14 @@ setClass(
     }
 
     #exp_ret_score
-    if (object@port_construction_method %in% c("sw", "cs", "mvo")){
+    if (
+      (object@port_construction_method %in% c("sw", "cs", "mvo")) ||
+      (object@port_construction_method %in% c("rp", "hrp", "mmaf") &&  #For rp, hrp w tilts or mmaf
+       ("exp_ret_score" %in% names(object@universe_m_d_ref)))
+    ) {
       if (is.null(object@exp_ret_score)){
-        stop("exp_ret_score must be provided for port_construction_method 'sw', 'cs' or 'mvo'.")
+        stop("exp_ret_score must be provided for port_construction_method 'sw', 'cs', 'mvo' and for ",
+             "'rp', 'hrp' or 'mmaf', depending on arguments.")
       }
       if(!is.numeric(object@exp_ret_score)){
         stop("exp_ret_score must be numeric.")
@@ -2621,8 +2706,8 @@ setClass(
     }
 
     # Check covariance_matrix rownames vs. colnames and symmetry
-    if(object@port_construction_method %in% c("mvo", "rp") & is.null(object@covariance_matrix)){
-      stop("covariance_matrix must be provided for port_construction_method 'mvo' or 'rp'.")
+    if(object@port_construction_method %in% c("mvo", "rp", "hrp", "mmaf") & is.null(object@covariance_matrix)){
+      stop("covariance_matrix must be provided for port_construction_method 'mvo', 'rp', 'hrp' or 'mmaf'.")
     }
     if (!is.null(object@covariance_matrix)) {
       if (!identical(rownames(object@covariance_matrix), colnames(object@covariance_matrix))) {
@@ -2650,6 +2735,28 @@ setClass(
       }
     }
 
+    # Do the same for group_covariance_matrix if port_construction_method is mmaf
+    if(object@port_construction_method == "mmaf" & is.null(object@group_cov_matrix)){
+      stop("group_cov_matrix must be provided for port_construction_method 'mmaf'.")
+    }
+    if (!is.null(object@group_cov_matrix)) {
+      if (!identical(rownames(object@group_cov_matrix), colnames(object@group_cov_matrix))) {
+        stop("group_cov_matrix must have rownames identical to colnames.")
+      }
+      if (!isSymmetric(object@group_cov_matrix)) {
+        stop("group_cov_matrix must be symmetric.")
+      }
+      if (!is.numeric(object@group_cov_matrix)){
+        stop("group_cov_matrix must be numeric.")
+      }
+      if(length(object@groups) != ncol(object@group_cov_matrix)){
+        stop("group_cov_matrix must have the same number of cols as groups")
+      }
+      if(!any(colnames(object@group_cov_matrix) == object@groups)){
+        stop("group_cov_matrix must have the same colnames as groups")
+      }
+    }
+
     # Check for mvo
     if(object@port_construction_method == "mvo"){
       if(is.null(object@random_port_weights)){
@@ -2672,6 +2779,56 @@ setClass(
         }
       }
     }
+
+    # Check for mmaf
+    if (object@port_construction_method == "mmaf") {
+      # Require macro/micro and some minimal structure
+      if (is.null(object@macro)) {
+        stop("macro slot must be provided for 'mmaf'.")
+      }
+      ## Macro should be of S4 class port
+      if (!inherits(object@macro, "port")) {
+        stop("macro must be a 'port' object.")
+      }
+      if (is.null(object@micro)) {
+        stop("micro slot must be provided for 'mmaf'.")
+      }
+      ## If mmaf_method is 'top_down', macro@port_construction_method should be
+      ## either 'ew', 'rp' or 'hrp'
+      if (object@mmaf_method == "top_down" &&
+          !object@macro@port_construction_method %in% c("ew", "rp", "hrp")) {
+        stop("For 'top_down' mmaf_method, macro port_construction_method must be one of 'ew', 'rp' or 'hrp'.")
+      }
+      ## Micro must be a list of port objects
+      if (!is.list(object@micro) ||
+          !all(sapply(object@micro, function(x) inherits(x, "port")))) {
+        stop("micro must be a list of 'port' objects.")
+      }
+      ## If mmaf_method is 'top_down', micro must be a list with groups as names,
+      ## matchings colnames of group_cov_matrix
+      if (!is.null(object@groups) &&
+          object@mmaf_method == "top_down" &&
+          !identical(object@micro,  object@groups)) {
+        stop("Names of micro list must match groups.")
+      }
+      ## If mmaf_method is 'bottom_up', micro must be list with only one element
+      ## named 'consolidated'
+      if (object@mmaf_method == "bottom_up" &&
+          (!identical(names(object@micro), "consolidated") ||
+           length(object@micro) != 1)) {
+        stop("For 'bottom_up' mmaf_method, micro must be a list with one element named 'consolidated'.")
+      }
+    }
+
+    #Check for hrp
+    if (object@port_construction_method == "hrp"){
+      # hclust type check if provided
+      if (is.null(object@clusters) ||
+          !inherits(object@clusters, "hclust")) {
+        stop("clusters must be an 'hclust' object.")
+      }
+    }
+
     TRUE
   }
 )
