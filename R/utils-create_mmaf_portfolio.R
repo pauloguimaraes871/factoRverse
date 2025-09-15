@@ -23,8 +23,8 @@
 #' @param covariance_matrix Numeric covariance matrix with row/col names that
 #'   exactly match the `tickers` of eligible names (same ordering is enforced).
 #' @param groups_m_d_ref A data.frame/tibble with group (sector) membership for tickers.
-#'   Must include `id`, `tickers`, `dates`, and the `group_col` column.
-#' @param group_col Character scalar naming the column in `groups_m_d_ref` that carries
+#'   Must include `id`, `tickers`, `dates`, and the `mmaf_group_col` column.
+#' @param mmaf_group_col Character scalar naming the column in `groups_m_d_ref` that carries
 #'   the group/sector classification. (Your wrapper enforces this as the 4th column.)
 #' @param liquidity_m_d_ref Optional data.frame/tibble with liquidity features aligned by
 #'   `id`, `tickers`, `dates`. If provided, group-level liquidity metrics are aggregated
@@ -51,8 +51,6 @@
 #' @param cov_eigval_jitter Numeric, jitter on covariance eigenvalues (micro MVO).
 #' @param rp_method Character, risk parity method at micro level (e.g., `"cyclical-spinu"`).
 #' @param exp_ret_score_tilt Optional numeric vector/column name for RP tilt (micro).
-#' @param custom_weights_m_d_ref Optional custom weights descriptor for micro.
-#'
 #' @param macro_port_construction_method Character macro method used to allocate across groups
 #'   (e.g., `"ew"`, `"rp"`, `"hrp"`, `"mvo"`). For a strictly *neutral* top-down
 #'   sector allocation, prefer `"ew"`, `"rp"` or `"hrp"` and keep `macro_exp_ret_score_tilt = NULL`.
@@ -69,7 +67,6 @@
 #' @param macro_cov_eigval_jitter Numeric, jitter on macro covariance eigenvalues.
 #' @param macro_rp_method Character, risk parity method at macro.
 #' @param macro_exp_ret_score_tilt Optional numeric vector/column name for RP tilt (macro).
-#' @param macro_custom_weights_m_d_ref Optional custom weights descriptor for macro.
 #'
 #' @param lower_quantile_winsorization,upper_quantile_winsorization Numerics in (0,1),
 #'   passed through to micro and macro `set_portfolio_weights()`.
@@ -92,7 +89,7 @@
 #' - `universe_m_d_ref` / `groups_m_d_ref` / `liquidity_m_d_ref` are all single-date (\dQuote{d\_ref}).
 #' - `covariance_matrix` row/col names match the eligible tickers (same ordering).
 #' - `port@universe_m_d_ref@data` carries liquidity columns when those are used.
-#' - `group_col` is the 4th column of `groups_m_d_ref` (enforced by a wrapper).
+#' - `mmaf_group_col` is the 4th column of `groups_m_d_ref` (enforced by a wrapper).
 #'
 #' @return A list with:
 #' \describe{
@@ -112,7 +109,7 @@
 #'   mmaf_method = "top_down",
 #'   covariance_matrix = Sigma,
 #'   groups_m_d_ref = groups_df,
-#'   group_col = "sector",
+#'   mmaf_group_col = "sector",
 #'   liquidity_m_d_ref = liq_df,
 #'   top_down_proxy_port_method = "rp",
 #'   micro_port_construction_method = "mvo",
@@ -125,7 +122,7 @@
 #'   mmaf_method = "bottom_up",
 #'   covariance_matrix = Sigma,
 #'   groups_m_d_ref = groups_df,
-#'   group_col = "sector",
+#'   mmaf_group_col = "sector",
 #'   liquidity_m_d_ref = liq_df,
 #'   micro_port_construction_method = "mvo",
 #'   macro_port_construction_method = "rp",
@@ -137,9 +134,8 @@
 #' }
 #'
 #' @export
-
 create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
-                                  covariance_matrix, groups_m_d_ref, group_col,
+                                  covariance_matrix, groups_m_d_ref, mmaf_group_col,
                                   liquidity_m_d_ref, top_down_proxy_port_method = "rp",
                                   # Micro Level
                                   micro_port_construction_method, linkage = "single",
@@ -151,7 +147,6 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
                                   opt_objective = "sharpe", opt_method = "random", ridge_pen = NULL,
                                   n_resamples = 0, exp_ret_score_jitter = 0, cov_eigval_jitter = 0, #MVO
                                   rp_method = "cyclical-spinu", exp_ret_score_tilt = NULL, #Risk Parity
-                                  custom_weights_m_d_ref = NULL, #Custom Weights
                                   # Macro Level
                                   macro_port_construction_method, macro_linkage = "single",
                                   macro_concentration_constraint_policy = NULL,
@@ -160,7 +155,6 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
                                   macro_opt_objective = "sharpe", macro_opt_method = "random", macro_ridge_pen = NULL,
                                   macro_n_resamples = 0, macro_exp_ret_score_jitter = 0, macro_cov_eigval_jitter = 0, #MVO
                                   macro_rp_method = "cyclical-spinu", macro_exp_ret_score_tilt = NULL, #Risk Parity
-                                  macro_custom_weights_m_d_ref = NULL, #Custom Weights
                                   lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975,
                                   parallel = FALSE, verbose = TRUE
 ){
@@ -192,18 +186,18 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
       }
 
     ## Get groups
-      ### If group_col is NULL, assign the first after id, tickers and dates as group_col
-      if (is.null(group_col)){
-        group_col <- names(groups_m_d_ref)[4]
-        message(paste0("group_col not specified. Using ", group_col, " as group_col."))
+      ### If mmaf_group_col is NULL, assign the first after id, tickers and dates as mmaf_group_col
+      if (is.null(mmaf_group_col)){
+        mmaf_group_col <- names(groups_m_d_ref)[4]
+        message(paste0("mmaf_group_col not specified. Using ", mmaf_group_col, " as mmaf_group_col."))
       }
 
       ### Get unique groups
-      groups <- unique(groups_m_d_ref[[group_col]])
+      groups <- unique(groups_m_d_ref[[mmaf_group_col]])
         #### Define members
         group_members <- lapply(groups, function(g) {
           eligible_universe_m_d_ref %>%
-            dplyr::filter(!!rlang::sym(group_col) == g) %>%
+            dplyr::filter(!!rlang::sym(mmaf_group_col) == g) %>%
             dplyr::pull(tickers)
         })
         names(group_members) <- groups
@@ -491,17 +485,17 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
         #### Subset universe and normalize weights
           ##### If sum of weights is 0, return a vector of 0 weights
           if (sum(micro_port@universe_m_d_ref@data %>%
-                  dplyr::filter(!!rlang::sym(group_col) == g) %>%
+                  dplyr::filter(!!rlang::sym(mmaf_group_col) == g) %>%
                   dplyr::pull(weights)) < .Machine$double.eps) {
             return(
               micro_port@universe_m_d_ref@data %>%
-                dplyr::filter(!!rlang::sym(group_col) == g) %>%
+                dplyr::filter(!!rlang::sym(mmaf_group_col) == g) %>%
                 dplyr::mutate(weights = 0)
             )
           } else {
           ##### Otherwise, normalize weights to sum to 1
           micro_port@universe_m_d_ref@data %>%
-            dplyr::filter(!!rlang::sym(group_col) == g) %>%
+            dplyr::filter(!!rlang::sym(mmaf_group_col) == g) %>%
             dplyr::mutate(weights = weights / sum(weights, na.rm = TRUE))
           }
       })
@@ -599,8 +593,8 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
     ## Get group members for first group
     group_g1 <- groups[g1]
     group_g1_tickers <- eligible_universe_m_d_ref %>%
-      dplyr::filter(!is.na(!!rlang::sym(group_col)) &
-                      !!rlang::sym(group_col) == group_g1) %>%
+      dplyr::filter(!is.na(!!rlang::sym(mmaf_group_col)) &
+                      !!rlang::sym(mmaf_group_col) == group_g1) %>%
       dplyr::pull(tickers)
 
     ## Get weights for group g1
@@ -615,8 +609,8 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
       ### Get group members for second group
       group_g2 <- groups[g2]
       group_g2_tickers <- eligible_universe_m_d_ref %>%
-        dplyr::filter(!is.na(!!rlang::sym(group_col)) &
-                        !!rlang::sym(group_col) == group_g2) %>%
+        dplyr::filter(!is.na(!!rlang::sym(mmaf_group_col)) &
+                        !!rlang::sym(mmaf_group_col) == group_g2) %>%
         dplyr::pull(tickers)
 
       ### Get weights for group g2
@@ -675,7 +669,7 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
       n_resamples = macro_n_resamples, exp_ret_score_jitter = macro_exp_ret_score_jitter,
       cov_eigval_jitter = macro_cov_eigval_jitter,
       ## Custom Weights
-      custom_weights_m_d_ref = macro_custom_weights_m_d_ref,
+      custom_weights_m_d_ref = NULL,
       # Winsorization
       lower_quantile_winsorization = lower_quantile_winsorization,
       upper_quantile_winsorization = upper_quantile_winsorization,
@@ -762,7 +756,9 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
         }  else {
           list("consolidated" = micro_port)
         },
-        group_cov_matrix  = group_covariance_matrix
+        group_cov_matrix  = group_covariance_matrix,
+        group_col         = group_col,
+        mmaf_method       = mmaf_method
       ))
 
 
