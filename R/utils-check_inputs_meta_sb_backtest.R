@@ -205,14 +205,6 @@ check_inputs_meta_sb_backtest <- function(
   ##Validate meta and base meta_dataframes
   validate_meta_and_base_m_df(base_mdfs_list, meta_mdfs_list, config@features_passthrough)
 
-  #Meta-level objects not available at this time
-  if (any(!is.null(meta_signal_themes_m_df),
-          !is.null(meta_custom_signal_universe_metrics_m_df), !is.null(meta_custom_signal_weights_m_df),
-          !is.null(meta_backtest_returns_m_xts), !is.null(meta_benchmark_returns_m_xts)
-  )){
-    stop("meta-level objects are not supported at this time.")
-  }
-
 
   ##########################
 
