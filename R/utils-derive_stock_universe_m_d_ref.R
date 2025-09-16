@@ -59,6 +59,12 @@ derive_stock_universe_m_d_ref <- function(signals_m_d_ref, oos_predictions_m_d_r
       stop("If scaler_m_d_ref is provided, a chosen_scaler must be provided.")
     }
 
+    ##Check if scaler_shrinkage is between 0 and 1
+    if (scaler_shrinkage < 0 || scaler_shrinkage > 1) {
+      stop("scaler_shrinkage must be a numeric value between 0 and 1.")
+    }
+
+
   ####################
 
   #Initialize the stock universe data frame
@@ -135,7 +141,7 @@ derive_stock_universe_m_d_ref <- function(signals_m_d_ref, oos_predictions_m_d_r
 
     #Check if is_dummy is TRUE and short-circuit
     if (exists("is_dummy") && isTRUE(is_dummy)) {
-      stop("Scaler provided but chosen score is a binary dummy; set scaler_m_d_ref = NULL for this use case.")
+      stop("Scaler provided but chosen score is a binary dummy. Prefer user AND rules for this use case.")
     }
 
     #Extract scaler values
