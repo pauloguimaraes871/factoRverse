@@ -110,7 +110,7 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
 
   #Throw an error if use_raw_for_eligibility is TRUE and asset_object is signals
   if (use_raw_for_eligibility && asset_object == "signals"){
-    stop("use_raw_for_eligibility is TRUE but asset_object is signals. This is not allowed.")
+    stop("use_raw_for_eligibility is TRUE but asset_object is signals.")
   }
 
   ##Check if liquidity_m_d_ref is for only one date
@@ -244,25 +244,20 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
   ###Eligility Quantile Rule for Stocks
   else {
 
-    ####Create a working copy that will use exp_ret_score_raw for eligibility if use_raw_for_eligibility is TRUE
+    ####Create a working copy that will store old values for exp_ret_score if use_raw_for_eligibility is TRUE
     pre_eligibility_m_d_ref <- universe_m_d_ref
     if (isTRUE(use_raw_for_eligibility)){
-      # Temporarily substitute exp_ret_score with the raw version for ELIGIBILITY ONLY
-      pre_eligibility_m_d_ref$exp_ret_score <- pre_eligibility_m_d_ref$exp_ret_score_raw
+      # Temporarily substitute exp_ret_score with the raw version
+      universe_m_d_ref$exp_ret_score <- pre_eligibility_m_d_ref$exp_ret_score_raw
     }
 
     ####Get pre_eligible_assets, performing a while loop if min_eligible_assets_fallback is not NULL
-    eligibility_m_d_ref <- apply_stocks_pre_eligibility(
-      stock_universe_m_d_ref = pre_eligibility_m_d_ref, #Stock Universe Pre eligibility
+    universe_m_d_ref <- apply_stocks_pre_eligibility(
+      stock_universe_m_d_ref = universe_m_d_ref, #Stock Universe Pre eligibility
       eligibility_quantile_range = eligibility_quantile_range,
       min_eligible_assets_fallback = min_eligible_assets_fallback, #Quantile range and fallback
       verbose = verbose
     )
-
-    #### Bring back only flag
-    universe_m_d_ref <- universe_m_d_ref %>%
-      dplyr::left_join(eligibility_m_d_ref %>%
-                         dplyr::select(id, pre_eligible_assets), by = "id")
 
     # Print
     if (verbose) {
@@ -483,6 +478,15 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
   #Rearrange
   universe_m_d_ref <- universe_m_d_ref %>% dplyr::mutate(is_eligible = dplyr::if_else(is_eligible >= 1, 1, 0)) #Take the resulting sum and turn into binary
   universe_m_d_ref <- universe_m_d_ref %>% dplyr::relocate(is_eligible, .after = dplyr::last_col()) #Relocate to last column
+
+  #If use_raw_for_eligibility is TRUE, bring back exp_ret_score values from pre_eligibility_m_d_ref
+  if (isTRUE(use_raw_for_eligibility)){
+    universe_m_d_ref <- universe_m_d_ref %>%
+      dplyr::left_join(pre_eligibility_m_d_ref %>% ##Use left_join to ensure order
+                         dplyr::select(id, exp_ret_score), by = "id", suffix = c("", "_temp")) %>%
+      dplyr::mutate(exp_ret_score = exp_ret_score_temp) %>%
+      dplyr::select(-exp_ret_score_temp)
+  }
 
   #Check for NAs in is_eligible
   if(any(is.na(universe_m_d_ref$is_eligible))) stop("NAs found in is_eligible column")
