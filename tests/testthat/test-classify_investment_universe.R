@@ -254,7 +254,8 @@ test_that("classify_investment_universe works with no additional rules for stock
 
   expect_equal(
     classify_investment_universe(universe_m_d_ref = stock_universe_m_d_ref, eligibility_quantile_range = c(0.50, 1.0)),
-    expected_results
+    expected_results,
+    ignore_attr = TRUE
   )
 
 })
@@ -930,11 +931,18 @@ test_that("classify_investment_universe works inside run_port_backtest flow - to
   #Current date
   current_date <- "2022-12-15"
 
+  #Target
+  target_port_m_df <- benchmark_weights_m_df %>% dplyr::rename(target_weights = ibov)
+  ridge_pen <- 1
+
   #Check
   check_inputs_port_backtest(signals_m_df = signals_m_df, oos_predictions_m_df = NULL, chosen_score_metric_and_position = c(roe_3m = "long"),
                              rebalancing_months = 6, initial_buffer_period = 6, port_construction_method = "ew",
                              eligibility_quantile_range = c(0.75, 0.90), selected_benchmark = "ibov",
                              min_eligible_assets_fallback = NULL,
+                             exp_ret_score_tilt = NULL, exp_ret_score_tilt_eta = NULL,
+                             target_port_m_df = target_port_m_df, ridge_pen = ridge_pen,
+                             scaler_m_df = NULL, scaler_shrinkage = NULL, use_raw_for_eligibility = NULL, chosen_scaler = NULL,
                              rp_method = NULL, n_random_ports = NULL, random_ports_method = NULL, opt_objective = NULL, opt_method = NULL,
                              cov_estimation_method = NULL, cov_matrix_sample_size = NULL, active_returns = FALSE, cov_matrix_benchmark = NULL,
                              daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = benchmark_returns_m_xts,
@@ -952,6 +960,7 @@ test_that("classify_investment_universe works inside run_port_backtest flow - to
   liquidity_m_d_ref <- liquidity_m_df %>% dplyr::filter(dates == current_date)
   benchmark_weights_m_d_ref <- benchmark_weights_m_df %>% dplyr::filter(dates == current_date)
   stock_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
+  target_port_m_d_ref <- target_port_m_df %>% dplyr::filter(dates == current_date)
   updated_port_weights_m_lstd_ref <- signals_m_df %>% dplyr::filter(dates == "2022-11-15") %>% dplyr::select(id, tickers, dates) %>%
     dplyr::mutate(bop_port_weights = 0)
   #Include some arbitrary weights to enable turnover_constraint_policy
@@ -999,10 +1008,17 @@ test_that("classify_investment_universe works inside run_port_backtest flow - to
   #Bench weights
   expected_results <- expected_results %>%
     dplyr::left_join(benchmark_weights_m_d_ref %>% dplyr::select(id, ibov), by = "id")
-  colnames(expected_results)[10] <- "ibov_bench_weights"
+  colnames(expected_results)[which(colnames(expected_results) == "ibov")] <- "ibov_bench_weights"
 
   expected_results <- expected_results %>% dplyr::mutate(max_abs_aw_ind =
                                                            dplyr::if_else(ibov_bench_weights > concentration_constraint_policy$max_abs_active_individual_weight, 1L, 0L))
+
+  #Join target_port_m_d_ref
+  expected_results <- expected_results %>%
+    dplyr::left_join(target_port_m_d_ref %>% dplyr::select(id, target_weights), by = "id")
+
+  #Check if target_weights column is equal to ibov_bench_weights
+  expect_equal(expected_results$target_weights, expected_results$ibov_bench_weights)
 
   #Buffer Zones
   turnover_cap_rule_m_d_ref <- apply_turnover_cap_rule(stock_universe_m_d_ref = stock_universe_m_d_ref,
@@ -1042,6 +1058,8 @@ test_that("classify_investment_universe works inside run_port_backtest flow - to
     eligibility_quantile_range = eligibility_quantile_range,
     liquidity_m_d_ref = liquidity_m_d_ref,
     liquidity_constraint_policy = liquidity_constraint_policy,
+    target_port_m_d_ref = target_port_m_d_ref,
+    ridge_pen = ridge_pen,
     liquidity_floor_cutoffs = liquidity_floor_cutoffs_df,
     benchmark_weights_m_d_ref = benchmark_weights_m_d_ref,
     groups_m_d_ref = stock_groups_m_d_ref,
@@ -1054,6 +1072,133 @@ test_that("classify_investment_universe works inside run_port_backtest flow - to
   rownames(expected_results) <- NULL
 
   expect_equal(results, expected_results)
+
+
+})
+
+test_that("classify_investment_universe works inside run_port_backtest flow with scaler, use_raw_for_eligibility either TRUE or FALSE and target_m_df - toy_preprocessed_port_obj.RData", {
+
+  #Create signals_m_d_ref
+  load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
+
+  #Quantile Range
+  eligibility_quantile_range <- c(0.67, 1)
+
+  #Current date
+  current_date <- "2022-12-15"
+
+  #Scaler
+  scaler_m_df <- signals_m_df %>% dplyr::select(id, tickers, dates, dy_med_36m)
+  chosen_scaler <- "dy_med_36m"
+  scaler_shrinkage <- 0.5
+  use_raw_for_eligibility <- TRUE
+
+  #Target
+  target_port_m_df <- benchmark_weights_m_df %>% dplyr::rename(target_weights = ibov)
+  ridge_pen <- 1
+
+  #Check
+  check_inputs_port_backtest(signals_m_df = signals_m_df, oos_predictions_m_df = NULL, chosen_score_metric_and_position = c(roe_3m = "long"),
+                             rebalancing_months = 6, initial_buffer_period = 6, port_construction_method = "ew",
+                             eligibility_quantile_range = c(0.75, 0.90), selected_benchmark = "ibov",
+                             min_eligible_assets_fallback = NULL,
+                             exp_ret_score_tilt = NULL, exp_ret_score_tilt_eta = NULL,
+                             scaler_m_df = scaler_m_df, scaler_shrinkage = scaler_shrinkage, use_raw_for_eligibility = use_raw_for_eligibility,
+                             chosen_scaler = chosen_scaler, target_port_m_df = target_port_m_df, ridge_pen = ridge_pen,
+                             rp_method = NULL, n_random_ports = NULL, random_ports_method = NULL, opt_objective = NULL, opt_method = NULL,
+                             cov_estimation_method = NULL, cov_matrix_sample_size = NULL, active_returns = FALSE, cov_matrix_benchmark = NULL,
+                             daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                             liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL,
+                             liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs_df, main_liquidity_metric = "mean_volfin_3m",
+                             stock_groups_m_df = NULL, benchmark_weights_m_df = benchmark_weights_m_df, volatility_m_df = volatility_m_df,
+                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list,
+                             custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL,
+                             upper_quantile_winsorization = 0.95, lower_quantile_winsorization = 0.05, verbose = TRUE
+  )
+
+
+  #Initial Preps
+  signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
+  liquidity_m_d_ref <- liquidity_m_df %>% dplyr::filter(dates == current_date)
+  benchmark_weights_m_d_ref <- benchmark_weights_m_df %>% dplyr::filter(dates == current_date)
+  target_port_m_d_ref <- target_port_m_df %>% dplyr::filter(dates == current_date)
+  scaler_m_d_ref <- scaler_m_df %>% dplyr::filter(dates == current_date)
+  stock_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
+  updated_port_weights_m_lstd_ref <- signals_m_df %>% dplyr::filter(dates == "2022-11-15") %>% dplyr::select(id, tickers, dates) %>%
+    dplyr::mutate(bop_port_weights = 0)
+  #Include some arbitrary weights to enable turnover_constraint_policy
+  updated_port_weights_m_lstd_ref <- updated_port_weights_m_lstd_ref %>% dplyr::mutate(bop_port_weights = dplyr::if_else(tickers == "MDNE3", 0.2, bop_port_weights))
+
+
+  #Derive Stock Universe with and without the presence of shrinkage
+  stock_universe_m_d_ref <- derive_stock_universe_m_d_ref(signals_m_d_ref = signals_m_d_ref,
+                                                          chosen_score_metric_and_position = c(roe_3m = "long"),
+                                                          scaler_m_d_ref = scaler_m_df,
+                                                          chosen_scaler = chosen_scaler,
+                                                          scaler_shrinkage = scaler_shrinkage,
+                                                          upper_quantile_winsorization = upper_quantile_winsorization,
+                                                          lower_quantile_winsorization = lower_quantile_winsorization)
+
+  stock_universe_m_d_ref_alt <- derive_stock_universe_m_d_ref(signals_m_d_ref = signals_m_d_ref,
+                                                              chosen_score_metric_and_position = c(roe_3m = "long"),
+                                                              upper_quantile_winsorization = upper_quantile_winsorization,
+                                                              lower_quantile_winsorization = lower_quantile_winsorization)
+
+  #Classify stock universe
+
+  #Results
+  results <- classify_investment_universe(
+    universe_m_d_ref = stock_universe_m_d_ref,
+    eligibility_quantile_range = eligibility_quantile_range,
+    liquidity_m_d_ref = liquidity_m_d_ref,
+    liquidity_constraint_policy = liquidity_constraint_policy,
+    liquidity_floor_cutoffs = liquidity_floor_cutoffs_df,
+    benchmark_weights_m_d_ref = benchmark_weights_m_d_ref,
+    groups_m_d_ref = stock_groups_m_d_ref,
+    target_port_m_d_ref = target_port_m_d_ref,
+    ridge_pen = ridge_pen,
+    use_raw_for_eligibility = use_raw_for_eligibility,
+    concentration_constraint_policy = concentration_constraint_policy,
+    updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
+    turnover_constraint_policy = turnover_constraint_policy
+  )
+
+  rownames(results) <- NULL
+
+
+  ## Test that results are the same as when using stock_universe_m_d_ref (with shrinkage) or stock_universe_m_d_ref_alt (without shrinkage)
+  ## Given that use_raw_for_eligibility = TRUE, the eligibility should be the same
+
+  results_alt <- classify_investment_universe(
+    universe_m_d_ref = stock_universe_m_d_ref_alt,
+    eligibility_quantile_range = eligibility_quantile_range,
+    liquidity_m_d_ref = liquidity_m_d_ref,
+    liquidity_constraint_policy = liquidity_constraint_policy,
+    liquidity_floor_cutoffs = liquidity_floor_cutoffs_df,
+    benchmark_weights_m_d_ref = benchmark_weights_m_d_ref,
+    groups_m_d_ref = stock_groups_m_d_ref,
+    target_port_m_d_ref = target_port_m_d_ref,
+    ridge_pen = ridge_pen,
+    use_raw_for_eligibility = use_raw_for_eligibility,
+    concentration_constraint_policy = concentration_constraint_policy,
+    updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
+    turnover_constraint_policy = turnover_constraint_policy
+  )
+
+  ## Check that exp_ret_score do differ
+  expect_false(all(results$exp_ret_score == results_alt$exp_ret_score))
+  ## Check that exp_ret_score_raw do not differ
+  expect_true(all(results$exp_ret_score_raw == results_alt$exp_ret_score_raw))
+
+  ## Check that eligibility is the same
+  expect_equal(results$pre_eligible_assets, results_alt$pre_eligible_assets)
+  expect_equal(results$is_eligible, results_alt$is_eligible)
+
+  ## Check that everything is the same, except for exp_ret_score
+  results$exp_ret_score <- NULL
+  results$scaler <- NULL
+  results_alt$exp_ret_score <- NULL
+  expect_equal(results, results_alt)
 
 
 })
@@ -1300,6 +1445,39 @@ test_that("classify investment_universe throws an error for wrong obj", {
     "Only one benchmark is allowed when setting max_abs_active_individual_weight."
   )
 
+  wrong_signal_universe_m_d_ref <- signal_universe_m_d_ref
+  expect_error(
+    classify_investment_universe(universe_m_d_ref = signal_universe_m_d_ref, signal_significance_threshold = 0.05,
+                                 groups_m_d_ref = signal_groups_m_d_ref,
+                                 eligibility_quantile_range = c(0.67, 1),
+                                 use_raw_for_eligibility = TRUE,
+                                 asset_object = "stocks"),
+    "use_raw_for_eligibility is TRUE but exp_ret_score_raw column does not exist in universe_m_d_ref"
+  )
+
+  wrong_signal_universe_m_d_ref <- signal_universe_m_d_ref
+  wrong_signal_universe_m_d_ref$exp_ret_score_raw <- signal_universe_m_d_ref$exp_ret_score
+  wrong_signal_universe_m_d_ref <- wrong_signal_universe_m_d_ref %>% dplyr::relocate(exp_ret_score, .after = exp_ret_score_raw)
+  expect_error(
+    classify_investment_universe(universe_m_d_ref = wrong_signal_universe_m_d_ref, signal_significance_threshold = 0.05,
+                                 groups_m_d_ref = signal_groups_m_d_ref,
+                                 eligibility_quantile_range = c(0.67, 1),
+                                 use_raw_for_eligibility = TRUE,
+                                 asset_object = "signals"),
+    "use_raw_for_eligibility is TRUE but asset_object is signals"
+  )
+
+
+  target_port_m_df <- benchmark_weights_m_df
+  expect_error(
+    classify_investment_universe(universe_m_d_ref = signal_universe_m_d_ref, signal_significance_threshold = 0.05,
+                                 target_port_m_d_ref = target_port_m_df,
+                                 groups_m_d_ref = signal_groups_m_d_ref,
+                                 eligibility_quantile_range = c(0.67, 1),
+                                 use_raw_for_eligibility = FALSE,
+                                 asset_object = "stocks"),
+    "target_port_m_d_ref should have only one date"
+  )
 
 
 })
