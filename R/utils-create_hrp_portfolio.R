@@ -12,8 +12,9 @@
 #'   and column names matching \code{tickers}.
 #' @param linkage Linkage method for hierarchical clustering. Passed to
 #'   \code{\link[stats]{hclust}}. Default is \code{"single"}.
-#' @param exp_ret_score_tilt Optional numeric. If provided, final HRP weights
-#'   are tilted by \code{exp_ret_score ^ exp_ret_score_tilt} and renormalized.
+#' @param exp_ret_score_tilt character or NULL. If "inner", tilt is applied at each split;
+#'   if "final", a post overlay is applied; if NULL, no tilt.
+#' @param exp_ret_score_tilt_eta numeric or NULL. Tilt intensity used for BOTH "inner" and "final".
 #' @param verbose Logical, whether to print progress messages. Default is TRUE.
 #'
 #' @return A list with:
@@ -27,7 +28,7 @@
 #'
 #' @export
 create_hrp_portfolio <- function(universe_m_d_ref, covariance_matrix, linkage = "single",
-                                 exp_ret_score_tilt = NULL, #Alpha Tilt
+                                 exp_ret_score_tilt_eta = NULL, exp_ret_score_tilt = NULL, #Alpha Tilt
                                  verbose = TRUE){
 
   # Initial Setup---------------------------------------------------------------
@@ -40,9 +41,10 @@ create_hrp_portfolio <- function(universe_m_d_ref, covariance_matrix, linkage = 
       if (!is.null(exp_ret_score_tilt)) {
         cat(paste0("Exp Ret Score Tilt: ", exp_ret_score_tilt))
         cat("\n")
+        cat(paste0("Exp Ret Score Tilt Eta: ", exp_ret_score_tilt_eta))
+        cat("\n")
       }
     }
-
     ## Eligible tickers
     eligible_universe_m_d_ref <- universe_m_d_ref %>% dplyr::filter(is_eligible == 1)
     eligible_tickers <- eligible_universe_m_d_ref %>% dplyr::pull(tickers)
@@ -89,6 +91,20 @@ create_hrp_portfolio <- function(universe_m_d_ref, covariance_matrix, linkage = 
         ### dendrogram leaf order (mirrors allowed;
         ### HRP is flip-invariant)
         eligible_tickers_order <- eligible_tickers[hc$order]
+
+      ## Score in dendrogram order
+      if (!is.null(exp_ret_score_tilt) &&
+          exp_ret_score_tilt != "none"){
+
+        ### Get exp ret scores and name them
+        exp_ret_scores <- setNames(
+          eligible_universe_m_d_ref$exp_ret_score,
+          eligible_universe_m_d_ref$tickers
+        )
+
+        exp_ret_scores_ord <- exp_ret_scores[eligible_tickers_order]
+
+      }
 
     # Recursive bisection-------------------------------------------------------
 
@@ -145,6 +161,26 @@ create_hrp_portfolio <- function(universe_m_d_ref, covariance_matrix, linkage = 
           #### the half with lower variance gets higher weight
           alpha <- 1 - var_L / (var_L + var_R)
 
+          #### Apply exp_ret_score tilt within cluster if the case
+          if (!is.null(exp_ret_score_tilt) && exp_ret_score_tilt == "inner" &&
+              !is.null(exp_ret_score_tilt_eta) && exp_ret_score_tilt_eta > 0) {
+
+            ##### IVP-weighted cluster-level alpha signals
+            mu_L <- as.numeric(sum(weights_L * exp_ret_scores_ord[L]))
+            mu_R <- as.numeric(sum(weights_R * exp_ret_scores_ord[R]))
+
+            ##### Positive, scale-free mapping via ranks
+            r <- rank(c(mu_L, mu_R), ties.method = "average")
+            gL <- r[1]/2
+            gR <- r[2]/2
+
+            ##### Tilted allocators: risk * alpha_signal^eta
+            A_L <- (1 / var_L) * (gL ^ exp_ret_score_tilt_eta)
+            A_R <- (1 / var_R) * (gR ^ exp_ret_score_tilt_eta)
+            alpha <- A_L / (A_L + A_R)
+
+          }
+
           #### Downscale existing mass in each half by its allocation factor
           weights_sorted[L] <- weights_sorted[L] * alpha
           weights_sorted[R] <- weights_sorted[R] * (1 - alpha)
@@ -166,13 +202,18 @@ create_hrp_portfolio <- function(universe_m_d_ref, covariance_matrix, linkage = 
       weights <- weights / sum(weights) # normalize to 1
 
       # Apply alpha tilt overlay
-      if (!is.null(exp_ret_score_tilt)) {
-        exp_ret_scores <- setNames(eligible_universe_m_d_ref$exp_ret_score,
-                               eligible_universe_m_d_ref$tickers)
+      if (!is.null(exp_ret_score_tilt) && exp_ret_score_tilt == "final" &&
+          !is.null(exp_ret_score_tilt_eta) && exp_ret_score_tilt_eta > 0) {
+
+        ### Get exp_ret_scores vector in original order
+        exp_ret_scores <- setNames(
+          eligible_universe_m_d_ref$exp_ret_score,
+          eligible_universe_m_d_ref$tickers
+        )
 
         exp_ret_scores_vec <- exp_ret_scores[eligible_tickers]
 
-        weights <- weights * (exp_ret_scores_vec ^ exp_ret_score_tilt)
+        weights <- weights * (exp_ret_scores_vec ^ exp_ret_score_tilt_eta)
         weights <- weights / sum(weights)
       }
 
