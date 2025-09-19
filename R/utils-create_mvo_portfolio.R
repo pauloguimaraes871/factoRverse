@@ -459,8 +459,9 @@ create_resampled_mvo_portfolio <- function(universe_m_d_ref,
       avg_mvo_weights <- base_case_mvo$universe_m_d_ref %>% dplyr::select(tickers, weights)
     }
 
-  # Merge with current_stock_universe
-  universe_m_d_ref <- dplyr::left_join(universe_m_d_ref, avg_mvo_weights, by = "tickers")
+  # Merge with base_case_mvo universe_m_d_ref without weights
+  universe_m_d_ref <- dplyr::left_join(base_case_mvo$universe_m_d_ref %>% dplyr::select(-weights),
+                                       avg_mvo_weights, by = "tickers")
 
     ## If resampling was done, add base_case_mvo weights column for reference (position before weights col)
     if (n_resamples >= 1){
