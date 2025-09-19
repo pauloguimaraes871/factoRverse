@@ -15,6 +15,7 @@
 #' @param liquidity_m_d_ref An optional data frame or matrix containing liquidity metrics for the signals, used for capitalization weighting and scaling. Defaults to \code{NULL}.
 #' @param cap_weighting_metric An optional character string specifying the metric to use for capitalization weighting or scaling. Defaults to \code{NULL}.
 #' @param groups_m_d_ref An optional data frame used for group constraints and covariance matrix estimation. Should include group information if used. Defaults to \code{NULL}.
+#' @param covariance_matrix An optional covariance matrix for the eligible tickers. If \code{NULL}, the function will estimate the covariance matrix using the provided return data. Defaults to \code{NULL}.
 #' @param cov_estimation_method An optional character string specifying the method for estimating the covariance matrix. Defaults to \code{NULL}.
 #' @param liquidity_constraint_policy An optional list specifying the policy for liquidity constraints. Defaults to \code{NULL}.
 #' @param turnover_constraint_policy An optional list specifying the policy for turnover constraints. Defaults to \code{NULL}.
@@ -23,8 +24,11 @@
 #' @param active_returns Logical. If `TRUE`, covariance estimation will use active returns (asset returns minus benchmark). Defaults to `FALSE` if `selected_benchmark_m_xts_upd_ref` is `NULL`, otherwise `TRUE`.
 #' @param cov_matrix_sample_size Integer. Number of time periods (rows in `returns_m_xts_upd_ref`) used to estimate the covariance matrix. If `NULL`, uses all available observations.
 #' @param concentration_constraint_policy Optional list specifying concentration constraints for MVO optimization. Typically includes `max_abs_active_individual_weight` or other individual/sector limits.
+#' @param ridge_pen Numeric. Ridge penalty for MVO optimization to improve numerical stability. Defaults to `NULL`.
 #' @param opt_method Character. Optimization method for MVO. Defaults to `"random"` and can include methods like `"grid"`, `"bayesian"`, or `"differential_evolution"`.
-#' @param rp_method Character. Method to compute the Risk Parity portfolio. Defaults to `"cyclical-spinu"`. Other methods may include `"inverse-vol"` or `"erc"` (equal risk contribution).
+#' @param rp_method Character. Method to compute the Risk Parity portfolio. Defaults to `"cyclical-spinu"`.
+#' @param exp_ret_score_tilt Numeric. The exponent used to tilt the weights by `exp_ret_score`. Higher values increase the tilt effect.
+#' @param linkage Character. Linkage method for hierarchical clustering in Risk Parity. Defaults to `"single"`.
 #' @param custom_weights_m_d_ref A meta dataframe containing custom user-defined weights. Required when `port_construction_method = "custom_weights"`. Must contain columns `tickers`, `dates`, and `weights`.
 #' @param n_random_ports An optional numeric value indicating the number of random portfolios to generate for optimization methods. Defaults to \code{NULL}.
 #' @param random_ports_method An optional character string specifying the method for risk parity optimization. Defaults to \code{NULL}.
@@ -38,12 +42,23 @@
 set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
                                   liquidity_m_d_ref = NULL, cap_weighting_metric = NULL, #Cap-Weight and Cap-Scaled
                                   groups_m_d_ref = NULL, #Used for filling returns for covariance matrix estimation and/or setting group constraints
+                                  covariance_matrix = NULL,
                                   returns_m_xts_upd_ref = NULL, selected_benchmark_m_xts_upd_ref = NULL, active_returns = if(is.null(selected_benchmark_m_xts_upd_ref)) FALSE else TRUE,  #Returns to estimate cov matrix
                                   cov_estimation_method = "sample", cov_matrix_sample_size = if(is.null(returns_m_xts_upd_ref)) NULL else nrow(returns_m_xts_upd_ref), #How to estimate covariance matrix?
                                   liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL, #Policies
-                                  n_random_ports = 2000, random_ports_method = "sample", opt_objective = "sharpe", opt_method = "random", rp_method = "cyclical-spinu",
+                                  n_random_ports = 2000, random_ports_method = "sample", opt_objective = "sharpe", opt_method = "random", ridge_pen = NULL,
+                                  n_resamples = 0, exp_ret_score_jitter = 0, cov_eigval_jitter = 0, #MVO
+                                  rp_method = "cyclical-spinu", exp_ret_score_tilt = NULL, exp_ret_score_tilt_eta = NULL, linkage = "single", #Risk Parity
                                   custom_weights_m_d_ref = NULL, #Custom Weights
-                                  lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975
+                                  ## MMAF
+                                  mmaf_method = "bottom_up", top_down_proxy_port_method, mmaf_group_col,
+                                  macro_port_construction_method = NULL, macro_concentration_constraint_policy = NULL,
+                                  macro_cap_weighting_metric = NULL, macro_n_random_ports = 2000, macro_random_ports_method = "sample",
+                                  macro_opt_objective = "sharpe", macro_opt_method = "random", macro_ridge_pen = NULL,
+                                  macro_n_resamples = 0, macro_exp_ret_score_jitter = 0, macro_cov_eigval_jitter = 0,
+                                  macro_rp_method = "cyclical-spinu", macro_exp_ret_score_tilt = NULL, macro_linkage = "single",
+                                  ## End MMAF
+                                  lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975, parallel = FALSE
 ){
 
   ##Get eligible tickers
@@ -51,27 +66,48 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
 
   #Calculate covariance matrix
   ###################
-  ##Check if there is returns data
-  if(!is.null(returns_m_xts_upd_ref)){
+  ##Check if cov matrix is already provided
+  if (is.null(covariance_matrix)){
+    ###Check if there is returns data
+    if(!is.null(returns_m_xts_upd_ref)){
 
-    ##Run estimation function
-    covariance_matrix <- estimate_covariance_matrix(
-      tickers = eligible_tickers, #Eligible universe
-      returns_m_xts_upd_ref = returns_m_xts_upd_ref, #Return sample
-      cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, #Cov estimation
-      selected_benchmark_m_xts_upd_ref = selected_benchmark_m_xts_upd_ref, #Benchmark for calculating active returns
-      groups_m_d_ref = groups_m_d_ref #Groups for correcting NAs
-    )
-  } else {
-    covariance_matrix <- NULL
-    if(port_construction_method %in% c("rp", "mvo")){
-      stop("Covariance matrix estimation requires returns data.")
+      ####Run estimation function
+      covariance_matrix <- estimate_covariance_matrix(
+        tickers = eligible_tickers, #Eligible universe
+        returns_m_xts_upd_ref = returns_m_xts_upd_ref, #Return sample
+        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, #Cov estimation
+        selected_benchmark_m_xts_upd_ref = selected_benchmark_m_xts_upd_ref, #Benchmark for calculating active returns
+        groups_m_d_ref = groups_m_d_ref #Groups for correcting NAs
+      )
+    } else {
+      covariance_matrix <- NULL
+      if(port_construction_method %in% c("rp", "mvo")){
+        stop("Covariance matrix estimation requires returns data.")
+      }
     }
+
+  } else {
+
+    ### Check if rownames match eligible tickers
+    if(!identical(eligible_tickers, rownames(covariance_matrix)) ||
+       !identical(eligible_tickers, colnames(covariance_matrix))){
+      stop("Provided covariance matrix rownames/colnames do not match eligible tickers.")
+    }
+
   }
+
   ###################
 
   #Attach weights to universe_m_d_ref object
   ###################
+
+    ### Modify port_construction_method if macro_port_construction_method is provided
+    if(!is.null(macro_port_construction_method)){
+      micro_port_construction_method <- port_construction_method
+      port_construction_method <- "mmaf"
+    }
+
+  ## Create portfolio according to method
   port_results_list <- switch( #Chose port construction method
     port_construction_method,
 
@@ -110,20 +146,61 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
       universe_m_d_ref = universe_m_d_ref, #Signal Universe
       covariance_matrix = covariance_matrix,
       rp_method = rp_method, #Risk Parity method
+      exp_ret_score_tilt = exp_ret_score_tilt, #Tilt by exp_ret_score
+      exp_ret_score_tilt_eta = exp_ret_score_tilt_eta #Tilt intensity
+    ),
+
+    #Hierarchical Risk Parity
+    hrp = create_hrp_portfolio(
+      universe_m_d_ref = universe_m_d_ref, #Signal Universe
+      covariance_matrix = covariance_matrix,
+      linkage = linkage, #Linkage method
+      exp_ret_score_tilt = exp_ret_score_tilt, #Tilt by exp_ret_score
+      exp_ret_score_tilt_eta = exp_ret_score_tilt_eta #Tilt intensity
     ),
 
     #Mean-Variance Optimization
-    mvo = create_mvo_portfolio(
+    mvo = create_resampled_mvo_portfolio(
       universe_m_d_ref = universe_m_d_ref, #Signal Universe
       covariance_matrix = covariance_matrix,
       liquidity_constraint_policy = liquidity_constraint_policy, #Liquidity constraints
       turnover_constraint_policy = turnover_constraint_policy, #Turnover constraints
       concentration_constraint_policy = concentration_constraint_policy, #Concentration constraints
       groups_m_d_ref = groups_m_d_ref, #Sectors for generate_sector_constraints
-      n_random_ports = n_random_ports,  random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method #MVO methods
+      n_random_ports = n_random_ports,  random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method, #MVO methods
+      ridge_pen = ridge_pen, #Ridge penalty
+      n_resamples = n_resamples, exp_ret_score_jitter = exp_ret_score_jitter, cov_eigval_jitter = cov_eigval_jitter #MVO
+    ),
+
+    #Micro-Macro Allocation Framework
+    mmaf = create_mmaf_portfolio(
+      universe_m_d_ref = universe_m_d_ref, #Signal Universe
+      mmaf_method = mmaf_method, top_down_proxy_port_method = top_down_proxy_port_method, #MMAF method
+      covariance_matrix = covariance_matrix,
+      groups_m_d_ref = groups_m_d_ref, mmaf_group_col = mmaf_group_col, #Sectors
+      liquidity_m_d_ref = liquidity_m_d_ref,
+      micro_port_construction_method = micro_port_construction_method, #Micro portfolio construction method
+      linkage = linkage, #Micro HRP
+      liquidity_constraint_policy = liquidity_constraint_policy, turnover_constraint_policy = turnover_constraint_policy,
+      concentration_constraint_policy = concentration_constraint_policy, #Micro Policies
+      cap_weighting_metric = cap_weighting_metric, #Micro Cap-Weight and Cap-Scaled
+      n_random_ports = n_random_ports, random_ports_method = random_ports_method,
+      opt_objective = opt_objective, opt_method = opt_method, ridge_pen = ridge_pen,
+      n_resamples = n_resamples, exp_ret_score_jitter = exp_ret_score_jitter, cov_eigval_jitter = cov_eigval_jitter, #Micro MVO methods
+      rp_method = rp_method, exp_ret_score_tilt = exp_ret_score_tilt, #Micro Risk Parity
+      macro_port_construction_method = macro_port_construction_method, #Macro portfolio construction method
+      macro_concentration_constraint_policy = macro_concentration_constraint_policy, #Macro concentration constraints
+      macro_cap_weighting_metric = macro_cap_weighting_metric, #Macro cap weighting metric
+      macro_n_random_ports = macro_n_random_ports,  macro_random_ports_method = macro_random_ports_method,
+      macro_opt_objective = macro_opt_objective, macro_opt_method = macro_opt_method, macro_ridge_pen = macro_ridge_pen, #Macro MVO methods
+      macro_n_resamples = macro_n_resamples, macro_exp_ret_score_jitter = macro_exp_ret_score_jitter, macro_cov_eigval_jitter = macro_cov_eigval_jitter, #Macro MVO
+      macro_rp_method = macro_rp_method, macro_exp_ret_score_tilt = macro_exp_ret_score_tilt, macro_linkage = macro_linkage, #Macro Risk Parity
+      lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization, #Winsorize cap scores
+      parallel = parallel #Parallelization
     )
 
   )
+
   ###################
 
   #Get results
@@ -153,21 +230,28 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
     eligible_universe_m_d_ref <- universe_m_d_ref %>% dplyr::filter(weights != 0)
   }
 
+
   ##Create the s4 obj
   port_obj <- methods::new("port",
                             universe_m_d_ref = suppressMessages(create_meta_dataframe(universe_m_d_ref %>% dplyr::arrange(id))), ##Re-order according to id
                             port_construction_method = port_construction_method,
                             eligible_assets = eligible_universe_m_d_ref %>% dplyr::pull(tickers),
-                            exp_ret_score = if(port_construction_method %in% c("sw", "cs", "mvo")) eligible_universe_m_d_ref %>% dplyr::pull(exp_ret_score) else NULL,
+                            exp_ret_score = if(port_construction_method %in% c("sw", "cs", "mvo") || (port_construction_method == "rp" && !is.null(exp_ret_score_tilt))) eligible_universe_m_d_ref %>% dplyr::pull(exp_ret_score) else NULL,
                             covariance_matrix = covariance_matrix,
                             correlation_matrix = if(!is.null(covariance_matrix)) cov2cor(covariance_matrix) else NULL,
                             weights = eligible_universe_m_d_ref %>% dplyr::pull(weights),
                             rel_risk_contr = if(!is.null(covariance_matrix)) eligible_universe_m_d_ref %>% dplyr::pull(rel_risk_contr) else NULL,
+                            clusters = if(port_construction_method == "hrp") port_results_list$clusters else NULL,
                             mvo_port_spec = if(port_construction_method == "mvo") port_results_list$port_spec else NULL,
                             random_port_weights = if(port_construction_method == "mvo" & opt_method == "random") port_results_list$random_portfolios_weights_df %>% dplyr::select(-exp_ret_score) else NULL,
                             ind_max_weights = if(!is.null(concentration_constraint_policy$max_abs_active_individual_weight) && port_construction_method == "mvo") eligible_universe_m_d_ref %>% dplyr::pull(max_weight) else NULL,
                             ind_min_weights = if(!is.null(concentration_constraint_policy$max_abs_active_individual_weight) && port_construction_method == "mvo") eligible_universe_m_d_ref %>% dplyr::pull(min_weight) else NULL,
                             groups = if(!is.null(groups_m_d_ref)) groups_m_d_ref else NULL,
+                            mmaf_method = if(port_construction_method == "mmaf") mmaf_method else NULL,
+                            group_cov_matrix = if(port_construction_method == "mmaf") port_results_list$group_cov_matrix else NULL,
+                            group_col = if(port_construction_method == "mmaf") mmaf_group_col else NULL,
+                            micro = if(port_construction_method == "mmaf") port_results_list$micro else NULL,
+                            macro = if(port_construction_method == "mmaf") port_results_list$macro else NULL,
                             port_name = "not_identified"
             )
 
