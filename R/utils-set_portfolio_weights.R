@@ -86,7 +86,7 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
       }
     }
 
-  } else {
+  }
 
     ### Check if rownames match eligible tickers
     if(!identical(eligible_tickers, rownames(covariance_matrix)) ||
@@ -94,7 +94,7 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
       stop("Provided covariance matrix rownames/colnames do not match eligible tickers.")
     }
 
-  }
+
 
   ###################
 
