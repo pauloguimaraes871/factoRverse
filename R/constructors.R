@@ -3329,12 +3329,19 @@ setMethod(
 #' @param rp_method A character indicating the method to compute the risk-parity vanilla solution.
 #'   It is passed to \code{riskParityPortfolio::riskParityPortfolio()} function as \code{method_init}.
 #'   Default is \code{"cyclical-spinu"}.
+#' @param exp_ret_score_tilt A numeric value indicating the tilt to apply to the expected return score.
+#'  It is used to compute the expected return score tilting the risk-parity solution
+#'  towards higher expected return assets. Default is NULL, meaning no tilt is applied.
+#' @param exp_ret_score_tilt_eta A character string indicating the era to compute the expected return score tilt.
 #'
 #' @return An S4 object of class `rp_parameters`.
 #' @export
-create_rp_parameters <- function(rp_method = "cyclical-spinu") {
+create_rp_parameters <- function(rp_method = "cyclical-spinu",
+                                 exp_ret_score_tilt = NULL, exp_ret_score_tilt_eta = NULL) {
   rp_params <- methods::new("rp_parameters",
-    rp_method = rp_method
+    rp_method = rp_method,
+    exp_ret_score_tilt = exp_ret_score_tilt,
+    exp_ret_score_tilt_eta = exp_ret_score_tilt_eta
   )
   return(rp_params)
 }
@@ -3389,6 +3396,7 @@ setMethod(
            rp_params,
            rp_method = "cyclical-spinu",
            ...) {
+
     # Check for sb
     if (!object@sb_algorithm == c("rp")) {
       stop("RP parameters is only available for 'rp' strategies.")
@@ -3396,7 +3404,9 @@ setMethod(
 
 
     object@signal_port_parameters@rp_parameters <- create_rp_parameters(
-      rp_method = rp_method
+      rp_method = rp_method,
+      exp_ret_score_tilt = NULL,
+      exp_ret_score_tilt_eta = NULL
     )
 
     return(object)
@@ -3429,6 +3439,7 @@ setMethod(
   function(object,
            rp_params,
            rp_method = "cyclical-spinu",
+           exp_ret_score_tilt = NULL, exp_ret_score_tilt_eta = NULL,
            ...) {
     # Check for pcm
     if (!object@port_construction_method == c("rp")) {
@@ -3436,7 +3447,9 @@ setMethod(
     }
 
     object@rp_parameters <- create_rp_parameters(
-      rp_method = rp_method
+      rp_method = rp_method,
+      exp_ret_score_tilt = exp_ret_score_tilt,
+      exp_ret_score_tilt_eta = exp_ret_score_tilt_eta
     )
 
     return(object)
@@ -3689,6 +3702,9 @@ setMethod(
 #' @param chosen_score_metric_and_position An object (or named vector) specifying the expected return score metric and its associated position. Required if `sb_backtest_results` is not provided.
 #' @param eligibility_quantile_range A numeric vector of length 2 (e.g., c(0.9, 1.0)) specifying the quantile range used to determine eligible assets.
 #' @param min_eligible_assets_fallback A numeric value indicating the minimum number of eligible assets to include in the portfolio.
+#' @param chosen_scaler An object of class `scaler` specifying the scaling variable to be applied to the scores.
+#' @param scaler_shrinkage A numeric value between 0 and 1 indicating the shrinkage intensity for the scaler.
+#' @param use_raw_for_eligibility A logical value indicating whether to use raw scores for determining eligibility.
 #' @param selected_benchmark A character string indicating the benchmark to use for benchmark-relative backtests.
 #' @param initial_buffer_period A numeric value indicating the number of initial dates to skip before starting the backtest.
 #' @param rebalancing_months A numeric vector (e.g., c(3,6,9,12)) indicating the months when the portfolio should be rebalanced.
@@ -3713,6 +3729,9 @@ setMethod(
 create_port_backtest_config <- function(chosen_score_metric_and_position = NULL,
                                         eligibility_quantile_range = c(0.9, 1.0),
                                         min_eligible_assets_fallback = NULL,
+                                        chosen_scaler = NULL,
+                                        scaler_shrinkage = NULL,
+                                        use_raw_for_eligibility = NULL,
                                         selected_benchmark = NULL,
                                         initial_buffer_period,
                                         rebalancing_months,
@@ -3771,6 +3790,9 @@ create_port_backtest_config <- function(chosen_score_metric_and_position = NULL,
     selected_benchmark = selected_benchmark,
     initial_buffer_period = initial_buffer_period,
     rebalancing_months = rebalancing_months,
+    chosen_scaler = chosen_scaler,
+    scaler_shrinkage = scaler_shrinkage,
+    use_raw_for_eligibility = use_raw_for_eligibility,
     cov_est_method = cov_est_method,
     port_construction_method = port_construction_method,
     mvo_parameters = mvo_parameters,
