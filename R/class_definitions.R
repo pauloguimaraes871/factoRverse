@@ -1027,13 +1027,21 @@ setClass("mvo_parameters",
            opt_method = "character",
            random_ports_method = "character",
            n_random_ports = "numeric",
-           opt_objective = "character"
+           opt_objective = "character",
+           ridge_pen = "ANY",
+           n_resamples = "numeric",
+           exp_ret_score_jitter = "numeric",
+           cov_eigval_jitter = "numeric"
          ),
          prototype = list(
            opt_method = "random",
            random_ports_method = "sample",
            n_random_ports = 1000,
-           opt_objective = "sharpe"
+           opt_objective = "sharpe",
+           ridge_pen = NULL,
+           n_resamples = 0,
+           exp_ret_score_jitter = 0,
+           cov_eigval_jitter = 0
          ),
          validity = function(object){
            if (!object@opt_method %in% c("random")) {
@@ -1047,6 +1055,21 @@ setClass("mvo_parameters",
            }
            if (!object@opt_objective %in% c("return", "risk", "sharpe")) {
              stop("opt_objective must be one of 'return', 'risk', 'sharpe'.")
+           }
+           if(!is.null(object@ridge_pen)){
+             if(!is.numeric(object@ridge_pen) || length(object@ridge_pen) != 1 || object@ridge_pen < 0){
+               stop("ridge_pen must be a single non-negative numeric value.")
+             }
+           }
+           if(object@n_resamples < 0 || length(object@n_resamples) != 1 ||
+              object@n_resamples != round(object@n_resamples)){
+             stop("n_resamples must be a non-negative integer.")
+           }
+           if(object@exp_ret_score_jitter < 0 || length(object@exp_ret_score_jitter) != 1){
+             stop("exp_ret_score_jitter must be a non-negative numeric value.")
+           }
+           if(object@cov_eigval_jitter < 0 || length(object@cov_eigval_jitter) != 1){
+             stop("cov_eigval_jitter must be a non-negative numeric value.")
            }
            TRUE
          }
