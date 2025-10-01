@@ -2138,7 +2138,7 @@ test_that("set portfolio weights works for stocks (ew) - toy_preprocessed", {
                              liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL,
                              liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs_df, main_liquidity_metric = "mean_volfin_3m",
                              stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df, volatility_m_df = volatility_m_df,
-                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list,
+                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list, ridge_pen = NULL,
                              custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL,
                              upper_quantile_winsorization = 0.95, lower_quantile_winsorization = 0.05, verbose = TRUE
   )
@@ -2201,7 +2201,7 @@ test_that("set portfolio weights works for stocks (cw) - toy_preprocessed", {
                              liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL,
                              liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs_df, main_liquidity_metric = "mean_volfin_3m",
                              stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df, volatility_m_df = volatility_m_df,
-                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list,
+                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list, ridge_pen = NULL,
                              custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL,
                              upper_quantile_winsorization = 0.95, lower_quantile_winsorization = 0.05, verbose = TRUE
   )
@@ -2268,7 +2268,7 @@ test_that("set portfolio weights works for stocks (sw) - toy_preprocessed", {
                              liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL,
                              liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs_df, main_liquidity_metric = "mean_volfin_3m",
                              stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df, volatility_m_df = volatility_m_df,
-                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list,
+                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list, ridge_pen = NULL,
                              custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL,
                              upper_quantile_winsorization = 0.95, lower_quantile_winsorization = 0.05, verbose = TRUE
   )
@@ -2336,7 +2336,7 @@ test_that("set portfolio weights works for stocks (cs) - toy_preprocessed", {
                              liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL,
                              liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs_df, main_liquidity_metric = "mean_volfin_3m",
                              stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df, volatility_m_df = volatility_m_df,
-                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list,
+                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list, ridge_pen = NULL,
                              custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL,
                              upper_quantile_winsorization = 0.95, lower_quantile_winsorization = 0.05, verbose = TRUE
   )
@@ -2405,7 +2405,7 @@ test_that("set portfolio weights works for stocks (rp) - toy_preprocessed", {
                              liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL,
                              liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs_df, main_liquidity_metric = "mean_volfin_3m",
                              stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df, volatility_m_df = volatility_m_df,
-                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list,
+                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list, ridge_pen = NULL,
                              custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL,
                              upper_quantile_winsorization = 0.95, lower_quantile_winsorization = 0.05, verbose = TRUE
   )
@@ -2497,7 +2497,7 @@ test_that("set portfolio weights works for stocks (rp + exp_ret_score_tilt = 'in
                              liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL,
                              liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs_df, main_liquidity_metric = "mean_volfin_3m",
                              stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df, volatility_m_df = volatility_m_df,
-                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list,
+                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list, ridge_pen = NULL,
                              custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL,
                              upper_quantile_winsorization = 0.95, lower_quantile_winsorization = 0.05, verbose = TRUE
   )
@@ -2637,7 +2637,7 @@ test_that("set portfolio weights works for stocks (rp + exp_ret_score_tilt = 'fi
                              liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL,
                              liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs_df, main_liquidity_metric = "mean_volfin_3m",
                              stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df, volatility_m_df = volatility_m_df,
-                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list,
+                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list, ridge_pen = NULL,
                              custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL,
                              upper_quantile_winsorization = 0.95, lower_quantile_winsorization = 0.05, verbose = TRUE
   )
@@ -2788,7 +2788,7 @@ test_that("set portfolio weights works for stocks (hrp and hrp + exp_ret_score_t
                              liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL,
                              liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs_df, main_liquidity_metric = "mean_volfin_3m",
                              stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df, volatility_m_df = volatility_m_df,
-                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list,
+                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list, ridge_pen = NULL,
                              custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL,
                              upper_quantile_winsorization = 0.95, lower_quantile_winsorization = 0.05, verbose = TRUE
   )
@@ -2990,7 +2990,7 @@ test_that("set portfolio weights works for stocks (hrp + exp_ret_score_tilt = 'i
                              liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL,
                              liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs_df, main_liquidity_metric = "mean_volfin_3m",
                              stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df, volatility_m_df = volatility_m_df,
-                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list,
+                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list, ridge_pen = NULL,
                              custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL,
                              upper_quantile_winsorization = 0.95, lower_quantile_winsorization = 0.05, verbose = TRUE
   )
@@ -3202,7 +3202,7 @@ test_that("set portfolio weights works for stocks (mvo_unc) - toy_preprocessed",
                              liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL,
                              liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs_df, main_liquidity_metric = "mean_volfin_3m",
                              stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df, volatility_m_df = volatility_m_df,
-                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list,
+                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list, ridge_pen = NULL,
                              custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL,
                              upper_quantile_winsorization = 0.95, lower_quantile_winsorization = 0.05, verbose = TRUE
   )
@@ -3754,7 +3754,7 @@ test_that("set portfolio weights works for stocks (custom_weights) - toy_preproc
                              liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL,
                              liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs_df, main_liquidity_metric = "mean_volfin_3m",
                              stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df, volatility_m_df = volatility_m_df,
-                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list,
+                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list, ridge_pen = NULL,
                              custom_stock_weights_m_df = custom_stock_weights_m_df, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL,
                              upper_quantile_winsorization = 0.95, lower_quantile_winsorization = 0.05, verbose = TRUE
   )
@@ -3799,7 +3799,199 @@ test_that("set portfolio weights works for stocks (custom_weights) - toy_preproc
 
 })
 
+test_that("set portfolio weights work for stocks (mmaf = top_down, top_down_proxy = rp, macro_port = hrp,
+          micro level = constrained + resampled mvo) - toy_preprocessed", {
 
+
+  ## First let's apply the model to each group
+  #Create signals_m_d_ref
+  load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
+
+  #Quantile Range and other preps
+  eligibility_quantile_range <- c(0.67, 1)
+  chosen_score_metric_and_position <- c(vol_36m = "short")
+  custom_stock_weights_m_df <- benchmark_weights_m_df %>% dplyr::rename(weights = ibov)
+
+
+  #Check
+  check_inputs_port_backtest(signals_m_df = signals_m_df, oos_predictions_m_df = NULL, chosen_score_metric_and_position = chosen_score_metric_and_position,
+                             rebalancing_months = 6, initial_buffer_period = 6, port_construction_method = "custom_weights",
+                             eligibility_quantile_range = eligibility_quantile_range, selected_benchmark = "ibov",
+                             min_eligible_assets_fallback = NULL,
+                             scaler_m_df = NULL, chosen_scaler = NULL, scaler_shrinkage = NULL,
+                             use_raw_for_eligibility = NULL, exp_ret_score_tilt = NULL, exp_ret_score_tilt_eta = NULL,
+                             rp_method = NULL, n_random_ports = NULL, random_ports_method = NULL, opt_objective = NULL, opt_method = NULL,
+                             cov_estimation_method = NULL, cov_matrix_sample_size = NULL, active_returns = FALSE, cov_matrix_benchmark = NULL,
+                             daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = benchmark_returns_m_xts,
+                             liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL,
+                             liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs_df, main_liquidity_metric = "mean_volfin_3m",
+                             stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df, volatility_m_df = volatility_m_df,
+                             fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_list, ridge_pen = NULL,
+                             custom_stock_weights_m_df = custom_stock_weights_m_df, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL,
+                             upper_quantile_winsorization = 0.95, lower_quantile_winsorization = 0.05, verbose = TRUE
+  )
+
+  #Current date
+  current_date <- "2023-04-15"
+
+  #Initial Preps
+  signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
+  liquidity_m_d_ref <- liquidity_m_df %>% dplyr::filter(dates == current_date)
+  benchmark_weights_m_d_ref <- benchmark_weights_m_df %>% dplyr::filter(dates == current_date)
+  stock_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
+
+  #Derive Stock Universe
+  stock_universe_m_d_ref <- derive_stock_universe_m_d_ref(signals_m_d_ref = signals_m_d_ref, chosen_score_metric_and_position = c(vol_36m = "short"),
+                                                          upper_quantile_winsorization = upper_quantile_winsorization,
+                                                          lower_quantile_winsorization = lower_quantile_winsorization)
+
+  #Classify stock universe
+  stock_universe_m_d_ref <- classify_investment_universe(
+    universe_m_d_ref = stock_universe_m_d_ref,
+    eligibility_quantile_range = eligibility_quantile_range,
+    liquidity_m_d_ref = liquidity_m_d_ref,
+    liquidity_constraint_policy = liquidity_constraint_policy,
+    liquidity_floor_cutoffs = liquidity_floor_cutoffs_df,
+    benchmark_weights_m_d_ref = benchmark_weights_m_d_ref,
+    groups_m_d_ref = stock_groups_m_d_ref,
+    concentration_constraint_policy = concentration_constraint_policy
+  )
+
+  #Estimate covariance matrix
+  cov_matrix <- estimate_covariance_matrix(
+    tickers = stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers),
+    returns_m_xts_upd_ref = daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),],
+    cov_matrix_sample_size = 60,
+    cov_estimation_method = "cc",
+    active_returns = FALSE,
+    groups_m_d_ref = stock_groups_m_d_ref
+  )
+
+
+  #Fit portfolios by sectors to define proxies
+  sectors <- unique(stock_groups_m_d_ref$sectors)
+  eligible_universe_m_d_ref <- stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1)
+  sector_port_list <- list()
+
+  for (s in seq_along(sectors)){
+
+    sector <- sectors[s]
+    sector_universe_m_d_ref <- eligible_universe_m_d_ref %>% dplyr::filter(sectors == sector)
+
+    sector_tickers <- sector_universe_m_d_ref %>% dplyr::pull(tickers)
+
+    sector_covariance <- cov_matrix[sector_tickers, sector_tickers, drop = FALSE]
+
+    sector_port_list[[s]] <- set_portfolio_weights(
+      universe_m_d_ref = sector_universe_m_d_ref,
+      port_construction_method = "rp",
+      covariance_matrix = sector_covariance,
+      rp_method = "cyclical-roncalli",
+      exp_ret_score_tilt_eta = 0.5,
+      exp_ret_score_tilt = "final"
+    )
+
+
+  }
+
+  names(sector_port_list) <- sectors
+
+  #Generate macro portfolios
+  groups_exp_ret_score <- purrr::map_vec(sector_port_list, function(x) {
+    sum(dplyr::pull(x@universe_m_d_ref@data, exp_ret_score) *
+        dplyr::pull(x@universe_m_d_ref@data, weights))
+  })
+  groups_liquidity <- purrr::map_vec(sector_port_list, function(x) {
+    sum(dplyr::pull(x@universe_m_d_ref@data, mean_volfin_3m) *
+        dplyr::pull(x@universe_m_d_ref@data, weights))
+  })
+  groups_presence <- purrr::map_vec(sector_port_list, function(x) {
+    sum(dplyr::pull(x@universe_m_d_ref@data, presence) *
+        dplyr::pull(x@universe_m_d_ref@data, weights))
+  })
+
+  groups_liquidity_m_df <- data.frame(
+    tickers = sectors,
+    dates = current_date,
+    mean_volfin_3m = groups_liquidity,
+    presence = groups_presence
+  ) %>% dplyr::mutate(
+    id = paste0(tickers, "-", dates), .before = dplyr::everything()
+  )
+  row.names(groups_liquidity_m_df) <- NULL
+
+  group_universe_m_d_ref <- data.frame(
+    id = paste0(sectors, "-", current_date),
+    tickers = sectors,
+    dates = as.Date(current_date),
+    exp_ret_score = groups_exp_ret_score,
+    is_eligible = 1
+  ) %>%
+    dplyr::arrange(id)
+  row.names(group_universe_m_d_ref) <- NULL
+
+  g1_w <- sector_port_list[[1]]@universe_m_d_ref@data %>% dplyr::pull(weights)
+  g1_tickers <- sector_port_list[[1]]@universe_m_d_ref@data %>% dplyr::pull(tickers)
+  g2_w <- sector_port_list[[2]]@universe_m_d_ref@data %>% dplyr::pull(weights)
+  g2_tickers <- sector_port_list[[2]]@universe_m_d_ref@data %>% dplyr::pull(tickers)
+  g3_w <- sector_port_list[[3]]@universe_m_d_ref@data %>% dplyr::pull(weights)
+  g3_tickers <- sector_port_list[[3]]@universe_m_d_ref@data %>% dplyr::pull(tickers)
+  g4_w <- sector_port_list[[4]]@universe_m_d_ref@data %>% dplyr::pull(weights)
+  g4_tickers <- sector_port_list[[4]]@universe_m_d_ref@data %>% dplyr::pull(tickers)
+  g5_w <- sector_port_list[[5]]@universe_m_d_ref@data %>% dplyr::pull(weights)
+  g5_tickers <- sector_port_list[[5]]@universe_m_d_ref@data %>% dplyr::pull(tickers)
+  g6_w <- sector_port_list[[6]]@universe_m_d_ref@data %>% dplyr::pull(weights)
+  g6_tickers <- sector_port_list[[6]]@universe_m_d_ref@data %>% dplyr::pull(tickers)
+  g7_w <- sector_port_list[[7]]@universe_m_d_ref@data %>% dplyr::pull(weights)
+  g7_tickers <- sector_port_list[[7]]@universe_m_d_ref@data %>% dplyr::pull(tickers)
+  g8_w <- sector_port_list[[8]]@universe_m_d_ref@data %>% dplyr::pull(weights)
+  g8_tickers <- sector_port_list[[8]]@universe_m_d_ref@data %>% dplyr::pull(tickers)
+
+  ### Calculate each cov matrix element
+  groups <- list(
+    list(w = g1_w, tickers = g1_tickers),
+    list(w = g2_w, tickers = g2_tickers),
+    list(w = g3_w, tickers = g3_tickers),
+    list(w = g4_w, tickers = g4_tickers),
+    list(w = g5_w, tickers = g5_tickers),
+    list(w = g6_w, tickers = g6_tickers),
+    list(w = g7_w, tickers = g7_tickers),
+    list(w = g8_w, tickers = g8_tickers)
+  )
+  n_groups <- length(groups)
+  group_cov <- matrix(NA, n_groups, n_groups)
+
+  for (i in 1:n_groups) {
+    for (j in 1:n_groups) {
+      wi <- groups[[i]]$w
+      wj <- groups[[j]]$w
+      ti <- groups[[i]]$tickers
+      tj <- groups[[j]]$tickers
+
+      subcov <- cov_matrix[ti, tj, drop = FALSE]
+      group_cov[i, j] <- as.numeric(t(wi) %*% subcov %*% wj)
+    }
+  }
+
+  rownames(group_cov) <- colnames(group_cov) <- sectors
+  ##Arranje according to order in group_universe
+  group_cov <- group_cov[match(group_universe_m_d_ref$tickers, rownames(group_cov)),
+                         match(group_universe_m_d_ref$tickers, colnames(group_cov))]
+
+  group_port <- set_portfolio_weights(
+    universe_m_d_ref = group_universe_m_d_ref,
+    port_construction_method = "hrp",
+    linkage = "ward.D",
+    liquidity_m_d_ref = groups_liquidity_m_df,
+    covariance_matrix = group_cov,
+    exp_ret_score_tilt = "inner",
+    exp_ret_score_tilt_eta = 0.25
+  )
+
+  #Now let's reapply
+
+
+})
 
 
 
