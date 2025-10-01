@@ -119,11 +119,18 @@ create_mvo_portfolio <- function(universe_m_d_ref,
     cat("\n")
     cat(paste0("Beginning numerical optimization with ", n_random_ports, " portfolios and ", random_ports_method, " method."))
   }
+
   ##Numeric optimization
   random_portfolios_weights <- PortfolioAnalytics::random_portfolios(portfolio = port_spec_constrained,
                                                                      permutations = n_random_ports,
                                                                      random_ports_method = random_ports_method
   )
+
+    ### If random_portfolio_weights is a vector or has only one row, stop execution and advise increasing number of portfolios
+    if (is.vector(random_portfolios_weights) || nrow(random_portfolios_weights) < 2){
+      stop("random_portfolios_weights has only one portfolio. Increase n_random_ports or change random_ports_method.")
+    }
+
   ##Random weights DF
   random_portfolios_weights_df <- as.data.frame(t(random_portfolios_weights)) %>% tibble::rownames_to_column("tickers")
 
