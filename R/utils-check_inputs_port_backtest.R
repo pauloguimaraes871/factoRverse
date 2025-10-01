@@ -12,10 +12,17 @@
 #' @param min_eligible_assets_fallback A positive integer indicating the fallback minimum number of eligible assets (optional).
 #' @param selected_benchmark A character string naming the benchmark to be used for active return calculation or constraints.
 #' @param rp_method A parameter specifying the risk parity method to be applied (when applicable).
+#' @param exp_ret_score_tilt A logical value indicating whether to apply expected return score tilting in risk parity or mean-variance optimization (when applicable).
+#' @param exp_ret_score_tilt_eta A numeric value specifying the exponent used for expected return score tilting (when applicable).
 #' @param n_random_ports A numeric value indicating the number of random portfolios to generate.
 #' @param random_ports_method A parameter specifying the method for generating random portfolios.
 #' @param opt_objective A parameter defining the optimization objective.
 #' @param opt_method A parameter specifying the optimization method.
+#' @param target_port_m_df A data frame containing target portfolio weights (when applicable).
+#' @param ridge_pen A numeric value indicating the ridge penalty (when applicable).
+#' @param n_resamples A numeric value specifying the number of resamples (when applicable).
+#' @param exp_ret_score_jitter A numeric value indicating the jitter applied to expected return scores (when applicable).
+#' @param cov_eigval_jitter A numeric value specifying the jitter applied to covariance eigenvalues (when applicable).
 #' @param cov_estimation_method A character string specifying the covariance estimation method. Required when \code{port_construction_method} is \code{"rp"} or \code{"mvo"}.
 #' @param cov_matrix_sample_size A numeric value indicating the sample size used for covariance matrix estimation. Required when \code{port_construction_method} is \code{"rp"} or \code{"mvo"}.
 #' @param active_returns A logical value indicating whether active returns are used. If \code{TRUE}, \code{daily_bench_returns_m_xts} must be provided.
@@ -52,9 +59,13 @@ check_inputs_port_backtest <- function(
   # Backtest Scheme
   rebalancing_months, initial_buffer_period,
   # Portfolio Construction Method
-  port_construction_method, eligibility_quantile_range, min_eligible_assets_fallback ,selected_benchmark,
+  port_construction_method, eligibility_quantile_range, min_eligible_assets_fallback, selected_benchmark,
+  # Scaler
+  chosen_scaler, scaler_m_df, scaler_shrinkage, use_raw_for_eligibility,
   # RP/MVO Parameters
-  rp_method, n_random_ports, random_ports_method, opt_objective, opt_method,
+  rp_method, exp_ret_score_tilt, exp_ret_score_tilt_eta,
+  n_random_ports, random_ports_method, opt_objective, opt_method,
+  target_port_m_df, ridge_pen, n_resamples, exp_ret_score_jitter, cov_eigval_jitter,
   # Covariance Estimation
   cov_estimation_method, cov_matrix_sample_size, active_returns, cov_matrix_benchmark,
   daily_stock_returns_m_xts, daily_bench_returns_m_xts, benchmark_returns_m_xts,
@@ -141,6 +152,84 @@ check_inputs_port_backtest <- function(
     if(any(!names(chosen_score_metric_and_position) %in% colnames(signals_m_df))){
       stop("chosen score metric selection not avaiable in signals_m_df")
     }
+  }
+
+  #######Scaler
+  ###################
+  if (!is.null(scaler_m_df)){
+    #Check for correct format in scaler_m_df
+    if(!is_coercible_to_meta_dataframe(scaler_m_df)){
+      stop("scaler_m_df should be coercible to meta_dataframe object")
+    }
+
+    if(!all(sapply(scaler_m_df[,-c(1:3)], function(x) is.numeric(x) && all(!is.na(x))))){
+      stop("scaler_m_df should contain only numeric columns with non-NAs.")
+    }
+
+    #Check that scaler_m_df has at least 4 columns
+    if(ncol(scaler_m_df) < 4){
+      stop("scaler_m_df should have at least 4 columns (id, tickers, dates, scaler values).")
+    }
+
+    ##Check if all stocks of signals_m_df are covered in scaler_m_df
+    if(any(!dplyr::pull(signals_m_df, id) %in% (scaler_m_df %>% dplyr::pull(id)))){
+      stop("all ids from signals_m_df should be present in scaler_m_df")
+    }
+
+    #Check structure of dates_m_vector and scaler_m_df$dates
+    if(!all(as.character(unique(dplyr::pull(signals_m_df, dates))) %in% unique(as.character(scaler_m_df$dates))) ||
+       !all(unique(as.character(scaler_m_df$dates)) %in% as.character(unique(dplyr::pull(signals_m_df, dates))))){
+      stop("all dates in signals_m_df must have a correspondence in scaler_m_df")
+    }
+
+    #Check if chosen_scaler is present in scaler_m_df
+    if (!is.null(chosen_scaler) && !(chosen_scaler %in% colnames(scaler_m_df))){
+      stop("chosen_scaler must be the name of a column in scaler_m_df.")
+    }
+  } else {
+    if (!is.null(chosen_scaler)){
+      stop("scaler_m_df must be provided when chosen_scaler is provided.")
+    }
+    if (!is.null(scaler_shrinkage) && scaler_shrinkage > 0){
+      stop("scaler_m_df must be provided when scaler_shrinkage > 0.")
+    }
+    if (isTRUE(use_raw_for_eligibility)){
+      stop("scaler_m_df must be provided when use_raw_for_eligibility is TRUE.")
+    }
+  }
+
+  #Check that scaler_shrinkage is between 0 and 1 if not NULL
+  if (!is.null(scaler_shrinkage) &&
+      (!is.numeric(scaler_shrinkage) || is.na(scaler_shrinkage) ||
+       length(scaler_shrinkage) != 1 ||
+       scaler_shrinkage < 0 || scaler_shrinkage > 1)){
+    stop("scaler_shrinkage must be between 0 and 1.")
+  }
+
+  #Check that chosen_scaler is provided when scaler_shrinkage is not NULL
+  if (!is.null(scaler_shrinkage) && is.null(chosen_scaler)){
+    stop("chosen_scaler must be provided when scaler_shrinkage is not NULL.")
+  }
+
+  #Check that chosen_scaler is provided when use_raw_for_eligibility is not NULL
+  if (!is.null(use_raw_for_eligibility) && is.null(chosen_scaler)){
+    stop("chosen_scaler must be provided when use_raw_for_eligibility is not NULL.")
+  }
+
+  #Check that use_raw_for_eligibility is logical if it is not NULL
+  if (!is.null(use_raw_for_eligibility) && !is.logical(use_raw_for_eligibility)){
+    stop("use_raw_for_eligibility must be logical.")
+  }
+
+  #Check that use_raw_for_eligibility is FALSE when scaler_shrinkage = 0 or when
+  ##scaler_shrinkage is NULL
+  if (!is.null(use_raw_for_eligibility) && !is.null(scaler_shrinkage) &&
+      scaler_shrinkage == 0 && isTRUE(use_raw_for_eligibility)){
+    stop("use_raw_for_eligibility must be FALSE when scaler_shrinkage = 0.")
+  }
+  if (!is.null(use_raw_for_eligibility) && is.null(scaler_shrinkage) &&
+      isTRUE(use_raw_for_eligibility)){
+    stop("use_raw_for_eligibility must be FALSE when scaler_shrinkage is NULL.")
   }
 
   #######dates objs
@@ -774,33 +863,158 @@ check_inputs_port_backtest <- function(
 
   ######################
 
+  #Ridge penalty
+  ######################
+  if (!is.null(ridge_pen)){
+
+    ##port_target_m_df must exist
+    if (is.null(port_target_m_df)){
+      stop("port_target_m_df must be provided when ridge_pen is not NULL")
+    }
+
+    ##port_construction method must be mvo
+    if (port_construction_method != "mvo"){
+      message("ridge_pen can only be used when port_construction_method is 'mvo'. Ignoring ridge_pen")
+    }
+
+    ##Check validity of port_target_m_df
+    ###Coercible
+    if (!(is_coercible_to_meta_dataframe(port_target_m_df))){
+      stop("port_target_m_df should be coercible to meta_dataframe object")
+    }
+
+    ###Check structure between port_target_m_df and signals_m_df
+    if (any(!(signals_m_df %>% dplyr::filter(dates >= dates_m_vector[initial_buffer_period]) %>% dplyr::pull(id)) %in%
+            (port_target_m_df %>% dplyr::pull(id)))){
+      stop("all id's from signals_m_df after initial_buffer_period must have a correspondence in port_target_m_df")
+    }
+
+    ###Check for NAs
+    if (any(is.na(port_target_m_df))){
+      stop("port_target_m_df should not have NAs")
+    }
+
+    ###Check for target_weights column
+    if(colnames(port_target_m_df)[4] != "target_weights"){
+      stop("port_target_m_df should have a column named target_weights")
+    }
+
+    #Check if w are right
+    if(any(port_target_m_df$target_weights < 0 | port_target_m_df$target_weights > 1)){
+      stop("weights in port_target_m_df should be between 0 and 1")
+    }
+
+    #Get sum of stock weights by date
+    target_weights_sum <- port_target_m_df %>%
+      dplyr::group_by(dates) %>%
+      dplyr::summarise(dplyr::across(dplyr::where(is.numeric), ~ sum(., na.rm = TRUE), .names = "sum_{col}"))
+
+    if(any(apply(as.data.frame(target_weights_sum[,-1]), 2, function(x) any(abs(x - 1) > 0.02)))){
+      stop("weights in port_target_m_df should sum to 1 in every date.")
+    }
+
+    ##Check ridge_pen
+    if (!is.numeric(ridge_pen) || length(ridge_pen) != 1 || ridge_pen < 0){
+      stop("ridge_pen should be a single non-negative numeric value")
+    }
+
+
+  }
+
+
+
+  ######################
+
   #Portfolio Construction Method
   ###################################
   if(is.null(port_construction_method)){
     stop("port_construction_method can't be missing")
   }
 
-  if(!port_construction_method %in% c("ew", "sw", "cw", "cs", "rp", "mvo", "custom_weights")){
-    stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'mvo' or 'custom_weights'")
+  if(!port_construction_method %in% c("ew", "sw", "cw", "cs", "rp", "hrp", "mvo", "mmaf", "custom_weights")){
+    stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'hrp', 'mmaf', 'mvo' or 'custom_weights'")
   }
 
-  #RP or MVO
-  if(port_construction_method %in% c("rp", "mvo")){
+  #RP, HRP, MVO or MMAF
+  if(port_construction_method %in% c("rp", "hrp", "mvo", "mmaf")){
 
     if(is.null(cov_estimation_method)){
-      stop("cov_estimation_method can't be missing if port_construction_method is 'rp' or 'mvo'")
+      stop("cov_estimation_method can't be missing if port_construction_method is 'rp', 'hrp', 'mvo' or 'mmaf'")
     }
     if(is.null(cov_matrix_sample_size)){
-      stop("cov_matrix_sample_size can't be missing if port_construction_method is 'rp' or 'mvo'")
+      stop("cov_matrix_sample_size can't be missing if port_construction_method is 'rp', 'hrp', 'mvo' or 'mmaf'")
     }
     if(is.null(daily_stock_returns_m_xts)){
-      stop("daily_stock_returns_m_xts can't be missing if port_construction_method is 'rp' or 'mvo'")
+      stop("daily_stock_returns_m_xts can't be missing if port_construction_method is 'rp', 'hrp', 'mvo' or 'mmaf'")
     }
     if(active_returns && is.null(daily_bench_returns_m_xts)){
       stop("daily_bench_returns_m_xts can't be NULL if active_returns is TRUE")
     }
 
   }
+
+  #MVO Specific
+  if (port_construction_method == "mvo"){
+    if (!is.null(opt_method) && !opt_method %in% c("random")) {
+      stop("Currently, 'opt_method' must be 'random'.")
+    }
+    if (random_ports_method %in% c("sample", "simplex", "grid")) {
+      stop("random_ports_method must be one of 'sample', 'simplex', 'grid'.")
+    }
+    if (n_random_ports < 1) {
+      stop("n_random_ports must be at least 1.")
+    }
+    if (opt_objective %in% c("return", "risk", "sharpe")) {
+      stop("opt_objective must be one of 'return', 'risk', 'sharpe'.")
+    }
+    if(n_resamples < 0 || length(n_resamples) != 1 ||
+       n_resamples != round(n_resamples)){
+      stop("n_resamples must be a non-negative integer.")
+    }
+    if(exp_ret_score_jitter < 0 || length(exp_ret_score_jitter) != 1){
+      stop("exp_ret_score_jitter must be a non-negative numeric value.")
+    }
+    if(cov_eigval_jitter < 0 || length(cov_eigval_jitter) != 1){
+      stop("cov_eigval_jitter must be a non-negative numeric value.")
+    }
+    ##Warn the user in case n_resamples is > 0, but no jitter is being applied
+    if(n_resamples > 0 && exp_ret_score_jitter == 0 && cov_eigval_jitter == 0){
+      warning("n_resamples > 0, but no jitter is being applied (exp_ret_score_jitter = 0 and cov_eigval_jitter = 0).",
+      "Consider setting a positive jitter value.")
+    }
+    ##Do the same otherwise (n_resamples = 0, but exp_ret_score_jitter or cov_eigval_jitter > 0)
+    if(n_resamples == 0 && (exp_ret_score_jitter > 0 || cov_eigval_jitter > 0)){
+      warning("n_resamples = 0, but jitter is being applied (exp_ret_score_jitter > 0 or cov_eigval_jitter > 0).",
+      "Consider setting n_resamples to a positive integer.")
+    }
+  }
+
+  #RP/HRP specific
+    #exp_ret_score_tilt must be provided only for 'rp' or 'hrp'
+    if(!port_construction_method %in% c("rp", "hrp") && !is.null(exp_ret_score_tilt)){
+      stop("exp_ret_score_tilt must be provided only when port_construction_method is 'rp' or 'hrp'")
+    }
+    if (!is.null(exp_ret_score_tilt) && !(exp_ret_score_tilt %in% c("none", "inner", "final"))){
+      stop("exp_ret_score_tilt must be one of 'none', 'inner' or 'final'")
+    }
+    #exp_ret_score_tilt_eta must be provided only for 'rp' or 'hrp'
+    if(!port_construction_method %in% c("hrp", "rp") && !is.null(exp_ret_score_tilt_eta)){
+      stop("exp_ret_score_tilt_eta must be provided only when port_construction_method is 'rp' or 'hrp'")
+    }
+    #exp_ret_score_tilt_eta should be positive and single if provided
+    if(!is.null(exp_ret_score_tilt_eta) && (!is.numeric(exp_ret_score_tilt_eta) ||
+       length(exp_ret_score_tilt_eta) != 1 || exp_ret_score_tilt_eta <= 0)){
+      stop("exp_ret_score_tilt_eta should be a single positive numeric value")
+    }
+    #exp_ret_score_tilt_eta should be NULL if exp_ret_score_tilt is NULL
+    if(is.null(exp_ret_score_tilt) && !is.null(exp_ret_score_tilt_eta)){
+      stop("exp_ret_score_tilt_eta should be NULL when exp_ret_score_tilt is NULL")
+    }
+    #exp_ret_score_tilt_eta should be NULL if exp_ret_score_tilt = "none"
+    if(!is.null(exp_ret_score_tilt) && exp_ret_score_tilt == "none" && !is.null(exp_ret_score_tilt_eta)){
+      stop("exp_ret_score_tilt_eta should be NULL when exp_ret_score_tilt = 'none'")
+    }
+
 
   #Custom Weights
   if(port_construction_method == "custom_weights" && is.null(custom_stock_weights_m_df)){

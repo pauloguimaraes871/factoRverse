@@ -6,6 +6,7 @@
 #' @param fwd_return_m_df A meta_dataframe containing forward returns.
 #' @param liquidity_m_df A meta_dataframe containing liquidity metrics.
 #' @param volatility_m_df A meta_dataframe containing volatility metrics.
+#' @param scaler_m_df An optional meta_dataframe containing scaling factors, if applicable.
 #' @param old_results An object of class \code{port_backtest_results} specifying the portfolio backtest results to be updated.
 #' @param parallel Logical; if \code{TRUE}, executes parts of the backtest in parallel (default is \code{TRUE}).
 #' @param ... Additional arguments (if needed).
@@ -40,6 +41,7 @@ setMethod("update_port_backtest",
                     old_results = "port_backtest_results"),
           function(signals_m_df, fwd_return_m_df, liquidity_m_df, volatility_m_df, old_results, #Base Port Backtest Objs
                    updated_sb_backtest_results = NULL, #Updated SB Backtest Objs
+                   scaler_m_df = NULL, #Scaler obj
                    stock_groups_m_df = NULL, benchmark_weights_m_df = NULL, ##Constraints Objs
                    daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = NULL, #Covariance Estimation
                    custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL, #Custom Objs
@@ -89,6 +91,7 @@ setMethod("update_port_backtest",
               fwd_return_m_df = fwd_return_m_df,
               liquidity_m_df = liquidity_m_df,
               volatility_m_df = volatility_m_df,
+              scaler_m_df = scaler_m_df,
               benchmark_returns_m_xts = benchmark_returns_m_xts,
               stock_groups_m_df = stock_groups_m_df,
               benchmark_weights_m_df = benchmark_weights_m_df,
@@ -105,6 +108,7 @@ setMethod("update_port_backtest",
               fwd_return_m_df = old_port_workflow_last_batch$fwd_return_object_name,
               liquidity_m_df = old_port_workflow_last_batch$liquidity_object_name,
               volatility_m_df = old_port_workflow_last_batch$volatility_object_name,
+              scaler_m_df = old_port_workflow_last_batch$scaler_object_name,
               benchmark_returns_m_xts = old_port_workflow_last_batch$benchmark_returns_object_name,
               stock_groups_m_df = old_port_workflow_last_batch$stock_groups_object_name,
               benchmark_weights_m_df = old_port_workflow_last_batch$benchmark_weights_object_name,
@@ -121,6 +125,7 @@ setMethod("update_port_backtest",
               fwd_return_m_df = old_port_workflow_last_batch$fwd_return_dates,
               liquidity_m_df = old_port_workflow_last_batch$liquidity_dates,
               volatility_m_df = old_port_workflow_last_batch$volatility_dates,
+              scaler_m_df = old_port_workflow_last_batch$scaler_dates,
               benchmark_returns_m_xts = old_port_workflow_last_batch$benchmark_returns_dates,
               stock_groups_m_df = old_port_workflow_last_batch$stock_groups_dates,
               benchmark_weights_m_df = old_port_workflow_last_batch$benchmark_weights_dates,
@@ -173,6 +178,8 @@ setMethod("update_port_backtest",
               signals_m_df = signals_m_df, fwd_return_m_df = fwd_return_m_df, liquidity_m_df = liquidity_m_df, volatility_m_df, config = new_config,
               ###SB Backtest Results
               sb_backtest_results = updated_sb_backtest_results,
+              ###Scaler obj
+              scaler_m_df = scaler_m_df,
               ###Constraints Objs
               stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df, benchmark_returns_m_xts = benchmark_returns_m_xts,
               ###Covariance Estimation
@@ -334,6 +341,7 @@ setMethod("run_port_backtest",
 
           function(signals_m_df, fwd_return_m_df, liquidity_m_df, volatility_m_df, config,  #Base Port Backtest Objs
                    sb_backtest_results = NULL, #SB Backtest Results
+                   scaler_m_df = NULL, #Scaler obj
                    stock_groups_m_df = NULL, benchmark_weights_m_df = NULL, ##Constraints Objs
                    daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = NULL, #Covariance Estimation and active rets
                    custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL, #Custom Objs
@@ -350,6 +358,9 @@ setMethod("run_port_backtest",
             oos_predictions_m_df <- NULL
             eligibility_quantile_range = c(0.9, 1.0)
             min_eligible_assets_fallback <- NULL
+            scaler_shrinkage <- NULL
+            chosen_scaler <- NULL
+            use_raw_for_eligibility <- NULL
 
             ###Portfolio objs
             port_construction_method <- "ew"
@@ -358,6 +369,8 @@ setMethod("run_port_backtest",
             cov_matrix_benchmark <- NULL
             active_returns <- TRUE
             rp_method <- "cyclical-spinu"
+            exp_ret_score_tilt = NULL
+            exp_ret_score_tilt_eta = NULL
             n_random_ports <- 2000
             random_ports_method <- "sample"
             opt_objective <- "sharpe"
@@ -503,6 +516,16 @@ setMethod("run_port_backtest",
             volatility_current_date <- volatility_m_df@current_date #Get current date
             volatility_m_df <- volatility_m_df@data #Get volatility_m_df
 
+            ##scaler_m_df
+            if (!is.null(scaler_m_df)){
+              scaler_workflow <- scaler_m_df@workflow #Get workflow
+
+              scaler_object_name <- scaler_m_df@meta_dataframe_name #Get mdf name
+              scaler_current_date <- scaler_m_df@current_date #Get current date
+              scaler_m_df <- scaler_m_df@data #Get scaler_m_df
+            }
+
+
             ##Extract configuration parameters from the port_backtest_config object
             ###Base Backtest Config
             chosen_score_metric_and_position <- config@chosen_score_metric_and_position
@@ -514,6 +537,12 @@ setMethod("run_port_backtest",
 
             ###Port objs
             port_construction_method <- config@port_construction_method
+
+            ###Score Scaling
+            chosen_scaler <- config@chosen_scaler
+            scaler_shrinkage <- config@scaler_shrinkage
+            use_raw_for_eligibility <- config@use_raw_for_eligibility
+
             ####Liquidity
             main_liquidity_metric <- config@main_liquidity_metric
             liquidity_floor_cutoffs <- config@liquidity_floor_cutoffs
@@ -585,6 +614,8 @@ setMethod("run_port_backtest",
               ####RP Parameters
               rp_parameters <- config@rp_parameters
               rp_method <- rp_parameters@rp_method
+              exp_ret_score_tilt <- rp_parameters@exp_ret_score_tilt
+              exp_ret_score_tilt_eta <- rp_parameters@exp_ret_score_tilt_eta
 
             } else if (port_construction_method %in% c("mvo")) {
               ####MVO Parameters
@@ -638,6 +669,7 @@ setMethod("run_port_backtest",
               if (!is.null(fwd_return_m_df)) fwd_returns_current_date else NULL,
               if (!is.null(volatility_m_df)) volatility_current_date else NULL,
               if (!is.null(liquidity_m_df)) liquidity_current_date else NULL,
+              if (!is.null(scaler_m_df)) scaler_current_date else NULL,
               if (!is.null(stock_groups_m_df)) stock_groups_current_date else NULL,
               if (!is.null(benchmark_weights_m_df)) benchmark_weights_current_date else NULL,
               if (!is.null(benchmark_returns_m_xts)) benchmark_returns_current_date else NULL,
@@ -659,8 +691,11 @@ setMethod("run_port_backtest",
               #Portfolio Construction (If provided, selected_benchmark will give a benchmark-relative view)
               port_construction_method = port_construction_method, eligibility_quantile_range = eligibility_quantile_range, min_eligible_assets_fallback = min_eligible_assets_fallback,
               selected_benchmark = selected_benchmark,
+              #Score Scaling
+              chosen_scaler = chosen_scaler, scaler_m_df = scaler_m_df, scaler_shrinkage = scaler_shrinkage, use_raw_for_eligibility = use_raw_for_eligibility,
               #RP/MVO Parameters
-              rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method, #RP/MVO
+              rp_method = rp_method, exp_ret_score_tilt = exp_ret_score_tilt, exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
+              n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method, #RP/MVO
               #Covariance Estimation
               cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, active_returns = active_returns, cov_matrix_benchmark = cov_matrix_benchmark,
               daily_stock_returns_m_xts = daily_stock_returns_m_xts, daily_bench_returns_m_xts = daily_bench_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,
@@ -736,6 +771,11 @@ setMethod("run_port_backtest",
             ###Signals
             port_backtest_results@port_backtest_workflow$signals_object_name <- signals_object_name
             port_backtest_results@port_backtest_workflow$signals_workflow <- signals_workflow
+            ###Scaler
+            if (!is.null(scaler_m_df)){
+              port_backtest_results@port_backtest_workflow$scaler_object_name <- scaler_object_name
+              port_backtest_results@port_backtest_workflow$scaler_workflow <- scaler_workflow
+            }
             ###Liquidity
             port_backtest_results@port_backtest_workflow$liquidity_object_name <- liquidity_object_name
             port_backtest_results@port_backtest_workflow$liquidity_workflow <- liquidity_workflow
@@ -825,6 +865,8 @@ setMethod("run_port_backtest",
 #' @param selected_benchmark Optional character. Name of benchmark index column in `benchmark_returns_m_xts`.
 #' @param min_eligible_assets_fallback Optional integer. Minimum number of eligible assets to construct portfolio.
 #' @param rp_method Character. Risk parity allocation method. Used if `port_construction_method = "rp"`.
+#' @param exp_ret_score_tilt Logical. If TRUE, applies expected return score tilt in RP.
+#' @param exp_ret_score_tilt_eta Numeric. Exponent for expected return score tilt in RP.
 #' @param n_random_ports Integer. Number of random portfolios to simulate (for `opt_method = "random"`).
 #' @param random_ports_method Character. Method to sample random portfolios.
 #' @param opt_objective Character. Optimization target (e.g., "sharpe"). Used in `mvo`.
@@ -842,6 +884,10 @@ setMethod("run_port_backtest",
 #' @param liquidity_m_df A `meta_dataframe` containing liquidity metrics.
 #' @param liquidity_floor_cutoffs Optional numeric vector defining liquidity-based eligibility thresholds.
 #' @param main_liquidity_metric Character. Column name in `liquidity_m_df` used as main liquidity measure.
+#' @param chosen_scaler Character. Column name in `scaler_m_df` defining the scaling variable.
+#' @param scaler_m_df Optional `meta_dataframe` with scaling parameters.
+#' @param scaler_shrinkage Numeric. Shrinkage factor for scaling.
+#' @param use_raw_for_eligibility Logical. If TRUE, uses raw scores for eligibility filtering.
 #' @param stock_groups_m_df Optional `meta_dataframe` mapping stocks to groups (e.g., sectors).
 #' @param benchmark_weights_m_df Optional `meta_dataframe` of historical benchmark weights.
 #' @param volatility_m_df A `meta_dataframe` with volatility estimates for each stock.
@@ -871,8 +917,11 @@ run_port_backtest_internal <- function(
   rebalancing_months, initial_buffer_period,
   #Portfolio Construction (If provided, selected_benchmark will give a benchmark-relative view)
   port_construction_method = "ew", eligibility_quantile_range = c(0.9, 1.0), selected_benchmark = NULL, min_eligible_assets_fallback = NULL,
+  #Scaling
+  chosen_scaler = NULL, scaler_m_df = NULL, scaler_shrinkage = NULL, use_raw_for_eligibility = NULL,
   #RP/MVO Parameters
-  rp_method = "cyclical-spinu", n_random_ports = 2000, random_ports_method = "sample", opt_objective = "sharpe", opt_method = "random", #RP/MVO
+  rp_method = "cyclical-spinu", exp_ret_score_tilt = FALSE, exp_ret_score_tilt_eta = 1,
+  n_random_ports = 2000, random_ports_method = "sample", opt_objective = "sharpe", opt_method = "random", #RP/MVO
   #Covariance Estimation
   cov_estimation_method = "sample", cov_matrix_sample_size = 252, active_returns = FALSE, cov_matrix_benchmark = NULL,
   daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = NULL,
@@ -914,7 +963,10 @@ run_port_backtest_internal <- function(
       port_construction_method = port_construction_method, eligibility_quantile_range = eligibility_quantile_range, min_eligible_assets_fallback = min_eligible_assets_fallback,
       selected_benchmark = selected_benchmark,
       #RP/MVO Parameters
-      rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method,
+      rp_method = rp_method, exp_ret_score_tilt = exp_ret_score_tilt, exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
+      n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method,
+      #Score Scaling
+      chosen_scaler = chosen_scaler, scaler_m_df = scaler_m_df, scaler_shrinkage = scaler_shrinkage, use_raw_for_eligibility = use_raw_for_eligibility,
       #Covariance Estimation
       cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, active_returns = active_returns, cov_matrix_benchmark = cov_matrix_benchmark,
       daily_stock_returns_m_xts = daily_stock_returns_m_xts, daily_bench_returns_m_xts = daily_bench_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,
@@ -1085,6 +1137,11 @@ run_port_backtest_internal <- function(
         cat("OOS Signal Blend Predictions")
       }
       cat("\n")
+      if (!is.null(scaler_m_df)){
+        cat(paste("  Scaling Variable:"))
+        cat(paste0(" ", chosen_scaler, " (Shrinkage: ", scaler_shrinkage, ")"))
+        cat("\n")
+      }
       if (port_construction_method %in% c("rp", "mvo")){
         cat("  Covariance Matrix:")
         cat(paste("   Estimation Method:", cov_estimation_method))
@@ -1138,6 +1195,7 @@ run_port_backtest_internal <- function(
       #####Stock Info
       liquidity_m_d_ref <- if (!is.null(liquidity_m_df)) liquidity_m_df %>% dplyr::filter(dates == current_date) else NULL
       volatility_m_d_ref <- if (!is.null(volatility_m_df)) volatility_m_df %>% dplyr::filter(dates == current_date) else NULL
+      scaler_m_d_ref <- if (!is.null(scaler_m_df)) scaler_m_df %>% dplyr::filter(dates == current_date) else NULL
       selected_benchmark_weights_m_d_ref <- if (!is.null(selected_benchmark_weights_m_df)) selected_benchmark_weights_m_df %>% dplyr::filter(dates == current_date) else NULL
       stock_groups_m_d_ref <- if (!is.null(stock_groups_m_df)) stock_groups_m_df %>% dplyr::filter(dates == current_date) else NULL
       custom_stock_weights_m_d_ref <- if (!is.null(custom_stock_weights_m_df)) custom_stock_weights_m_df %>% dplyr::filter(dates == current_date) else NULL
@@ -1240,6 +1298,10 @@ run_port_backtest_internal <- function(
           #Chosen Score Metric and Position
           chosen_score_metric_and_position = chosen_score_metric_and_position,
 
+          #Scaling
+          chosen_scaler = chosen_scaler, scaler_m_d_ref = scaler_m_d_ref,
+          scaler_shrinkage = scaler_shrinkage,
+
           #Winsorization
           lower_quantile_winsorization = lower_quantile_winsorization,
           upper_quantile_winsorization = upper_quantile_winsorization
@@ -1249,6 +1311,9 @@ run_port_backtest_internal <- function(
         stock_universe_m_d_ref <- classify_investment_universe(
           #Stock Universe
           universe_m_d_ref = stock_universe_m_d_ref,
+
+          #Use raw scores for eligibility
+          use_raw_for_eligibility = use_raw_for_eligibility,
 
           #Regular eligibility
           eligibility_quantile_range = eligibility_quantile_range, #Quantile range to elect stocks
@@ -1301,12 +1366,13 @@ run_port_backtest_internal <- function(
           #Groups
           groups_m_d_ref = stock_groups_m_d_ref,
           #Covariance Estimation Method
+          covariance_matrix = NULL,
           cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, #Sample size to estimate cov matrix (NULL => full period)
           active_returns = active_returns,
             #Returns sample for covariance estimation
             returns_m_xts_upd_ref = selected_daily_stock_returns_m_xts_upd_ref, selected_benchmark_m_xts_upd_ref = selected_daily_cov_matrix_bench_m_xts_upd_ref,
             #Risk-Parity method
-            rp_method = rp_method,
+            rp_method = rp_method, exp_ret_score_tilt = exp_ret_score_tilt,
             #MVO Optimization
             n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method,
             #Custom Weights
@@ -1509,6 +1575,13 @@ run_port_backtest_internal <- function(
     fwd_return_object_name = "not_identified",
     fwd_return_workflow = NULL,
     fwd_return_dates = sort(unique(dplyr::pull(fwd_return_m_df, dates))),
+    #Scaler
+    chosen_scaler = chosen_scaler,
+    scaler_shrinkage = scaler_shrinkage,
+    scaler_object_name = "not_identified",
+    scaler_workflow = NULL,
+    use_raw_for_eligibility = use_raw_for_eligibility,
+    scaler_dates = if (!is.null(scaler_m_df)) sort(unique(dplyr::pull(scaler_m_df, dates))) else NULL,
     #Stock Groups
     stock_groups_object_name = "not_identified",
     stock_groups_workflow = NULL,
@@ -1522,6 +1595,8 @@ run_port_backtest_internal <- function(
     custom_stock_weights_dates = if (!is.null(custom_stock_weights_m_df)) sort(unique(dplyr::pull(custom_stock_weights_m_df, dates))) else NULL,
     #RP/MVO Parameters
     rp_method = rp_method,
+    exp_ret_score_tilt = exp_ret_score_tilt,
+    exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
     n_random_ports = n_random_ports,
     random_ports_method = random_ports_method,
     opt_objective = opt_objective,
