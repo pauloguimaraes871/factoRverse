@@ -243,6 +243,7 @@ create_hrp_portfolio <- function(universe_m_d_ref, covariance_matrix, linkage = 
       }
 
       #Return
+      hc$call <- NULL
       hrp_results_list <- list(
         universe_m_d_ref = universe_m_d_ref,
         weights = universe_m_d_ref$weights,
