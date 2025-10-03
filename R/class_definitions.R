@@ -2625,15 +2625,19 @@ setClass(
 #' @slot correlation_matrix An object storing the correlation matrix of returns (optional if covariance is provided).
 #' @slot weights A \code{numeric} vector of portfolio weights for eligible assets.
 #' @slot rel_risk_contr An object representing relative risk contributions (must be provided if \code{covariance_matrix} is not \code{NULL}).
+#' @slot clusters An object for storing clusters of assets (used in HRP).
 #' @slot mvo_port_spec An object of class \code{portfolio.spec} (from the \pkg{PortfolioAnalytics} or similar package) used for Markowitz optimization.
 #' @slot ind_max_weights A numeric vector specifying maximum weight constraints per asset.
 #' @slot ind_min_weights A numeric vector specifying minimum weight constraints per asset.
-#' @slot star_group_weights An object for storing STAR group weights (used in STAR HRP).
-#' @slot star_group_cov_matrix An object for storing STAR group covariance matrix (used in STAR HRP).
-#' @slot star_clustering An object for storing STAR clustering results (used in STAR HRP).
-#' @slot star_intra_ports An object for storing STAR intra-group portfolios (used in STAR HRP).
 #' @slot random_port_weights An object for storing random portfolio weights (used in MVO).
 #' @slot groups An object for grouping assets (e.g., sectors).
+#' @slot group_weights An object for storing group weights (used in MMAF).
+#' @slot mmaf_method An object for storing the MMAF method (used in MMAF).
+#' @slot mmaf_group_col An object for storing MMAF group colors (used in
+#' @slot group_cov_matrix An object for storing group covariance matrix (used in MMAF).
+#' @slot top_down_proxy_port_method An object for storing the top-down proxy portfolio method (used in MMAF).
+#' @slot micro An object for storing micro-level port (used in MMAF).
+#' @slot macro An object for storing macro-level port (used in MMAF).
 #' @slot port_name A \code{character} giving a unique name or label for the configuration.
 #'
 #' @section signal_port-class:
@@ -2687,8 +2691,8 @@ setClass(
     random_port_weights = "ANY",
     groups = "ANY",
     mmaf_method = "ANY",
+    mmaf_group_col = "ANY",
     group_cov_matrix = "ANY",
-    group_col = "ANY",
     micro = "ANY",
     macro = "ANY",
     port_name = "character"
@@ -2772,10 +2776,10 @@ setClass(
       if (!is.numeric(object@group_cov_matrix)){
         stop("group_cov_matrix must be numeric.")
       }
-      if(length(object@groups) != ncol(object@group_cov_matrix)){
+      if (length(unique(object@groups[[object@mmaf_group_col]])) != ncol(object@group_cov_matrix)){
         stop("group_cov_matrix must have the same number of cols as groups")
       }
-      if(!any(colnames(object@group_cov_matrix) == object@groups)){
+      if (any(!colnames(object@group_cov_matrix) %in% object@groups[[object@mmaf_group_col]])){
         stop("group_cov_matrix must have the same colnames as groups")
       }
     }
@@ -2816,31 +2820,47 @@ setClass(
       if (is.null(object@micro)) {
         stop("micro slot must be provided for 'mmaf'.")
       }
-      ## If mmaf_method is 'top_down', macro@port_construction_method should be
-      ## either 'ew', 'rp' or 'hrp'
-      if (object@mmaf_method == "top_down" &&
-          !object@macro@port_construction_method %in% c("ew", "rp", "hrp")) {
-        stop("For 'top_down' mmaf_method, macro port_construction_method must be one of 'ew', 'rp' or 'hrp'.")
+      if (is.null(object@groups)){
+        stop("groups slot must be provided for 'mmaf'.")
+      }
+      ## MMAF method must be top or bottom
+      if (is.null(object@mmaf_method) ||
+          !object@mmaf_method %in% c("top_down", "bottom_up")) {
+        stop("mmaf_method must be either 'top_down' or 'bottom_up'.")
       }
       ## Micro must be a list of port objects
+      ## If mmaf_method is 'bottom_up', micro should be a list of a single 'port'
+      ## Otherwise, it should be a list of 'port's with groups as names
       if (!is.list(object@micro) ||
-          !all(sapply(object@micro, function(x) inherits(x, "port")))) {
+          !all(sapply(object@micro, function(x){
+            if (!is.null(x)) inherits(x, "port")
+          }))) {
         stop("micro must be a list of 'port' objects.")
       }
       ## If mmaf_method is 'top_down', micro must be a list with groups as names,
       ## matchings colnames of group_cov_matrix
       if (!is.null(object@groups) &&
           object@mmaf_method == "top_down" &&
-          !identical(object@micro,  object@groups)) {
+          !identical(
+            names(object@micro),
+            sort(unique(object@groups[[object@mmaf_group_col]]))
+            )
+          ) {
         stop("Names of micro list must match groups.")
       }
       ## If mmaf_method is 'bottom_up', micro must be list with only one element
-      ## named 'consolidated'
+      ## named 'bottom_up'
       if (object@mmaf_method == "bottom_up" &&
-          (!identical(names(object@micro), "consolidated") ||
+          (!identical(names(object@micro), "bottom_up") ||
            length(object@micro) != 1)) {
-        stop("For 'bottom_up' mmaf_method, micro must be a list with one element named 'consolidated'.")
+        stop("For 'bottom_up' mmaf_method, micro must be a list with one element named 'bottom_up'.")
       }
+      ## Check if names of tickers in macro port match groups
+      if (any(!object@macro@eligible_assets %in%
+              sort(unique(object@groups[[object@mmaf_group_col]])))) {
+        stop("eligible_assets in macro port must match groups.")
+      }
+
     }
 
     #Check for hrp
