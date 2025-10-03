@@ -33,6 +33,33 @@
 #' @param n_random_ports An optional numeric value indicating the number of random portfolios to generate for optimization methods. Defaults to \code{NULL}.
 #' @param random_ports_method An optional character string specifying the method for risk parity optimization. Defaults to \code{NULL}.
 #' @param opt_objective Objective of mean-tracking error optimization. Defaults to \code{NULL}.
+#' @param n_resamples Number of resamples for resampled MVO. Defaults to \code{0}.
+#' @param exp_ret_score_jitter Numeric. Standard deviation of jitter added to expected return
+#' scores during resampling. Defaults to \code{0}.
+#' @param cov_eigval_jitter Numeric. Standard deviation of jitter added to covariance
+#' matrix eigenvalues during resampling. Defaults to \code{0}.
+#' @param parallel Logical. If `TRUE`, enables parallel processing for computationally intensive tasks. Defaults to `FALSE`.
+#' @param mmaf_method Character. Method for Micro-Macro Allocation Framework. Options are `"bottom_up"` or `"top_down"`. Defaults to `"bottom_up"`.
+#' @param top_down_proxy_port_method Character. Method for constructing the top-down proxy portfolio in MMAF. Options are `"ew"`, `"sw"`, `"cw"`, `"cs"`, `"rp"`, or `"mvo"`.
+#' @param mmaf_group_col Character. Column name in `groups_m_d_ref` used to define groups for MMAF.
+#' @param micro_port_construction_method Character micro method used to allocate within groups (e.g., `"ew"`, `"rp"`, `"hrp"`, `"mvo"`).
+#' @param macro_port_construction_method Character macro method used to allocate across groups
+#'   (e.g., `"ew"`, `"rp"`, `"hrp"`, `"mvo"`). For a strictly *neutral* top-down
+#'   sector allocation, prefer `"ew"`, `"rp"` or `"hrp"` and keep `macro_exp_ret_score_tilt = NULL`.
+#' @param macro_linkage Character, passed to macro hierarchical methods when applicable.
+#' @param macro_concentration_constraint_policy Optional list with group-level weight caps.
+#' @param macro_cap_weighting_metric Optional character for cap-based macro weighting (if used).
+#' @param macro_n_random_ports Integer, number of random portfolios at macro level.
+#' @param macro_random_ports_method Character, sampling method (macro).
+#' @param macro_opt_objective Character, optimization objective at macro.
+#' @param macro_opt_method Character, optimizer selector at macro.
+#' @param macro_ridge_pen Numeric or `NULL`, ridge penalty for macro MVO.
+#' @param macro_n_resamples Integer, number of resamples for macro MVO.
+#' @param macro_exp_ret_score_jitter Numeric, jitter on sector ER (macro MVO).
+#' @param macro_cov_eigval_jitter Numeric, jitter on macro covariance eigenvalues.
+#' @param macro_rp_method Character, risk parity method at macro.
+#' @param macro_exp_ret_score_tilt Optional numeric vector/column name for RP tilt (macro).
+#' @param macro_exp_ret_score_tilt_eta Optional numeric, tilt intensity for macro RP.
 #' @param lower_quantile_winsorization An optional numeric value for lower quantile winsorization when handling cap weighting and scaling. Defaults to \code{NULL}.
 #' @param upper_quantile_winsorization An optional numeric value for upper quantile winsorization when handling cap weighting and scaling. Defaults to \code{NULL}.
 #'
@@ -48,15 +75,18 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
                                   liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL, #Policies
                                   n_random_ports = 2000, random_ports_method = "sample", opt_objective = "sharpe", opt_method = "random", ridge_pen = NULL,
                                   n_resamples = 0, exp_ret_score_jitter = 0, cov_eigval_jitter = 0, #MVO
-                                  rp_method = "cyclical-spinu", exp_ret_score_tilt = NULL, exp_ret_score_tilt_eta = NULL, linkage = "single", #Risk Parity
+                                  rp_method = "cyclical-spinu", exp_ret_score_tilt = NULL, exp_ret_score_tilt_eta = NULL,
+                                  linkage = "single", #Risk Parity
                                   custom_weights_m_d_ref = NULL, #Custom Weights
                                   ## MMAF
                                   mmaf_method = "bottom_up", top_down_proxy_port_method, mmaf_group_col,
+                                  micro_port_construction_method = NULL, #Micro portfolio construction method
                                   macro_port_construction_method = NULL, macro_concentration_constraint_policy = NULL,
                                   macro_cap_weighting_metric = NULL, macro_n_random_ports = 2000, macro_random_ports_method = "sample",
                                   macro_opt_objective = "sharpe", macro_opt_method = "random", macro_ridge_pen = NULL,
                                   macro_n_resamples = 0, macro_exp_ret_score_jitter = 0, macro_cov_eigval_jitter = 0,
-                                  macro_rp_method = "cyclical-spinu", macro_exp_ret_score_tilt = NULL, macro_linkage = "single",
+                                  macro_rp_method = "cyclical-spinu", macro_exp_ret_score_tilt = NULL,  macro_exp_ret_score_tilt_eta = NULL,
+                                  macro_linkage = "single",
                                   ## End MMAF
                                   lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975, parallel = FALSE
 ){
@@ -81,18 +111,27 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
       )
     } else {
       covariance_matrix <- NULL
-      if(port_construction_method %in% c("rp", "mvo")){
+      if(port_construction_method %in% c("rp", "hrp", "mvo", "mmaf")){
         stop("Covariance matrix estimation requires returns data.")
       }
     }
 
   }
 
-    ### Check if rownames match eligible tickers
+  ### Check if rownames match eligible tickers
+  if (!is.null(covariance_matrix)){
     if(!identical(eligible_tickers, rownames(covariance_matrix)) ||
        !identical(eligible_tickers, colnames(covariance_matrix))){
       stop("Provided covariance matrix rownames/colnames do not match eligible tickers.")
     }
+
+    ### Check if there are any NAs in rownames/colnames or NULLs
+    if(any(is.na(rownames(covariance_matrix))) || any(is.na(colnames(covariance_matrix))) ||
+       any(rownames(covariance_matrix) == "") || any(colnames(covariance_matrix) == "") ||
+       is.null(rownames(covariance_matrix)) || is.null(colnames(covariance_matrix))){
+      stop("Provided covariance matrix rownames/colnames contain NAs or NULLs.")
+    }
+  }
 
 
 
@@ -100,12 +139,6 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
 
   #Attach weights to universe_m_d_ref object
   ###################
-
-    ### Modify port_construction_method if macro_port_construction_method is provided
-    if(!is.null(macro_port_construction_method)){
-      micro_port_construction_method <- port_construction_method
-      port_construction_method <- "mmaf"
-    }
 
   ## Create portfolio according to method
   port_results_list <- switch( #Chose port construction method
@@ -194,7 +227,8 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
       macro_n_random_ports = macro_n_random_ports,  macro_random_ports_method = macro_random_ports_method,
       macro_opt_objective = macro_opt_objective, macro_opt_method = macro_opt_method, macro_ridge_pen = macro_ridge_pen, #Macro MVO methods
       macro_n_resamples = macro_n_resamples, macro_exp_ret_score_jitter = macro_exp_ret_score_jitter, macro_cov_eigval_jitter = macro_cov_eigval_jitter, #Macro MVO
-      macro_rp_method = macro_rp_method, macro_exp_ret_score_tilt = macro_exp_ret_score_tilt, macro_linkage = macro_linkage, #Macro Risk Parity
+      macro_rp_method = macro_rp_method, macro_exp_ret_score_tilt = macro_exp_ret_score_tilt, macro_exp_ret_score_tilt_eta = macro_exp_ret_score_tilt_eta,
+      macro_linkage = macro_linkage, #Macro Risk Parity
       lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization, #Winsorize cap scores
       parallel = parallel #Parallelization
     )
@@ -230,28 +264,27 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
     eligible_universe_m_d_ref <- universe_m_d_ref %>% dplyr::filter(weights != 0)
   }
 
-
   ##Create the s4 obj
   port_obj <- methods::new("port",
                             universe_m_d_ref = suppressMessages(create_meta_dataframe(universe_m_d_ref %>% dplyr::arrange(id))), ##Re-order according to id
                             port_construction_method = port_construction_method,
                             eligible_assets = eligible_universe_m_d_ref %>% dplyr::pull(tickers),
-                            exp_ret_score = if(port_construction_method %in% c("sw", "cs", "mvo") || (port_construction_method == "rp" && !is.null(exp_ret_score_tilt))) eligible_universe_m_d_ref %>% dplyr::pull(exp_ret_score) else NULL,
+                            exp_ret_score = if (port_construction_method %in% c("sw", "cs", "mvo") || (port_construction_method == "rp" && !is.null(exp_ret_score_tilt))) eligible_universe_m_d_ref %>% dplyr::pull(exp_ret_score) else NULL,
                             covariance_matrix = covariance_matrix,
-                            correlation_matrix = if(!is.null(covariance_matrix)) cov2cor(covariance_matrix) else NULL,
+                            correlation_matrix = if (!is.null(covariance_matrix)) cov2cor(covariance_matrix) else NULL,
                             weights = eligible_universe_m_d_ref %>% dplyr::pull(weights),
-                            rel_risk_contr = if(!is.null(covariance_matrix)) eligible_universe_m_d_ref %>% dplyr::pull(rel_risk_contr) else NULL,
-                            clusters = if(port_construction_method == "hrp") port_results_list$clusters else NULL,
-                            mvo_port_spec = if(port_construction_method == "mvo") port_results_list$port_spec else NULL,
-                            random_port_weights = if(port_construction_method == "mvo" & opt_method == "random") port_results_list$random_portfolios_weights_df %>% dplyr::select(-exp_ret_score) else NULL,
-                            ind_max_weights = if(!is.null(concentration_constraint_policy$max_abs_active_individual_weight) && port_construction_method == "mvo") eligible_universe_m_d_ref %>% dplyr::pull(max_weight) else NULL,
-                            ind_min_weights = if(!is.null(concentration_constraint_policy$max_abs_active_individual_weight) && port_construction_method == "mvo") eligible_universe_m_d_ref %>% dplyr::pull(min_weight) else NULL,
-                            groups = if(!is.null(groups_m_d_ref)) groups_m_d_ref else NULL,
-                            mmaf_method = if(port_construction_method == "mmaf") mmaf_method else NULL,
-                            group_cov_matrix = if(port_construction_method == "mmaf") port_results_list$group_cov_matrix else NULL,
-                            group_col = if(port_construction_method == "mmaf") mmaf_group_col else NULL,
-                            micro = if(port_construction_method == "mmaf") port_results_list$micro else NULL,
-                            macro = if(port_construction_method == "mmaf") port_results_list$macro else NULL,
+                            rel_risk_contr = if (!is.null(covariance_matrix)) eligible_universe_m_d_ref %>% dplyr::pull(rel_risk_contr) else NULL,
+                            clusters = if (port_construction_method == "hrp") port_results_list$clusters else NULL,
+                            mvo_port_spec = if (port_construction_method == "mvo") port_results_list$port_spec else NULL,
+                            random_port_weights = if (port_construction_method == "mvo" && opt_method == "random") port_results_list$random_portfolios_weights_df %>% dplyr::select(-exp_ret_score) else NULL,
+                            ind_max_weights = if (!is.null(concentration_constraint_policy$max_abs_active_individual_weight) && port_construction_method == "mvo") eligible_universe_m_d_ref %>% dplyr::pull(max_weight) else NULL,
+                            ind_min_weights = if (!is.null(concentration_constraint_policy$max_abs_active_individual_weight) && port_construction_method == "mvo") eligible_universe_m_d_ref %>% dplyr::pull(min_weight) else NULL,
+                            groups = if (!is.null(groups_m_d_ref)) groups_m_d_ref else NULL,
+                            mmaf_method = if (port_construction_method == "mmaf") mmaf_method else NULL,
+                            mmaf_group_col = if (port_construction_method == "mmaf") mmaf_group_col else NULL,
+                            group_cov_matrix = if (port_construction_method == "mmaf") port_results_list$group_cov_matrix else NULL,
+                            micro = if (port_construction_method == "mmaf") port_results_list$micro else NULL,
+                            macro = if (port_construction_method == "mmaf") port_results_list$macro else NULL,
                             port_name = "not_identified"
             )
 
