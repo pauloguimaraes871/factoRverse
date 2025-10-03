@@ -67,6 +67,7 @@
 #' @param macro_cov_eigval_jitter Numeric, jitter on macro covariance eigenvalues.
 #' @param macro_rp_method Character, risk parity method at macro.
 #' @param macro_exp_ret_score_tilt Optional numeric vector/column name for RP tilt (macro).
+#' @param macro_exp_ret_score_tilt_eta Optional numeric, tilt intensity for macro RP.
 #'
 #' @param lower_quantile_winsorization,upper_quantile_winsorization Numerics in (0,1),
 #'   passed through to micro and macro `set_portfolio_weights()`.
@@ -149,14 +150,14 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
                                   rp_method = "cyclical-spinu", exp_ret_score_tilt = NULL, #Risk Parity
                                   exp_ret_score_tilt_eta = NULL,
                                   # Macro Level
-                                  macro_port_construction_method, macro_linkage = "single",
+                                  macro_port_construction_method,
                                   macro_concentration_constraint_policy = NULL,
                                   macro_cap_weighting_metric = NULL,
                                   macro_n_random_ports = 2000, macro_random_ports_method = "sample",
                                   macro_opt_objective = "sharpe", macro_opt_method = "random", macro_ridge_pen = NULL,
                                   macro_n_resamples = 0, macro_exp_ret_score_jitter = 0, macro_cov_eigval_jitter = 0, #MVO
                                   macro_rp_method = "cyclical-spinu", macro_exp_ret_score_tilt = NULL, #Risk Parity
-                                  macro_exp_ret_score_tilt_eta = NULL,
+                                  macro_exp_ret_score_tilt_eta = NULL, macro_linkage = "single",
                                   lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975,
                                   parallel = FALSE, verbose = TRUE
 ){
@@ -203,6 +204,10 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
 
       ### Get unique groups
       groups <- unique(groups_m_d_ref[[mmaf_group_col]])
+
+        ### Re-order groups alphabetically
+        groups <- sort(groups)
+
         #### Define members
         group_members <- lapply(groups, function(g) {
           eligible_universe_m_d_ref %>%
@@ -211,14 +216,33 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
         })
         names(group_members) <- groups
 
-        #### If any group does not contain any eligible ticker, remove it
+        #### If any group does not contain any eligible ticker, throw error
         empty_groups <- sapply(group_members, length) == 0
         if (any(empty_groups)) {
-          warning(paste0("Some groups have no eligible tickers and will be removed: ",
-                         paste(groups[empty_groups], collapse = ", ")))
+          stop(paste0("Some groups have no eligible tickers: ",
+                       paste(groups[empty_groups], collapse = ", ")))
+        }
+        #### If any group is NA or '', throw error
+        if (any(is.na(groups)) || any(groups == "")) {
+          stop("Some groups are NA or empty strings.")
+        }
 
-          groups <- groups[!empty_groups]
-          group_members <- group_members[!empty_groups]
+        #### Display the number of members in each group
+        if (isTRUE(verbose)) {
+          cat("\nNumber of groups and members:\n")
+          for (g in seq_along(groups)) {
+            ### Use crayon to color number of members
+            ### (red if less than 2, orange if less than 5, green otherwise)
+            n_members <- length(group_members[[g]])
+            color <- if (n_members < 2) {
+              crayon::red
+            } else if (n_members < 5) {
+              crayon::yellow
+            } else {
+              crayon::green
+            }
+            cat(" - ", groups[g], ": ", color(n_members), " members\n", sep = "")
+          }
         }
 
         #### Number of groups
@@ -264,7 +288,9 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
         covariance_matrix = covariance_matrix,
         # Intra-portfolio parameters
         ## Risk Parity
-        rp_method = rp_method, exp_ret_score_tilt = exp_ret_score_tilt,
+        rp_method = rp_method,
+        exp_ret_score_tilt = exp_ret_score_tilt,
+        exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
         ## MVO
         n_random_ports = n_random_ports, random_ports_method = random_ports_method,
         opt_objective = opt_objective, opt_method = opt_method, ridge_pen = ridge_pen,
@@ -306,7 +332,7 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
 
       ### Message
       if (verbose){
-        cat("\n  Building top-down micro-level proxy portfolios...")
+        cat("\nBuilding top-down micro-level proxy portfolios...")
         cat("\n")
         cat("Portfolio construction method: ", top_down_proxy_port_method)
         cat("\n")
@@ -365,10 +391,10 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
         na.rm = TRUE
       )
 
-      ### Calculate weighted average of liquidity_m_df colnames and liquidity_m_df
+      ### Calculate weighted average of liquidity_m_d_ref colnames and liquidity_m_d_ref
       group_liq_cols <- list()
-      if (!is.null(liquidity_m_df)){
-        liquidity_colnames <- names(liquidity_m_df[,-c(1:3)]) #Exclude id, tickers, dates
+      if (!is.null(liquidity_m_d_ref)){
+        liquidity_colnames <- names(liquidity_m_d_ref[,-c(1:3)]) #Exclude id, tickers, dates
 
         if (length(liquidity_colnames) > 0){
           for (liq_col in liquidity_colnames){
@@ -382,26 +408,54 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
       }
 
       ### Data frame
-      data.frame(
+      group_row <- data.frame(
         id = paste0(g, "-", current_date),
         tickers = g,
-        dates = current_date,
+        dates = as.Date(current_date),
         exp_ret_score = group_exp_ret_score,
         is_eligible = 1
-      ) %>%
+      )
         #### Add group liquidity columns if any
-        dplyr::bind_cols(as.data.frame(group_liq_cols)) %>%
-        #### Relocate exp_ret_score and is_eligible to end
-        dplyr::relocate(exp_ret_score, .after = dplyr::last_col()) %>%
-        dplyr::relocate(is_eligible, .after = dplyr::last_col())
+        if (length(group_liq_cols) > 0){
+          group_row <- group_row %>%
+            dplyr::bind_cols(as.data.frame(group_liq_cols))
+        }
+
+      group_row
 
     })
 
-    ## Construct group_liquidity_m_df if liquidity_m_df exists
-    group_liquidity_m_df <- NULL
-    if (!is.null(liquidity_m_df)){
-      group_liquidity_m_df <- group_universe_m_d_ref %>%
-        dplyr::select(dplyr::all_of(names(liquidity_m_df)))
+        ### Add group bench_weights and target_weights
+        group_weight_colnames <- names(universe_m_d_ref)[
+          stringr::str_detect(names(universe_m_d_ref), "_bench_weights") |
+          stringr::str_detect(names(universe_m_d_ref), "target_weights")
+        ]
+        if (length(group_weight_colnames) > 0){
+          #### Build total weights per sector, considering all stocks (universe_m_d_ref)
+          #### and sum them by sector
+          group_weights_m_d_ref <- universe_m_d_ref %>%
+            dplyr::group_by(!!rlang::sym(mmaf_group_col)) %>%
+            dplyr::summarise(dplyr::across(
+              dplyr::all_of(group_weight_colnames), sum, na.rm = TRUE
+            )) %>%
+            dplyr::rename(sector = !!rlang::sym(mmaf_group_col))
+
+          #### Join to group_universe_m_d_ref
+          group_universe_m_d_ref <- group_universe_m_d_ref %>%
+            dplyr::left_join(group_weights_m_d_ref,
+                             by = c("tickers" = "sector"))
+        }
+
+        ### Relocate exp_ret_score and is_eligible to end
+        group_universe_m_d_ref <- group_universe_m_d_ref %>%
+          dplyr::relocate(exp_ret_score, .after = dplyr::last_col()) %>%
+          dplyr::relocate(is_eligible,   .after = dplyr::last_col())
+
+    ## Construct group_liquidity_m_d_ref if liquidity_m_d_ref exists
+    group_liquidity_m_d_ref <- NULL
+    if (!is.null(liquidity_m_d_ref)){
+      group_liquidity_m_d_ref <- group_universe_m_d_ref %>%
+        dplyr::select(dplyr::all_of(names(liquidity_m_d_ref)))
     }
 
     ## Compute sector-by-sector covariance
@@ -471,7 +525,7 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
       linkage = macro_linkage,
       # Liquidity Constraint Policy for groups
       liquidity_constraint_policy = NULL,
-      liquidity_m_d_ref = group_liquidity_m_df,
+      liquidity_m_d_ref = group_liquidity_m_d_ref,
       cap_weighting_metric = macro_cap_weighting_metric,
       #Concentration Constraint Policy for groups
       concentration_constraint_policy = macro_concentration_constraint_policy,
@@ -483,7 +537,9 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
       covariance_matrix = group_covariance_matrix,
       # Intra-portfolio parameters
       ## Risk Parity
-      rp_method = macro_rp_method, exp_ret_score_tilt = macro_exp_ret_score_tilt,
+      rp_method = macro_rp_method,
+      exp_ret_score_tilt = macro_exp_ret_score_tilt,
+      exp_ret_score_tilt_eta = macro_exp_ret_score_tilt_eta,
       ## MVO
       n_random_ports = macro_n_random_ports, random_ports_method = macro_random_ports_method,
       opt_objective = macro_opt_objective, opt_method = macro_opt_method, ridge_pen = macro_ridge_pen,
@@ -555,7 +611,7 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
   # Reconcile at portfolio level------------------------------------------------
 
     ## For each group, multiply stock_weight by group weight
-    final_weights_m_df <- purrr::map_dfr(groups, function(g){
+    final_weights_m_d_ref <- purrr::map_dfr(groups, function(g){
 
       ### Current micro universe
       current_micro_universe_m_d_ref <- micro_universe_m_d_ref_list[[g]] %>%
@@ -570,7 +626,7 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
 
     ## Left join to universe_m_d_ref
     universe_m_d_ref <- universe_m_d_ref %>%
-      dplyr::left_join(final_weights_m_df, by = "id")
+      dplyr::left_join(final_weights_m_d_ref, by = "id")
 
     ## Replace NAs with 0
     universe_m_d_ref <- universe_m_d_ref %>%
@@ -586,17 +642,17 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
   }
 
       return(list(
-        universe_m_d_ref  = universe_m_d_ref,
-        group_weights     = group_weights,
-        macro             = macro_port,
-        micro             = if (mmaf_method == "top_down"){
+        universe_m_d_ref           = universe_m_d_ref,
+        group_weights              = group_weights,
+        macro                      = macro_port,
+        micro                      = if (mmaf_method == "top_down"){
           micro_port_list
         }  else {
-          list("consolidated" = micro_port)
+          list("bottom_up"         = micro_port)
         },
-        group_cov_matrix  = group_covariance_matrix,
-        group_col         = group_col,
-        mmaf_method       = mmaf_method
+        group_cov_matrix           = group_covariance_matrix,
+        mmaf_group_col             = mmaf_group_col,
+        mmaf_method                = mmaf_method
       ))
 
 
@@ -708,7 +764,7 @@ set_top_down_micro_weights <- function(group_name, group_weights = NULL,
                                        ){
 
   ### Print message
-  cat("    Processing group:", group_name, "...\n")
+  cat("Processing group:", group_name, "...\n")
 
   ### If group weight is 0, return NULL
   if (!is.null(group_weights) && group_weights[group_name] < .Machine$double.eps){
@@ -716,15 +772,32 @@ set_top_down_micro_weights <- function(group_name, group_weights = NULL,
     return(NULL)
   }
 
+  ### If group_members list is not named, error and exit
+  if (is.null(names(group_members)) || any(names(group_members) == "")){
+    stop("group_members must be a named list with group names as names.")
+  }
+
   ### Get group members
   idx <- group_members[[group_name]]
   sub_universe_m_d_ref <- universe_m_d_ref %>%
     dplyr::filter(tickers %in% idx)
+  sub_tickers <- sub_universe_m_d_ref %>% dplyr::pull(tickers)
+
+    #### Check if subtickers is empty or duplicated
+    if (length(sub_tickers) == 0){
+      stop(paste0("Group ", group_name, " has no eligible tickers."))
+    }
+    if (any(duplicated(idx))){
+      stop(paste0("Group ", group_name, " has duplicated tickers."))
+    }
 
   ### Get subcovariance
-  sub_covariance_matrix <- covariance_matrix[idx, idx, drop = FALSE]
+  if (!all(sub_tickers %in% rownames(covariance_matrix))){
+    stop(paste0("Some tickers in group ", group_name, " are not in covariance matrix."))
+  }
+  sub_covariance_matrix <- covariance_matrix[sub_tickers, sub_tickers, drop = FALSE]
 
-  ### Subset liquidity_m_df
+  ### Subset liquidity_m_d_ref
   if (is.null(liquidity_m_d_ref)){
     sub_liquidity_m_d_ref <- NULL
   } else {
@@ -762,6 +835,10 @@ set_top_down_micro_weights <- function(group_name, group_weights = NULL,
       ##### For each weight column, if weights sum >= 1, normalize weights so that they sum 1
       for (col in weight_cols){
         if (sum(sub_universe_m_d_ref[[col]], na.rm = TRUE) >= 1){
+          ###### Warn that weights are being normalized, which might indicate constraints not holding
+          warning(paste0("After scaling, ", col, " in group ", group_name, " sums to more than 1. Normalizing to sum to 1.",
+          "This might indicate that overall constraints do not hold because of this group."))
+          ##### Normalize weights
           sub_universe_m_d_ref <- sub_universe_m_d_ref %>%
             dplyr::mutate(!!rlang::sym(col) := !!rlang::sym(col) / sum(!!rlang::sym(col), na.rm = TRUE))
         }
@@ -776,6 +853,10 @@ set_top_down_micro_weights <- function(group_name, group_weights = NULL,
       ##### For each weight column, if weights sum >= 1, normalize weights so that they sum 1
       for (col in weight_cols){
         if (sum(sub_universe_m_d_ref[[col]], na.rm = TRUE) >= 1){
+          ###### Warn that weights are being normalized, which might indicate constraints not holding
+          warning(paste0("After scaling, ", col, " in group ", group_name, " sums to more than 1. Normalizing to sum to 1.",
+                         "This might indicate that overall constraints do not hold because of this group."))
+          ##### Normalize weights
           sub_universe_m_d_ref <- sub_universe_m_d_ref %>%
             dplyr::mutate(!!rlang::sym(col) := !!rlang::sym(col) / sum(!!rlang::sym(col), na.rm = TRUE))
         }
@@ -790,6 +871,10 @@ set_top_down_micro_weights <- function(group_name, group_weights = NULL,
       ##### For each weight column, if weights sum >= 1, normalize weights so that they sum 1
       for (col in weight_cols){
         if (sum(sub_universe_m_d_ref[[col]], na.rm = TRUE) >= 1){
+          ###### Warn that weights are being normalized, which might indicate constraints not holding
+          warning(paste0("After scaling, ", col, " in group ", group_name, " sums to more than 1. Normalizing to sum to 1.",
+                         "This might indicate that overall constraints do not hold because of this group."))
+          ##### Normalize weights
           sub_universe_m_d_ref <- sub_universe_m_d_ref %>%
             dplyr::mutate(!!rlang::sym(col) := !!rlang::sym(col) / sum(!!rlang::sym(col), na.rm = TRUE))
         }
@@ -818,6 +903,14 @@ set_top_down_micro_weights <- function(group_name, group_weights = NULL,
         sub_concentration_constraint_policy$max_abs_active_individual_weight <- NULL
       }
     }
+
+      ##### If a group constraint is being provided, drop it and warn
+      if (!is.null(concentration_constraint_policy) &&
+          !is.null(concentration_constraint_policy$max_abs_active_group_weight)){
+        warning(paste0("Concentration constraint at group level (max_abs_active_group_weight) is being ignored inside group ", group_name, "."))
+        sub_concentration_constraint_policy$max_abs_active_group_weight <- NULL
+      }
+
     if (!is.null(turnover_constraint_policy) &&
         !is.null(turnover_constraint_policy$turnover_cap_rules)){
       sub_turnover_constraint_policy <- turnover_constraint_policy
@@ -859,40 +952,78 @@ set_top_down_micro_weights <- function(group_name, group_weights = NULL,
   }
 
   ### Call set_portfolio_weights
-  port <- set_portfolio_weights(
-    # Stock Universe object
-    universe_m_d_ref = sub_universe_m_d_ref,
-    # Intra Group Port Construction Method
-    port_construction_method = micro_port_construction_method,
-    # Liquidity Constraint Policy for stocks
-    liquidity_constraint_policy = sub_liquidity_constraint_policy,
-    liquidity_m_d_ref = sub_liquidity_m_d_ref,
-    cap_weighting_metric = cap_weighting_metric,
-    #Concentration Constraint Policy for stocks
-    concentration_constraint_policy = sub_concentration_constraint_policy,
-    # Turnover Constraint Policy for stocks
-    turnover_constraint_policy = sub_turnover_constraint_policy,
-    # Groups
-    groups_m_d_ref = NULL, #Not needed inside a group
-    # Covariance Matrix
-    covariance_matrix = sub_covariance_matrix,
-    # Intra-portfolio parameters
-    ## Risk Parity
-    rp_method = rp_method, exp_ret_score_tilt = exp_ret_score_tilt,
-    exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
-    ## HRP
-    linkage = linkage,
-    ## MVO
-    n_random_ports = n_random_ports, random_ports_method = random_ports_method,
-    opt_objective = opt_objective, opt_method = opt_method, ridge_pen = ridge_pen,
-    n_resamples = n_resamples, exp_ret_score_jitter = exp_ret_score_jitter,
-    cov_eigval_jitter = cov_eigval_jitter,
-    ## Custom Weights
-    custom_weights_m_d_ref = NULL, #Custom Weights
-    # Winsorization
-    lower_quantile_winsorization = lower_quantile_winsorization,
-    upper_quantile_winsorization = upper_quantile_winsorization
-  )
+
+    #### # Collect warnings here (per call)
+    .warnings <- character(0)
+
+    #### Call
+    port <- withCallingHandlers(
+      suppressMessages(
+        tryCatch(
+          {
+            port <- set_portfolio_weights(
+              # Stock Universe object
+              universe_m_d_ref = sub_universe_m_d_ref,
+              # Intra Group Port Construction Method
+              port_construction_method = micro_port_construction_method,
+              # Liquidity Constraint Policy for stocks
+              liquidity_constraint_policy = sub_liquidity_constraint_policy,
+              liquidity_m_d_ref = sub_liquidity_m_d_ref,
+              cap_weighting_metric = cap_weighting_metric,
+              #Concentration Constraint Policy for stocks
+              concentration_constraint_policy = sub_concentration_constraint_policy,
+              # Turnover Constraint Policy for stocks
+              turnover_constraint_policy = sub_turnover_constraint_policy,
+              # Groups
+              groups_m_d_ref = NULL, #Not needed inside a group
+              # Covariance Matrix
+              covariance_matrix = sub_covariance_matrix,
+              # Intra-portfolio parameters
+              ## Risk Parity
+              rp_method = rp_method, exp_ret_score_tilt = exp_ret_score_tilt,
+              exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
+              ## HRP
+              linkage = linkage,
+              ## MVO
+              n_random_ports = n_random_ports, random_ports_method = random_ports_method,
+              opt_objective = opt_objective, opt_method = opt_method, ridge_pen = ridge_pen,
+              n_resamples = n_resamples, exp_ret_score_jitter = exp_ret_score_jitter,
+              cov_eigval_jitter = cov_eigval_jitter,
+              ## Custom Weights
+              custom_weights_m_d_ref = NULL, #Custom Weights
+              # Winsorization
+              lower_quantile_winsorization = lower_quantile_winsorization,
+              upper_quantile_winsorization = upper_quantile_winsorization
+            )
+          },
+          error = function(e) {
+            # Flush any captured warnings before erroring
+            if (length(.warnings)) {
+              for (w in .warnings) warning(sprintf("[%s] %s", group_name, w), call. = FALSE, immediate. = TRUE)
+            }
+            stop(sprintf("Error in set_portfolio_weights for group %s: %s",
+                         group_name, conditionMessage(e)),
+                 call. = FALSE)
+          }
+        )
+      ),
+      warning = function(w) {
+        .warnings <<- c(.warnings, conditionMessage(w))
+        invokeRestart("muffleWarning")
+      },
+      message = function(m) {
+        # Redundant with suppressMessages, but belt & suspenders:
+        invokeRestart("muffleMessage")
+      }
+    )
+
+    # Re-emit accumulated warnings after a successful run
+    if (length(.warnings)) {
+      for (w in .warnings) warning(sprintf("[%s] %s", group_name, w),
+                                   call. = FALSE, immediate. = TRUE)
+    }
+
+
 
   port
 
