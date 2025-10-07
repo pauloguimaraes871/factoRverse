@@ -2786,11 +2786,14 @@ setClass(
 
     # Check for mvo
     if(object@port_construction_method == "mvo"){
-      if(is.null(object@random_port_weights)){
-        stop("random_port_weights must not be NULL for port_construction_method 'mvo'.")
+      if(length(object@eligible_assets) > 1 &&
+        is.null(object@random_port_weights)){
+        stop("random_port_weights must not be NULL for port_construction_method 'mvo' when, ",
+             "there is more than one eligible asset.")
       }
 
-      if(!any(object@random_port_weights$tickers %in% object@eligible_assets)){
+      if(!is.null(object@random_port_weights) &&
+         !any(object@random_port_weights$tickers %in% object@eligible_assets)){
         stop("random_port_weights must have the same colnames as eligible_assets")
       }
 
@@ -2866,7 +2869,7 @@ setClass(
     #Check for hrp
     if (object@port_construction_method == "hrp"){
       # hclust type check if provided
-      if (is.null(object@clusters) ||
+      if (!is.null(object@clusters) &&
           !inherits(object@clusters, "hclust")) {
         stop("clusters must be an 'hclust' object.")
       }
