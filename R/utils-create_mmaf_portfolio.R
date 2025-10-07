@@ -436,8 +436,11 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
           group_weights_m_d_ref <- universe_m_d_ref %>%
             dplyr::group_by(!!rlang::sym(mmaf_group_col)) %>%
             dplyr::summarise(dplyr::across(
-              dplyr::all_of(group_weight_colnames), sum, na.rm = TRUE
-            )) %>%
+              dplyr::all_of(group_weight_colnames),
+              \(x) sum(x, na.rm = TRUE)
+              ),
+              .groups = "drop"
+            ) %>%
             dplyr::rename(sector = !!rlang::sym(mmaf_group_col))
 
           #### Join to group_universe_m_d_ref
@@ -641,6 +644,11 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
     tictoc::toc()
   }
 
+    ### Remove any stray names from numeric weight vectors ----
+    if ("weights" %in% names(universe_m_d_ref)) {
+      names(universe_m_d_ref$weights) <- NULL
+    }
+
       return(list(
         universe_m_d_ref           = universe_m_d_ref,
         group_weights              = group_weights,
@@ -764,6 +772,7 @@ set_top_down_micro_weights <- function(group_name, group_weights = NULL,
                                        ){
 
   ### Print message
+  cat("\n")
   cat("Processing group:", group_name, "...\n")
 
   ### If group weight is 0, return NULL
@@ -836,8 +845,9 @@ set_top_down_micro_weights <- function(group_name, group_weights = NULL,
       for (col in weight_cols){
         if (sum(sub_universe_m_d_ref[[col]], na.rm = TRUE) >= 1){
           ###### Warn that weights are being normalized, which might indicate constraints not holding
-          warning(paste0("After scaling, ", col, " in group ", group_name, " sums to more than 1. Normalizing to sum to 1.",
-          "This might indicate that overall constraints do not hold because of this group."))
+          warning(paste0("For concentration constraint: after scaling, ", col, " in group ", group_name,
+                         " sums to more than 1. Normalizing to sum to 1.",
+                         "This might indicate that overall constraints do not hold because of this group."))
           ##### Normalize weights
           sub_universe_m_d_ref <- sub_universe_m_d_ref %>%
             dplyr::mutate(!!rlang::sym(col) := !!rlang::sym(col) / sum(!!rlang::sym(col), na.rm = TRUE))
@@ -854,7 +864,8 @@ set_top_down_micro_weights <- function(group_name, group_weights = NULL,
       for (col in weight_cols){
         if (sum(sub_universe_m_d_ref[[col]], na.rm = TRUE) >= 1){
           ###### Warn that weights are being normalized, which might indicate constraints not holding
-          warning(paste0("After scaling, ", col, " in group ", group_name, " sums to more than 1. Normalizing to sum to 1.",
+          warning(paste0("For turnover constraint: after scaling, ", col, " in group ", group_name,
+                         " sums to more than 1. Normalizing to sum to 1.",
                          "This might indicate that overall constraints do not hold because of this group."))
           ##### Normalize weights
           sub_universe_m_d_ref <- sub_universe_m_d_ref %>%
@@ -872,7 +883,8 @@ set_top_down_micro_weights <- function(group_name, group_weights = NULL,
       for (col in weight_cols){
         if (sum(sub_universe_m_d_ref[[col]], na.rm = TRUE) >= 1){
           ###### Warn that weights are being normalized, which might indicate constraints not holding
-          warning(paste0("After scaling, ", col, " in group ", group_name, " sums to more than 1. Normalizing to sum to 1.",
+          warning(paste0("For target weights: after scaling, ", col, " in group ", group_name,
+                         " sums to more than 1. Normalizing to sum to 1.",
                          "This might indicate that overall constraints do not hold because of this group."))
           ##### Normalize weights
           sub_universe_m_d_ref <- sub_universe_m_d_ref %>%
@@ -907,7 +919,7 @@ set_top_down_micro_weights <- function(group_name, group_weights = NULL,
       ##### If a group constraint is being provided, drop it and warn
       if (!is.null(concentration_constraint_policy) &&
           !is.null(concentration_constraint_policy$max_abs_active_group_weight)){
-        warning(paste0("Concentration constraint at group level (max_abs_active_group_weight) is being ignored inside group ", group_name, "."))
+        warning(paste0("Group constraints is being ignored inside group ", group_name, "."))
         sub_concentration_constraint_policy$max_abs_active_group_weight <- NULL
       }
 

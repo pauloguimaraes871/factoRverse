@@ -49,6 +49,26 @@ create_hrp_portfolio <- function(universe_m_d_ref, covariance_matrix, linkage = 
     eligible_universe_m_d_ref <- universe_m_d_ref %>% dplyr::filter(is_eligible == 1)
     eligible_tickers <- eligible_universe_m_d_ref %>% dplyr::pull(tickers)
 
+      ### If there is only one eligible tickers, return universe_m_d_ref with weight 1
+      ### for the eligible tickers and 0 for other stocks
+      if (length(eligible_tickers) == 1) {
+        universe_m_d_ref <- universe_m_d_ref %>%
+          dplyr::mutate(weights = ifelse(tickers == eligible_tickers, 1, 0))
+        if (isTRUE(verbose)) {
+          cat("\n")
+          cat(crayon::green(paste("Only one eligible ticker. Weight set to 1.")))
+          cat("\n")
+          tictoc::toc()
+        }
+        hrp_results_list <- list(
+          universe_m_d_ref = universe_m_d_ref,
+          weights = universe_m_d_ref$weights,
+          dist_matrix = NULL,
+          clusters = NULL
+        )
+        return(hrp_results_list)
+      }
+
       ### Defensively check if covariance is ordered according to eligible tickers
       if (!all(rownames(covariance_matrix) == colnames(covariance_matrix) &
                rownames(covariance_matrix) == eligible_tickers)) {

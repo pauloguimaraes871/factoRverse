@@ -48,6 +48,16 @@ create_mvo_portfolio <- function(universe_m_d_ref,
   #Eligible tickers
   eligible_tickers <- universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
 
+  ### Defensively check for alignment of cov and eligible tickers
+  if (!identical(rownames(covariance_matrix),
+                 universe_m_d_ref %>%
+                 dplyr::filter(is_eligible == 1L) %>%
+                 dplyr::pull(tickers)
+  )) {
+    stop("covariance_matrix row/col names must exactly match eligible tickers order")
+  }
+
+
   #Create portfolio_specification
   port_spec <- PortfolioAnalytics::portfolio.spec(assets = eligible_tickers)
 
@@ -435,7 +445,38 @@ create_resampled_mvo_portfolio <- function(universe_m_d_ref,
 
   }
 
-  # Run resamples
+  # Exit early if only one glibile ticker
+    ##  If only one eligible ticker, return universe_m_d_ref with weight = 1 for
+    ## this stock and 0 for remaining ones
+    eligible_universe_m_d_ref <- universe_m_d_ref %>% dplyr::filter(is_eligible == 1)
+    if (nrow(eligible_universe_m_d_ref) == 1){
+      universe_m_d_ref <- universe_m_d_ref %>%
+        dplyr::mutate(weights = ifelse(tickers == eligible_universe_m_d_ref$tickers, 1, 0))
+      if (verbose){
+        cat("\n")
+        cat(crayon::green(paste("Only one eligible asset. Weights set to 1 for",
+                                eligible_universe_m_d_ref$tickers, "and 0 for the rest.")))
+        cat("\n")
+        ### If there are constraints, state that they can't be applied
+        if(!is.null(concentration_constraint_policy) ||
+           !is.null(liquidity_constraint_policy) ||
+           !is.null(turnover_constraint_policy)){
+          cat(crayon::yellow(paste("Constraints could not be applied due to only one eligible asset.")))
+          cat("\n")
+        }
+        tictoc::toc()
+      }
+      mvo_results_list <- list(
+        universe_m_d_ref = universe_m_d_ref,
+        weights = universe_m_d_ref$weights,
+        exp_ret_score = universe_m_d_ref$exp_ret_score,
+        port_spec = NULL,
+        random_portfolios_weights_df = NULL
+      )
+      return(mvo_results_list)
+    }
+
+    # Run resamples
     ## First run base case (no jitter) to ensure at least one valid run
     base_case_mvo <- run_mvo(0)
 
