@@ -39,6 +39,13 @@ test_that("estimate_covariance_matrix works for sample and raw_returns", {
 
   expect_equal(expected_results, results)
 
+  expect_true(all(dim(results) == length(eligible_stocks)))
+  expect_equal(dimnames(results)[[1]], dimnames(results)[[2]])
+  expect_equal(dimnames(results)[[1]], eligible_stocks)
+  expect_equal(results, t(results), tolerance = 1e-10)
+  eigvals <- eigen(results, symmetric = TRUE, only.values = TRUE)$values
+  expect_true(all(eigvals > -1e-8))
+  expect_true(all(diag(results) >= 0))
 })
 
 test_that("estimate_covariance_matrix works for ewma and active returns", {
@@ -92,6 +99,14 @@ test_that("estimate_covariance_matrix works for ewma and active returns", {
   )
 
   expect_equal(expected_results, results)
+
+  expect_true(all(dim(results) == length(eligible_stocks)))
+  expect_equal(dimnames(results)[[1]], dimnames(results)[[2]])
+  expect_equal(dimnames(results)[[1]], eligible_stocks)
+  expect_equal(results, t(results), tolerance = 1e-10)
+  eigvals <- eigen(results, symmetric = TRUE, only.values = TRUE)$values
+  expect_true(all(eigvals > -1e-8))
+  expect_true(all(diag(results) >= 0))
 
 })
 
@@ -148,6 +163,14 @@ test_that("estimate_covariance_matrix works for shrink_cc and active returns", {
 
   expect_equal(expected_results, results)
 
+  expect_true(all(dim(results) == length(eligible_stocks)))
+  expect_equal(dimnames(results)[[1]], dimnames(results)[[2]])
+  expect_equal(dimnames(results)[[1]], eligible_stocks)
+  expect_equal(results, t(results), tolerance = 1e-10)
+  eigvals <- eigen(results, symmetric = TRUE, only.values = TRUE)$values
+  expect_true(all(eigvals > -1e-8))
+  expect_true(all(diag(results) >= 0))
+
 })
 
 test_that("estimate_covariance_matrix works for shrink_id and active returns", {
@@ -203,6 +226,14 @@ test_that("estimate_covariance_matrix works for shrink_id and active returns", {
 
   expect_equal(expected_results, results)
 
+  expect_true(all(dim(results) == length(eligible_stocks)))
+  expect_equal(dimnames(results)[[1]], dimnames(results)[[2]])
+  expect_equal(dimnames(results)[[1]], eligible_stocks)
+  expect_equal(results, t(results), tolerance = 1e-10)
+  eigvals <- eigen(results, symmetric = TRUE, only.values = TRUE)$values
+  expect_true(all(eigvals > -1e-8))
+  expect_true(all(diag(results) >= 0))
+
 })
 
 test_that("estimate_covariance_matrix works for CC and active returns", {
@@ -244,7 +275,7 @@ test_that("estimate_covariance_matrix works for CC and active returns", {
   expected_results$`Stock E` <- ((1 + expected_results$`Stock E`/100)/(1 + selected_benchmark_returns_m_xts_upd_ref$ibov/100) - 1)*100
 
   expected_results <- PerformanceAnalytics::M2.struct(expected_results, "CC")
-  dimnames(expected_results) <- NULL
+  dimnames(expected_results) <- list(eligible_stocks, eligible_stocks)
 
   results <- estimate_covariance_matrix(
     tickers = eligible_stocks,
@@ -256,10 +287,17 @@ test_that("estimate_covariance_matrix works for CC and active returns", {
     groups_m_d_ref = stocks_groups_m_d_ref
   )
 
-  dimnames(results) <- NULL
 
   expect_equal(expected_results, results)
   expect_equal(as.vector(cov2cor(results)) %>% round(5) %>% unique() %>% length(), 2)
+
+  expect_true(all(dim(results) == length(eligible_stocks)))
+  expect_equal(dimnames(results)[[1]], dimnames(results)[[2]])
+  expect_equal(dimnames(results)[[1]], eligible_stocks)
+  expect_equal(results, t(results), tolerance = 1e-10)
+  eigvals <- eigen(results, symmetric = TRUE, only.values = TRUE)$values
+  expect_true(all(eigvals > -1e-8))
+  expect_true(all(diag(results) >= 0))
 
 })
 
@@ -303,8 +341,22 @@ test_that("estimate_covariance_matrix works for pca1 and active_returns", {
 
 
   #how many factors
-  number_of_factors <- which(cumsum(stats::prcomp(cov(expected_results))$sdev/sum(stats::prcomp(cov(expected_results))$sdev)) >= 0.90)[1]
-  expected_results <- PortfolioAnalytics::extractCovariance(PortfolioAnalytics::statistical.factor.model(expected_results, number_of_factors))
+  # --- PCA logic equivalent to pca1() internal steps
+  S <- stats::cov(expected_results, use = "pairwise.complete.obs")
+  eig <- base::eigen(S, symmetric = TRUE, only.values = TRUE)$values
+  eig <- sort(eig, decreasing = TRUE)
+
+  tot_var <- sum(eig)
+
+  prop <- eig / tot_var
+  k90  <- which(cumsum(prop) >= 0.90)[1]
+  k_max <- min(ncol(expected_results), nrow(expected_results) - 1)
+  stopifnot(k_max >= 1)
+  k_use <- max(1, min(k90, k_max))
+
+  expected_results <- PortfolioAnalytics::extractCovariance(
+    PortfolioAnalytics::statistical.factor.model(expected_results, k = k_use)
+  )
 
   results <- estimate_covariance_matrix(
     tickers = eligible_stocks,
@@ -317,6 +369,14 @@ test_that("estimate_covariance_matrix works for pca1 and active_returns", {
   )
 
   expect_equal(expected_results, results)
+  expect_true(all(dim(results) == length(eligible_stocks)))
+  expect_equal(dimnames(results)[[1]], dimnames(results)[[2]])
+  expect_equal(dimnames(results)[[1]], eligible_stocks)
+  expect_equal(results, t(results), tolerance = 1e-10)
+  eigvals <- eigen(results, symmetric = TRUE, only.values = TRUE)$values
+  expect_true(all(eigvals > -1e-8))
+  expect_true(all(diag(results) >= 0))
+
 
 })
 
@@ -376,6 +436,13 @@ test_that("estimate_covariance_matrix works for pca2 and active_returns", {
   )
 
   expect_equal(expected_results, results)
+  expect_true(all(dim(results) == length(eligible_stocks)))
+  expect_equal(dimnames(results)[[1]], dimnames(results)[[2]])
+  expect_equal(dimnames(results)[[1]], eligible_stocks)
+  expect_equal(results, t(results), tolerance = 1e-10)
+  eigvals <- eigen(results, symmetric = TRUE, only.values = TRUE)$values
+  expect_true(all(eigvals > -1e-8))
+  expect_true(all(diag(results) >= 0))
 
 })
 
@@ -415,7 +482,6 @@ test_that("estimate_covariance_matrix works for not providing sample size", {
   expect_equal(expected_results, results)
 
 })
-
 
 test_that("estimate_covariance_matrix throws errors for wrong tickers and methods", {
 
