@@ -5821,6 +5821,167 @@ test_that("check_inputs_port_backtest throws an error when rp args are wrong", {
 
 })
 
+test_that("check_inputs_port_backtest throws an error when rp args are wrong (macro)", {
+
+  #Load
+  load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
+
+  #tilt
+  expect_error(
+    check_inputs_port_backtest(
+      signals_m_df = signals_m_df,
+      oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
+      scaler_m_df = NULL,
+      chosen_scaler = NULL,
+      scaler_shrinkage = NULL,
+      use_raw_for_eligibility = NULL,
+      ridge_pen = NULL,
+      micro_port_construction_method = "sw",
+      macro_port_construction_method = "rp",
+      macro_exp_ret_score_tilt = 5,
+      macro_exp_ret_score_tilt_eta = NULL,
+      exp_ret_score_tilt = NULL,
+      exp_ret_score_tilt_eta = NULL,
+      macro_ridge_pen = NULL,
+      chosen_score_metric_and_position = c(Alpha = "long"),
+      rebalancing_months = 7,
+      macro_concentration_constraint_policy = NULL,
+      initial_buffer_period = 2,
+      eligibility_quantile_range = c(0.5,0.75),
+      daily_stock_returns_m_xts = daily_stock_returns_m_xts,
+      daily_bench_returns_m_xts = daily_benchmark_returns_m_xts,
+      cov_matrix_benchmark = "ibov",
+      cov_matrix_sample_size = 100,
+      cov_estimation_method = "sample",
+      active_returns = FALSE,
+      selected_benchmark = "ibov",
+      benchmark_returns_m_xts = benchmark_returns_m_xts,
+      stock_groups_m_df = stock_groups_m_df,
+      liquidity_m_df = liquidity_m_df,
+      main_liquidity_metric = "mean_volfin_3m",
+      volatility_m_df = volatility_m_df,
+      benchmark_weights_m_df = benchmark_weights_m_df,
+      custom_stock_weights_m_df = NULL,
+      fwd_return_m_df = target_m_df,
+      custom_stock_metrics_m_df = NULL,
+      concentration_constraint_policy = NULL,
+      liquidity_constraint_policy = liquidity_constraint_policy,
+      turnover_constraint_policy = turnover_constraint_policy,
+      liquidity_floor_cutoffs = liquidity_floor_cutoffs_df,
+      user_defined_OR_rules_m_df = NULL,
+      user_defined_AND_rules_m_df = NULL,
+      port_construction_method = "mmaf",
+      verbose = TRUE
+    ), "macro_exp_ret_score_tilt must be one of 'none', 'inner' or 'final'"
+  )
+
+  #eta
+  expect_error(
+    check_inputs_port_backtest(
+      signals_m_df = signals_m_df,
+      oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
+      scaler_m_df = NULL,
+      chosen_scaler = NULL,
+      scaler_shrinkage = NULL,
+      use_raw_for_eligibility = NULL,
+      ridge_pen = NULL,
+      micro_port_construction_method = "sw",
+      macro_port_construction_method = "rp",
+      macro_exp_ret_score_tilt = "inner",
+      macro_exp_ret_score_tilt_eta = -1,
+      exp_ret_score_tilt = NULL,
+      exp_ret_score_tilt_eta = NULL,
+      macro_ridge_pen = NULL,
+      chosen_score_metric_and_position = c(Alpha = "long"),
+      rebalancing_months = 7,
+      macro_concentration_constraint_policy = NULL,
+      initial_buffer_period = 2,
+      eligibility_quantile_range = c(0.5,0.75),
+      daily_stock_returns_m_xts = daily_stock_returns_m_xts,
+      daily_bench_returns_m_xts = daily_benchmark_returns_m_xts,
+      cov_matrix_benchmark = "ibov",
+      cov_matrix_sample_size = 100,
+      cov_estimation_method = "sample",
+      active_returns = FALSE,
+      selected_benchmark = "ibov",
+      benchmark_returns_m_xts = benchmark_returns_m_xts,
+      stock_groups_m_df = stock_groups_m_df,
+      liquidity_m_df = liquidity_m_df,
+      main_liquidity_metric = "mean_volfin_3m",
+      volatility_m_df = volatility_m_df,
+      benchmark_weights_m_df = benchmark_weights_m_df,
+      custom_stock_weights_m_df = NULL,
+      fwd_return_m_df = target_m_df,
+      custom_stock_metrics_m_df = NULL,
+      concentration_constraint_policy = NULL,
+      liquidity_constraint_policy = liquidity_constraint_policy,
+      turnover_constraint_policy = turnover_constraint_policy,
+      liquidity_floor_cutoffs = liquidity_floor_cutoffs_df,
+      user_defined_OR_rules_m_df = NULL,
+      user_defined_AND_rules_m_df = NULL,
+      port_construction_method = "mmaf",
+      verbose = TRUE
+    ), "macro_exp_ret_score_tilt_eta should be a single positive numeric value"
+  )
+
+
+
+  #both
+  expect_error(
+    check_inputs_port_backtest(
+      signals_m_df = signals_m_df,
+      oos_predictions_m_df = NULL,
+      min_eligible_assets_fallback = NULL,
+      scaler_m_df = NULL,
+      chosen_scaler = NULL,
+      scaler_shrinkage = NULL,
+      use_raw_for_eligibility = NULL,
+      ridge_pen = NULL,
+      micro_port_construction_method = "sw",
+      macro_port_construction_method = "rp",
+      macro_exp_ret_score_tilt = NULL,
+      macro_exp_ret_score_tilt_eta = 2,
+      exp_ret_score_tilt = NULL,
+      exp_ret_score_tilt_eta = NULL,
+      macro_ridge_pen = NULL,
+      chosen_score_metric_and_position = c(Alpha = "long"),
+      rebalancing_months = 7,
+      macro_concentration_constraint_policy = NULL,
+      initial_buffer_period = 2,
+      eligibility_quantile_range = c(0.5,0.75),
+      daily_stock_returns_m_xts = daily_stock_returns_m_xts,
+      daily_bench_returns_m_xts = daily_benchmark_returns_m_xts,
+      cov_matrix_benchmark = "ibov",
+      cov_matrix_sample_size = 100,
+      cov_estimation_method = "sample",
+      active_returns = FALSE,
+      selected_benchmark = "ibov",
+      benchmark_returns_m_xts = benchmark_returns_m_xts,
+      stock_groups_m_df = stock_groups_m_df,
+      liquidity_m_df = liquidity_m_df,
+      main_liquidity_metric = "mean_volfin_3m",
+      volatility_m_df = volatility_m_df,
+      benchmark_weights_m_df = benchmark_weights_m_df,
+      custom_stock_weights_m_df = NULL,
+      fwd_return_m_df = target_m_df,
+      custom_stock_metrics_m_df = NULL,
+      concentration_constraint_policy = NULL,
+      liquidity_constraint_policy = liquidity_constraint_policy,
+      turnover_constraint_policy = turnover_constraint_policy,
+      liquidity_floor_cutoffs = liquidity_floor_cutoffs_df,
+      user_defined_OR_rules_m_df = NULL,
+      user_defined_AND_rules_m_df = NULL,
+      port_construction_method = "mmaf",
+      verbose = TRUE
+    ), "macro_exp_ret_score_tilt_eta should be NULL when macro_exp_ret_score_tilt is NULL"
+  )
+
+
+
+})
+
 test_that("check_inputs_port_backtest throws an error when mvo args are wrong", {
 
   #Load
