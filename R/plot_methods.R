@@ -5681,6 +5681,7 @@ setMethod(
 #'  \item \code{"efficient_frontier"} - A scatterplot of random portfolios with Sharpe ratio coloring and the optimal portfolio highlighted.
 #'  \item \code{"random_weights_distribution"} - A jitter plot of random portfolio weights with constraints.
 #'  \item \code{"group_composition"} - A grouped bar chart comparing portfolio and benchmark weights across classification variables (e.g., sectors).
+#'  \item \code{"hierarchical_clustering"} - A dendrogram showing hierarchical clustering of assets.
 #' }
 #'
 #' This method is dispatched on signature \code{plot(x = "port", y = "missing")} and does not use the \code{y} argument.
@@ -5723,7 +5724,11 @@ setMethod(
         "Relative Risk Contribution",
         "Efficient Frontier",
         "Random Weights Distribution",
-        "Group Composition"
+        "Group Composition",
+        "Hierarchical Clustering",
+        "MMAF Flow",
+        "MMAF Micro Composition",
+        "MMAF Risk Decomposition"
       )
       cat("\nPlease choose a plot type:\n")
       for (i in seq_along(available_types)) {
@@ -5750,6 +5755,74 @@ setMethod(
     universe_df       <- if (methods::is(x@universe_m_d_ref, "meta_dataframe")) x@universe_m_d_ref@data else NULL
     asset_names       <- x@eligible_assets
     port_name         <- x@port_name
+
+    #------------------------------------------------------------------------------------------------
+    # Handle nested MMAF portfolios (micro / macro)
+    #------------------------------------------------------------------------------------------------
+    # If the portfolio is of type MMAF and micro/macro slots exist,
+    # prompt the user to select which level to visualize.
+    if (x@port_construction_method == "mmaf" && !type %in% c("MMAF Flow", "MMAF Micro Composition", "MMAF Risk Decomposition")) {
+
+      has_micro <- !is.null(x@micro)
+      has_macro <- !is.null(x@macro)
+
+      if (has_micro || has_macro) {
+
+        cat("\nThis portfolio uses the Micro–Macro Allocation Framework (MMAF).\n")
+        cat("You can visualize the overall MMAF portfolio or one of its components.\n")
+
+        options_list <- c("Overall (aggregate MMAF portfolio)")
+        if (has_macro) options_list <- c(options_list, "Macro portfolio (group-level)")
+        if (has_micro) options_list <- c(options_list, "Micro portfolios (within-group)")
+
+        for (i in seq_along(options_list)) {
+          cat(paste0(i, ": ", options_list[i], "\n"))
+        }
+
+        selection <- readline(prompt = "Enter the number of your choice: ")
+        selection <- as.numeric(selection)
+
+        if (is.na(selection) || selection < 1 || selection > length(options_list)) {
+          stop("Invalid selection.")
+        }
+
+        if (options_list[selection] == "Macro portfolio (group-level)") {
+          message("→ Plotting macro-level portfolio...")
+          plot(x@macro, type = type, ...)
+          return(invisible())
+        }
+
+        if (options_list[selection] == "Micro portfolios (within-group)") {
+          # If multiple micro portfolios exist (top_down MMAF),
+          # ask the user which group to inspect
+          if (is.list(x@micro) && length(x@micro) > 1) {
+            cat("\nAvailable micro portfolios:\n")
+            micro_names <- names(x@micro)
+            for (i in seq_along(micro_names)) {
+              cat(paste0(i, ": ", micro_names[i], "\n"))
+            }
+            micro_choice <- readline(prompt = "Select a group to plot: ")
+            micro_choice <- as.numeric(micro_choice)
+            if (is.na(micro_choice) || micro_choice < 1 || micro_choice > length(micro_names)) {
+              stop("Invalid group selection.")
+            }
+            selected_micro <- x@micro[[micro_names[micro_choice]]]
+          } else if (is.list(x@micro) && length(x@micro) == 1) {
+            selected_micro <- x@micro[[1]]
+          } else {
+            stop("Invalid micro slot structure — expected list of 'port' objects.")
+          }
+
+          message("→ Plotting selected micro-level portfolio...")
+          plot(selected_micro, type = type, ...)
+          return(invisible())
+        }
+
+        # If the user selects "Overall", fall through and continue with standard plotting
+        message("→ Plotting overall MMAF portfolio...")
+      }
+    }
+
 
     #------------------------------------------------------------------------------------------------
     # Color definitions
@@ -6497,7 +6570,7 @@ setMethod(
       # Extract relevant slots
       random_port_weights <- x@random_port_weights
       if (any(is.null(x@ind_max_weights), is.null(x@ind_min_weights))) {
-        stop("Random Weights Distribution is only available when max_abs_active_individual_weight is set.")
+        stop("Random Weights Distribution is only available when individual constraints are set.")
       }
       ind_max_weights <- x@ind_max_weights
       ind_min_weights <- x@ind_min_weights
@@ -6778,6 +6851,571 @@ setMethod(
         return(invisible(p))
       }
     }
+
+    #------------------------------------------------------------------------------------------------
+    # 9) hierarchical_clustering - dendrogram of hclust object
+    #------------------------------------------------------------------------------------------------
+    if (type == "Hierarchical Clustering") {
+
+      # 0) Preconditions
+      if (is.null(x@clusters) || !inherits(x@clusters, "hclust")) {
+        stop("No valid hierarchical clustering ('hclust') object found in 'x@clusters'.")
+      }
+      if (length(x@eligible_assets) == 0) stop("No eligible assets found.")
+      if (is.null(x@weights) || length(x@weights) != length(x@eligible_assets)) {
+        stop("Weights must be available and match the eligible_assets length.")
+      }
+
+      # Pull what we can from the original hc (linkage method)
+      hc_original      <- x@clusters
+      linkage_method   <- if (!is.null(hc_original$method)) hc_original$method else "ward.D2"
+
+      # 1) Ask user how to select assets
+      weights_df <- data.frame(assets = x@eligible_assets, weights = x@weights)
+      cat("\nHow do you want to choose which assets to display?\n")
+      cat("1: Top x assets by absolute weight\n")
+      cat("2: Choose assets individually (by name or index)\n")
+      choice_mode <- as.integer(readline(prompt = "Your choice: "))
+
+      if (is.na(choice_mode) || !choice_mode %in% c(1, 2)) {
+        stop("Invalid choice for asset selection mode.")
+      }
+
+      if (choice_mode == 1) {
+        weights_df <- weights_df %>% dplyr::arrange(dplyr::desc(abs(.data$weights)))
+        cat("How many top-weighted assets do you want to show? ")
+        n_choice <- as.integer(readline())
+        if (is.na(n_choice) || n_choice < 2 || n_choice > nrow(weights_df)) {
+          stop(paste0("Invalid number of assets. Must be between 2 and ", nrow(weights_df)))
+        }
+        sel_assets <- weights_df$assets[1:n_choice]
+      } else {
+        asset_names <- x@eligible_assets
+        cat("\nAssets:\n")
+        for (i in seq_along(asset_names)) cat(paste0(i, ": ", asset_names[i], "\n"))
+        cat("\nEnter 'all' for all assets,\nOR indices (e.g. '1,3'),\nOR names (e.g. 'PETR4, VALE3'):\n")
+        selection <- readline(prompt = "Your choice: ")
+        selection <- trimws(selection)
+        if (!nzchar(selection)) stop("No selection provided.")
+        if (tolower(selection) == "all") {
+          sel_assets <- asset_names
+        } else {
+          parts <- strsplit(selection, ",")[[1]] |> trimws()
+          all_numeric <- suppressWarnings(!any(is.na(as.numeric(parts))))
+          if (all_numeric) {
+            idx <- as.numeric(parts)
+            if (any(idx < 1 | idx > length(asset_names))) stop("Some indices are out of range.")
+            sel_assets <- asset_names[idx]
+          } else {
+            if (!all(parts %in% asset_names)) stop("Some chosen assets are not available.")
+            sel_assets <- parts
+          }
+        }
+        if (length(sel_assets) < 2) stop("Need at least two assets to plot a dendrogram.")
+      }
+
+      # 2) Build correlation matrix for the subset (prefer stored correlation; else derive from covariance)
+      if (!is.null(x@correlation_matrix)) {
+        corr_full <- x@correlation_matrix
+      } else if (!is.null(x@covariance_matrix)) {
+        corr_full <- stats::cov2cor(x@covariance_matrix)
+      } else {
+        stop("Need 'correlation_matrix' or 'covariance_matrix' to rebuild clustering for the subset.")
+      }
+
+      # Sanity checks & subsetting
+      if (!all(sel_assets %in% rownames(corr_full)) || !all(sel_assets %in% colnames(corr_full))) {
+        stop("Selected assets are not present in the correlation/covariance matrix.")
+      }
+      corr_sub <- corr_full[sel_assets, sel_assets, drop = FALSE]
+
+      # 3) HRP distance: d_ij = sqrt(0.5 * (1 - rho_ij)) ; ensure numerical safety
+      rho <- as.matrix(corr_sub)
+      rho[is.na(rho)] <- 0
+      d2 <- 0.5 * (1 - rho)   # keep as matrix
+      d2[d2 < 0] <- 0         # numeric safety, preserves dims
+      diag(d2) <- 0           # OK now: 'd2' is a matrix
+
+      dist_sub <- stats::as.dist(sqrt(d2))
+
+      # 4) Recompute hclust on the subset using the original linkage method
+      hc_sub <- stats::hclust(dist_sub, method = linkage_method)
+
+      # 5) Plot with cyberpunk theme (base plot, no extra deps)
+      op <- graphics::par(no.readonly = TRUE)
+      on.exit(graphics::par(op), add = TRUE)
+      graphics::par(bg = blue_bg, col.axis = white, col.lab = white, col.main = white, col.sub = white, fg = white)
+
+      graphics::plot(
+        hc_sub,
+        main   = paste("Hierarchical Clustering (subset):", if (x@port_name == "") "not_identified" else x@port_name),
+        xlab   = "",
+        sub    = "",
+        hang   = -1,
+        labels = hc_sub$labels
+      )
+      graphics::box(col = neon_blue)
+      graphics::mtext("Linkage height", side = 2, line = 2, col = white)
+
+      # 6) Optional: highlight k clusters with neon rectangles
+      cat("\nHighlight k clusters? (enter integer k, or 0 to skip): ")
+      k_in <- suppressWarnings(as.integer(readline()))
+      if (!is.na(k_in) && k_in > 0) {
+        stats::rect.hclust(hc_sub, k = k_in, border = neon_green)
+      }
+
+      message("→ Dendrogram plotted successfully with the selected subset of assets.")
+      return(invisible(hc_sub))
+    }
+
+    #------------------------------------------------------------------------------------------------
+    # 10) MMAF Flow — bipartite (Macro → Micro) flow using ggraph, with label-safe padding
+    #------------------------------------------------------------------------------------------------
+    if (type == "MMAF Flow") {
+
+      if (x@port_construction_method != "mmaf")
+        stop("'MMAF Flow' is only available for 'mmaf' portfolios.")
+      if (is.null(x@groups) || is.null(x@mmaf_group_col))
+        stop("MMAF 'groups' and 'mmaf_group_col' must be set.")
+      if (length(x@eligible_assets) == 0 || length(x@weights) == 0)
+        stop("Need eligible_assets and final weights in 'x'.")
+
+      groups_df      <- x@groups
+      main_group_col <- x@mmaf_group_col
+      final_df <- data.frame(tickers = x@eligible_assets, w = x@weights, stringsAsFactors = FALSE) |>
+        dplyr::left_join(groups_df[, c("tickers", main_group_col)], by = "tickers")
+
+      if (any(is.na(final_df[[main_group_col]])))
+        stop("Some eligible assets have no group mapping in 'groups'.")
+
+      macro_tbl <- final_df |>
+        dplyr::group_by(.data[[main_group_col]]) |>
+        dplyr::summarise(
+          group_w_signed = sum(.data$w, na.rm = TRUE),
+          group_w_abs    = sum(abs(.data$w), na.rm = TRUE),
+          .groups = "drop"
+        ) |>
+        dplyr::arrange(dplyr::desc(.data$group_w_abs))
+
+      cat("\nHow many top groups (by final |weight|) do you want to show? ")
+      g_choice <- suppressWarnings(as.integer(readline()))
+      if (is.na(g_choice) || g_choice < 1 || g_choice > nrow(macro_tbl)) {
+        g_choice <- min(nrow(macro_tbl), 10L)
+        message("→ Using default top ", g_choice, " groups.")
+      }
+      keep_groups <- macro_tbl[[main_group_col]][seq_len(g_choice)]
+
+      final_df <- final_df |>
+        dplyr::filter(.data[[main_group_col]] %in% keep_groups)
+
+      cat("Top how many assets per selected group (by |weight|)? ")
+      n_choice <- suppressWarnings(as.integer(readline()))
+      if (is.na(n_choice) || n_choice < 1) {
+        n_choice <- 8L
+        message("→ Using default top ", n_choice, " assets per group.")
+      }
+
+      final_df <- final_df |>
+        dplyr::group_by(.data[[main_group_col]]) |>
+        dplyr::slice_max(order_by = abs(.data$w), n = n_choice, with_ties = FALSE) |>
+        dplyr::ungroup()
+
+      macro_filt <- final_df |>
+        dplyr::group_by(.data[[main_group_col]]) |>
+        dplyr::summarise(
+          group_w_signed = sum(.data$w, na.rm = TRUE),
+          group_w_abs    = sum(abs(.data$w), na.rm = TRUE),
+          .groups = "drop"
+        ) |>
+        dplyr::arrange(dplyr::desc(.data$group_w_abs))
+
+      group_nodes <- data.frame(
+        name    = paste0("G:", macro_filt[[main_group_col]]),
+        label   = macro_filt[[main_group_col]],
+        type    = "group",
+        size    = macro_filt$group_w_signed,
+        size_abs= macro_filt$group_w_abs,
+        stringsAsFactors = FALSE
+      )
+
+      asset_nodes <- final_df |>
+        dplyr::transmute(
+          name    = paste0("A:", .data$tickers),
+          label   = .data$tickers,
+          type    = "asset",
+          size    = .data$w,
+          size_abs= abs(.data$w),
+          group   = .data[[main_group_col]]
+        ) |>
+        dplyr::distinct()
+
+      # --- Layout with safe padding so labels aren’t cut
+      left_pad  <- 0.08  # extra space on the left
+      right_pad <- 0.04  # extra space on the right
+
+      # order & place groups
+      group_nodes <- group_nodes[order(-group_nodes$size_abs), , drop = FALSE]
+      group_nodes$x <- 0 + left_pad
+      group_nodes$y <- cumsum(group_nodes$size_abs) - group_nodes$size_abs/2
+
+      # place assets inside each group
+      a_tbl <- asset_nodes |>
+        dplyr::group_by(.data$group) |>
+        dplyr::arrange(dplyr::desc(.data$size_abs), .by_group = TRUE) |>
+        dplyr::mutate(
+          y = {
+            cs <- cumsum(size_abs) - size_abs/2
+            g_idx   <- match(paste0("G:", group), group_nodes$name)
+            g_center<- group_nodes$y[g_idx]
+            g_half  <- group_nodes$size_abs[g_idx]/2
+            (g_center - g_half) + cs
+          }
+        ) |>
+        dplyr::ungroup()
+      a_tbl$x <- 1 - right_pad
+
+      nodes <- dplyr::bind_rows(
+        group_nodes[, c("name","label","type","size","size_abs")],
+        a_tbl[, c("name","label","type","size","size_abs","group")]
+      )
+      nodes <- dplyr::left_join(
+        nodes,
+        rbind(group_nodes[, c("name","x","y")], a_tbl[, c("name","x","y")]),
+        by = "name"
+      )
+
+      edges <- data.frame(
+        from   = paste0("G:", final_df[[main_group_col]]),
+        to     = paste0("A:", final_df$tickers),
+        weight = final_df$w,
+        stringsAsFactors = FALSE
+      )
+
+      g <- igraph::graph_from_data_frame(edges, directed = TRUE, vertices = nodes)
+      igraph::V(g)$x <- nodes$x[match(igraph::V(g)$name, nodes$name)]
+      igraph::V(g)$y <- nodes$y[match(igraph::V(g)$name, nodes$name)]
+
+      group_nodes_plot <- nodes[nodes$type == "group", , drop = FALSE]
+      asset_nodes_plot <- nodes[nodes$type == "asset", , drop = FALSE]
+
+      p <- ggraph::ggraph(g, layout = "manual", x = igraph::V(g)$x, y = igraph::V(g)$y) +
+        ggraph::geom_edge_link(
+          ggplot2::aes(
+            edge_width = pmax(abs(weight), 1e-9),
+            edge_alpha = pmax(abs(weight), 1e-9)
+          ),
+          colour = neon_blue, lineend = "round"
+        ) +
+        ggraph::scale_edge_width(range = c(0.5, 6), guide = "none") +
+        ggraph::scale_edge_alpha(range = c(0.35, 0.9), guide = "none") +
+        ggraph::geom_node_point(
+          data = group_nodes_plot,
+          mapping = ggplot2::aes(x = x, y = y, size = pmax(abs(size), 1e-9)),
+          colour = neon_green
+        ) +
+        ggraph::geom_node_point(
+          data = asset_nodes_plot,
+          mapping = ggplot2::aes(x = x, y = y, size = pmax(abs(size), 1e-9)),
+          colour = neon_magenta
+        ) +
+        ggplot2::scale_size_continuous(range = c(2, 10), guide = "none") +
+        ggraph::geom_node_text(
+          data = group_nodes_plot,
+          mapping = ggplot2::aes(
+            x = x, y = y,
+            label = paste0(label, " (", scales::percent(size, accuracy = 0.1), ")")
+          ),
+          colour = white, fontface = 2, hjust = 1, nudge_x = -left_pad * 0.4
+        ) +
+        ggraph::geom_node_text(
+          data = asset_nodes_plot,
+          mapping = ggplot2::aes(
+            x = x, y = y,
+            label = paste0(label, " (", scales::percent(size, accuracy = 0.1), ")")
+          ),
+          colour = white, size = 3, hjust = 0, nudge_x = right_pad * 0.4
+        ) +
+        ggplot2::scale_x_continuous(limits = c(0 - left_pad, 1 + right_pad)) +
+        ggplot2::coord_cartesian(clip = "off") +
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+          plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.grid       = ggplot2::element_blank(),
+          axis.text        = ggplot2::element_blank(),
+          axis.title       = ggplot2::element_blank(),
+          plot.title       = ggplot2::element_text(color = white, face = "bold"),
+          plot.margin      = ggplot2::margin(12, 18, 12, 90)  # extra left margin for long group names
+        ) +
+        ggplot2::labs(
+          title = paste("MMAF Flow (Macro \u2192 Micro):",
+                        if (x@port_name == "") "not_identified" else x@port_name)
+        )
+
+      print(p)
+      return(invisible(p))
+    }
+
+
+
+
+    #------------------------------------------------------------------------------------------------
+    # 11) mmaf_micro_composition - faceted bars of within-group weights (optionally ACTIVE)
+    #------------------------------------------------------------------------------------------------
+    if (type == "MMAF Micro Composition") {
+
+      if (x@port_construction_method != "mmaf")
+        stop("'MMAF Micro Composition' is only available for 'mmaf' portfolios.")
+
+      groups_df      <- x@groups
+      main_group_col <- x@mmaf_group_col
+
+      df <- data.frame(tickers = x@eligible_assets, weight = x@weights) |>
+        dplyr::left_join(groups_df[, c("tickers", main_group_col)], by = "tickers")
+
+      if (any(is.na(df[[main_group_col]])))
+        stop("Missing group mapping for some assets.")
+
+      # -------------------------------
+      # Ask if user wants ACTIVE weights
+      # -------------------------------
+      cat("Do you want to compute active weights for this plot? (y/n): ")
+      active_choice <- tolower(readline())
+      active_mode <- active_choice %in% c("y", "yes")
+
+      plot_title_suffix <- ""
+      y_lab <- "Final Weight"
+
+      if (active_mode) {
+        if (is.null(universe_df) || !all(c("tickers") %in% colnames(universe_df))) {
+          stop("Cannot compute active weights: 'universe_df' with a 'tickers' column is required.")
+        }
+        bench_cols <- grep("_bench_weights$", colnames(universe_df), value = TRUE)
+        if (length(bench_cols) == 0) {
+          stop("No columns matching '_bench_weights' found in 'universe_df'.")
+        }
+
+        bench_col <- NULL
+        if (length(bench_cols) == 1) {
+          bench_col <- bench_cols[1]
+          message("Benchmark is: ", bench_col)
+        } else {
+          message("Multiple benchmarks found:")
+          chosen <- utils::menu(bench_cols, title = "Select a benchmark to use for active weights:")
+          if (chosen == 0) stop("No benchmark selected. Aborting.")
+          bench_col <- bench_cols[chosen]
+          message("Benchmark is: ", bench_col)
+        }
+
+        # Join benchmark weights and compute active = portfolio - benchmark
+        bench_join <- universe_df[, c("tickers", bench_col), drop = FALSE]
+        names(bench_join)[names(bench_join) == bench_col] <- "bench_w"
+        df <- dplyr::left_join(df, bench_join, by = "tickers")
+        if (!"bench_w" %in% names(df)) stop("Benchmark join failed.")
+        df$plot_value <- df$weight - df$bench_w
+
+        plot_title_suffix <- " (Active)"
+        y_lab <- "Active Weight"
+      } else {
+        df$plot_value <- df$weight
+      }
+
+      # -------------------------------
+      # Choose top groups and top assets
+      # -------------------------------
+      gsum <- df |>
+        dplyr::group_by(.data[[main_group_col]]) |>
+        dplyr::summarise(group_w = sum(.data$plot_value), .groups = "drop") |>
+        dplyr::arrange(dplyr::desc(.data$group_w))
+
+      cat("\nHow many top groups (by ", if (active_mode) "active " else "", "weight) do you want to show? ", sep = "")
+      g_choice <- suppressWarnings(as.integer(readline()))
+      if (is.na(g_choice) || g_choice < 1 || g_choice > nrow(gsum)) {
+        g_choice <- min(nrow(gsum), 9L)
+        message("→ Using default top ", g_choice, " groups.")
+      }
+      keep_groups <- gsum[[main_group_col]][seq_len(g_choice)]
+
+      cat("Top how many assets per group (by |", if (active_mode) "active " else "", "weight|)? ", sep = "")
+      n_choice <- suppressWarnings(as.integer(readline()))
+      if (is.na(n_choice) || n_choice < 1) {
+        n_choice <- 10L
+        message("→ Using default top ", n_choice, " assets per group.")
+      }
+
+      dfp <- df |>
+        dplyr::filter(.data[[main_group_col]] %in% keep_groups) |>
+        dplyr::group_by(.data[[main_group_col]]) |>
+        dplyr::slice_max(order_by = abs(.data$plot_value), n = n_choice, with_ties = FALSE) |>
+        dplyr::ungroup()
+
+      # -------------------------------
+      # Palette (cyberpunk)
+      # -------------------------------
+      vibrant_purple <- "#6A0DAD"; white <- "#FFFFFF"; blue_bg <- "#001f3f"
+      neon_green <- "#39FF14"; neon_pink <- "#FF007F"
+
+      # -------------------------------
+      # Plot
+      # -------------------------------
+      p <- ggplot2::ggplot(
+        dfp,
+        ggplot2::aes(
+          x     = stats::reorder(tickers, -abs(.data$plot_value)),
+          y     = .data$plot_value,
+          fill  = .data$plot_value > 0
+        )
+      ) +
+        ggplot2::geom_bar(stat = "identity", color = white, size = 0.3) +
+        ggplot2::scale_fill_manual(values = c("TRUE" = vibrant_purple, "FALSE" = neon_pink), guide = "none") +
+        ggplot2::facet_wrap(stats::reformulate(main_group_col), scales = "free_y") +
+        ggplot2::coord_flip() +
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+          plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.grid       = ggplot2::element_blank(),
+          strip.text       = ggplot2::element_text(color = white, face = "bold"),
+          axis.text        = ggplot2::element_text(color = white),
+          axis.title       = ggplot2::element_text(color = white),
+          plot.title       = ggplot2::element_text(color = white, face = "bold")
+        ) +
+        ggplot2::labs(
+          title = paste0("MMAF Micro Composition", plot_title_suffix, ": ",
+                         if (x@port_name == "") "not_identified" else x@port_name),
+          x = "Asset (ordered by |weight|)",
+          y = y_lab
+        )
+
+      print(p)
+      return(invisible(p))
+    }
+
+
+
+    #------------------------------------------------------------------------------------------------
+    # 12) mmaf_risk_decomposition - macro RRC vs. aggregated micro RRC (+ optional console listing)
+    #------------------------------------------------------------------------------------------------
+    if (type == "MMAF Risk Decomposition") {
+
+      if (x@port_construction_method != "mmaf")
+        stop("'MMAF Risk Decomposition' is only available for 'mmaf' portfolios.")
+      if (is.null(x@rel_risk_contr))
+        stop("Asset-level 'rel_risk_contr' required in 'x'.")
+
+      groups_df      <- x@groups
+      main_group_col <- x@mmaf_group_col
+
+      # Asset-level RRC -> aggregate to groups
+      df_rc <- data.frame(
+        tickers = x@eligible_assets,
+        weight  = x@weights,
+        rrc     = as.numeric(x@rel_risk_contr),
+        stringsAsFactors = FALSE
+      ) |>
+        dplyr::left_join(groups_df[, c("tickers", main_group_col)], by = "tickers")
+
+      g_rc <- df_rc |>
+        dplyr::group_by(.data[[main_group_col]]) |>
+        dplyr::summarise(
+          group_rrc = sum(.data$rrc, na.rm = TRUE),
+          group_w   = sum(.data$weight, na.rm = TRUE),
+          .groups   = "drop"
+        ) |>
+        dplyr::arrange(dplyr::desc(.data$group_rrc))
+
+      cat("\nHow many top groups (by RRC) do you want to highlight? ")
+      g_choice <- suppressWarnings(as.integer(readline()))
+      if (is.na(g_choice) || g_choice < 1 || g_choice > nrow(g_rc)) {
+        g_choice <- min(nrow(g_rc), 8L)
+        message("→ Using default top ", g_choice, " groups by RRC.")
+      }
+      keep_groups <- g_rc[[main_group_col]][seq_len(g_choice)]
+
+      # Panel A: macro/group RRC bar
+      pA <- ggplot2::ggplot(g_rc, ggplot2::aes(
+        x = stats::reorder(.data[[main_group_col]], .data$group_rrc),
+        y = .data$group_rrc
+      )) +
+        ggplot2::geom_bar(stat = "identity", fill = "#6A0DAD", color = "#FFFFFF") +
+        ggplot2::coord_flip() +
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+          plot.background  = ggplot2::element_rect(fill = "#001f3f", color = NA),
+          panel.background = ggplot2::element_rect(fill = "#001f3f", color = NA),
+          panel.grid       = ggplot2::element_blank(),
+          axis.text        = ggplot2::element_text(color = "#FFFFFF"),
+          axis.title       = ggplot2::element_text(color = "#FFFFFF"),
+          plot.title       = ggplot2::element_text(color = "#FFFFFF", face = "bold")
+        ) +
+        ggplot2::labs(title = "Macro: Group Relative Risk Contribution",
+                      x = "Group", y = "Relative Risk Contribution")
+
+      # Panel B: micro RRC within selected groups (stacked to 100%)
+      df_rc_f <- df_rc |>
+        dplyr::filter(.data[[main_group_col]] %in% keep_groups) |>
+        dplyr::group_by(.data[[main_group_col]], .data$tickers) |>
+        dplyr::summarise(rrc = sum(.data$rrc, na.rm = TRUE), .groups = "drop")
+
+      # ---- NEW: Optional console print of asset names per group, ordered by RRC ----
+      cat("\nPrint asset-level RRC rankings per selected group to console? (y/n): ")
+      print_choice <- tolower(readline())
+      if (print_choice %in% c("y", "yes")) {
+        cat("Top how many assets per group should be printed? (integer; 0 for all): ")
+        k_in <- suppressWarnings(as.integer(readline()))
+        grp_levels <- unique(df_rc_f[[main_group_col]])
+
+        for (g in grp_levels) {
+          sub <- df_rc_f[df_rc_f[[main_group_col]] == g, , drop = FALSE]
+          if (nrow(sub) == 0) next
+          sub <- sub[order(-sub$rrc), ]
+          total_rrc <- sum(sub$rrc, na.rm = TRUE)
+          share <- if (is.finite(total_rrc) && total_rrc != 0) sub$rrc / total_rrc else NA_real_
+          sub$share <- share
+
+          if (!is.na(k_in) && k_in > 0 && k_in < nrow(sub)) {
+            sub <- sub[seq_len(k_in), ]
+          }
+
+          cat("\n== Group:", g, "==\n", sep = " ")
+          for (i in seq_len(nrow(sub))) {
+            cat(sprintf("%2d. %-15s  RRC: %.6f  (share: %s)\n",
+                        i,
+                        sub$tickers[i],
+                        sub$rrc[i],
+                        ifelse(is.na(sub$share[i]),
+                               "NA",
+                               scales::percent(sub$share[i], accuracy = 0.1))))
+          }
+        }
+        cat("\n")
+      }
+
+      pB <- ggplot2::ggplot(
+        df_rc_f,
+        ggplot2::aes(x = .data[[main_group_col]], y = .data$rrc, fill = .data$tickers)
+      ) +
+        ggplot2::geom_bar(stat = "identity", position = "fill", color = "#000000", alpha = 0.5) +
+        ggplot2::scale_y_continuous(labels = scales::percent) +
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+          plot.background  = ggplot2::element_rect(fill = "#001f3f", color = NA),
+          panel.background = ggplot2::element_rect(fill = "#001f3f", color = NA),
+          panel.grid       = ggplot2::element_blank(),
+          axis.text        = ggplot2::element_text(color = "#FFFFFF"),
+          axis.title       = ggplot2::element_text(color = "#FFFFFF"),
+          legend.position  = "none",
+          plot.title       = ggplot2::element_text(color = "#FFFFFF", face = "bold")
+        ) +
+        ggplot2::labs(title = "Micro: Within-Group RRC (stacked to 100%)",
+                      x = "Group", y = "Share of Group RRC")
+
+      # Arrange side-by-side
+      gridExtra::grid.arrange(pA, pB, ncol = 2)
+      return(invisible(list(macro_rrc = pA, micro_rrc = pB)))
+    }
+
+
 
     #------------------------------------------------------------------------------------------------
     # If none of the above matched, show an error
