@@ -1485,6 +1485,16 @@ setMethod("show", "port_backtest_config", function(object) {
     methods::show(object@rp_parameters)
     cat("\n")
   }
+  if(object@port_construction_method == "hrp"){
+    cat("------------------------------\n")
+    methods::show(object@hrp_parameters)
+    cat("\n")
+  }
+  if(object@port_construction_method == "mmaf"){
+    cat("------------------------------\n")
+    methods::show(object@mmaf_parameters)
+    cat("\n")
+  }
 
   # Constraint Policies
   if(!is.null(object@liquidity_constraint_policy)){
@@ -1673,6 +1683,15 @@ setMethod("show", "mvo_parameters", function(object) {
   cat("Random Ports Method: ", object@random_ports_method, "\n")
   cat("Number of Random Ports: ", object@n_random_ports, "\n")
   cat("Optimization Objective: ", object@opt_objective, "\n")
+  cat("Ridge Penalty: ", ifelse(is.null(object@ridge_penalty), "None", object@ridge_penalty), "\n")
+  cat("Number of resamples: ", object@n_resamples, "\n")
+  if (object@n_resamples > 0) {
+    cat("Exp Return Score Jitter: ", object@exp_ret_score_jitter, "\n")
+    cat("Covariance Eigenvalues Jitter: ", object@cov_eigval_jitter, "\n")
+
+  }
+
+
 })
 
 #rp_parameters--------------------------
@@ -1685,6 +1704,46 @@ setMethod("show", "rp_parameters", function(object) {
   cat("\nRisk-Parity Parameters:\n")
   cat("-------------------------\n")
   cat("Risk-Parity Method: ", object@rp_method, "\n")
+  cat("Expected Return Tilt: ", object@exp_ret_score_tilt, "\n")
+  cat("Tilt Eta: ", ifelse(is.null(object@exp_ret_score_tilt_eta), "None", object@exp_ret_score_tilt_eta), "\n")
+})
+
+#hrp_parameters-------------------------------------------
+#' @title Show HRP Parameters
+#' @description Displays the hierarchical risk parity configuration contained in a `hrp_parameters` object.
+#' @param object A `hrp_parameters` object.
+#' @method show hrp_parameters
+#' @export
+setMethod("show", "hrp_parameters", function(object) {
+  cat("\nHierarchical Risk-Parity Parameters:\n")
+  cat("------------------------------------\n")
+  cat("Linkage Method: ", object@linkage, "\n")
+  cat("Expected Return Tilt: ", object@exp_ret_score_tilt, "\n")
+  cat("Tilt Eta: ", ifelse(is.null(object@exp_ret_score_tilt_eta), "None", object@exp_ret_score_tilt_eta), "\n")
+})
+
+#mmaf_parameters-------------------------------------------
+#' @title Show MMAF Parameters
+#' @description Displays the Micro–Macro Allocation Framework configuration contained in a `mmaf_parameters` object.
+#' @param object A `mmaf_parameters` object.
+#' @method show mmaf_parameters
+#' @export
+setMethod("show", "mmaf_parameters", function(object) {
+  cat("\nMicro–Macro Allocation Framework (MMAF) Parameters:\n")
+  cat("---------------------------------------------------\n")
+  cat("MMAF Method: ", object@mmaf_method, "\n")
+  cat("Group Column: ", object@mmaf_group_col, "\n")
+
+  if (object@mmaf_method == "top_down") {
+    cat("Top-Down Proxy Portfolio Method: ", object@top_down_proxy_port_method, "\n")
+  } else {
+    cat("Top-Down Proxy Portfolio Method: None (Bottom-Up MMAF)\n")
+  }
+
+  cat("\nMicro Portfolio Configuration:\n")
+  cat("  Construction Method: ", object@micro_port_config@port_construction_method, "\n")
+  cat("\nMacro Portfolio Configuration:\n")
+  cat("  Construction Method: ", object@macro_port_config@port_construction_method, "\n")
 })
 
 #concentration_constraint_policy--------------------------

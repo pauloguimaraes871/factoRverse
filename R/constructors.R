@@ -3060,7 +3060,7 @@ setMethod(
   "add_cov_est_method", signature(object = "sb_backtest_config", cov_est_method = "cov_est_method"),
   function(object, cov_est_method, ...) {
     # Check for sb algo
-    if (!object@sb_algorithm %in% c("rp", "mvo")) {
+    if (!(object@sb_algorithm %in% c("rp", "mvo"))) {
       stop("Covariance estimation method is only available for 'rp' and 'mvo' strategies.")
     }
 
@@ -3081,7 +3081,7 @@ setMethod(
   "add_cov_est_method", signature(object = "sb_backtest_config", cov_est_method = "missing"),
   function(object, cov_est_method, cov_estimation_method = "sample", cov_matrix_sample_size = 36, active_returns = TRUE, cov_matrix_benchmark = NULL, ...) {
     # Check for sb algo
-    if (!object@sb_algorithm %in% c("rp", "mvo")) {
+    if (!(object@sb_algorithm %in% c("rp", "mvo"))) {
       stop("Covariance estimation method is only available for 'rp' and 'mvo' strategies.")
     }
 
@@ -3175,6 +3175,10 @@ setMethod(
 #'   \code{opt_method} is 'random'.
 #' @param opt_objective A character indicating the optimization objective. Possible options
 #'   are 'return', 'risk' or 'sharpe'.
+#' @param ridge_pen A numeric value representing the ridge penalty to be used in the optimization.
+#' @param n_resamples A numeric value indicating the number of bootstrap resamples to perform
+#' @param exp_ret_score_jitter A numeric value indicating the jitter to be applied to the expected return scores
+#' @param cov_eigval_jitter A numeric value indicating the jitter to be applied to the covariance matrix eigenvalues
 #'
 #' @return An S4 object of class `mvo_parameters`.
 #' @export
@@ -3182,12 +3186,22 @@ setMethod(
 create_mvo_parameters <- function(opt_method = "random",
                                   random_ports_method = "sample",
                                   n_random_ports = 1000,
-                                  opt_objective = "sharpe") {
+                                  opt_objective = "sharpe",
+                                  ridge_pen = NULL,
+                                  n_resamples = 0,
+                                  exp_ret_score_jitter = 0,
+                                  cov_eigval_jitter = 0
+                                  ) {
+
   mvo_params <- methods::new("mvo_parameters",
     opt_method = opt_method,
     random_ports_method = random_ports_method,
     n_random_ports = n_random_ports,
-    opt_objective = opt_objective
+    opt_objective = opt_objective,
+    ridge_pen = ridge_pen,
+    n_resamples = n_resamples,
+    exp_ret_score_jitter = exp_ret_score_jitter,
+    cov_eigval_jitter = cov_eigval_jitter
   )
   return(mvo_params)
 }
@@ -3205,6 +3219,10 @@ create_mvo_parameters <- function(opt_method = "random",
 #' @param random_ports_method A character string representing the method to generate random portfolios.
 #' @param n_random_ports Number of random portfolios to generate.
 #' @param opt_objective A character indicating the optimization objective.
+#' @param ridge_pen A numeric value representing the ridge penalty to be used in the optimization.
+#' @param n_resamples A numeric value indicating the number of bootstrap resamples to perform
+#' @param exp_ret_score_jitter A numeric value indicating the jitter to be applied to the expected return scores
+#' @param cov_eigval_jitter A numeric value indicating the jitter to be applied to the covariance matrix eigenvalues
 #' @param ... Additional arguments used to create a new `mvo_parameters` object when `mvo_params` is missing.
 #'   These arguments must include:
 #'   \itemize{
@@ -3231,7 +3249,38 @@ setGeneric("add_mvo_parameters", function(object, mvo_params, ...) {
 setMethod(
   "add_mvo_parameters",
   signature(object = "sb_backtest_config", mvo_params = "mvo_parameters"),
-  function(object, mvo_params, ...) {
+  function(object, mvo_params, level = NULL, ...) {
+
+    # Check for sb
+    if (!(object@sb_algorithm %in% c("mvo", "mmaf"))) {
+      stop("MVO parameters is only available for 'mvo' strategies.")
+    }
+
+    # If sb_algorithm is mmaf, require that level is either micro or macro
+    if (object@sb_algorithm == "mmaf") {
+      if (is.null(level) || !(level %in% c("micro", "macro"))) {
+        stop("When sb_algorithm is 'mmaf', level must be specified as either 'micro' or 'macro'.")
+      }
+      if (level == "macro") {
+        message("Applying MVO parameters to macro portfolio.")
+        ## Check if object@signal_port_parameters@mmaf_parameters@macro_port_config@port_construction_method is mvo
+        if (object@signal_port_parameters@mmaf_parameters@macro_port_config@port_construction_method != "mvo") {
+          stop("macro_port_config port_construction_method is not 'mvo'.")
+        }
+        object@signal_port_parameters@mmaf_parameters@macro_port_config@mvo_parameters <- mvo_params
+
+      } else {
+        message("Applying MVO parameters to micro portfolios.")
+        ## Check if object@signal_port_parameters@mmaf_parameters@micro_port_config@port_construction_method is mvo
+        if (object@signal_port_parameters@mmaf_parameters@micro_port_config@port_construction_method != "mvo") {
+          stop("micro_port_config port_construction_method is not 'mvo'.")
+        }
+        object@signal_port_parameters@mmaf_parameters@micro_port_config@mvo_parameters <- mvo_params
+      }
+      return(object)
+    }
+
+
     # Suppose you store mvo_parameters within signal_port_parameters:
     object@signal_port_parameters@mvo_parameters <- mvo_params
 
@@ -3250,19 +3299,33 @@ setMethod(
            random_ports_method = "sample",
            n_random_ports = 1000,
            opt_objective = "sharpe",
+           ridge_pen = NULL,
+           n_resamples = 0,
+           exp_ret_score_jitter = 0,
+           cov_eigval_jitter = 0,
+           level = NULL,
            ...) {
+
     # Check for sb
-    if (!object@sb_algorithm == c("mvo")) {
+    if (!(object@sb_algorithm %in% c("mvo", "mmaf"))) {
       stop("MVO parameters is only available for 'mvo' strategies.")
     }
 
-
-    object@signal_port_parameters@mvo_parameters <- create_mvo_parameters(
+    # Create mvo params
+    mvo_params <- create_mvo_parameters(
       opt_method = opt_method,
       random_ports_method = random_ports_method,
       n_random_ports = n_random_ports,
-      opt_objective = opt_objective
+      opt_objective = opt_objective,
+      ridge_pen = ridge_pen,
+      n_resamples = n_resamples,
+      exp_ret_score_jitter = exp_ret_score_jitter,
+      cov_eigval_jitter = cov_eigval_jitter
     )
+
+    # Add it to object
+    object <- object %>% add_mvo_parameters(mvo_params = mvo_params, level = level)
+
 
     return(object)
   }
@@ -3275,10 +3338,35 @@ setMethod(
 setMethod(
   "add_mvo_parameters",
   signature(object = "port_backtest_config", mvo_params = "mvo_parameters"),
-  function(object, mvo_params, ...) {
+  function(object, mvo_params, level = NULL, ...) {
+
     # Check for port construction method
-    if (!object@port_construction_method == c("mvo")) {
+    if (!(object@port_construction_method %in% c("mvo", "mmaf"))) {
       stop("MVO parameters is only available for 'mvo' strategies.")
+    }
+
+    # If port_construction_method is mmaf, require that level is either micro or macro
+    if (object@port_construction_method == "mmaf") {
+      if (is.null(level) || !(level %in% c("micro", "macro"))) {
+        stop("When port_construction_method is 'mmaf', level must be specified as either 'micro' or 'macro'.")
+      }
+      if (level == "macro") {
+        message("Applying MVO parameters to macro portfolio.")
+        ## Check if object@signal_port_parameters@mmaf_parameters@macro_port_config@port_construction_method is mvo
+        if (object@mmaf_parameters@macro_port_config@port_construction_method != "mvo") {
+          stop("macro_port_config port_construction_method is not 'mvo'.")
+        }
+        object@mmaf_parameters@macro_port_config@mvo_parameters <- mvo_params
+
+      } else {
+        message("Applying MVO parameters to micro portfolios.")
+        ## Check if object@signal_port_parameters@mmaf_parameters@micro_port_config@port_construction_method is mvo
+        if (object@mmaf_parameters@micro_port_config@port_construction_method != "mvo") {
+          stop("micro_port_config port_construction_method is not 'mvo'.")
+        }
+        object@mmaf_parameters@micro_port_config@mvo_parameters <- mvo_params
+      }
+      return(object)
     }
 
     object@mvo_parameters <- mvo_params
@@ -3298,28 +3386,39 @@ setMethod(
            random_ports_method = "sample",
            n_random_ports = 1000,
            opt_objective = "sharpe",
+           ridge_pen = NULL,
+           n_resamples = 0,
+           exp_ret_score_jitter = 0,
+           cov_eigval_jitter = 0,
+           level = NULL,
            ...) {
+
+
     # Check for port construction method
-    if (!object@port_construction_method == c("mvo")) {
+    if (!(object@port_construction_method %in% c("mvo", "mmaf"))) {
       stop("MVO parameters is only available for 'mvo' strategies.")
     }
 
-
-    object@mvo_parameters <- create_mvo_parameters(
+    # Create mvo params
+    mvo_params <- create_mvo_parameters(
       opt_method = opt_method,
       random_ports_method = random_ports_method,
       n_random_ports = n_random_ports,
-      opt_objective = opt_objective
+      opt_objective = opt_objective,
+      ridge_pen = ridge_pen,
+      n_resamples = n_resamples,
+      exp_ret_score_jitter = exp_ret_score_jitter,
+      cov_eigval_jitter = cov_eigval_jitter
     )
 
+    # Add it to object
+    object <- object %>% add_mvo_parameters(mvo_params = mvo_params, level = level)
+
+
     return(object)
+
   }
 )
-
-
-
-
-
 
 
 # rp_parameters--------------------------------------------------------
@@ -3329,15 +3428,16 @@ setMethod(
 #' @param rp_method A character indicating the method to compute the risk-parity vanilla solution.
 #'   It is passed to \code{riskParityPortfolio::riskParityPortfolio()} function as \code{method_init}.
 #'   Default is \code{"cyclical-spinu"}.
-#' @param exp_ret_score_tilt A numeric value indicating the tilt to apply to the expected return score.
+#' @param exp_ret_score_tilt A character value indicating the tilt to apply to the expected return score.
 #'  It is used to compute the expected return score tilting the risk-parity solution
-#'  towards higher expected return assets. Default is NULL, meaning no tilt is applied.
-#' @param exp_ret_score_tilt_eta A character string indicating the era to compute the expected return score tilt.
+#'  towards higher expected return assets. Default is 'none', meaning no tilt is applied.
+#' @param exp_ret_score_tilt_eta A character string indicating the eta to compute the expected return score tilt.
 #'
 #' @return An S4 object of class `rp_parameters`.
 #' @export
 create_rp_parameters <- function(rp_method = "cyclical-spinu",
-                                 exp_ret_score_tilt = NULL, exp_ret_score_tilt_eta = NULL) {
+                                 exp_ret_score_tilt = "none", exp_ret_score_tilt_eta = NULL) {
+
   rp_params <- methods::new("rp_parameters",
     rp_method = rp_method,
     exp_ret_score_tilt = exp_ret_score_tilt,
@@ -3374,10 +3474,35 @@ setGeneric("add_rp_parameters", function(object, rp_params, ...) {
 setMethod(
   "add_rp_parameters",
   signature(object = "sb_backtest_config", rp_params = "rp_parameters"),
-  function(object, rp_params, ...) {
+  function(object, rp_params, level = NULL, ...) {
+
     # Check for sb
-    if (!object@sb_algorithm == c("rp")) {
+    if (!(object@sb_algorithm %in% c("rp", "mmaf"))) {
       stop("RP parameters is only available for 'rp' strategies.")
+    }
+
+    # If sb_algorithm is mmaf, require that level is either micro or macro
+    if (object@sb_algorithm == "mmaf") {
+      if (is.null(level) || !(level %in% c("micro", "macro"))) {
+        stop("When sb_algorithm is 'mmaf', level must be specified as either 'micro' or 'macro'.")
+      }
+      if (level == "macro") {
+        message("Applying RP parameters to macro portfolio.")
+        ## Check if object@signal_port_parameters@mmaf_parameters@macro_port_config@port_construction_method is rp
+        if (object@signal_port_parameters@mmaf_parameters@macro_port_config@port_construction_method != "rp") {
+          stop("macro_port_config port_construction_method is not 'rp'.")
+        }
+        object@signal_port_parameters@mmaf_parameters@macro_port_config@rp_parameters <- rp_params
+
+      } else {
+        message("Applying RP parameters to micro portfolios.")
+        ## Check if object@signal_port_parameters@mmaf_parameters@micro_port_config@port_construction_method is rp
+        if (object@signal_port_parameters@mmaf_parameters@micro_port_config@port_construction_method != "rp") {
+          stop("micro_port_config port_construction_method is not 'rp'.")
+        }
+        object@signal_port_parameters@mmaf_parameters@micro_port_config@rp_parameters <- rp_params
+      }
+      return(object)
     }
 
     # Suppose you store rp_parameters within signal_port_parameters:
@@ -3395,19 +3520,26 @@ setMethod(
   function(object,
            rp_params,
            rp_method = "cyclical-spinu",
+           exp_ret_score_tilt = "none",
+           exp_ret_score_tilt_eta = NULL,
+           level = NULL,
            ...) {
 
     # Check for sb
-    if (!object@sb_algorithm == c("rp")) {
+    if (!(object@sb_algorithm %in% c("rp", "mmaf"))) {
       stop("RP parameters is only available for 'rp' strategies.")
     }
 
-
-    object@signal_port_parameters@rp_parameters <- create_rp_parameters(
+    # Create rp params
+    rp_params <- create_rp_parameters(
       rp_method = rp_method,
-      exp_ret_score_tilt = NULL,
-      exp_ret_score_tilt_eta = NULL
+      exp_ret_score_tilt = exp_ret_score_tilt,
+      exp_ret_score_tilt_eta = exp_ret_score_tilt_eta
     )
+
+    # Add it to object
+    object <- object %>% add_rp_parameters(rp_params = rp_params, level = level)
+
 
     return(object)
   }
@@ -3418,10 +3550,35 @@ setMethod(
 setMethod(
   "add_rp_parameters",
   signature(object = "port_backtest_config", rp_params = "rp_parameters"),
-  function(object, rp_params, ...) {
+  function(object, rp_params, level = NULL, ...) {
+
     # Check for pcm
-    if (!object@port_construction_method == c("rp")) {
+    if (!(object@port_construction_method %in% c("rp", "mmaf"))) {
       stop("RP parameters is only available for 'rp' strategies.")
+    }
+
+    # If port_construction_method is mmaf, require that level is either micro or macro
+    if (object@port_construction_method == "mmaf") {
+      if (is.null(level) || !(level %in% c("micro", "macro"))) {
+        stop("When port_construction_method is 'mmaf', level must be specified as either 'micro' or 'macro'.")
+      }
+      if (level == "macro") {
+        message("Applying RP parameters to macro portfolio.")
+          ## Check if object@mmaf_parameters@macro_port_config@port_construction_method is rp
+          if (object@mmaf_parameters@macro_port_config@port_construction_method != "rp") {
+            stop("macro_port_config port_construction_method is not 'rp'.")
+          }
+          object@mmaf_parameters@macro_port_config@rp_parameters <- rp_params
+
+      } else {
+        message("Applying RP parameters to micro portfolios.")
+          ## Check if object@mmaf_parameters@micro_port_config@port_construction_method is rp
+          if (object@mmaf_parameters@micro_port_config@port_construction_method != "rp") {
+            stop("micro_port_config port_construction_method is not 'rp'.")
+          }
+          object@mmaf_parameters@micro_port_config@rp_parameters <- rp_params
+      }
+      return(object)
     }
 
 
@@ -3439,18 +3596,24 @@ setMethod(
   function(object,
            rp_params,
            rp_method = "cyclical-spinu",
-           exp_ret_score_tilt = NULL, exp_ret_score_tilt_eta = NULL,
+           exp_ret_score_tilt = "none",
+           exp_ret_score_tilt_eta = NULL,
+           level = NULL,
            ...) {
     # Check for pcm
-    if (!object@port_construction_method == c("rp")) {
+    if (!(object@port_construction_method %in% c("rp", "mmaf"))) {
       stop("RP parameters is only available for 'rp' strategies.")
     }
 
-    object@rp_parameters <- create_rp_parameters(
+    # Create rp params
+    rp_params <- create_rp_parameters(
       rp_method = rp_method,
       exp_ret_score_tilt = exp_ret_score_tilt,
       exp_ret_score_tilt_eta = exp_ret_score_tilt_eta
     )
+
+    # Add it to object
+    object <- object %>% add_rp_parameters(rp_params = rp_params, level = level)
 
     return(object)
   }
@@ -3458,7 +3621,396 @@ setMethod(
 
 
 
+# hrp_parameters--------------------------------------------------------
+#' @title Create HRP (Hierarchical Risk Parity) Parameters
+#' @description Constructor function for creating an instance of `hrp_parameters`.
+#'
+#' @param linkage A character indicating the linkage method to use for hierarchical clustering.
+#'   Possible options are 'single', 'complete', 'average', 'weighted', 'centroid', 'median', or 'ward.D2'.
+#'   Default is 'single.'
+#' @param exp_ret_score_tilt A character value indicating the tilt to apply to the expected return score.
+#'  It is used to compute the expected return score tilting the risk-parity solution
+#'  towards higher expected return assets. Default is 'none', meaning no tilt is applied.
+#' @param exp_ret_score_tilt_eta A character string indicating the eta to compute the expected return score tilt.
+#'
+#' @return An S4 object of class `hrp_parameters`.
+#' @export
+create_hrp_parameters <- function(linkage = "single",
+                                  exp_ret_score_tilt = "none", exp_ret_score_tilt_eta = NULL) {
 
+  hrp_params <- methods::new("hrp_parameters",
+                             linkage = linkage,
+                             exp_ret_score_tilt = exp_ret_score_tilt,
+                             exp_ret_score_tilt_eta = exp_ret_score_tilt_eta
+  )
+  return(hrp_params)
+}
+
+#' @title Add hrp_parameters to a backtest config
+#'
+#' @description
+#' This function allows either directly adding a pre-existing `hrp_parameters` object
+#' or creating one dynamically by passing additional arguments.
+#'
+#' @param object An object of class `sb_backtest_config` or `port_backtest_config`.
+#' @param hrp_params An object of class `hrp_parameters`, or missing if a new object is to be created.
+#' @param linkage Character indicating the linkage method to use for hierarchical clustering.
+#' @param ... Additional arguments used to create a new `hrp_parameters` object when `hrp_params` is missing.
+#'   These arguments must include:
+#'   \itemize{
+#'     \item \strong{linkage}:  A character indicating the linkage method to use for hierarchical clustering.
+#'   }
+#'
+#' @return An updated object of class `sb_backtest_config` or `port_backtest_config` with
+#'   the `hrp_parameters` added.
+#' @export
+setGeneric("add_hrp_parameters", function(object, hrp_params, ...) {
+  standardGeneric("add_hrp_parameters")
+})
+
+
+#' @describeIn add_hrp_parameters Add an existing `hrp_parameters` object to a `sb_backtest_config` object.
+#' @export
+setMethod(
+  "add_hrp_parameters",
+  signature(object = "sb_backtest_config", hrp_params = "hrp_parameters"),
+  function(object, hrp_params, level = NULL, ...) {
+
+    # Check for sb
+    if (!(object@sb_algorithm %in% c("hrp", "mmaf"))) {
+      stop("HRP parameters is only available for 'hrp' strategies.")
+    }
+
+    # If sb_algorithm is mmaf, require that level is either micro or macro
+    if (object@sb_algorithm == "mmaf") {
+      if (is.null(level) || !(level %in% c("micro", "macro"))) {
+        stop("When sb_algorithm is 'mmaf', level must be specified as either 'micro' or 'macro'.")
+      }
+      if (level == "macro") {
+        message("Applying HRP parameters to macro portfolio.")
+        ## Check if object@signal_port_parameters@mmaf_parameters@macro_port_config@port_construction_method is hrp
+        if (object@signal_port_parameters@mmaf_parameters@macro_port_config@port_construction_method != "hrp") {
+          stop("macro_port_config port_construction_method is not 'hrp'.")
+        }
+        object@signal_port_parameters@mmaf_parameters@macro_port_config@hrp_parameters <- hrp_params
+
+      } else {
+        message("Applying HRP parameters to micro portfolios.")
+        ## Check if object@signal_port_parameters@mmaf_parameters@micro_port_config@port_construction_method is hrp
+        if (object@signal_port_parameters@mmaf_parameters@micro_port_config@port_construction_method != "hrp") {
+          stop("micro_port_config port_construction_method is not 'hrp'.")
+        }
+        object@signal_port_parameters@mmaf_parameters@micro_port_config@hrp_parameters <- hrp_params
+      }
+      return(object)
+    }
+
+
+    # Suppose you store hrp_parameters within signal_port_parameters:
+    object@signal_port_parameters@hrp_parameters <- hrp_params
+
+    return(object)
+  }
+)
+
+#' @describeIn add_hrp_parameters Dynamically create a `hrp_parameters` object and add it to a `sb_backtest_config` object.
+#' @export
+setMethod(
+  "add_hrp_parameters",
+  signature(object = "sb_backtest_config", hrp_params = "missing"),
+  function(object,
+           hrp_params,
+           linkage = "single",
+           exp_ret_score_tilt = "none",
+           exp_ret_score_tilt_eta = NULL,
+           level = NULL,
+           ...) {
+
+    # Check for sb
+    if (!(object@sb_algorithm %in% c("hrp", "mmaf"))) {
+      stop("HRP parameters is only available for 'hrp' strategies.")
+    }
+
+    # Create hrp params
+    hrp_params <- create_hrp_parameters(
+      linkage = linkage,
+      exp_ret_score_tilt = exp_ret_score_tilt,
+      exp_ret_score_tilt_eta = exp_ret_score_tilt_eta
+    )
+
+    # Add it to object
+    object <- object %>% add_hrp_parameters(hrp_params = hrp_params, level = level)
+
+
+    return(object)
+  }
+)
+
+#' @describeIn add_hrp_parameters Add an existing `hrp_parameters` object to a `port_backtest_config` object.
+#' @export
+setMethod(
+  "add_hrp_parameters",
+  signature(object = "port_backtest_config", hrp_params = "hrp_parameters"),
+  function(object, hrp_params, level = NULL, ...) {
+
+    # Check for pcm
+    if (!(object@port_construction_method %in% c("hrp", "mmaf"))) {
+      stop("HRP parameters is only available for 'hrp' strategies.")
+    }
+
+    # If port_construction_method is mmaf, require that level is either micro or macro
+    if (object@port_construction_method == "mmaf") {
+      if (is.null(level) || !(level %in% c("micro", "macro"))) {
+        stop("When port_construction_method is 'mmaf', level must be specified as either 'micro' or 'macro'.")
+      }
+      if (level == "macro") {
+        message("Applying HRP parameters to macro portfolio.")
+        ## Check if object@mmaf_parameters@macro_port_config@port_construction_method is hrp
+        if (object@mmaf_parameters@macro_port_config@port_construction_method != "hrp") {
+          stop("macro_port_config port_construction_method is not 'hrp'.")
+        }
+        object@mmaf_parameters@macro_port_config@hrp_parameters <- hrp_params
+
+      } else {
+        message("Applying HRP parameters to micro portfolios.")
+        ## Check if object@mmaf_parameters@micro_port_config@port_construction_method is hrp
+        if (object@mmaf_parameters@micro_port_config@port_construction_method != "hrp") {
+          stop("micro_port_config port_construction_method is not 'hrp'.")
+        }
+        object@mmaf_parameters@micro_port_config@hrp_parameters <- hrp_params
+      }
+      return(object)
+    }
+
+
+    object@hrp_parameters <- hrp_params
+
+    return(object)
+  }
+)
+
+#' @describeIn add_hrp_parameters Dynamically create a `hrp_parameters` object and add it to a `port_backtest_config` object.
+#' @export
+setMethod(
+  "add_hrp_parameters",
+  signature(object = "port_backtest_config", hrp_params = "missing"),
+  function(object,
+           hrp_params,
+           linkage = "single",
+           exp_ret_score_tilt = "none",
+           exp_ret_score_tilt_eta = NULL,
+           level = NULL,
+           ...) {
+    # Check for pcm
+    if (!(object@port_construction_method %in% c("hrp", "mmaf"))) {
+      stop("HRP parameters is only available for 'hrp' strategies.")
+    }
+
+    # Create hrp params
+    hrp_params <- create_hrp_parameters(
+      linkage = linkage,
+      exp_ret_score_tilt = exp_ret_score_tilt,
+      exp_ret_score_tilt_eta = exp_ret_score_tilt_eta
+    )
+
+    # Add it to object
+    object <- object %>% add_hrp_parameters(hrp_params = hrp_params, level = level)
+
+    return(object)
+  }
+)
+
+
+# mmaf_parameters--------------------------------------------------------
+#' @title Create MMAF (Micro Macro Allocation Framework) Parameters
+#'
+#' @description Constructor function for creating an instance of `mmaf_parameters`.
+#'
+#' @param mmaf_method A character indicating the MMAF method to be used. Must be one of 'top_down' or 'bottom_up'.
+#' @param top_down_proxy_port_method A character indicating the method to be used for constructing the top-down proxy portfolio.
+#' Must be one of 'ew', 'rp', 'hrp', 'cs' or 'sw' if mmaf_method is 'top_down' and NULL if mmaf_method is 'bottom_up'.
+#' @param mmaf_group_col A character string representing the MMAF group to which the assets belong. This is used to group assets when constructing micro and macro portfolios.
+#' It must be a length 1 character.
+#' @param micro_port_config An object of class `mmaf_sub_port_config` representing the configuration for constructing micro portfolios.
+#' @param macro_port_config An object of class `mmaf_sub_port_config` representing the configuration for constructing macro portfolios.
+#'
+#' @return An S4 object of class `mmaf_parameters`.
+#' @export
+#'
+create_mmaf_parameters <- function(mmaf_method = "bottom_up",
+                                   top_down_proxy_port_method = "ew",
+                                   mmaf_group_col,
+                                   micro_port_construction_method,
+                                   macro_port_construction_method) {
+
+  # Validate mmaf_method
+  if (!(mmaf_method %in% c("top_down", "bottom_up"))) {
+    stop("mmaf_method must be either 'top_down' or 'bottom_up'.")
+  }
+
+  # Validate top_down_proxy_port_method
+  if (mmaf_method == "top_down" && !(top_down_proxy_port_method %in% c("ew", "rp", "hrp", "cs", "sw"))) {
+    stop("For 'top_down' mmaf_method, top_down_proxy_port_method must be one of 'ew', 'rp', 'hrp', 'cs', or 'sw'.")
+  }
+  if (mmaf_method == "bottom_up" && !is.null(top_down_proxy_port_method)) {
+    stop("For 'bottom_up' mmaf_method, top_down_proxy_port_method must be NULL.")
+  }
+
+  # Validate mmaf_group_col
+  if (!is.character(mmaf_group_col) || length(mmaf_group_col) != 1) {
+    stop("mmaf_group_col must be a length 1 character string.")
+  }
+
+  # Create micro_port_config
+  micro_port_config <- methods::new("mmaf_sub_port_config",
+                                    port_construction_method = micro_port_construction_method,
+                                    mvo_parameters = NULL,
+                                    rp_parameters = NULL,
+                                    hrp_parameters = NULL)
+
+  # Create macro_port_config
+  macro_port_config <- methods::new("mmaf_sub_port_config",
+                                    port_construction_method = macro_port_construction_method,
+                                    mvo_parameters = NULL,
+                                    rp_parameters = NULL,
+                                    hrp_parameters = NULL)
+
+
+  # Create the mmaf_parameters object
+  mmaf_params <- methods::new("mmaf_parameters",
+                              mmaf_method = mmaf_method,
+                              top_down_proxy_port_method = top_down_proxy_port_method,
+                              mmaf_group_col = mmaf_group_col,
+                              micro_port_config = micro_port_config,
+                              macro_port_config = macro_port_config
+  )
+
+  return(mmaf_params)
+}
+
+#' @title Add mmaf_parameters to a backtest config
+#'
+#' @description
+#' This function allows either directly adding a pre-existing `mmaf_parameters` object
+#' or creating one dynamically by passing additional arguments.
+#'
+#' @param object An object of class `sb_backtest_config` or `port_backtest_config`.
+#' @param mmaf_params An object of class `mmaf_parameters`, or missing if a new one is to be created.
+#' @param mmaf_method A character indicating the MMAF method to be used. Must be one of 'top_down' or 'bottom_up'.
+#' @param top_down_proxy_port_method A character indicating the proxy portfolio method for top-down MMAF.
+#' @param mmaf_group_col A character string (length 1) with the grouping column name.
+#' @param micro_port_construction_method A character indicating the micro portfolio construction method.
+#' @param macro_port_construction_method A character indicating the macro portfolio construction method.
+#' @param ... Additional arguments used to create a new `mmaf_parameters` object when `mmaf_params` is missing.
+#'
+#' @return An updated object of class `sb_backtest_config` or `port_backtest_config` with
+#'   the `mmaf_parameters` added.
+#' @export
+setGeneric("add_mmaf_parameters", function(object, mmaf_params, ...) {
+  standardGeneric("add_mmaf_parameters")
+})
+
+
+#' @describeIn add_mmaf_parameters Add an existing `mmaf_parameters` object to a `sb_backtest_config` object.
+#' @export
+setMethod(
+  "add_mmaf_parameters",
+  signature(object = "sb_backtest_config", mmaf_params = "mmaf_parameters"),
+  function(object, mmaf_params, ...) {
+
+    if (object@sb_algorithm != "mmaf") {
+      stop("MMAF parameters can only be added when sb_algorithm = 'mmaf'.")
+    }
+
+    object@signal_port_parameters@mmaf_parameters <- mmaf_params
+
+    return(object)
+  }
+)
+
+
+#' @describeIn add_mmaf_parameters Dynamically create a `mmaf_parameters` object and add it to a `sb_backtest_config` object.
+#' @export
+setMethod(
+  "add_mmaf_parameters",
+  signature(object = "sb_backtest_config", mmaf_params = "missing"),
+  function(object,
+           mmaf_params,
+           mmaf_method = "bottom_up",
+           top_down_proxy_port_method = "ew",
+           mmaf_group_col,
+           micro_port_construction_method,
+           macro_port_construction_method,
+           ...) {
+
+    if (object@sb_algorithm != "mmaf") {
+      stop("MMAF parameters can only be added when sb_algorithm = 'mmaf'.")
+    }
+
+    mmaf_params <- create_mmaf_parameters(
+      mmaf_method = mmaf_method,
+      top_down_proxy_port_method = top_down_proxy_port_method,
+      mmaf_group_col = mmaf_group_col,
+      micro_port_construction_method = micro_port_construction_method,
+      macro_port_construction_method = macro_port_construction_method
+    )
+
+    object <- object %>% add_mmaf_parameters(mmaf_params = mmaf_params)
+
+    return(object)
+  }
+)
+
+
+#' @describeIn add_mmaf_parameters Add an existing `mmaf_parameters` object to a `port_backtest_config` object.
+#' @export
+setMethod(
+  "add_mmaf_parameters",
+  signature(object = "port_backtest_config", mmaf_params = "mmaf_parameters"),
+  function(object, mmaf_params, ...) {
+
+    if (object@port_construction_method != "mmaf") {
+      stop("MMAF parameters can only be added when port_construction_method = 'mmaf'.")
+    }
+
+    object@mmaf_parameters <- mmaf_params
+
+    return(object)
+  }
+)
+
+
+#' @describeIn add_mmaf_parameters Dynamically create a `mmaf_parameters` object and add it to a `port_backtest_config` object.
+#' @export
+setMethod(
+  "add_mmaf_parameters",
+  signature(object = "port_backtest_config", mmaf_params = "missing"),
+  function(object,
+           mmaf_params,
+           mmaf_method = "bottom_up",
+           top_down_proxy_port_method = "ew",
+           mmaf_group_col,
+           micro_port_construction_method,
+           macro_port_construction_method,
+           ...) {
+
+    if (object@port_construction_method != "mmaf") {
+      stop("MMAF parameters can only be added when port_construction_method = 'mmaf'.")
+    }
+
+    mmaf_params <- create_mmaf_parameters(
+      mmaf_method = mmaf_method,
+      top_down_proxy_port_method = top_down_proxy_port_method,
+      mmaf_group_col = mmaf_group_col,
+      micro_port_construction_method = micro_port_construction_method,
+      macro_port_construction_method = macro_port_construction_method
+    )
+
+    object <- object %>% add_mmaf_parameters(mmaf_params = mmaf_params)
+
+    return(object)
+  }
+)
 
 
 
@@ -3520,16 +4072,33 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tun
   }
 
   # Create default parameters for signal_port_parameters depending on sb_algo
-  if (sb_algorithm %in% c("mvo", "rp") && is.null(signal_port_parameters)) {
+  if (sb_algorithm %in% c("mvo", "rp", "hrp", "mmaf") && is.null(signal_port_parameters)) {
     cov_est_method <- create_cov_est_method(cov_estimation_method = "sample", cov_matrix_sample_size = 36, active_returns = TRUE, cov_matrix_benchmark = "IBOV")
-    mvo_parameters <- if (sb_algorithm == "mvo") create_mvo_parameters(opt_method = "random", random_ports_method = "sample", n_random_ports = 1000, opt_objective = "sharpe") else NULL
-    rp_parameters <- if (sb_algorithm == "rp") create_rp_parameters(rp_method = "cyclical-spinu") else NULL
+    mvo_parameters <- if (sb_algorithm == "mvo"){
+      create_mvo_parameters(opt_method = "random", random_ports_method = "sample", n_random_ports = 1000, opt_objective = "sharpe",
+                            ridge_pen = NULL, n_resamples = 0, exp_ret_score_jitter = 0, cov_eigval_jitter = 0)
+    } else NULL
+    rp_parameters <- if (sb_algorithm == "rp"){
+      create_rp_parameters(rp_method = "cyclical-spinu", exp_ret_score_tilt = "none", exp_ret_score_tilt_eta = NULL)
+    } else NULL
+    hrp_parameters <- if (sb_algorithm == "hrp"){
+      create_hrp_parameters(linkage = "single", exp_ret_score_tilt = "none", exp_ret_score_tilt_eta = NULL)
+    } else NULL
+    mmaf_parameters <- if (sb_algorithm == "mmaf"){
+      create_mmaf_parameters(mmaf_method = "bottom_up",
+                             top_down_proxy_port_method = NULL,
+                             mmaf_group_col = "sector",
+                             micro_port_construction_method = "ew",
+                             macro_port_construction_method = "ew")
+    } else NULL
 
 
     signal_port_parameters <- methods::new("signal_port_parameters",
       cov_est_method = cov_est_method,
       mvo_parameters = mvo_parameters,
       rp_parameters = rp_parameters,
+      hrp_parameters = hrp_parameters,
+      mmaf_parameters = mmaf_parameters,
       concentration_constraint_policy = NULL
     )
   }
@@ -3716,6 +4285,8 @@ setMethod(
 #' If missing and port_construction_method is "mvo", a default is created.
 #' @param rp_parameters An object of class `rp_parameters` for risk parity portfolios. Only required if `port_construction_method` is "rp".
 #' If missing and port_construction_method is "rp", a default is created.
+#' @param hrp_parameters An object of class `hrp_parameters` for hierarchical risk parity portfolios. Only required if `port_construction_method` is "hrp".
+#' @param mmaf_parameters An object of class `mmaf_parameters` for micro-macro allocation framework portfolios. Only required if `port_construction_method` is "mmaf".
 #' @param main_liquidity_metric A character string indicating which liquidity metric (i.e. column in liquidity_m_df) to use.
 #' @param liquidity_floor_cutoffs An object (e.g., a data frame) containing liquidity cutoff values.
 #' @param liquidity_constraint_policy An object of class `liquidity_constraint_policy` (optional).
@@ -3739,6 +4310,8 @@ create_port_backtest_config <- function(chosen_score_metric_and_position = NULL,
                                         port_construction_method = "ew",
                                         mvo_parameters = NULL,
                                         rp_parameters = NULL,
+                                        hrp_parameters = NULL,
+                                        mmaf_parameters = NULL,
                                         main_liquidity_metric,
                                         liquidity_floor_cutoffs = NULL,
                                         liquidity_constraint_policy = NULL,
@@ -3771,17 +4344,42 @@ create_port_backtest_config <- function(chosen_score_metric_and_position = NULL,
       opt_method = "random",
       random_ports_method = "sample",
       n_random_ports = 1000,
-      opt_objective = "sharpe"
+      opt_objective = "sharpe",
+      ridge_pen = NULL,
+      n_resamples = 0,
+      exp_ret_score_jitter = 0,
+      cov_eigval_jitter = 0
     )
   }
 
   # Similarly, if the method is "rp" and no rp_parameters are provided, create defaults
   if (port_construction_method == "rp" && is.null(rp_parameters)) {
     rp_parameters <- create_rp_parameters(
-      rp_method = "cyclical-spinu"
+      rp_method = "cyclical-spinu",
+      exp_ret_score_tilt = "none",
+      exp_ret_score_tilt_eta = NULL
     )
   }
 
+  # If method is hrp and no hrp_parameters provided, create defaults
+  if (port_construction_method == "hrp" && is.null(hrp_parameters)) {
+    hrp_parameters <- create_hrp_parameters(
+      linkage = "single",
+      exp_ret_score_tilt = "none",
+      exp_ret_score_tilt_eta = NULL
+    )
+  }
+
+  # If method is mmaf and no mmaf_parameters provided, create defaults
+  if (port_construction_method == "mmaf" && is.null(mmaf_parameters)) {
+    mmaf_parameters <- create_mmaf_parameters(
+      mmaf_method = "bottom_up",
+      top_down_proxy_port_method = NULL,
+      mmaf_group_col = NULL,
+      micro_port_config = NULL,
+      macro_port_config = NULL
+    )
+  }
   # Create and return the new port_backtest_config object
   methods::new("port_backtest_config",
     chosen_score_metric_and_position = chosen_score_metric_and_position,
@@ -3797,6 +4395,8 @@ create_port_backtest_config <- function(chosen_score_metric_and_position = NULL,
     port_construction_method = port_construction_method,
     mvo_parameters = mvo_parameters,
     rp_parameters = rp_parameters,
+    hrp_parameters = hrp_parameters,
+    mmaf_parameters = mmaf_parameters,
     main_liquidity_metric = main_liquidity_metric,
     liquidity_floor_cutoffs = liquidity_floor_cutoffs,
     liquidity_constraint_policy = liquidity_constraint_policy,
@@ -3872,9 +4472,9 @@ setMethod(
       stop("A selected_benchmark must be provided to add a concentration constraint policy.")
     }
 
-    # Check if port_construction_method is 'mvo'
-    if (object@port_construction_method != "mvo") {
-      stop("Concentration constraint policy can only be added to a 'mvo' port_construction_method.")
+    # Check if port_construction_method is 'mvo' or 'mmaf'
+    if (!(object@port_construction_method %in% c("mvo", "mmaf"))) {
+      stop("Concentration constraint policy can only be added to 'mvo' or 'mmaf' port_construction_method.")
     }
 
     object@concentration_constraint_policy <- policy
@@ -3901,9 +4501,9 @@ setMethod(
     # Get benchmark from object
     selected_benchmark <- object@selected_benchmark
 
-    # Check if port_construction_method is 'mvo'
-    if (object@port_construction_method != "mvo") {
-      stop("Concentration constraint policy can only be added to a 'mvo' port_construction_method.")
+    # Check if port_construction_method is 'mvo' or 'mmaf'
+    if (!(object@port_construction_method %in% c("mvo", "mmaf"))) {
+      stop("Concentration constraint policy can only be added to 'mvo' or 'mmaf' port_construction_method.")
     }
 
     # Build a new policy on the fly

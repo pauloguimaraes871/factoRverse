@@ -1018,6 +1018,15 @@ setClass("cov_est_method",
 #' 'sample', 'simplex or 'grid'.
 #' @slot n_random_ports Number of random portfolios to generate. Only needed when opt_method is 'random'.
 #' @slot opt_objective A character indicating the optimization objective. Possible options are 'return', 'risk' or 'sharpe'.
+#' @slot ridge_pen A numeric value representing the ridge penalty to be applied to weights. If NULL, no ridge penalty is applied.
+#' @slot n_resamples Number of resamples to perform when estimating the optimal portfolio. If 0, no resampling is performed.
+#' @slot exp_ret_score_jitter A numeric value representing the standard deviation of the Gaussian
+#' noise to be added to the expected returns scores when estimating the optimal portfolio.
+#' This is used to introduce randomness in the optimization process and avoid overfitting to the expected returns.
+#' @slot cov_eigval_jitter A numeric value representing the standard deviation of the Gaussian
+#' noise to be added to the covariance matrix eigenvalues when estimating the optimal portfolio.
+#' This is used to introduce randomness in the optimization process and avoid overfitting to the covariance matrix.
+#'
 #'
 #' @return An S4 object of class `port_backtest_config`.
 #'
@@ -1071,6 +1080,16 @@ setClass("mvo_parameters",
            if(object@cov_eigval_jitter < 0 || length(object@cov_eigval_jitter) != 1){
              stop("cov_eigval_jitter must be a non-negative numeric value.")
            }
+           ## If n_resamples > 0, then exp_ret_score_jitter and cov_eigval_jitter must be > 0
+           if(object@n_resamples > 0){
+
+             if(object@exp_ret_score_jitter == 0){
+               stop("If n_resamples > 0, then exp_ret_score_jitter must be > 0.")
+             }
+             if(object@cov_eigval_jitter == 0){
+               stop("If n_resamples > 0, then cov_eigval_jitter must be > 0.")
+             }
+           }
            TRUE
          }
 )
@@ -1083,47 +1102,198 @@ setClass("mvo_parameters",
 #'
 #' @slot rp_method A character indicating the method to compute the risk-parity vanilla solution. It is passed to riskParityPortfolio::riskParityPortfolio function as method_init.
 #' Default is "cyclical-spinu"
+#' @slot exp_ret_score_tilt A character indicating when to apply the expected return score tilt. Possible options are 'none', 'inner' or 'final'.
+#' 'none' means no tilt is applied, 'inner' means the tilt is applied within the risk parity algorithm and 'final' means the tilt is applied after the risk parity solution is computed.
+#' @slot exp_ret_score_tilt_eta A numeric value representing the intensity of the expected return score tilt. Must be a positive value. Only needed when exp_ret_score_tilt is 'inner' or 'final'.
 #'
-#' @return An S4 object of class `port_backtest_config`.
+#' @return An S4 object of class `rp_parameters`.
 #'
 #' @export
 setClass("rp_parameters",
          slots = list(
            rp_method = "character",
-           exp_ret_score_tilt = "ANY",
+           exp_ret_score_tilt = "character",
            exp_ret_score_tilt_eta = "ANY"
 
          ),
          prototype = list(
-           rp_method = "cyclical-spinu"
+           rp_method = "cyclical-spinu",
+           exp_ret_score_tilt = "none",
+           exp_ret_score_tilt_eta = NULL
          ),
          validity = function(object){
 
-           #Check that exp_ret_score_tilt is a length 1 logical if not NULL
-           if(!is.null(object@exp_ret_score_tilt)){
-             if(!is.logical(object@exp_ret_score_tilt) || length(object@exp_ret_score_tilt) != 1){
-               stop("exp_ret_score_tilt must be a single logical value (TRUE or FALSE).")
-             }
-           }
+            ##Validate exp_ret_score pars
+            validate_exp_ret_score_tilt(
+              object@exp_ret_score_tilt, object@exp_ret_score_tilt_eta
+            )
 
-           #Check that exp_ret_score_tilt_eta is NULL or a single positive numeric value
-           if(!is.null(object@exp_ret_score_tilt_eta)){
-             if(!is.numeric(object@exp_ret_score_tilt_eta) || length(object@exp_ret_score_tilt_eta) != 1 || object@exp_ret_score_tilt_eta <= 0){
-               stop("exp_ret_score_tilt_eta must be a single positive numeric value.")
-             }
+           ## Validate rp_method
+           if(!object@rp_method %in% c("cyclical-spinu", "cyclical-roncalli", "newton")){
+             stop("Invalid rp_method. Must be one of 'cyclical-spinu', 'cyclical-roncalli' or 'newton'.")
            }
-
-           #Check that exp_ret_score_tilt_eta is provided if exp_ret_score_tilt is TRUE
-           if(!is.null(object@exp_ret_score_tilt)){
-             if(object@exp_ret_score_tilt){
-               if(is.null(object@exp_ret_score_tilt_eta)){
-                 stop("If exp_ret_score_tilt is TRUE, exp_ret_score_tilt_eta must be provided.")
-               }
-             }
-           }
-
          }
 )
+
+
+
+#hrp_parameters---------------------------------------------------------
+#' Define the `hrp_parameters` S4 Class
+#'
+#' S4 class to represent a set of configurations for hierarchical risk-parity portfolios.
+#'
+#' @slot linkage A character indicating the linkage method to be used in the hierarchical clustering algorithm.
+#' Must be one of 'single', 'complete', 'average', 'ward.D', 'ward.D2', 'mcquitty', 'median' or 'centroid'.
+#' @slot exp_ret_score_tilt A character indicating when to apply the expected return score tilt. Possible options are 'none', 'inner' or 'final'.
+#' 'none' means no tilt is applied, 'inner' means the tilt is applied within the risk parity algorithm and 'final' means the tilt is applied after the risk parity solution is computed.
+#' @slot exp_ret_score_tilt_eta A numeric value representing the intensity of the expected return score tilt. Must be a positive value. Only needed when exp_ret_score_tilt is 'inner' or 'final'.
+#'
+#' @return An S4 object of class `rp_parameters`.
+#'
+#' @export
+setClass("hrp_parameters",
+         slots = list(
+           linkage = "character",
+           exp_ret_score_tilt = "character",
+           exp_ret_score_tilt_eta = "ANY"
+
+         ),
+         prototype = list(
+           linkage = "single",
+           exp_ret_score_tilt = "none",
+           exp_ret_score_tilt_eta = NULL
+         ),
+         validity = function(object){
+
+           ##Validate exp_ret_score pars
+           validate_exp_ret_score_tilt(
+             object@exp_ret_score_tilt, object@exp_ret_score_tilt_eta
+           )
+
+           ## Validate linkage
+           if(!object@linkage %in% c("single", "complete", "average", "ward.D", "ward.D2", "mcquitty", "median", "centroid")){
+             stop("Invalid linkage. Must be one of 'single', 'complete', 'average', 'ward.D', 'ward.D2', 'mcquitty', 'median' or 'centroid'.")
+           }
+         }
+)
+
+#mmaf_parameters--------------------------------------------------------
+#' Define the `mmaf_parameters` S4 Class
+#'
+#' S4 class to represent a set of configurations for the MMAF portfolio construction method.
+#'
+#' @slot mmaf_method A character indicating the MMAF method to be used. Must be one of 'top_down' or 'bottom_up'.
+#' @slot top_down_proxy_port_method A character indicating the method to be used for constructing the top-down proxy portfolio.
+#' Must be one of 'ew', 'rp', 'hrp', 'cs' or 'sw' if mmaf_method is 'top_down' and NULL if mmaf_method is 'bottom_up'.
+#' @slot mmaf_group_col A character string representing the MMAF group to which the assets belong. This is used to group assets when constructing micro and macro portfolios.
+#' It must be a length 1 character.
+#' @slot micro_port_config An object of class `mmaf_sub_port_config` representing the configuration for constructing micro portfolios.
+#' @slot macro_port_config An object of class `mmaf_sub_port_config` representing the configuration for constructing macro portfolios.
+#'
+#' @export
+#'
+setClass(
+  "mmaf_parameters",
+  slots = c(
+    mmaf_method = "character",
+    top_down_proxy_port_method = "ANY",
+    mmaf_group_col = "ANY",
+    micro_port_config = "ANY",
+    macro_port_config = "ANY"
+  ),
+  validity = function(object){
+
+    ## MMAF method must be one of top_down or bottom_up
+    if(!object@mmaf_method %in% c("top_down", "bottom_up")){
+      stop("Invalid mmaf_method. Must be one of 'top_down' or 'bottom_up'.")
+    }
+
+    ## Top down_proxy port method must be one of "ew", "rp", "hrp", "cs", "sw" if
+    ## mmaf_method is top_down and NULL if it is bottom_up
+    if(object@mmaf_method == "top_down"){
+      if(is.null(object@top_down_proxy_port_method) ||
+         !object@top_down_proxy_port_method %in% c("ew", "rp", "hrp", "cs", "sw")){
+        stop("Invalid top_down_proxy_port_method. Must be one of 'ew', 'rp', 'hrp', 'cs', 'sw' when mmaf_method is 'top_down'.")
+      }
+    } else {
+      if(!is.null(object@top_down_proxy_port_method)){
+        stop("top_down_proxy_port_method must be NULL when mmaf_method is 'bottom_up'.")
+      }
+    }
+
+    ## If not NULL, micro and macro port config must be of class mmaf_sub_port_config
+    if(!is.null(object@micro_port_config) &&
+       !methods::is(object@micro_port_config, "mmaf_sub_port_config")){
+      stop("micro_port_config must be of class 'mmaf_sub_port_config'.")
+    }
+    if(!is.null(object@macro_port_config) &&
+       !methods::is(object@macro_port_config, "mmaf_sub_port_config")){
+      stop("macro_port_config must be of class 'mmaf_sub_port_config'.")
+    }
+
+    ## If micro_port_config or macro_port_config is NULL, display a message
+    if(is.null(object@micro_port_config)){
+      message("A micro_port_config is necessary for mmaf portfolios.")
+    }
+    if(is.null(object@macro_port_config)){
+      message("A macro_port_config is necessary for mmaf portfolios.")
+    }
+
+    ##mmaf group must be length 1 character
+    if(!is.null(object@mmaf_group_col) && length(object@mmaf_group_col) != 1 ||
+       !is.character(object@mmaf_group_col)){
+      stop("mmaf_group_col must be a length 1 character.")
+    }
+
+
+    return(TRUE)
+  }
+
+
+)
+
+
+#mmaf_sub_port_config------------------------------------------------------
+#' @title MMAF Sub Portfolio Configuration
+#' @description An S4 class to represent the configuration of micro or macro portfolios
+#' in the MMAF portfolio construction method.
+#'
+#' @slot port_construction_method A character string indicating the method used for constructing micro portfolios.
+#' @slot mvo_parameters An object of class `mvo_parameters` representing the parameters for mean-variance optimization. This is only relevant for 'mvo'.
+#' @slot rp_parameters An object of class `rp_parameters` representing the parameters for risk parity. This is only relevant for 'rp'.
+#' @slot hrp_parameters An object of class `hrp_parameters` representing the parameters for hierarchical risk parity. This is only relevant for 'hrp'.
+#'
+#' @export
+#'
+setClass(
+  "mmaf_sub_port_config",
+  slots = c(
+    port_construction_method = "character",
+    mvo_parameters = "ANY",
+    rp_parameters = "ANY",
+    hrp_parameters = "ANY"
+  ),
+  validity = function(object){
+
+    #Just check that _parameters slots have the appropriate S4 class
+    if(object@port_construction_method == "mvo"){
+      if(!methods::is(object@mvo_parameters, "mvo_parameters")){
+        stop("mvo_parameters must be of class 'mvo_parameters' when port_construction_method is 'mvo'.")
+      }
+    } else if(object@port_construction_method == "rp"){
+      if(!methods::is(object@rp_parameters, "rp_parameters")){
+        stop("rp_parameters must be of class 'rp_parameters' when port_construction_method is 'rp'.")
+      }
+    } else if(object@port_construction_method == "hrp"){
+      if(!methods::is(object@hrp_parameters, "hrp_parameters")){
+        stop("hrp_parameters must be of class 'hrp_parameters' when port_construction_method is 'hrp'.")
+      }
+    } else {
+      stop("Invalid port_construction_method. Must be one of 'mvo', 'rp', or 'hrp'.")
+    }
+  }
+)
+
 
 
 
@@ -2401,6 +2571,8 @@ setClass(
 #' 'cw' and 'cs' are not applicable. For signal portfolios, this is inferred based on sb_algorithm.
 #' @slot mvo_parameters An object of class `mvo_parameters` representing the parameters for mean-variance optimization. This is only relevant for 'mvo'.
 #' @slot rp_parameters An object of class `rp_parameters` representing the parameters for risk parity. This is only relevant for 'rp'.
+#' @slot hrp_parameters An object of class `hrp_parameters` representing the parameters for hierarchical risk parity. This is only relevant for 'hrp'.
+#' @slot mmaf_parameters An object of class `mmaf_parameters` representing the parameters for the MMAF method. This is only relevant for 'mmaf'.
 #' @slot main_liquidity_metric A character string indicating which of the variables in `liquidity_m_df` should be ultimately used.
 #' @slot liquidity_floor_cutoffs Mandatory if `turnover_constraint_policy` and/or `liquidity_constraint_policy` are provided.
 #' A data.frame containing a liquidity_classification column and liquidity metrics that define cutoff values to classify stocks according to liquidity.
@@ -2437,6 +2609,7 @@ setClass(
 #' enable_theme_representativeness is TRUE.
 #' Note that, in the context of stocks, a `benchmark_weights_m_d_ref` data frame must also be supplied.
 #' @slot transaction_costs_parameters An object of class `transaction_costs_parameters` containing the parameters for calculating direct and indirect costs.
+#' @slot macro_port_backtest_config An object of class `macro_port_backtest_config` containing the configuration for the macro-level port
 #' @slot config_name A character string representing the name of the configuration.
 #'
 #' @export
@@ -2456,6 +2629,8 @@ setClass(
     port_construction_method = "character",
     mvo_parameters = "ANY",
     rp_parameters = "ANY",
+    hrp_parameters = "ANY",
+    mmaf_parameters = "ANY",
     main_liquidity_metric = "character",
     liquidity_floor_cutoffs = "ANY",
     liquidity_constraint_policy = "ANY",
@@ -2480,8 +2655,8 @@ setClass(
       stop("chosen_score_metric_and_position must be NULL when port_construction_method is custom_weights")
     }
 
-    if (!object@port_construction_method %in% c("ew", "sw", "cw", "cs", "rp", "mvo")){
-      stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp' or 'mvo'")
+    if (!object@port_construction_method %in% c("ew", "sw", "cw", "cs", "rp", "mvo", "hrp", "mmaf")){
+      stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'mvo', 'hrp' or 'mmaf'.")
     }
 
     #Check if eligibility_quantile_range has length of 2 between 0 and 1
@@ -2545,6 +2720,20 @@ setClass(
         stop("rp_parameters must be an object of class rp_parameters.")
       }
     }
+    ####HRP Pars
+    if (!is.null(object@hrp_parameters)){
+      if(!inherits(object@hrp_parameters, "hrp_parameters")){
+        stop("hrp_parameters must be an object of class hrp_parameters.")
+      }
+    }
+    ####MMAF Pars
+    if (!is.null(object@mmaf_parameters)){
+      if(!inherits(object@mmaf_parameters, "mmaf_parameters")){
+        stop("mmaf_parameters must be an object of class mmaf_parameters.")
+      }
+    }
+
+
 
     ##Check chosen_score_metric_and_position
     if(!is.null(object@chosen_score_metric_and_position) &&
@@ -2891,8 +3080,8 @@ setClass(
   validity = function(object) {
 
     # Restrict port_construction_method
-    if (!object@port_construction_method %in% c("ew","sw","rp","mvo","custom_weights")) {
-      stop("For signal_port, port_construction_method must be one of 'ew','sw','rp','mvo' or 'custom_weights'.")
+    if (!object@port_construction_method %in% c("ew","sw","rp","hrp","mvo","mmaf","custom_weights")) {
+      stop("For signal_port, port_construction_method must be one of 'ew','sw','rp','hrp','mvo','mmaf' or 'custom_weights'.")
     }
 
     # If sw or mvo => heuristic_sb_metric should not be NULL
