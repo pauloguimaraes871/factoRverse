@@ -644,7 +644,7 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
     tictoc::toc()
   }
 
-    ### Remove any stray names from numeric weight vectors ----
+    ### Remove any stray names from numeric weight vectors
     if ("weights" %in% names(universe_m_d_ref)) {
       names(universe_m_d_ref$weights) <- NULL
     }
