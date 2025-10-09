@@ -213,63 +213,76 @@ setMethod("hyperparameters", signature(object = "sb_backtest_config"),
 #'     \item{max_abs_active_individual_weight}{A numeric value in (0, 1] representing the maximum absolute active weight for an individual asset.}
 #'     \item{max_abs_active_group_weight}{A named numeric vector in (0, 1] representing the maximum absolute active weight for groups of assets. Names must be unique.}
 #'   }
+#'  @param macro If true, indicates concentration_constraint_policy is for a macro portfolio.
 #'
 #' @return Invisibly returns TRUE if the policy is valid.
 #' @keywords internal
-validate_concentration_constraint_policy <- function(concentration_constraint_policy){
+validate_concentration_constraint_policy <- function(concentration_constraint_policy, macro = FALSE){
+
+  warning_str <- if (macro) "Error in macro_concentration_constraint_policy:" else "Error in concentration_constraint_policy:"
 
   ## Check if the input is a list
   if (!is.list(concentration_constraint_policy)) {
-    stop("Error in concentration_constraint_policy: must be a list")
+    stop(paste0(warning_str, " must be a list"))
   }
 
   ##Check if names in concentration_constraint_policy match possible options
-  if(any(!names(concentration_constraint_policy) %in%
-         c("benchmark", "max_abs_active_individual_weight", "max_abs_active_group_weight"))){
-    stop("Error in concentration_constraint_policy: elements of concentration_constraint_policy should be one of benchmark, max_abs_active_individual_weight or max_abs_active_group_weight.")
+  if (macro){
+    if(any(!names(concentration_constraint_policy) %in%
+           c("benchmark", "max_abs_active_individual_weight"))){
+      stop(paste0(warning_str,
+                  " elements of concentration_constraint_policy should be one of benchmark or max_abs_active_individual_weight."))
+    }
+  } else {
+    if(any(!names(concentration_constraint_policy) %in%
+           c("benchmark", "max_abs_active_individual_weight", "max_abs_active_group_weight"))){
+      stop(paste0(warning_str,
+                  " elements of concentration_constraint_policy should be one of benchmark, max_abs_active_individual_weight or max_abs_active_group_weight."))
+    }
   }
+
 
   ##Check if benchmark is always set
   if(is.null(concentration_constraint_policy$benchmark)){
-    stop("Error in concentration_constraint_policy: benchmark must be set")
+    stop(paste0(warning_str, " benchmark must be set"))
   }
 
   ##Check if one of max_abs_active_individual_weight or max_abs_active_group_weight is set
   if(is.null(concentration_constraint_policy$max_abs_active_individual_weight) &
      is.null(concentration_constraint_policy$max_abs_active_group_weight)){
-    stop("Error in concentration_constraint_policy: either max_abs_active_individual_weight or max_abs_active_group_weight must be set")
+    stop(paste0(warning_str, " either max_abs_active_individual_weight or max_abs_active_group_weight must be set"))
   }
 
   ##Check if max_abs_active_individual_weight is numeric
   if(!is.null(concentration_constraint_policy$max_abs_active_individual_weight) &
      !is.numeric(concentration_constraint_policy$max_abs_active_individual_weight)){
-    stop("Error in concentration_constraint_policy: max_abs_active_individual_weight must be numeric")
+    stop(paste0(warning_str, " max_abs_active_individual_weight must be numeric"))
   }
 
   ##Check if max_abs_active_group_weight is numeric
   if(!is.null(concentration_constraint_policy$max_abs_active_group_weight) &
      !is.numeric(concentration_constraint_policy$max_abs_active_group_weight)){
-    stop("Error in concentration_constraint_policy: max_abs_active_group_weight must be numeric")
+    stop(paste0(warning_str, " max_abs_active_group_weight must be numeric"))
   }
 
   ##Constraints are bounded in (0,1]
   if (!is.null(concentration_constraint_policy$max_abs_active_individual_weight) &&
       (concentration_constraint_policy$max_abs_active_individual_weight <= 0 || concentration_constraint_policy$max_abs_active_individual_weight > 1)){
-    stop("Error in concentration_constraint_policy: max_abs_active_individual_weight must be in (0,1]")
+    stop(paste0(warning_str, " max_abs_active_individual_weight must be in (0,1]"))
   }
 
   ##Constraints are bounded in (0,1]
   if (!is.null(concentration_constraint_policy$max_abs_active_group_weight) &&
       (any(concentration_constraint_policy$max_abs_active_group_weight <= 0) ||
        any(concentration_constraint_policy$max_abs_active_group_weight > 1))){
-    stop("Error in concentration_constraint_policy: max_abs_active_group_weight must be in (0,1]")
+    stop(paste0(warning_str, " max_abs_active_group_weight must be in (0,1]"))
   }
 
   ## Check if max_abs_active_group_weight contains duplicated names
   if (!is.null(concentration_constraint_policy$max_abs_active_group_weight)) {
     grp_names <- names(concentration_constraint_policy$max_abs_active_group_weight)
     if (!is.null(grp_names) && any(duplicated(grp_names))) {
-      stop("Error in concentration_constraint_policy: max_abs_active_group_weight can't contain duplicated names")
+      stop(paste0(warning_str, " max_abs_active_group_weight can't contain duplicated names"))
     }
   }
 
@@ -541,6 +554,45 @@ validate_transaction_costs_parameters <- function(transaction_costs_parameters) 
 
 
   TRUE
+}
+
+
+#' Valida exp_ret_score_tilt
+#'
+#' Internal function to validate the exp_ret_score_tilt and exp_ret_score_tilt_eta parameters
+#' that belong to rp and hrp port constructions methods.
+#'
+#' @param exp_ret_score_tilt A character indicating when to apply the expected return score tilt. Possible options are 'none', 'inner' or 'final'.
+#' 'none' means no tilt is applied, 'inner' means the tilt is applied within the risk parity algorithm and 'final' means the tilt is applied after the risk parity solution is computed.
+#' @param exp_ret_score_tilt_eta A numeric value representing the intensity of the expected return score tilt. Must be a positive value. Only needed when exp_ret_score_tilt is 'inner' or 'final'.
+#'
+#' @return Invisibly returns TRUE if the parameters are valid.
+#'
+#' @export
+#'
+validate_exp_ret_score_tilt <- function(exp_ret_score_tilt, exp_ret_score_tilt_eta){
+
+  #Check that exp_ret_score_tilt is a length 1 character equal to 'none', 'inner' or 'final'
+  if(!exp_ret_score_tilt %in% c("none", "inner", "final")){
+    stop("exp_ret_score_tilt must be one of 'none', 'inner' or 'final'.")
+  }
+
+
+  #Check that exp_ret_score_tilt_eta is NULL or a single positive numeric value
+  if(!is.null(exp_ret_score_tilt_eta)){
+    if(!is.numeric(exp_ret_score_tilt_eta) || length(exp_ret_score_tilt_eta) != 1 || exp_ret_score_tilt_eta <= 0){
+      stop("exp_ret_score_tilt_eta must be a single positive numeric value.")
+    }
+  }
+
+  #Check that exp_ret_score_tilt_eta is provided if exp_ret_score_tilt is 'inner' or 'final'
+  if(exp_ret_score_tilt %in% c("inner", "final") && is.null(exp_ret_score_tilt_eta)){
+    stop("exp_ret_score_tilt_eta must be provided when exp_ret_score_tilt is 'inner' or 'final'.")
+  }
+
+  invisible(TRUE)
+
+
 }
 
 #' Validate Liquidity Floor Cutoffs
