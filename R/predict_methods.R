@@ -123,7 +123,7 @@ setMethod("predict",
   #Choose predict method base on sb_algorithm
   ################
   ###Make a general case for signal port
-  if(sb_algorithm %in% c("ew", "sw", "mvo", "rp", "custom_weights")) sb_algorithm <- "signal_port"
+  if(sb_algorithm %in% c("ew", "sw", "mvo", "rp", "hrp", "mmaf", "custom_weights")) sb_algorithm <- "signal_port"
 
   ###Generate predictions
   predictions <- switch(
