@@ -95,11 +95,21 @@ check_inputs_port_backtest(
 
 \item{selected_benchmark}{A character string naming the benchmark to be used for active return calculation or constraints.}
 
+\item{chosen_scaler}{Character. Column name in \code{scaler_m_df} defining the scaling variable.}
+
+\item{scaler_m_df}{Optional \code{meta_dataframe} with scaling parameters.}
+
+\item{scaler_shrinkage}{Numeric. Shrinkage factor for scaling.}
+
+\item{use_raw_for_eligibility}{Logical. If TRUE, uses raw scores for eligibility filtering.}
+
 \item{rp_method}{A parameter specifying the risk parity method to be applied (when applicable).}
 
 \item{exp_ret_score_tilt}{A logical value indicating whether to apply expected return score tilting in risk parity or mean-variance optimization (when applicable).}
 
 \item{exp_ret_score_tilt_eta}{A numeric value specifying the exponent used for expected return score tilting (when applicable).}
+
+\item{linkage}{Character. Linkage method for hierarchical clustering in HRP.}
 
 \item{n_random_ports}{A numeric value indicating the number of random portfolios to generate.}
 

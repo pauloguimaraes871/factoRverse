@@ -313,6 +313,8 @@ setGeneric("run_port_backtest", function(signals_m_df, fwd_return_m_df, liquidit
 #' @param config A `port_backtest_config` object defining portfolio construction logic and constraints.
 #' @param sb_backtest_results (Optional) An `sb_backtest_results` or `sb_metabacktest_results` object. If provided, its predictions are used in place of signals.
 #' @param stock_groups_m_df (Optional) Sector or group data for use in group constraints.
+#' @param scaler_m_df A meta_dataframe containing information to scale exp_ret_score
+#' @param target_port_m_df (Optional) Target portfolio weights for shrinkage.
 #' @param benchmark_weights_m_df (Optional) Benchmark stock weights.
 #' @param daily_stock_returns_m_xts (Optional) Daily stock returns for covariance estimation.
 #' @param daily_bench_returns_m_xts (Optional) Daily benchmark returns (only if active returns are used).

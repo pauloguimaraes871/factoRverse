@@ -8,8 +8,6 @@
 }
 \arguments{
 \item{object}{A \code{hrp_parameters} object.}
-
-\item{hide_title}{Logical indicating whether to hide the title when displaying the parameters. Default is FALSE.}
 }
 \description{
 Displays the hierarchical risk parity configuration contained in a \code{hrp_parameters} object.

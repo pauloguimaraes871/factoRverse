@@ -72,6 +72,10 @@ cap-weighted allocations.}
 
 \item{exp_ret_score_tilt}{(Optional) Expected return tilt applied under risk parity.}
 
+\item{exp_ret_score_tilt_eta}{(Optional) Tilt intensity for expected return tilt.}
+
+\item{linkage}{(Optional) Linkage method for hierarchical clustering in risk parity.}
+
 \item{n_random_ports}{(Optional) Number of random portfolios used for resampling.}
 
 \item{random_ports_method}{(Optional) Sampling method for random portfolios.}

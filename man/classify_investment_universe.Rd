@@ -108,6 +108,8 @@ All tickers in the current stock universe must have a unique correspondence in t
 
 \item{asset_object}{A character indicating whether the analysis is being applied to "stocks" or "signal_portfolios"}
 
+\item{use_raw_for_eligibility}{Logical. If TRUE, uses raw scores for eligibility filtering.}
+
 \item{verbose}{A logical indicating whether to print messages during the function execution.}
 }
 \description{

@@ -67,6 +67,7 @@ utils::globalVariables(c(
   "posterior_theme_beta", "posterior_theme_beta.lower", "posterior_theme_beta.upper", ".width", "posterior_specific_risk",
   "hyperparameter", "lower", "Correlation", "bin_label", "metric", "t value", "non_na_count", "AssetRow", "sd_value",
   "out_trd_rg_not_only_NA_TRUE", "out_trd_rg_not_only_NA_FALSE", "hyperparameters_combination", "max_possible",
-  "alpha_t_stat"
+  "alpha_t_stat", "exp_ret_score_temp", "custom_weights_m_d_ref", "target_weights", "base_weights", "exp_ret_score_raw",
+  "scaler", "macro_cap_weighting_metric", "size_abs", "weight", "size"
 ))
 

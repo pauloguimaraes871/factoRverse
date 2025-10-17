@@ -76,10 +76,16 @@ All tickers in the current stock universe must have a unique correspondence in t
 \item{ridge_pen}{Optional. A numeric value representing the ridge penalty to be applied when a target portfolio is provided.
 Higher values will increase the importance of being close to the target portfolio.}
 
+\item{n_resamples}{An integer indicating the number of resamples to be performed. Default is 0 (no resampling).}
+
+\item{exp_ret_score_jitter}{A numeric value indicating the standard deviation of the normal distribution used to jitter expected return scores.
+A value of 0 means no jittering. Default is 0.}
+
+\item{cov_eigval_jitter}{A numeric value indicating the standard deviation of the log-normal distribution used to jitter the eigenvalues of the covariance matrix.}
+
 \item{verbose}{A logical indicating whether to print messages during the execution of the function.}
 
-\item{target_port_m_d_ref}{Optional. A dataframe with tickers and target_weights columns representing a target portfolio.
-If provided, the optimization will consider a ridge penalty to select a portfolio that is closer to the target portfolio.}
+\item{prallel}{A logical indicating whether to run resamples in parallel using the furrr package.}
 }
 \description{
 Create a Resampled MVO portfolio

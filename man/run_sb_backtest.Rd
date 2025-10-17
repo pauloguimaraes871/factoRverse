@@ -84,6 +84,8 @@ run_sb_backtest(
 
 \item{signal_themes_m_df}{A \code{meta_dataframe} with theme classifications (optional).}
 
+\item{target_port_m_df}{(Optional) Target portfolio weights for shrinkage.}
+
 \item{custom_signal_weights_m_df}{A \code{meta_dataframe} with predefined signal weights (optional).}
 
 \item{custom_signal_universe_metrics_m_df}{A \code{meta_dataframe} with signal-level metrics (optional).}

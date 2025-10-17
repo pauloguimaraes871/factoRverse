@@ -18,7 +18,7 @@
 #' @param universe_m_d_ref A data.frame/tibble with (at least) columns:
 #'   `id`, `tickers`, `dates`, `is_eligible`, `exp_ret_score`, and any optional
 #'   columns used by the micro methods (e.g., benchmark/target weights, liquidity features).
-#'   Should refer to a **single date** (the \dQuote{d\_ref} convention).
+#'   Should refer to a **single date**.
 #' @param mmaf_method Character scalar: `"top_down"` or `"bottom_up"`.
 #' @param covariance_matrix Numeric covariance matrix with row/col names that
 #'   exactly match the `tickers` of eligible names (same ordering is enforced).
@@ -51,6 +51,7 @@
 #' @param cov_eigval_jitter Numeric, jitter on covariance eigenvalues (micro MVO).
 #' @param rp_method Character, risk parity method at micro level (e.g., `"cyclical-spinu"`).
 #' @param exp_ret_score_tilt Optional numeric vector/column name for RP tilt (micro).
+#' @param exp_ret_score_tilt_eta Optional numeric, tilt intensity for micro RP.
 #' @param macro_port_construction_method Character macro method used to allocate across groups
 #'   (e.g., `"ew"`, `"rp"`, `"hrp"`, `"mvo"`). For a strictly *neutral* top-down
 #'   sector allocation, prefer `"ew"`, `"rp"` or `"hrp"` and keep `macro_exp_ret_score_tilt = NULL`.
@@ -87,7 +88,7 @@
 #' Micro-level concentration constraints may no longer hold exactly after reconciliation.
 #'
 #' The function assumes (by your upstream contract) that:
-#' - `universe_m_d_ref` / `groups_m_d_ref` / `liquidity_m_d_ref` are all single-date (\dQuote{d\_ref}).
+#' - `universe_m_d_ref` / `groups_m_d_ref` / `liquidity_m_d_ref` are all single-date.
 #' - `covariance_matrix` row/col names match the eligible tickers (same ordering).
 #' - `port@universe_m_d_ref@data` carries liquidity columns when those are used.
 #' - `mmaf_group_col` is the 4th column of `groups_m_d_ref` (enforced by a wrapper).
@@ -697,32 +698,23 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
 #'   any constraint or ridge penalty is defined.
 #' @param micro_port_construction_method Character. Method used for portfolio
 #'   construction within the group (e.g., `"mvo"`, `"risk_parity"`).
-#'
-#' @section Core Data:
 #' @param group_members List mapping group names to member tickers.
 #' @param universe_m_d_ref Data frame with stock-level reference data, including
 #'   tickers and optional benchmark/target weights.
 #' @param covariance_matrix Numeric covariance matrix covering all tickers.
 #' @param liquidity_m_d_ref (Optional) Data frame with liquidity metrics for
 #'   the full universe.
-#'
-#' @section Constraint Policies:
 #' @param concentration_constraint_policy (Optional) Policy object controlling
 #'   max active weights at stock level.
 #' @param turnover_constraint_policy (Optional) Policy object controlling stock
 #'   or group-level turnover caps.
 #' @param liquidity_constraint_policy (Optional) Policy object controlling stock
 #'   or group-level liquidity caps.
-#'
-#' @section Portfolio Parameters:
 #' @param cap_weighting_metric (Optional) Market cap or related metric for
 #'   cap-weighted allocations.
-#'
-#' @section Risk Parity:
 #' @param rp_method (Optional) Risk parity method.
 #' @param exp_ret_score_tilt (Optional) Expected return tilt applied under risk parity.
-#'
-#' @section MVO:
+#' @param exp_ret_score_tilt_eta (Optional) Tilt intensity for expected return tilt.
 #' @param n_random_ports (Optional) Number of random portfolios used for resampling.
 #' @param random_ports_method (Optional) Sampling method for random portfolios.
 #' @param opt_objective (Optional) Optimization objective (e.g., `"min_var"`, `"sharpe"`).
@@ -731,8 +723,7 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
 #' @param n_resamples (Optional) Number of resamples used in MVO.
 #' @param exp_ret_score_jitter (Optional) Jitter applied to expected return scores.
 #' @param cov_eigval_jitter (Optional) Jitter applied to covariance eigenvalues.
-#'
-#' @section Winsorization:
+#' @param linkage (Optional) Linkage method for hierarchical clustering in risk parity.
 #' @param lower_quantile_winsorization (Optional) Lower quantile cutoff.
 #' @param upper_quantile_winsorization (Optional) Upper quantile cutoff.
 #'

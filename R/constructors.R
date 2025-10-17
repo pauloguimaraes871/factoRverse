@@ -3223,6 +3223,7 @@ create_mvo_parameters <- function(opt_method = "random",
 #' @param n_resamples A numeric value indicating the number of bootstrap resamples to perform
 #' @param exp_ret_score_jitter A numeric value indicating the jitter to be applied to the expected return scores
 #' @param cov_eigval_jitter A numeric value indicating the jitter to be applied to the covariance matrix eigenvalues
+#' @param level A character indicating the level to which the parameters should be applied when using 'mmaf' strategy.
 #' @param ... Additional arguments used to create a new `mvo_parameters` object when `mvo_params` is missing.
 #'   These arguments must include:
 #'   \itemize{
@@ -3455,6 +3456,9 @@ create_rp_parameters <- function(rp_method = "cyclical-spinu",
 #' @param object An object of class `sb_backtest_config` or `port_backtest_config`.
 #' @param rp_params An object of class `rp_parameters`, or missing if a new object is to be created.
 #' @param rp_method A character indicating the method to compute the risk-parity solution.
+#' @param exp_ret_score_tilt A character value indicating the tilt to apply to the expected return score.
+#' @param exp_ret_score_tilt_eta A numeric indicating the tilt intensity to apply to the expected return score.
+#' @param level A character indicating the level to which the parameters should be applied when using 'mmaf' strategy.
 #' @param ... Additional arguments used to create a new `rp_parameters` object when `rp_params` is missing.
 #'   These arguments must include:
 #'   \itemize{
@@ -3655,6 +3659,9 @@ create_hrp_parameters <- function(linkage = "single",
 #' @param object An object of class `sb_backtest_config` or `port_backtest_config`.
 #' @param hrp_params An object of class `hrp_parameters`, or missing if a new object is to be created.
 #' @param linkage Character indicating the linkage method to use for hierarchical clustering.
+#' @param exp_ret_score_tilt A character value indicating the tilt to apply to the expected return score.
+#' @param exp_ret_score_tilt_eta A numeric indicating the tilt intensity to apply to the expected return score.
+#' @param level A character indicating the level to which the parameters should be applied when using 'mmaf' strategy.
 #' @param ... Additional arguments used to create a new `hrp_parameters` object when `hrp_params` is missing.
 #'   These arguments must include:
 #'   \itemize{

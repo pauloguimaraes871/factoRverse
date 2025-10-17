@@ -194,7 +194,7 @@ create_mvo_portfolio <- function(universe_m_d_ref,
       ### Calculate squared differences to target weights
       dplyr::mutate(
         dplyr::across(
-          .cols = starts_with("V"),
+          .cols = dplyr::starts_with("V"),
           .fns = ~ (. - target_weights)^2,
           .names = "diff_{col}"
         )
@@ -276,6 +276,10 @@ create_mvo_portfolio <- function(universe_m_d_ref,
 #' @param covariance_matrix The covariance matrix of all eligible stocks in universe_m_d_ref.
 #' @param random_ports_method A character indicating the method to be used for generating random portfolios. Possible values are "random" or "grid".
 #' @param n_random_ports An integer indicating the number of random portfolios to be generated.
+#' @param n_resamples An integer indicating the number of resamples to be performed. Default is 0 (no resampling).
+#' @param exp_ret_score_jitter A numeric value indicating the standard deviation of the normal distribution used to jitter expected return scores.
+#' A value of 0 means no jittering. Default is 0.
+#' @param cov_eigval_jitter A numeric value indicating the standard deviation of the log-normal distribution used to jitter the eigenvalues of the covariance matrix.
 #' @param liquidity_constraint_policy Optional. A named list containing objects used to apply liquidity constraints. Possible elements of the list are:
 #' - `liquidity_floor_rule`: A character indicating the liquidity classification (e.g., micro_caps, small_caps) used to filter stocks. Stocks with less liquidity than specified in `liquidity_floor_rule` will be considered ineligible.
 #'   In the case of the `generate_box_constraints` function, `liquidity_constraint_policy` can also contain:
@@ -301,12 +305,10 @@ create_mvo_portfolio <- function(universe_m_d_ref,
 #' @param opt_objective A character describing the objective to maximize in order to choose the best portfolio. One of "return (max return)",
 #' "risk (min risk)" or "sharpe (max sharpe-ratio)"
 #' @param opt_method A character describing the optimization method to be used. One of "random" or "DEoptim".
-#' @param target_port_m_d_ref Optional. A dataframe with tickers and target_weights columns representing a target portfolio.
-#' If provided, the optimization will consider a ridge penalty to select a portfolio that is closer to the target portfolio.
 #' @param ridge_pen Optional. A numeric value representing the ridge penalty to be applied when a target portfolio is provided.
 #' Higher values will increase the importance of being close to the target portfolio.
 #' @param verbose A logical indicating whether to print messages during the execution of the function.
-#'
+#' @param prallel A logical indicating whether to run resamples in parallel using the furrr package.
 #' @export
 create_resampled_mvo_portfolio <- function(universe_m_d_ref,
                                            covariance_matrix,

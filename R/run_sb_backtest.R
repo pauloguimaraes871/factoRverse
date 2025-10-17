@@ -24,6 +24,7 @@ setGeneric("update_sb_backtest", function(features_m_df, target_m_df, old_result
 #' @param updated_backtest_returns_m_xts An optional `meta_xts` containing new backtest returns.
 #' @param benchmark_returns_m_xts Optional `meta_xts` of benchmark returns.
 #' @param signal_themes_m_df Optional `meta_dataframe` with theme classification used in RP/MVO strategies.
+#' @param target_port_m_df (Optional) Target portfolio weights for shrinkage.
 #' @param custom_signal_weights_m_df Optional `meta_dataframe` with custom weights for signals.
 #' @param custom_signal_universe_metrics_m_df Optional `meta_dataframe` with custom signal metrics.
 #' @param .test_seed Optional numeric seed for reproducibility during testing.
@@ -459,6 +460,7 @@ setMethod("update_sb_backtest",
 #' @param ss_backtest_results An `ss_backtest_results` object (optional).
 #' @param port_backtest_cohort A `port_backtest_cohort` object (optional).
 #' @param backtest_returns_m_xts A `meta_xts` object of returns (optional).
+#' @param target_port_m_df (Optional) Target portfolio weights for shrinkage.
 #' @param benchmark_returns_m_xts A `meta_xts` benchmark (optional).
 #' @param signal_themes_m_df A `meta_dataframe` with theme classifications (optional).
 #' @param custom_signal_weights_m_df A `meta_dataframe` with predefined signal weights (optional).

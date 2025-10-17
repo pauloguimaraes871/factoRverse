@@ -173,7 +173,7 @@ create_risk_parity_portfolio <- function(universe_m_d_ref, covariance_matrix,
   if (any(rp$w < -tol_violation) || any(rp$w > 1 + tol_violation)) {
     stop(crayon::red(
       "\nSome weights fall outside the feasible range [0,1] beyond tolerance.\n",
-      "→ Suggestion: apply constraints to control weight bounds.\n"
+      "-> Suggestion: apply constraints to control weight bounds.\n"
     ))
   } else if (any(rp$w < 0)) {
     # Only tiny negatives -> clip to 0 and renormalize
@@ -196,7 +196,7 @@ create_risk_parity_portfolio <- function(universe_m_d_ref, covariance_matrix,
     if (has_constraints){
       warning(crayon::yellow(
         "\nApplying final tilt may violate previously set box constraints.\n",
-        "→ Suggestion: consider using 'inner' tilt instead of 'final' tilt.\n"
+        "-> Suggestion: consider using 'inner' tilt instead of 'final' tilt.\n"
       ))
     }
 
@@ -211,35 +211,35 @@ create_risk_parity_portfolio <- function(universe_m_d_ref, covariance_matrix,
   }
 
   # Return weights---------------------------------------------------------------
-    ## Get weights and RRC
-    rp_weights <- data.frame(tickers = names(rp$w), weights = rp$w)
+  ## Get weights and RRC
+  rp_weights <- data.frame(tickers = names(rp$w), weights = rp$w)
 
-    ## Merge with current_stock_universe
-    universe_m_d_ref <- dplyr::left_join(universe_m_d_ref, rp_weights, by = "tickers")
+  ## Merge with current_stock_universe
+  universe_m_d_ref <- dplyr::left_join(universe_m_d_ref, rp_weights, by = "tickers")
 
-    ## Replace NAs with zeros
-    universe_m_d_ref[which(is.na(universe_m_d_ref$weights)),"weights"] <- 0
+  ## Replace NAs with zeros
+  universe_m_d_ref[which(is.na(universe_m_d_ref$weights)),"weights"] <- 0
 
-    ## Check for weights different from 1
-    if (abs(sum(universe_m_d_ref$weights) - 1) > 1e-6){
-      stop("Weights do not sum to 1")
-    }
+  ## Check for weights different from 1
+  if (abs(sum(universe_m_d_ref$weights) - 1) > 1e-6){
+    stop("Weights do not sum to 1")
+  }
 
-    ## Message
-    if(verbose){
-      cat("\n")
-      cat(crayon::green(paste("Risk Parity weights succesfully defined")))
-      cat("\n")
-      tictoc::toc()
-    }
+  ## Message
+  if(verbose){
+    cat("\n")
+    cat(crayon::green(paste("Risk Parity weights succesfully defined")))
+    cat("\n")
+    tictoc::toc()
+  }
 
-    ## Return
-    rp_results_list <- list(
-      universe_m_d_ref = universe_m_d_ref,
-      weights = universe_m_d_ref$weights,
-      rel_risk_contr = rp$relative_risk_contribution
-    )
+  ## Return
+  rp_results_list <- list(
+    universe_m_d_ref = universe_m_d_ref,
+    weights = universe_m_d_ref$weights,
+    rel_risk_contr = rp$relative_risk_contribution
+  )
 
-    return(rp_results_list)
+  return(rp_results_list)
 
 }

@@ -45,7 +45,13 @@ These arguments must include:
 \item \strong{rp_method}: A character indicating the method to compute the risk-parity solution.
 }}
 
+\item{level}{A character indicating the level to which the parameters should be applied when using 'mmaf' strategy.}
+
 \item{rp_method}{A character indicating the method to compute the risk-parity solution.}
+
+\item{exp_ret_score_tilt}{A character value indicating the tilt to apply to the expected return score.}
+
+\item{exp_ret_score_tilt_eta}{A numeric indicating the tilt intensity to apply to the expected return score.}
 }
 \value{
 An updated object of class \code{sb_backtest_config} or \code{port_backtest_config} with

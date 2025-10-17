@@ -2290,16 +2290,16 @@ setMethod("plot", signature(x = "bayesian_opt_strategy", y = "missing"), functio
 
   # Define labels for each transformation
   transformation_labels <- list(
-    "num.trees" = "/10\u00b2",           # ² → \u00b2
+    "num.trees" = "/10\u00b2",           # ² -> \u00b2
     "max.depth" = "/10",
     "min.bucket" = "/10",
     "min_child_weight" = "/10",
     "gamma" = "/10",
-    "nrounds" = "/10\u00b2",             # ² → \u00b2
+    "nrounds" = "/10\u00b2",             # ² -> \u00b2
     "regularizer_l1" = "/10",
     "regularizer_l2" = "/10",
-    "size_of_batch" = "(log\u2082)",     # ₂ → \u2082
-    "number_of_epochs" = "/10\u00b2"     # ² → \u00b2
+    "size_of_batch" = "(log\u2082)",     # ₂ -> \u2082
+    "number_of_epochs" = "/10\u00b2"     # ² -> \u00b2
   )
 
 
@@ -5840,7 +5840,7 @@ setMethod(
         }
 
         if (options_list[selection] == "Groups portfolio (group-level)") {
-          message("→ Plotting macro-level portfolio...")
+          message("-> Plotting macro-level portfolio...")
           plot(x@macro, type = type, ...)
           return(invisible())
         }
@@ -5866,13 +5866,13 @@ setMethod(
             stop("Invalid micro slot structure — expected list of 'port' objects.")
           }
 
-          message("→ Plotting selected micro-level portfolio...")
+          message("-> Plotting selected micro-level portfolio...")
           plot(selected_micro, type = type, ...)
           return(invisible())
         }
 
         # If the user selects "Overall", fall through and continue with standard plotting
-        message("→ Plotting overall MMAF portfolio...")
+        message("-> Plotting overall MMAF portfolio...")
       }
     }
 
@@ -7062,12 +7062,12 @@ setMethod(
         stats::rect.hclust(hc_sub, k = k_in, border = neon_green)
       }
 
-      message("→ Dendrogram plotted successfully with the selected subset of assets.")
+      message("-> Dendrogram plotted successfully with the selected subset of assets.")
       return(invisible(hc_sub))
     }
 
     #------------------------------------------------------------------------------------------------
-    # 10) Allocation Flow (Groups -> Assets) — bipartite (Macro → Micro) flow using ggraph
+    # 10) Allocation Flow (Groups -> Assets) — bipartite (Macro -> Micro) flow using ggraph
     #------------------------------------------------------------------------------------------------
     if (type == "Allocation Flow (Groups -> Assets)") {
 
@@ -7098,7 +7098,7 @@ setMethod(
       g_choice <- suppressWarnings(as.integer(readline()))
       if (is.na(g_choice) || g_choice < 1 || g_choice > nrow(macro_tbl)) {
         g_choice <- min(nrow(macro_tbl), 10L)
-        message("→ Using default top ", g_choice, " groups.")
+        message("-> Using default top ", g_choice, " groups.")
       }
       keep_groups <- macro_tbl[[main_group_col]][seq_len(g_choice)]
 
@@ -7109,7 +7109,7 @@ setMethod(
       n_choice <- suppressWarnings(as.integer(readline()))
       if (is.na(n_choice) || n_choice < 1) {
         n_choice <- 8L
-        message("→ Using default top ", n_choice, " assets per group.")
+        message("-> Using default top ", n_choice, " assets per group.")
       }
 
       final_df <- final_df %>%
@@ -7363,7 +7363,7 @@ setMethod(
       g_choice <- suppressWarnings(as.integer(readline()))
       if (is.na(g_choice) || g_choice < 1 || g_choice > nrow(gsum)) {
         g_choice <- min(nrow(gsum), 9L)
-        message("→ Using default top ", g_choice, " groups.")
+        message("-> Using default top ", g_choice, " groups.")
       }
       keep_groups <- gsum[[main_group_col]][seq_len(g_choice)]
 
@@ -7371,7 +7371,7 @@ setMethod(
       n_choice <- suppressWarnings(as.integer(readline()))
       if (is.na(n_choice) || n_choice < 1) {
         n_choice <- 10L
-        message("→ Using default top ", n_choice, " assets per group.")
+        message("-> Using default top ", n_choice, " assets per group.")
       }
 
       dfp <- df %>%
@@ -7506,7 +7506,7 @@ setMethod(
       g_choice <- suppressWarnings(as.integer(readline()))
       if (is.na(g_choice) || g_choice < 1 || g_choice > nrow(g_rc)) {
         g_choice <- min(nrow(g_rc), 8L)
-        message("→ Using default top ", g_choice, " groups by RRC.")
+        message("-> Using default top ", g_choice, " groups by RRC.")
       }
       keep_groups <- g_rc[[main_group_col]][seq_len(g_choice)]
 

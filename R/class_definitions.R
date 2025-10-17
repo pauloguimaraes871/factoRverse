@@ -2628,7 +2628,6 @@ setClass(
 #' enable_theme_representativeness is TRUE.
 #' Note that, in the context of stocks, a `benchmark_weights_m_d_ref` data frame must also be supplied.
 #' @slot transaction_costs_parameters An object of class `transaction_costs_parameters` containing the parameters for calculating direct and indirect costs.
-#' @slot macro_port_backtest_config An object of class `macro_port_backtest_config` containing the configuration for the macro-level port
 #' @slot config_name A character string representing the name of the configuration.
 #'
 #' @export

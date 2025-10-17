@@ -2658,12 +2658,12 @@ methods::setMethod("summary", "port", function(object, summary_id = NULL){
   ## 1) Portfolio Metrics -----------------------------------------------------
   if (table_name == "Portfolio Metrics") {
     w   <- object@weights
-    Σ   <- object@covariance_matrix
-    ρ   <- object@correlation_matrix
+    sigma   <- object@covariance_matrix
+    rho   <- object@correlation_matrix
     rrc <- if (!is.null(object@rel_risk_contr)) as.numeric(object@rel_risk_contr) else NULL
 
     port_exp_ret <- if (!is.null(object@exp_ret_score)) as.numeric(w %*% object@exp_ret_score) else NA_real_
-    port_risk    <- if (!is.null(Σ)) sqrt(as.numeric(t(w) %*% Σ %*% w)) else NA_real_
+    port_risk    <- if (!is.null(sigma)) sqrt(as.numeric(t(w) %*% sigma %*% w)) else NA_real_
     port_sharpe  <- if (!is.na(port_exp_ret) && !is.na(port_risk) && !isTRUE(all.equal(port_risk, 0))) port_exp_ret / port_risk else NA_real_
 
     metrics <- list(
@@ -2678,8 +2678,8 @@ methods::setMethod("summary", "port", function(object, summary_id = NULL){
       "Top-10 weight"            = top_k_concentration(w, 10L),
       "Gross Exposure"           = gross_exposure(w),
       "Net Exposure"             = net_exposure(w),
-      "Diversification Ratio"    = if (!is.null(Σ)) diversification_ratio(w, Σ) else NA_real_,
-      "Wtd Avg Pairwise Corr"    = if (!is.null(ρ)) weighted_avg_pairwise_corr(w, ρ) else NA_real_,
+      "Diversification Ratio"    = if (!is.null(sigma)) diversification_ratio(w, sigma) else NA_real_,
+      "Wtd Avg Pairwise Corr"    = if (!is.null(rho)) weighted_avg_pairwise_corr(w, rho) else NA_real_,
       "HHI (risk contrib)"       = if (!is.null(rrc)) hhi_rrc(rrc) else NA_real_,
       "Eff. N (risk contrib)"    = if (!is.null(rrc)) effective_n_rrc(rrc) else NA_real_,
       "RRC distance to ERC (L2)" = if (!is.null(rrc)) rrc_distance_to_erc(rrc) else NA_real_

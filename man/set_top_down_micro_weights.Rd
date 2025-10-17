@@ -67,6 +67,10 @@ cap-weighted allocations.}
 
 \item{exp_ret_score_tilt}{(Optional) Expected return tilt applied under risk parity.}
 
+\item{exp_ret_score_tilt_eta}{(Optional) Tilt intensity for expected return tilt.}
+
+\item{linkage}{(Optional) Linkage method for hierarchical clustering in risk parity.}
+
 \item{n_random_ports}{(Optional) Number of random portfolios used for resampling.}
 
 \item{random_ports_method}{(Optional) Sampling method for random portfolios.}
@@ -107,30 +111,6 @@ the group weight.
 \item Removes pre-existing weight columns if no constraints are active.
 }
 }
-\section{Core Data}{
-
-}
-
-\section{Constraint Policies}{
-
-}
-
-\section{Portfolio Parameters}{
-
-}
-
-\section{Risk Parity}{
-
-}
-
-\section{MVO}{
-
-}
-
-\section{Winsorization}{
-
-}
-
 \seealso{
 \code{\link[=process_micro_portfolios]{process_micro_portfolios()}}, \code{\link[=set_portfolio_weights]{set_portfolio_weights()}}
 }

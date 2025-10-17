@@ -335,9 +335,9 @@ setMethod("compute_window",
             ###############
             meta_xts_workflow <- data@workflow
             meta_xts_name <- data@meta_xts_name
-            if (class(data) == "metrics_meta_xts") {
+            if (methods::is(data, "metrics_meta_xts")) {
               meta_xts_type <-  "metrics"
-            } else if (class(data) == "returns_meta_xts"){
+            } else if (methods::is(data, "returns_meta_xts")){
               meta_xts_type <- "returns"
             } else {
               stop("Unsupported meta_xts class. Only 'metrics_meta_xts' and 'returns_meta_xts' are supported.")

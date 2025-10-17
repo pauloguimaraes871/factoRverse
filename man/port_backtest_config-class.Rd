@@ -92,8 +92,6 @@ Note that, in the context of stocks, a \code{benchmark_weights_m_d_ref} data fra
 
 \item{\code{transaction_costs_parameters}}{An object of class \code{transaction_costs_parameters} containing the parameters for calculating direct and indirect costs.}
 
-\item{\code{macro_port_backtest_config}}{An object of class \code{macro_port_backtest_config} containing the configuration for the macro-level port}
-
 \item{\code{config_name}}{A character string representing the name of the configuration.}
 }}
 

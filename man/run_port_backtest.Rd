@@ -57,6 +57,8 @@ run_port_backtest(
 
 \item{sb_backtest_results}{(Optional) An \code{sb_backtest_results} or \code{sb_metabacktest_results} object. If provided, its predictions are used in place of signals.}
 
+\item{scaler_m_df}{A meta_dataframe containing information to scale exp_ret_score}
+
 \item{stock_groups_m_df}{(Optional) Sector or group data for use in group constraints.}
 
 \item{benchmark_weights_m_df}{(Optional) Benchmark stock weights.}
@@ -66,6 +68,8 @@ run_port_backtest(
 \item{daily_bench_returns_m_xts}{(Optional) Daily benchmark returns (only if active returns are used).}
 
 \item{benchmark_returns_m_xts}{(Optional) Monthly benchmark returns, used to compute active returns and benchmark-relative metrics.}
+
+\item{target_port_m_df}{(Optional) Target portfolio weights for shrinkage.}
 
 \item{custom_stock_weights_m_df}{(Optional) User-defined portfolio weights (used only with \code{port_construction_method = "custom_weights"}).}
 

@@ -68,6 +68,8 @@ update_sb_backtest(features_m_df, target_m_df, old_results, ...)
 
 \item{signal_themes_m_df}{Optional \code{meta_dataframe} with theme classification used in RP/MVO strategies.}
 
+\item{target_port_m_df}{(Optional) Target portfolio weights for shrinkage.}
+
 \item{custom_signal_weights_m_df}{Optional \code{meta_dataframe} with custom weights for signals.}
 
 \item{custom_signal_universe_metrics_m_df}{Optional \code{meta_dataframe} with custom signal metrics.}

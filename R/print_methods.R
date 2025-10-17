@@ -1836,7 +1836,6 @@ setMethod("show", "cov_est_method", function(object) {
 #' @title Show MVO Parameters
 #' @description Displays the mean-variance optimization parameters contained in a `mvo_parameters` object.
 #' @param object A `mvo_parameters` object.
-#' @param hide_title Logical indicating whether to hide the title when displaying the parameters. Default is FALSE.
 #' @method show mvo_parameters
 #' @export
 methods::setMethod("show", "mvo_parameters", function(object) {
@@ -1864,7 +1863,6 @@ methods::setMethod("show", "mvo_parameters", function(object) {
 #' @title Show Risk-Parity Parameters
 #' @description Displays the risk-parity configuration contained in a `rp_parameters` object.
 #' @param object A `rp_parameters` object.
-#' @param hide_title Logical indicating whether to hide the title when displaying the parameters. Default is FALSE.
 #' @method show rp_parameters
 #' @export
 methods::setMethod("show", "rp_parameters", function(object) {
@@ -1884,7 +1882,6 @@ methods::setMethod("show", "rp_parameters", function(object) {
 #' @title Show HRP Parameters
 #' @description Displays the hierarchical risk parity configuration contained in a `hrp_parameters` object.
 #' @param object A `hrp_parameters` object.
-#' @param hide_title Logical indicating whether to hide the title when displaying the parameters. Default is FALSE.
 #' @method show hrp_parameters
 #' @export
 methods::setMethod("show", "hrp_parameters", function(object) {

@@ -69,6 +69,7 @@
 #' - `max_abs_active_group_weight`: The maximum absolute group active weight used for creating group constraints in `generate_group_constraints`.
 #' If a given group has no eligible asset, the one with the greatest signal will be automatically promoted.
 #' Note that, in the context of `generate_group_constraints`, a `benchmark_weights_m_d_ref` data frame must also be supplied.
+#' @param use_raw_for_eligibility Logical. If TRUE, uses raw scores for eligibility filtering.
 #' @param is_mmaf If TRUE, indicates that the concentration_constraint_policy refers to macro level and thus forces group eligibility.
 #' @param target_port_m_d_ref Optional. A data frame containing columns for id, tickers, dates, and target portfolio weights.
 #' @param ridge_pen Optional. A numeric value indicating the ridge penalty to be used when shrinking MVO weights towards the target portfolio.
@@ -102,7 +103,7 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
   ###Check objects
   #################
   ##Check if last col is exp_ret_score
-  if (!identical(tail(names(universe_m_d_ref), 1), "exp_ret_score")){
+  if (!identical(utils::tail(names(universe_m_d_ref), 1), "exp_ret_score")){
     stop("last column of universe_m_d_ref must be exp_ret_score")
   }
 

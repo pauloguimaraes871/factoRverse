@@ -54,7 +54,7 @@ create_mmaf_portfolio(
 \item{universe_m_d_ref}{A data.frame/tibble with (at least) columns:
 \code{id}, \code{tickers}, \code{dates}, \code{is_eligible}, \code{exp_ret_score}, and any optional
 columns used by the micro methods (e.g., benchmark/target weights, liquidity features).
-Should refer to a \strong{single date} (the \dQuote{d\_ref} convention).}
+Should refer to a \strong{single date}.}
 
 \item{mmaf_method}{Character scalar: \code{"top_down"} or \code{"bottom_up"}.}
 
@@ -108,6 +108,8 @@ by \code{set_portfolio_weights()}).}
 \item{rp_method}{Character, risk parity method at micro level (e.g., \code{"cyclical-spinu"}).}
 
 \item{exp_ret_score_tilt}{Optional numeric vector/column name for RP tilt (micro).}
+
+\item{exp_ret_score_tilt_eta}{Optional numeric, tilt intensity for micro RP.}
 
 \item{macro_port_construction_method}{Character macro method used to allocate across groups
 (e.g., \code{"ew"}, \code{"rp"}, \code{"hrp"}, \code{"mvo"}). For a strictly \emph{neutral} top-down
@@ -188,7 +190,7 @@ Micro-level concentration constraints may no longer hold exactly after reconcili
 
 The function assumes (by your upstream contract) that:
 \itemize{
-\item \code{universe_m_d_ref} / \code{groups_m_d_ref} / \code{liquidity_m_d_ref} are all single-date (\dQuote{d\_ref}).
+\item \code{universe_m_d_ref} / \code{groups_m_d_ref} / \code{liquidity_m_d_ref} are all single-date.
 \item \code{covariance_matrix} row/col names match the eligible tickers (same ordering).
 \item \code{port@universe_m_d_ref@data} carries liquidity columns when those are used.
 \item \code{mmaf_group_col} is the 4th column of \code{groups_m_d_ref} (enforced by a wrapper).

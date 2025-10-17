@@ -62,6 +62,8 @@ Only needed when \code{opt_method} is 'random'.
 Possible options are 'return', 'risk' or 'sharpe'.
 }}
 
+\item{level}{A character indicating the level to which the parameters should be applied when using 'mmaf' strategy.}
+
 \item{opt_method}{A character indicating the optimization method.}
 
 \item{random_ports_method}{A character string representing the method to generate random portfolios.}

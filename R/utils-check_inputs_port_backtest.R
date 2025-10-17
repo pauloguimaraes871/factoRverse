@@ -14,6 +14,11 @@
 #' @param rp_method A parameter specifying the risk parity method to be applied (when applicable).
 #' @param exp_ret_score_tilt A logical value indicating whether to apply expected return score tilting in risk parity or mean-variance optimization (when applicable).
 #' @param exp_ret_score_tilt_eta A numeric value specifying the exponent used for expected return score tilting (when applicable).
+#' @param chosen_scaler Character. Column name in `scaler_m_df` defining the scaling variable.
+#' @param scaler_m_df Optional `meta_dataframe` with scaling parameters.
+#' @param scaler_shrinkage Numeric. Shrinkage factor for scaling.
+#' @param use_raw_for_eligibility Logical. If TRUE, uses raw scores for eligibility filtering.
+#' @param linkage Character. Linkage method for hierarchical clustering in HRP.
 #' @param n_random_ports A numeric value indicating the number of random portfolios to generate.
 #' @param random_ports_method A parameter specifying the method for generating random portfolios.
 #' @param opt_objective A parameter defining the optimization objective.
