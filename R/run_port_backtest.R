@@ -7,6 +7,7 @@
 #' @param liquidity_m_df A meta_dataframe containing liquidity metrics.
 #' @param volatility_m_df A meta_dataframe containing volatility metrics.
 #' @param scaler_m_df An optional meta_dataframe containing scaling factors, if applicable.
+#' @param target_port_m_df An optional meta_dataframe containing target portfolio weights for shrinkage, if applicable.
 #' @param old_results An object of class \code{port_backtest_results} specifying the portfolio backtest results to be updated.
 #' @param parallel Logical; if \code{TRUE}, executes parts of the backtest in parallel (default is \code{TRUE}).
 #' @param ... Additional arguments (if needed).
@@ -42,6 +43,7 @@ setMethod("update_port_backtest",
           function(signals_m_df, fwd_return_m_df, liquidity_m_df, volatility_m_df, old_results, #Base Port Backtest Objs
                    updated_sb_backtest_results = NULL, #Updated SB Backtest Objs
                    scaler_m_df = NULL, #Scaler obj
+                   target_port_m_df = NULL, # Shrinkage
                    stock_groups_m_df = NULL, benchmark_weights_m_df = NULL, ##Constraints Objs
                    daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = NULL, #Covariance Estimation
                    custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL, #Custom Objs
@@ -92,6 +94,7 @@ setMethod("update_port_backtest",
               liquidity_m_df = liquidity_m_df,
               volatility_m_df = volatility_m_df,
               scaler_m_df = scaler_m_df,
+              target_port_m_df = target_port_m_df,
               benchmark_returns_m_xts = benchmark_returns_m_xts,
               stock_groups_m_df = stock_groups_m_df,
               benchmark_weights_m_df = benchmark_weights_m_df,
@@ -109,6 +112,7 @@ setMethod("update_port_backtest",
               liquidity_m_df = old_port_workflow_last_batch$liquidity_object_name,
               volatility_m_df = old_port_workflow_last_batch$volatility_object_name,
               scaler_m_df = old_port_workflow_last_batch$scaler_object_name,
+              target_port_m_df = old_port_workflow_last_batch$target_port_object_name,
               benchmark_returns_m_xts = old_port_workflow_last_batch$benchmark_returns_object_name,
               stock_groups_m_df = old_port_workflow_last_batch$stock_groups_object_name,
               benchmark_weights_m_df = old_port_workflow_last_batch$benchmark_weights_object_name,
@@ -126,6 +130,7 @@ setMethod("update_port_backtest",
               liquidity_m_df = old_port_workflow_last_batch$liquidity_dates,
               volatility_m_df = old_port_workflow_last_batch$volatility_dates,
               scaler_m_df = old_port_workflow_last_batch$scaler_dates,
+              target_port_m_df = old_port_workflow_last_batch$target_port_dates,
               benchmark_returns_m_xts = old_port_workflow_last_batch$benchmark_returns_dates,
               stock_groups_m_df = old_port_workflow_last_batch$stock_groups_dates,
               benchmark_weights_m_df = old_port_workflow_last_batch$benchmark_weights_dates,
@@ -180,6 +185,8 @@ setMethod("update_port_backtest",
               sb_backtest_results = updated_sb_backtest_results,
               ###Scaler obj
               scaler_m_df = scaler_m_df,
+              ### Target obj
+              target_port_m_df = target_port_m_df,
               ###Constraints Objs
               stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df, benchmark_returns_m_xts = benchmark_returns_m_xts,
               ###Covariance Estimation
@@ -344,6 +351,7 @@ setMethod("run_port_backtest",
                    scaler_m_df = NULL, #Scaler obj
                    stock_groups_m_df = NULL, benchmark_weights_m_df = NULL, ##Constraints Objs
                    daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = NULL, #Covariance Estimation and active rets
+                   target_port_m_df = NULL, # Shrinkage
                    custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL, #Custom Objs
                    winsorization_probs = c(0.025, 0.975), #Winsorization
                    verbose = TRUE, parallel = TRUE, .test_seed = NULL,
@@ -356,7 +364,7 @@ setMethod("run_port_backtest",
             chosen_score_metric_and_position <- NULL
             selected_benchmark <- NULL
             oos_predictions_m_df <- NULL
-            eligibility_quantile_range = c(0.9, 1.0)
+            eligibility_quantile_range <- c(0.9, 1.0)
             min_eligible_assets_fallback <- NULL
             scaler_shrinkage <- NULL
             chosen_scaler <- NULL
@@ -369,15 +377,38 @@ setMethod("run_port_backtest",
             cov_matrix_benchmark <- NULL
             active_returns <- TRUE
             rp_method <- "cyclical-spinu"
-            exp_ret_score_tilt = NULL
-            exp_ret_score_tilt_eta = NULL
+            linkage <- "single"
+            exp_ret_score_tilt <- NULL
+            exp_ret_score_tilt_eta <- NULL
             n_random_ports <- 2000
             random_ports_method <- "sample"
             opt_objective <- "sharpe"
             opt_method <- "random"
+            ridge_pen <- NULL
+            n_resamples <- 0
+            exp_ret_score_jitter <- 0
+            cov_eigval_jitter <- 0
             concentration_constraint_policy <- NULL
             liquidity_constraint_policy <- NULL
             turnover_constraint_policy <- NULL
+            mmaf_method <- "bottom_up"
+            top_down_proxy_port_method <- "ew"
+            mmaf_group_col <- NULL
+            micro_port_construction_method <- NULL #Micro portfolio construction method
+            macro_port_construction_method <- NULL
+            macro_concentration_constraint_policy <- NULL
+            macro_n_random_ports <- 2000
+            macro_random_ports_method <- "sample"
+            macro_opt_objective <- "sharpe"
+            macro_opt_method <- "random"
+            macro_ridge_pen <- NULL
+            macro_n_resamples <- 0
+            macro_exp_ret_score_jitter <- 0
+            macro_cov_eigval_jitter <- 0
+            macro_rp_method <- "cyclical-spinu"
+            macro_exp_ret_score_tilt <- NULL
+            macro_exp_ret_score_tilt_eta <- NULL
+            macro_linkage <- "single"
 
             ###Liq objs
             liquidity_floor_cutoffs <- NULL
@@ -519,12 +550,18 @@ setMethod("run_port_backtest",
             ##scaler_m_df
             if (!is.null(scaler_m_df)){
               scaler_workflow <- scaler_m_df@workflow #Get workflow
-
               scaler_object_name <- scaler_m_df@meta_dataframe_name #Get mdf name
               scaler_current_date <- scaler_m_df@current_date #Get current date
               scaler_m_df <- scaler_m_df@data #Get scaler_m_df
             }
 
+            ##target_port_m_df
+            if (!is.null(target_port_m_df)){
+              target_port_workflow <- target_port_m_df@workflow #Get workflow
+              target_port_object_name <- target_port_m_df@meta_dataframe_name #Get mdf name
+              target_port_current_date <- target_port_m_df@current_date #Get current date
+              target_port_m_df <- target_port_m_df@data #Get target_port_m_df
+            }
 
             ##Extract configuration parameters from the port_backtest_config object
             ###Base Backtest Config
@@ -534,6 +571,7 @@ setMethod("run_port_backtest",
             min_eligible_assets_fallback <- config@min_eligible_assets_fallback
             initial_buffer_period <- config@initial_buffer_period
             rebalancing_months <- config@rebalancing_months
+
 
             ###Port objs
             port_construction_method <- config@port_construction_method
@@ -546,8 +584,11 @@ setMethod("run_port_backtest",
             ####Liquidity
             main_liquidity_metric <- config@main_liquidity_metric
             liquidity_floor_cutoffs <- config@liquidity_floor_cutoffs
-            liquidity_constraint_policy <- as.list(config@liquidity_constraint_policy) #All port construction can have liquidity floor rule
 
+            #### Constraints
+            if (!is.null(config@liquidity_constraint_policy)) liquidity_constraint_policy <- as.list(config@liquidity_constraint_policy)
+            if (!is.null(config@turnover_constraint_policy)) turnover_constraint_policy <- as.list(config@turnover_constraint_policy)
+            if (!is.null(config@concentration_constraint_policy)) concentration_constraint_policy <- as.list(config@concentration_constraint_policy)
 
             ####Transaction costs
             transaction_costs_parameters <- as.list(config@transaction_costs_parameters)
@@ -609,25 +650,240 @@ setMethod("run_port_backtest",
             }
 
             ####Determine portfolio construction parameters based on the method
-            if (port_construction_method %in% c("rp")) {
+              #####MMAF Parameters
+              if (port_construction_method %in% c("mmaf")){
 
-              ####RP Parameters
-              rp_parameters <- config@rp_parameters
-              rp_method <- rp_parameters@rp_method
-              exp_ret_score_tilt <- rp_parameters@exp_ret_score_tilt
-              exp_ret_score_tilt_eta <- rp_parameters@exp_ret_score_tilt_eta
+                mmaf_parameters <- config@mmaf_parameters
+                mmaf_method <- mmaf_parameters@mmaf_method
+                top_down_proxy_port_method <- mmaf_parameters@top_down_proxy_port_method
+                mmaf_group_col <- mmaf_parameters@mmaf_group_col
+                micro_port_config <- mmaf_parameters@micro_port_config
+                macro_port_config <- mmaf_parameters@macro_port_config
 
-            } else if (port_construction_method %in% c("mvo")) {
+                micro_port_construction_method <- micro_port_config@port_construction_method
+                macro_port_construction_method <- macro_port_config@port_construction_method
+
+              } else {
+
+                micro_port_construction_method <- "none"
+                macro_port_construction_method <- "none"
+
+              }
+
+              #####RP Parameters
+              if (port_construction_method %in% c("rp") ||
+                  micro_port_construction_method %in% c("rp") ||
+                  macro_port_construction_method %in% c("rp")) {
+
+                ###### Extract RP parameters from either config or micro/macro config
+                if (port_construction_method %in% c("rp")){
+
+                    rp_parameters <- config@rp_parameters
+                    rp_method <- rp_parameters@rp_method
+                    exp_ret_score_tilt <- rp_parameters@exp_ret_score_tilt
+                    exp_ret_score_tilt_eta <- rp_parameters@exp_ret_score_tilt_eta
+
+                } else {
+
+                  if (micro_port_construction_method %in% c("rp")){
+
+                    rp_parameters <- micro_port_config@rp_parameters
+                    rp_method <- rp_parameters@rp_method
+                    exp_ret_score_tilt <- rp_parameters@exp_ret_score_tilt
+                    exp_ret_score_tilt_eta <- rp_parameters@exp_ret_score_tilt_eta
+
+                  }
+
+                  if (macro_port_construction_method %in% c("rp")){
+
+                    macro_rp_parameters <- macro_port_config@rp_parameters
+                    macro_rp_method <- macro_rp_parameters@rp_method
+                    macro_exp_ret_score_tilt <- macro_rp_parameters@exp_ret_score_tilt
+                    macro_exp_ret_score_tilt_eta <- macro_rp_parameters@exp_ret_score_tilt_eta
+
+                  }
+                }
+              }
+
+              #####HRP Parameters
+              if (port_construction_method %in% c("hrp") ||
+                  micro_port_construction_method %in% c("hrp") ||
+                  macro_port_construction_method %in% c("hrp")) {
+
+                ###### Extract HRP parameters from either config or micro/macro config
+                if (port_construction_method %in% c("hrp")){
+
+                  hrp_parameters <- config@hrp_parameters
+                  linkage <- hrp_parameters@linkage
+                  exp_ret_score_tilt <- hrp_parameters@exp_ret_score_tilt
+                  exp_ret_score_tilt_eta <- hrp_parameters@exp_ret_score_tilt_eta
+
+                } else {
+
+                  if (micro_port_construction_method %in% c("hrp")){
+
+                    hrp_parameters <- micro_port_config@hrp_parameters
+                    linkage <- hrp_parameters@linkage
+                    exp_ret_score_tilt <- hrp_parameters@exp_ret_score_tilt
+                    exp_ret_score_tilt_eta <- hrp_parameters@exp_ret_score_tilt_eta
+
+                  }
+
+                  if (macro_port_construction_method %in% c("hrp")){
+
+                    macro_hrp_parameters <- macro_port_config@hrp_parameters
+                    macro_linkage <- macro_hrp_parameters@linkage
+                    macro_exp_ret_score_tilt <- macro_hrp_parameters@exp_ret_score_tilt
+                    macro_exp_ret_score_tilt_eta <- macro_hrp_parameters@exp_ret_score_tilt
+
+                  }
+                }
+              }
+
               ####MVO Parameters
-              mvo_parameters <- config@mvo_parameters
-              n_random_ports <- mvo_parameters@n_random_ports
-              random_ports_method <- mvo_parameters@random_ports_method
-              opt_objective <- mvo_parameters@opt_objective
-              opt_method <- mvo_parameters@opt_method
-              ##Constraints
-              if (!is.null(config@turnover_constraint_policy)) turnover_constraint_policy <- as.list(config@turnover_constraint_policy)
-              if (!is.null(config@concentration_constraint_policy)) concentration_constraint_policy <- as.list(config@concentration_constraint_policy)
-            }
+              if (port_construction_method %in% c("mvo") ||
+                  micro_port_construction_method %in% c("mvo") ||
+                  macro_port_construction_method %in% c("mvo")) {
+
+                ###### Extract MVO parameters from either config or micro/macro config
+                if (port_construction_method %in% c("mvo")){
+
+                  mvo_parameters <- config@mvo_parameters
+                  n_random_ports <- mvo_parameters@n_random_ports
+                  random_ports_method <- mvo_parameters@random_ports_method
+                  opt_objective <- mvo_parameters@opt_objective
+                  opt_method <- mvo_parameters@opt_method
+                  ridge_pen <- mvo_parameters@ridge_pen
+                  n_resamples <- mvo_parameters@n_resamples
+                  exp_ret_score_jitter <- mvo_parameters@exp_ret_score_jitter
+                  cov_eigval_jitter <- mvo_parameters@cov_eigval_jitter
+
+                } else {
+
+                  if (micro_port_construction_method %in% c("mvo")){
+
+                    mvo_parameters <- micro_port_config@mvo_parameters
+                    n_random_ports <- mvo_parameters@n_random_ports
+                    random_ports_method <- mvo_parameters@random_ports_method
+                    opt_objective <- mvo_parameters@opt_objective
+                    opt_method <- mvo_parameters@opt_method
+                    ridge_pen <- mvo_parameters@ridge_pen
+                    n_resamples <- mvo_parameters@n_resamples
+                    exp_ret_score_jitter <- mvo_parameters@exp_ret_score_jitter
+                    cov_eigval_jitter <- mvo_parameters@cov_eigval_jitter
+                }
+
+                  if (macro_port_construction_method %in% c("mvo")){
+
+                    macro_mvo_parameters <- macro_port_config@mvo_parameters
+                    macro_n_random_ports <- macro_mvo_parameters@n_random_ports
+                    macro_random_ports_method <- macro_mvo_parameters@random_ports_method
+                    macro_opt_objective <- macro_mvo_parameters@opt_objective
+                    macro_opt_method <- macro_mvo_parameters@opt_method
+                    macro_ridge_pen <- macro_mvo_parameters@ridge_pen
+                    macro_n_resamples <- macro_mvo_parameters@n_resamples
+                    macro_exp_ret_score_jitter <- macro_mvo_parameters@exp_ret_score_jitter
+                    macro_cov_eigval_jitter <- macro_mvo_parameters@cov_eigval_jitter
+
+                  }
+                }
+              }
+
+              #### Resolve concentration_constraint_policy
+              if (length(concentration_constraint_policy) > 0){
+
+                ##### Check if port_construction_method is 'mmaf'
+                if (port_construction_method == "mmaf"){
+
+                  ##### If micro_port_construction method accepts constraints, keep concentration_constraint_policy for micro
+                  if (micro_port_construction_method %in% c("rp", "mvo")){
+
+                    ### For micro, only keep group constraints if macro_port_construction_method is mvo or rp
+                    if (length(concentration_constraint_policy$max_abs_active_group_weight > 0) &&
+                        !macro_port_construction_method %in% c("rp", "mvo")){
+                      concentration_constraint_policy$max_abs_active_group_weight <- NULL
+
+                      #### State that it was removed because it is not supported for micro
+                      warning("max_abs_active_group_weight removed from concentration_constraint_policy because it is not",
+                              "supported for micro portfolio construction when macro_port_construction_method is not 'rp' or 'mvo'.")
+                    }
+                }
+
+                  ##### If macro_port_construction_method accepts constraint, generate macro_concentration_constraint_policy
+                  if (macro_port_construction_method %in% c("rp", "mvo")){
+
+                    ### Check that mmaf_group_col is one of the names in max_abs_active_group_weight
+                    if (is.null(mmaf_group_col)){
+                      stop("mmaf_group_col must be provided when using concentration_constraint_policy with port_construction_method = 'mmaf' and macro_port_construction_method in c('rp', 'mvo').")
+                    }
+                    if (!(mmaf_group_col %in% names(concentration_constraint_policy$max_abs_active_group_weight))){
+                      stop("mmaf_group_col must be one of the names in concentration_constraint_policy$max_abs_active_group_weight when using port_construction_method = 'mmaf' and macro_port_construction_method in c('rp', 'mvo').")
+                    }
+
+                    ### For macro, get group constraints and transform them into individual constraints
+                    macro_concentration_constraint_policy <- concentration_constraint_policy
+                    macro_concentration_constraint_policy$max_abs_active_group_weight <- NULL
+                    macro_concentration_constraint_policy$benchmark <- concentration_constraint_policy$benchmark
+
+                    ### Get max_abs_active_individual_weight based on the group weight for the mmaf_group_col
+                    macro_concentration_constraint_policy$max_abs_active_individual_weight <-
+                      concentration_constraint_policy$max_abs_active_group_weight[mmaf_group_col] %>% as.numeric()
+
+                    ### Remove group constraints from micro level concentration just to be sure. If no ind constraint, erase altogether
+                    if (length(concentration_constraint_policy$max_abs_active_individual_weight) > 0){
+                      concentration_constraint_policy$max_abs_active_group_weight <- NULL
+                    } else {
+                      concentration_constraint_policy <- NULL
+                    }
+
+                  } else {
+
+                    ### If macro_port_construction_method does not accept constraints, remove group constraints from micro level concentration. If no ind constraint, erase altogether
+                    if (length(concentration_constraint_policy$max_abs_active_individual_weight) > 0){
+                      concentration_constraint_policy$max_abs_active_group_weight <- NULL
+                    } else {
+                      concentration_constraint_policy <- NULL
+                    }
+
+                  }
+
+                  ##### If micro_port_construction_method is not rp or mvo, set concentration as NULL
+                  if (!micro_port_construction_method %in% c("rp", "mvo")){
+                    concentration_constraint_policy <- NULL
+                  }
+
+                }
+              } else {
+                concentration_constraint_policy <- NULL
+                macro_concentration_constraint_policy <- NULL
+              }
+              #### Some defensive logic guardrails
+              if (port_construction_method == "mmaf" && !macro_port_construction_method %in% c("rp", "mvo")){
+                ##### In this context, macro_concentration_constraint_policy must be NULL and concentration_constraint_policy
+                ##### must have no group constraints
+                if (!is.null(macro_concentration_constraint_policy)){
+                  stop("macro_concentration_constraint_policy must be NULL when port_construction_method = 'mmaf' and macro_port_construction_method is not in c('rp', 'mvo').")
+                }
+              }
+              if (port_construction_method == "mmaf" &&  macro_port_construction_method %in% c("rp", "mvo")){
+               ##### In this context, concentration_constraint_policy must have no group constraints
+               if (length(concentration_constraint_policy$max_abs_active_group_weight) > 0){
+                 stop("concentration_constraint_policy cannot have group constraints when port_construction_method = 'mmaf' and macro_port_construction_method is in c('rp', 'mvo').")
+               }
+             }
+              if (port_construction_method == "mmaf" && !micro_port_construction_method %in% c("rp", "mvo")){
+               ##### In this context, concentration_constraint_policy must be NULL
+               if (!is.null(concentration_constraint_policy)){
+                 stop("concentration_constraint_policy must be NULL or have no group constraints when port_construction_method = 'mmaf' and micro_port_construction_method is not in c('rp', 'mvo').")
+               }
+             }
+              if (port_construction_method == "mmaf" &&  micro_port_construction_method %in% c("rp", "mvo")){
+               ##### In this context, concentration_constraint_policy can't have group constraints
+               if (length(concentration_constraint_policy$max_abs_active_group_weight) > 0){
+                 stop("concentration_constraint_policy cannot have group constraints when port_construction_method = 'mmaf' and micro_port_construction_method is in c('rp', 'mvo').")
+               }
+             }
+
 
             ####Custom
             #####Custom Stock Weights
@@ -670,6 +926,7 @@ setMethod("run_port_backtest",
               if (!is.null(volatility_m_df)) volatility_current_date else NULL,
               if (!is.null(liquidity_m_df)) liquidity_current_date else NULL,
               if (!is.null(scaler_m_df)) scaler_current_date else NULL,
+              if (!is.null(target_port_m_df)) target_port_current_date else NULL,
               if (!is.null(stock_groups_m_df)) stock_groups_current_date else NULL,
               if (!is.null(benchmark_weights_m_df)) benchmark_weights_current_date else NULL,
               if (!is.null(benchmark_returns_m_xts)) benchmark_returns_current_date else NULL,
@@ -693,9 +950,21 @@ setMethod("run_port_backtest",
               selected_benchmark = selected_benchmark,
               #Score Scaling
               chosen_scaler = chosen_scaler, scaler_m_df = scaler_m_df, scaler_shrinkage = scaler_shrinkage, use_raw_for_eligibility = use_raw_for_eligibility,
-              #RP/MVO Parameters
-              rp_method = rp_method, exp_ret_score_tilt = exp_ret_score_tilt, exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
-              n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method, #RP/MVO
+              #RP/HRP Parameters
+              rp_method = rp_method, exp_ret_score_tilt = exp_ret_score_tilt, exp_ret_score_tilt_eta = exp_ret_score_tilt_eta, linkage = linkage,
+              #MVO Parameters
+              n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method,
+              ridge_pen = ridge_pen, n_resamples = n_resamples, exp_ret_score_jitter = exp_ret_score_jitter, cov_eigval_jitter = cov_eigval_jitter,
+              target_port_m_df = target_port_m_df,
+              #MMAF Parameters
+              mmaf_method = mmaf_method, top_down_proxy_port_method = top_down_proxy_port_method, mmaf_group_col = mmaf_group_col,
+              micro_port_construction_method = micro_port_construction_method, macro_port_construction_method = macro_port_construction_method,
+              macro_concentration_constraint_policy = macro_concentration_constraint_policy,
+              macro_n_random_ports = macro_n_random_ports, macro_random_ports_method = macro_random_ports_method, macro_opt_objective = macro_opt_objective,
+              macro_opt_method = macro_opt_method, macro_ridge_pen = macro_ridge_pen, macro_n_resamples = macro_n_resamples,
+              macro_exp_ret_score_jitter = macro_exp_ret_score_jitter, macro_cov_eigval_jitter = macro_cov_eigval_jitter,
+              macro_rp_method = macro_rp_method, macro_exp_ret_score_tilt = macro_exp_ret_score_tilt, macro_exp_ret_score_tilt_eta = macro_exp_ret_score_tilt_eta,
+              macro_linkage = macro_linkage,
               #Covariance Estimation
               cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, active_returns = active_returns, cov_matrix_benchmark = cov_matrix_benchmark,
               daily_stock_returns_m_xts = daily_stock_returns_m_xts, daily_bench_returns_m_xts = daily_bench_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,
@@ -727,7 +996,7 @@ setMethod("run_port_backtest",
 
             ##IDs
             port_backtest_results@port_backtest_workflow$config_name <- config@config_name
-            port_backtest_results@backtest_identifier <- paste0("c:", config@config_name, "_s:", signals_object_name, "_f:", fwd_return_object_name)
+            port_backtest_results@backtest_identifier <- paste0("c__", config@config_name, "_s__", signals_object_name, "_f__", fwd_return_object_name)
             port_backtest_results@port_backtest_workflow$backtest_identifier <- port_backtest_results@backtest_identifier
             port_backtest_results@port_backtest_workflow$current_date <- signals_current_date #already tested if all match
 
@@ -748,95 +1017,99 @@ setMethod("run_port_backtest",
             port_backtest_results@transactions_log@workflow <- list(paste0("transactions_log result of ", port_backtest_results@backtest_identifier))
 
             ####Meta xts
-            port_backtest_results@port_returns_m_xts@source <- rep(paste0("port_backtest__:",port_backtest_results@port_backtest_workflow$backtest_identifier), ncol(port_backtest_results@port_returns_m_xts@data))
-            port_backtest_results@port_costs_m_xts@source <- rep(paste0("port_backtest__:",port_backtest_results@port_backtest_workflow$backtest_identifier), ncol(port_backtest_results@port_costs_m_xts@data))
+            port_backtest_results@port_returns_m_xts@source <- rep(paste0("port_backtest___",port_backtest_results@port_backtest_workflow$backtest_identifier), ncol(port_backtest_results@port_returns_m_xts@data))
+            port_backtest_results@port_costs_m_xts@source <- rep(paste0("port_backtest___",port_backtest_results@port_backtest_workflow$backtest_identifier), ncol(port_backtest_results@port_costs_m_xts@data))
             if (!is.null(custom_stock_metrics_m_df)){
-              port_backtest_results@port_metrics_m_xts@source <- rep(paste0("port_backtest__:",port_backtest_results@port_backtest_workflow$backtest_identifier), ncol(port_backtest_results@port_metrics_m_xts@data))
+              port_backtest_results@port_metrics_m_xts@source <- rep(paste0("port_backtest___",port_backtest_results@port_backtest_workflow$backtest_identifier), ncol(port_backtest_results@port_metrics_m_xts@data))
             }
 
             ###Names
             ####Meta Dataframes
             if (!(.update && length(port_backtest_results@stock_universe_m_df) == 0)){ #Skip empty updates
-              port_backtest_results@stock_universe_m_df@meta_dataframe_name <- paste0("port_backtest__:",port_backtest_results@port_backtest_workflow$backtest_identifier)
-              port_backtest_results@final_stock_universe_m_d_ref@meta_dataframe_name <- paste0("port_backtest__:",port_backtest_results@port_backtest_workflow$backtest_identifier)
+              port_backtest_results@stock_universe_m_df@meta_dataframe_name <- paste0("port_backtest___",port_backtest_results@port_backtest_workflow$backtest_identifier)
+              port_backtest_results@final_stock_universe_m_d_ref@meta_dataframe_name <- paste0("port_backtest___",port_backtest_results@port_backtest_workflow$backtest_identifier)
             }
-            port_backtest_results@port_weights_m_df@meta_dataframe_name <- paste0("port_backtest__:",port_backtest_results@port_backtest_workflow$backtest_identifier)
+            port_backtest_results@port_weights_m_df@meta_dataframe_name <- paste0("port_backtest___",port_backtest_results@port_backtest_workflow$backtest_identifier)
 
 
             ##Add workflows, config_names and objects
             ###Fwd Returns
             port_backtest_results@port_backtest_workflow$fwd_return_object_name <- fwd_return_object_name
-            port_backtest_results@port_backtest_workflow$fwd_return_workflow <- fwd_return_workflow
+            port_backtest_results@port_backtest_workflow$fwd_return_workflow <- names(fwd_return_workflow)
 
             ###Signals
             port_backtest_results@port_backtest_workflow$signals_object_name <- signals_object_name
-            port_backtest_results@port_backtest_workflow$signals_workflow <- signals_workflow
+            port_backtest_results@port_backtest_workflow$signals_workflow <- names(signals_workflow)
+
             ###Scaler
             if (!is.null(scaler_m_df)){
               port_backtest_results@port_backtest_workflow$scaler_object_name <- scaler_object_name
-              port_backtest_results@port_backtest_workflow$scaler_workflow <- scaler_workflow
+              port_backtest_results@port_backtest_workflow$scaler_workflow <- names(scaler_workflow)
+
+            }
+            ###Target Port
+            if (!is.null(target_port_m_df)){
+              port_backtest_results@port_backtest_workflow$target_port_object_name <- target_port_object_name
+              port_backtest_results@port_backtest_workflow$target_port_workflow <- names(target_port_workflow)
             }
             ###Liquidity
             port_backtest_results@port_backtest_workflow$liquidity_object_name <- liquidity_object_name
-            port_backtest_results@port_backtest_workflow$liquidity_workflow <- liquidity_workflow
+            port_backtest_results@port_backtest_workflow$liquidity_workflow <- names(liquidity_workflow)
             ###Volatility
             port_backtest_results@port_backtest_workflow$volatility_object_name <- volatility_object_name
-            port_backtest_results@port_backtest_workflow$volatility_workflow <- volatility_workflow
+            port_backtest_results@port_backtest_workflow$volatility_workflow <- names(volatility_workflow)
             ###OOS Predictions
             if (!is.null(oos_predictions_m_df)){
               port_backtest_results@port_backtest_workflow$oos_predictions_object_name <- oos_predictions_object_name
-              port_backtest_results@port_backtest_workflow$oos_predictions_workflow <- oos_predictions_workflow
+              port_backtest_results@port_backtest_workflow$oos_predictions_workflow <- names(oos_predictions_workflow)
               port_backtest_results@port_backtest_workflow$port_backtest_workflow$backtest_identifier <-
-                c(port_backtest_results@port_backtest_workflow$backtest_identifier, "_oos:", oos_predictions_object_name)
+                c(port_backtest_results@port_backtest_workflow$backtest_identifier, "_oos__", oos_predictions_object_name)
             }
             ###Stock Groups
             if (!is.null(stock_groups_m_df)){
               port_backtest_results@port_backtest_workflow$stock_groups_object_name <- stock_groups_object_name
-              port_backtest_results@port_backtest_workflow$stock_groups_workflow <- stock_groups_workflow
+              port_backtest_results@port_backtest_workflow$stock_groups_workflow <- names(stock_groups_workflow)
             }
             ###Benchmark Weights
             if (!is.null(benchmark_weights_m_df)){
               port_backtest_results@port_backtest_workflow$benchmark_weights_object_name <- benchmark_weights_object_name
-              port_backtest_results@port_backtest_workflow$benchmark_weights_workflow <- benchmark_weights_workflow
+              port_backtest_results@port_backtest_workflow$benchmark_weights_workflow <- names(benchmark_weights_workflow)
             }
             ###Benchmark Returns
             if (!is.null(benchmark_returns_m_xts)){
               port_backtest_results@port_backtest_workflow$benchmark_returns_object_name <- benchmark_returns_object_name
-              port_backtest_results@port_backtest_workflow$benchmark_returns_workflow <- benchmark_returns_workflow
+              port_backtest_results@port_backtest_workflow$benchmark_returns_workflow <- names(benchmark_returns_workflow)
             }
             ###Daily Stock Returns
             if (!is.null(daily_stock_returns_m_xts)){
               port_backtest_results@port_backtest_workflow$daily_stock_returns_object_name <- daily_stock_returns_object_name
-              port_backtest_results@port_backtest_workflow$daily_stock_returns_workflow <- daily_stock_returns_workflow
+              port_backtest_results@port_backtest_workflow$daily_stock_returns_workflow <- names(daily_stock_returns_workflow)
             }
             ###Daily Bench Returns
             if (!is.null(daily_bench_returns_m_xts)){
               port_backtest_results@port_backtest_workflow$daily_bench_returns_object_name <- daily_bench_returns_object_name
-              port_backtest_results@port_backtest_workflow$daily_bench_returns_workflow <- daily_bench_returns_workflow
+              port_backtest_results@port_backtest_workflow$daily_bench_returns_workflow <- names(daily_bench_returns_workflow)
             }
             ###Custom Stock Weights
             if (!is.null(custom_stock_weights_m_df)){
               port_backtest_results@port_backtest_workflow$custom_stock_weights_object_name <- custom_stock_weights_object_name
-              port_backtest_results@port_backtest_workflow$custom_stock_weights_workflow <- custom_stock_weights_workflow
+              port_backtest_results@port_backtest_workflow$custom_stock_weights_workflow <- names(custom_stock_weights_workflow)
             }
             ###Custom Stock Metrics
             if (!is.null(custom_stock_metrics_m_df)){
               port_backtest_results@port_backtest_workflow$custom_stock_metrics_object_name <- custom_stock_metrics_object_name
-              port_backtest_results@port_backtest_workflow$custom_stock_metrics_workflow <- custom_stock_metrics_workflow
+              port_backtest_results@port_backtest_workflow$custom_stock_metrics_workflow <- names(custom_stock_metrics_workflow)
             }
             ###user_defined_OR_rules_m_df
             if (!is.null(user_defined_OR_rules_m_df)){
               port_backtest_results@port_backtest_workflow$user_defined_OR_rules_object_name <- user_defined_OR_rules_object_name
-              port_backtest_results@port_backtest_workflow$user_defined_OR_rules_workflow <- user_defined_OR_rules_workflow
+              port_backtest_results@port_backtest_workflow$user_defined_OR_rules_workflow <- names(user_defined_OR_rules_workflow)
             }
             ###user_defined_AND_rules_m_df
             if (!is.null(user_defined_AND_rules_m_df)){
               port_backtest_results@port_backtest_workflow$user_defined_AND_rules_object_name <- user_defined_AND_rules_object_name
-              port_backtest_results@port_backtest_workflow$user_defined_AND_rules_workflow <- user_defined_AND_rules_workflow
+              port_backtest_results@port_backtest_workflow$user_defined_AND_rules_workflow <- names(user_defined_AND_rules_workflow)
             }
-
-            ###Call
-            port_backtest_results@port_backtest_workflow$call <- sys.call(-2)
 
             ###Add date to workflow
             port_backtest_results@port_backtest_workflow <- list(port_backtest_results@port_backtest_workflow)
@@ -865,12 +1138,36 @@ setMethod("run_port_backtest",
 #' @param selected_benchmark Optional character. Name of benchmark index column in `benchmark_returns_m_xts`.
 #' @param min_eligible_assets_fallback Optional integer. Minimum number of eligible assets to construct portfolio.
 #' @param rp_method Character. Risk parity allocation method. Used if `port_construction_method = "rp"`.
-#' @param exp_ret_score_tilt Logical. If TRUE, applies expected return score tilt in RP.
-#' @param exp_ret_score_tilt_eta Numeric. Exponent for expected return score tilt in RP.
+#' @param exp_ret_score_tilt Character specifying whether the tilt should be applied 'inner', 'final' or 'none' in RP and HRP
+#' @param exp_ret_score_tilt_eta Numeric. Numeric value for expected return score tilt in RP and HRP.
+#' @param linkage Character. Linkage method for hierarchical clustering in HRP.
 #' @param n_random_ports Integer. Number of random portfolios to simulate (for `opt_method = "random"`).
 #' @param random_ports_method Character. Method to sample random portfolios.
 #' @param opt_objective Character. Optimization target (e.g., "sharpe"). Used in `mvo`.
 #' @param opt_method Character. Optimization method: "random", "deterministic", etc.
+#' @param target_port_m_df Optional `meta_dataframe` with target portfolio weights for shrinkage.
+#' @param ridge_pen Numeric. Ridge penalty for optimization.
+#' @param n_resamples Integer. Number of resamples for robust optimization.
+#' @param exp_ret_score_jitter Numeric. Jitter to add to expected return scores during resampling.
+#' @param cov_eigval_jitter Numeric. Jitter to add to covariance matrix eigenvalues during resampling.
+#' @param mmaf_method Character. Method for micro-macro allocation framework: "bottom_up" or "top_down".
+#' @param top_down_proxy_port_method Character. Method to create top-down proxy portfolio proxy.
+#' @param mmaf_group_col Character. Column name in `stock_groups_m_df` defining groups for MMAF.
+#' @param micro_port_construction_method Character. Method for micro-level portfolio construction in MMAF.
+#' @param macro_port_construction_method Character. Method for macro-level portfolio construction in MMAF.
+#' @param macro_concentration_constraint_policy A `list` defining concentration constraints at the macro level.
+#' @param macro_n_random_ports Integer. Number of random portfolios for macro-level optimization.
+#' @param macro_random_ports_method Character. Method to sample random portfolios at the macro level.
+#' @param macro_opt_objective Character. Optimization target for macro-level portfolio.
+#' @param macro_opt_method Character. Optimization method for macro-level portfolio.
+#' @param macro_ridge_pen Numeric. Ridge penalty for macro-level optimization.
+#' @param macro_n_resamples Integer. Number of resamples for robust optimization at the macro level.
+#' @param macro_exp_ret_score_jitter Numeric. Jitter to add to expected return scores during macro-level resampling.
+#' @param macro_cov_eigval_jitter Numeric. Jitter to add to covariance matrix eigenvalues during macro-level resampling.
+#' @param macro_rp_method Character. Risk parity allocation method for macro-level portfolio.
+#' @param macro_exp_ret_score_tilt Logical. If TRUE, applies expected return score tilt in macro-level RP.
+#' @param macro_exp_ret_score_tilt_eta Numeric. Exponent for expected return score tilt in macro-level RP.
+#' @param macro_linkage Character. Linkage method for hierarchical clustering in macro-level HRP.
 #' @param cov_estimation_method Character. Method to estimate covariance matrix: "sample", "shrinkage", etc.
 #' @param cov_matrix_sample_size Integer. Sample size for covariance estimation.
 #' @param active_returns Logical. If TRUE, uses benchmark-adjusted returns.
@@ -911,7 +1208,7 @@ setMethod("run_port_backtest",
 #' @noRd
 #' @keywords internal
 run_port_backtest_internal <- function(
-    #Base Objects
+  #Base Objects
   signals_m_df, oos_predictions_m_df = NULL, chosen_score_metric_and_position = NULL, #Expected Return Score metric is needed when oos_predictions_m_df is not provided
   #Backtest Scheme
   rebalancing_months, initial_buffer_period,
@@ -919,9 +1216,20 @@ run_port_backtest_internal <- function(
   port_construction_method = "ew", eligibility_quantile_range = c(0.9, 1.0), selected_benchmark = NULL, min_eligible_assets_fallback = NULL,
   #Scaling
   chosen_scaler = NULL, scaler_m_df = NULL, scaler_shrinkage = NULL, use_raw_for_eligibility = NULL,
-  #RP/MVO Parameters
-  rp_method = "cyclical-spinu", exp_ret_score_tilt = FALSE, exp_ret_score_tilt_eta = 1,
+  #RP/HRP/MVO Parameters
+  rp_method = "cyclical-spinu", exp_ret_score_tilt = "none", exp_ret_score_tilt_eta = NULL, linkage = "single",
   n_random_ports = 2000, random_ports_method = "sample", opt_objective = "sharpe", opt_method = "random", #RP/MVO
+  target_port_m_df = NULL, ridge_pen = NULL,
+  n_resamples = 0, exp_ret_score_jitter = 0, cov_eigval_jitter = 0,
+  #MMAF
+  mmaf_method = "bottom_up", top_down_proxy_port_method = "ew", mmaf_group_col,
+  micro_port_construction_method = NULL, macro_port_construction_method = NULL,
+  macro_concentration_constraint_policy = NULL,
+  macro_n_random_ports = 2000, macro_random_ports_method = "sample",
+  macro_opt_objective = "sharpe", macro_opt_method = "random", macro_ridge_pen = NULL,
+  macro_n_resamples = 0, macro_exp_ret_score_jitter = 0, macro_cov_eigval_jitter = 0,
+  macro_rp_method = "cyclical-spinu", macro_exp_ret_score_tilt = "none",  macro_exp_ret_score_tilt_eta = NULL,
+  macro_linkage = "single",
   #Covariance Estimation
   cov_estimation_method = "sample", cov_matrix_sample_size = 252, active_returns = FALSE, cov_matrix_benchmark = NULL,
   daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = NULL,
@@ -962,11 +1270,23 @@ run_port_backtest_internal <- function(
       #Portfolio Construction Method
       port_construction_method = port_construction_method, eligibility_quantile_range = eligibility_quantile_range, min_eligible_assets_fallback = min_eligible_assets_fallback,
       selected_benchmark = selected_benchmark,
-      #RP/MVO Parameters
-      rp_method = rp_method, exp_ret_score_tilt = exp_ret_score_tilt, exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
-      n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method,
       #Score Scaling
       chosen_scaler = chosen_scaler, scaler_m_df = scaler_m_df, scaler_shrinkage = scaler_shrinkage, use_raw_for_eligibility = use_raw_for_eligibility,
+      #RP/HRP Parameters
+      rp_method = rp_method, exp_ret_score_tilt = exp_ret_score_tilt, exp_ret_score_tilt_eta = exp_ret_score_tilt_eta, linkage = linkage,
+      #MVO Parameters
+      n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method,
+      target_port_m_df = target_port_m_df, ridge_pen = ridge_pen,
+      n_resamples = n_resamples, exp_ret_score_jitter = exp_ret_score_jitter, cov_eigval_jitter = cov_eigval_jitter,
+      #MMAF
+      mmaf_method = mmaf_method, top_down_proxy_port_method = top_down_proxy_port_method, mmaf_group_col = mmaf_group_col,
+      micro_port_construction_method = micro_port_construction_method, #Micro portfolio construction method
+      macro_port_construction_method = macro_port_construction_method, macro_concentration_constraint_policy = macro_concentration_constraint_policy,
+      macro_n_random_ports = macro_n_random_ports, macro_random_ports_method = macro_random_ports_method,
+      macro_opt_objective = macro_opt_objective, macro_opt_method = macro_opt_method, macro_ridge_pen = macro_ridge_pen,
+      macro_n_resamples = macro_n_resamples, macro_exp_ret_score_jitter = macro_exp_ret_score_jitter, macro_cov_eigval_jitter = macro_cov_eigval_jitter,
+      macro_rp_method = macro_rp_method, macro_exp_ret_score_tilt = macro_exp_ret_score_tilt, macro_exp_ret_score_tilt_eta = macro_exp_ret_score_tilt_eta,
+      macro_linkage = macro_linkage,
       #Covariance Estimation
       cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, active_returns = active_returns, cov_matrix_benchmark = cov_matrix_benchmark,
       daily_stock_returns_m_xts = daily_stock_returns_m_xts, daily_bench_returns_m_xts = daily_bench_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,
@@ -1129,10 +1449,9 @@ run_port_backtest_internal <- function(
       cat("\n")
       cat("Building portfolio based on:")
       cat("\n")
-      cat(paste("  Expected Return Score Metric:"))
-      cat("\n")
+      cat(paste("  Expected Return Score Metric: "))
       if(!is.null(chosen_score_metric_and_position)){
-        cat(paste0(names(chosen_score_metric_and_position), ": ", chosen_score_metric_and_position))
+        cat(paste0(names(chosen_score_metric_and_position), "(", chosen_score_metric_and_position, ")"))
       } else {
         cat("OOS Signal Blend Predictions")
       }
@@ -1142,11 +1461,18 @@ run_port_backtest_internal <- function(
         cat(paste0(" ", chosen_scaler, " (Shrinkage: ", scaler_shrinkage, ")"))
         cat("\n")
       }
-      if (port_construction_method %in% c("rp", "mvo")){
+      if (port_construction_method %in% c("mmaf", "hrp", "rp", "mvo")){
         cat("  Covariance Matrix:")
         cat(paste("   Estimation Method:", cov_estimation_method))
         cat(paste("   Sample Size:", cov_matrix_sample_size))
         cat(paste("   Active Returns:", active_returns))
+        cat("\n")
+
+        if (!is.null(exp_ret_score_tilt)){
+          cat(paste("  Expected Return Score Tilt:", exp_ret_score_tilt))
+          cat(paste("  Expected Return Score Tilt Eta:", exp_ret_score_tilt_eta))
+          cat("\n")
+        }
 
         if (port_construction_method == "mvo"){
           if (any(!is.null(concentration_constraint_policy), !is.null(liquidity_constraint_policy), !is.null(turnover_constraint_policy))){
@@ -1166,7 +1492,26 @@ run_port_backtest_internal <- function(
               cat(paste("   \nTurnover Constraint Policy:", turnover_constraint_policy$policy))
               cat(paste("   Turnover Constraint Threshold:", turnover_constraint_policy$threshold))
             }
+            if (!is.null(ridge_pen)){
+              cat(paste("  \n\nRidge Penalty:", ridge_pen))
+            }
+            if (n_resamples > 0){
+              cat(paste("  \n\nResampling:", n_resamples))
+              cat(paste("   Expected Return Score Jitter:", exp_ret_score_jitter))
+              cat(paste("   Covariance Eigenvalue Jitter:", cov_eigval_jitter))
+            }
+            cat("\n")
           }
+        }
+
+        if (port_construction_method == "mmaf"){
+          ## For MMAF, print mmaf method, top_down_proxy_port_method, mmaf_group_col, micro and macro port construction methods
+          cat(paste("  MMAF Method:", mmaf_method))
+          if (!is.null(top_down_proxy_port_method)) cat(paste("  Top-Down Proxy Portfolio Method:", top_down_proxy_port_method))
+          cat(paste("  MMAF Group Column:", mmaf_group_col))
+          cat(paste("  Micro Portfolio Construction Method:", micro_port_construction_method))
+          cat(paste("  Macro Portfolio Construction Method:", macro_port_construction_method))
+          cat("\n")
         }
       }
       cat(paste("  \n\nSelected Benchmark:", if(!is.null(selected_benchmark)) selected_benchmark else "None"))
@@ -1202,6 +1547,7 @@ run_port_backtest_internal <- function(
       custom_stock_metrics_m_d_ref <- if (!is.null(custom_stock_metrics_m_df)) custom_stock_metrics_m_df %>% dplyr::filter(dates == current_date) else NULL
       user_defined_AND_rules_m_d_ref <- if (!is.null(user_defined_AND_rules_m_df)) user_defined_AND_rules_m_df %>% dplyr::filter(dates == current_date) else NULL
       user_defined_OR_rules_m_d_ref <- if (!is.null(user_defined_OR_rules_m_df)) user_defined_OR_rules_m_df %>% dplyr::filter(dates == current_date) else NULL
+      target_port_m_d_ref <- if (!is.null(target_port_m_df)) target_port_m_df %>% dplyr::filter(dates == current_date) else NULL
 
       #####Port Weights
       #####End-of-period portfolio weights placeholder
@@ -1325,13 +1671,29 @@ run_port_backtest_internal <- function(
           liquidity_floor_cutoffs = liquidity_floor_cutoffs, #Definitions about liquidity
 
           ##Active concentration eligiblity
+          selected_benchmark = selected_benchmark,
           benchmark_weights_m_d_ref = selected_benchmark_weights_m_d_ref, #Selected benchmark weights information to apply
           groups_m_d_ref = stock_groups_m_d_ref, #Sectors data
-          concentration_constraint_policy = concentration_constraint_policy, #Active weights policy
+          concentration_constraint_policy = if (port_construction_method == "mmaf" && is.null(concentration_constraint_policy)){
+            macro_concentration_constraint_policy #Macro weights policy
+          } else {
+            concentration_constraint_policy #Active weights policy
+          },
+          is_mmaf = if (port_construction_method == "mmaf" &&
+                        is.null(concentration_constraint_policy) &&
+                        !is.null(macro_concentration_constraint_policy)) TRUE else FALSE, #If it is mmaf with macro concentration policy, it will apply the rule based on macro weights
 
           ##Turnover eligibility
           updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref, #Old portfolio weights to apply buffer rule
           turnover_constraint_policy = turnover_constraint_policy, #Turnover policy
+
+          ##Shrinkage
+          target_port_m_d_ref = target_port_m_d_ref, #Target portfolio for shrinkage towards it
+          ridge_pen = if (port_construction_method == "mmaf" && is.null(ridge_pen)){
+            macro_ridge_pen #Ridge penalty for shrinkage at macro level
+          } else {
+            ridge_pen #Ridge penalty for shrinkage at micro level
+          },
 
           #User defined rules
           user_defined_AND_rules_m_d_ref = user_defined_AND_rules_m_d_ref,
@@ -1369,16 +1731,28 @@ run_port_backtest_internal <- function(
           covariance_matrix = NULL,
           cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, #Sample size to estimate cov matrix (NULL => full period)
           active_returns = active_returns,
-            #Returns sample for covariance estimation
-            returns_m_xts_upd_ref = selected_daily_stock_returns_m_xts_upd_ref, selected_benchmark_m_xts_upd_ref = selected_daily_cov_matrix_bench_m_xts_upd_ref,
-            #Risk-Parity method
-            rp_method = rp_method, exp_ret_score_tilt = exp_ret_score_tilt,
-            #MVO Optimization
-            n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method,
-            #Custom Weights
-            custom_weights_m_d_ref = custom_stock_weights_m_d_ref,
-            #Winsorization
-            lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization #Quantiles for winsorization
+          #Returns sample for covariance estimation
+          returns_m_xts_upd_ref = selected_daily_stock_returns_m_xts_upd_ref, selected_benchmark_m_xts_upd_ref = selected_daily_cov_matrix_bench_m_xts_upd_ref,
+          #Risk-Parity and Hierarhical Risk Parity methods
+          rp_method = rp_method, exp_ret_score_tilt = exp_ret_score_tilt, exp_ret_score_tilt_eta = exp_ret_score_tilt_eta, linkage = linkage,
+          #MVO Optimization
+          n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method,
+          ridge_pen = ridge_pen,
+          n_resamples = n_resamples, exp_ret_score_jitter = exp_ret_score_jitter, cov_eigval_jitter = cov_eigval_jitter,
+          #MMAF
+          mmaf_method = mmaf_method, top_down_proxy_port_method = top_down_proxy_port_method, mmaf_group_col = mmaf_group_col,
+          micro_port_construction_method = micro_port_construction_method, #Micro portfolio construction method
+          macro_port_construction_method = macro_port_construction_method,
+          macro_concentration_constraint_policy = macro_concentration_constraint_policy, macro_cap_weighting_metric = main_liquidity_metric,
+          macro_n_random_ports = macro_n_random_ports, macro_random_ports_method = macro_random_ports_method,
+          macro_opt_objective = macro_opt_objective, macro_opt_method = macro_opt_method, macro_ridge_pen = macro_ridge_pen,
+          macro_n_resamples = macro_n_resamples, macro_exp_ret_score_jitter = macro_exp_ret_score_jitter, macro_cov_eigval_jitter = macro_cov_eigval_jitter,
+          macro_rp_method = macro_rp_method, macro_exp_ret_score_tilt = macro_exp_ret_score_tilt, macro_exp_ret_score_tilt_eta = macro_exp_ret_score_tilt_eta,
+          macro_linkage = macro_linkage,
+          #Custom Weights
+          custom_weights_m_d_ref = custom_stock_weights_m_d_ref,
+          #Winsorization
+          lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization #Quantiles for winsorization
           )
 
 
@@ -1393,11 +1767,17 @@ run_port_backtest_internal <- function(
             correlation_matrix = stock_port@correlation_matrix,
             weights = stock_port@weights,
             rel_risk_contr = stock_port@rel_risk_contr,
+            clusters = stock_port@clusters,
             mvo_port_spec = stock_port@mvo_port_spec,
             random_port_weights = stock_port@random_port_weights,
             ind_max_weights = stock_port@ind_max_weights,
             ind_min_weights = stock_port@ind_min_weights,
             groups = stock_port@groups,
+            mmaf_method = stock_port@mmaf_method,
+            mmaf_group_col = stock_port@mmaf_group_col,
+            group_cov_matrix = stock_port@group_cov_matrix,
+            micro = stock_port@micro,
+            macro = stock_port@macro,
             port_name = stock_port@port_name,
             type = if (port_construction_method == "custom_weights") "custom_weights" else if (!is.null(oos_predictions_m_df)) "signal_blend" else "single_signal",
             main_liquidity_metric = main_liquidity_metric
@@ -1568,8 +1948,8 @@ run_port_backtest_internal <- function(
     n_stocks = length(unique(signals_m_df %>% dplyr::pull(tickers))),
     #Signals
     signals = colnames(signals_m_df[,-c(1:3)]),
-    signals_workflow = NULL,
     signals_object_name = "not_identified",
+    signals_workflow = NULL,
     signals_dates = sort(unique(dplyr::pull(signals_m_df, dates))),
     #Fwd Returns
     fwd_return_object_name = "not_identified",
@@ -1588,19 +1968,47 @@ run_port_backtest_internal <- function(
     stock_groups_dates = if (!is.null(stock_groups_m_df)) sort(unique(dplyr::pull(stock_groups_m_df, dates))) else NULL,
     #Custom
     custom_stock_metrics_object_name = "not_identified",
-    custom_stock_metrics_workflow = NULL,
     custom_stock_metrics_dates = if (!is.null(custom_stock_metrics_m_df)) sort(unique(dplyr::pull(custom_stock_metrics_m_df, dates))) else NULL,
+    custom_stock_metrics_workflow = NULL,
     custom_stock_weights_object_name = "not_identified",
-    custom_stock_weights_workflow = NULL,
     custom_stock_weights_dates = if (!is.null(custom_stock_weights_m_df)) sort(unique(dplyr::pull(custom_stock_weights_m_df, dates))) else NULL,
-    #RP/MVO Parameters
+    custom_stock_weights_workflow = NULL,
+    #RP/HRP/MVO Parameters
     rp_method = rp_method,
     exp_ret_score_tilt = exp_ret_score_tilt,
     exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
+    linkage = linkage,
     n_random_ports = n_random_ports,
     random_ports_method = random_ports_method,
     opt_objective = opt_objective,
     opt_method = opt_method,
+    ridge_pen = ridge_pen,
+    n_resamples = n_resamples,
+    exp_ret_score_jitter = exp_ret_score_jitter,
+    cov_eigval_jitter = cov_eigval_jitter,
+    #MMAF Parameters
+    mmaf_method = mmaf_method,
+    top_down_proxy_port_method = top_down_proxy_port_method,
+    mmaf_group_col = mmaf_group_col,
+    micro_port_construction_method = micro_port_construction_method,
+    macro_port_construction_method = macro_port_construction_method,
+    macro_concentration_constraint_policy = macro_concentration_constraint_policy,
+    macro_n_random_ports = macro_n_random_ports,
+    macro_random_ports_method = macro_random_ports_method,
+    macro_opt_objective = macro_opt_objective,
+    macro_opt_method = macro_opt_method,
+    macro_ridge_pen = macro_ridge_pen,
+    macro_n_resamples = macro_n_resamples,
+    macro_exp_ret_score_jitter = macro_exp_ret_score_jitter,
+    macro_cov_eigval_jitter = macro_cov_eigval_jitter,
+    macro_rp_method = macro_rp_method,
+    macro_exp_ret_score_tilt = macro_exp_ret_score_tilt,
+    macro_exp_ret_score_tilt_eta = macro_exp_ret_score_tilt_eta,
+    macro_linkage = macro_linkage,
+    #Target Port
+    target_port_object_name = "not_identified",
+    target_port_workflow = NULL,
+    target_port_dates = if (!is.null(target_port_m_df)) sort(unique(dplyr::pull(target_port_m_df, dates))) else NULL,
     #Covariance Estimation
     cov_estimation_method = cov_estimation_method,
     cov_matrix_sample_size = cov_matrix_sample_size,
@@ -1610,7 +2018,7 @@ run_port_backtest_internal <- function(
     benchmark_returns_workflow = NULL,
     benchmark_returns_dates = if (!is.null(benchmark_returns_m_xts)) zoo::index(benchmark_returns_m_xts) else NULL,
     daily_stocks_returns_object_name = "not_identified",
-    daily_stocks_returns_workflow = NULL,
+    daily_stock_returns_workflow = NULL,
     daily_stocks_returns_dates = if (!is.null(daily_stock_returns_m_xts)) zoo::index(daily_stock_returns_m_xts) else NULL,
     daily_bench_returns_object_name = "not_identified",
     daily_bench_returns_workflow = NULL,
@@ -1641,9 +2049,8 @@ run_port_backtest_internal <- function(
     user_defined_AND_rules_dates = if (!is.null(user_defined_AND_rules_m_df)) sort(unique(dplyr::pull(user_defined_AND_rules_m_df, dates))) else NULL,
     lower_quantile_winsorization = lower_quantile_winsorization,
     upper_quantile_winsorization = upper_quantile_winsorization,
-    #Call
-    update = .update,
-    call = match.call()
+    #Update
+    update = .update
   )
 
   ###Port Weights
