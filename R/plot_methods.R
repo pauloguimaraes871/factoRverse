@@ -1887,8 +1887,6 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
 
 
 
-################################
-
 #' @title Plot Method for `grid_search_strategy`
 #' @description Plot the values selected for each hyperparameter in `hyper_grid_domain` for grid search strategy.
 #' @param x An object of class `grid_search_strategy`.
@@ -5821,7 +5819,7 @@ setMethod(
 
       if (has_micro || has_macro) {
 
-        cat("\nThis portfolio uses the Micro–Macro Allocation Framework (MMAF).\n")
+        cat("\nThis portfolio uses the Micro-Macro Allocation Framework (MMAF).\n")
         cat("You can visualize the overall MMAF portfolio or one of its components.\n")
 
         options_list <- c("Overall (aggregate MMAF portfolio)")
@@ -5863,7 +5861,7 @@ setMethod(
           } else if (is.list(x@micro) && length(x@micro) == 1) {
             selected_micro <- x@micro[[1]]
           } else {
-            stop("Invalid micro slot structure — expected list of 'port' objects.")
+            stop("Invalid micro slot structure, expected list of 'port' objects.")
           }
 
           message("-> Plotting selected micro-level portfolio...")
@@ -7067,7 +7065,7 @@ setMethod(
     }
 
     #------------------------------------------------------------------------------------------------
-    # 10) Allocation Flow (Groups -> Assets) — bipartite (Macro -> Micro) flow using ggraph
+    # 10) Allocation Flow (Groups -> Assets); bipartite (Macro -> Micro) flow using ggraph
     #------------------------------------------------------------------------------------------------
     if (type == "Allocation Flow (Groups -> Assets)") {
 
@@ -8299,14 +8297,6 @@ setMethod("plot", "port_backtest_cohort", function(x, plot_id = NULL, vertical_l
     plot(port_weights_m_df, type = "radar")
 
   }
-
-
-
-
-
-
-
-
 
 
 

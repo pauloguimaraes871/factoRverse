@@ -21,9 +21,9 @@ Must be one of 'ew', 'rp', 'hrp', 'cs' or 'sw' if mmaf_method is 'top_down' and 
 \item{mmaf_group_col}{A character string representing the MMAF group to which the assets belong. This is used to group assets when constructing micro and macro portfolios.
 It must be a length 1 character.}
 
-\item{micro_port_config}{An object of class \code{mmaf_sub_port_config} representing the configuration for constructing micro portfolios.}
+\item{micro_port_construction_method}{An object of class \code{micro_port_construction_method} representing the configuration for constructing micro portfolios.}
 
-\item{macro_port_config}{An object of class \code{mmaf_sub_port_config} representing the configuration for constructing macro portfolios.}
+\item{macro_port_construction_method}{An object of class \code{macro_port_construction_method} representing the configuration for constructing macro portfolios.}
 }
 \value{
 An S4 object of class \code{mmaf_parameters}.

@@ -83,9 +83,9 @@ A value of 0 means no jittering. Default is 0.}
 
 \item{cov_eigval_jitter}{A numeric value indicating the standard deviation of the log-normal distribution used to jitter the eigenvalues of the covariance matrix.}
 
-\item{verbose}{A logical indicating whether to print messages during the execution of the function.}
+\item{parallel}{A logical indicating whether to run resamples in parallel using the furrr package.}
 
-\item{prallel}{A logical indicating whether to run resamples in parallel using the furrr package.}
+\item{verbose}{A logical indicating whether to print messages during the execution of the function.}
 }
 \description{
 Create a Resampled MVO portfolio

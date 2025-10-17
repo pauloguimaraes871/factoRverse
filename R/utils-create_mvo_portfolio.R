@@ -308,7 +308,7 @@ create_mvo_portfolio <- function(universe_m_d_ref,
 #' @param ridge_pen Optional. A numeric value representing the ridge penalty to be applied when a target portfolio is provided.
 #' Higher values will increase the importance of being close to the target portfolio.
 #' @param verbose A logical indicating whether to print messages during the execution of the function.
-#' @param prallel A logical indicating whether to run resamples in parallel using the furrr package.
+#' @param parallel A logical indicating whether to run resamples in parallel using the furrr package.
 #' @export
 create_resampled_mvo_portfolio <- function(universe_m_d_ref,
                                            covariance_matrix,

@@ -1115,11 +1115,6 @@ setMethod("show", "sb_metabacktest_results", function(object) {
 
 
   # Display Call Information
-  cat("Call:\n")
-  cat("  Function Call:\n")
-  print(meta_learner_sb_backtest_workflow$call)
-  cat("\n")
-
   cat("  Call Timestamp:\n")
   print(meta_learner_sb_backtest_workflow$timestamps, quotes = FALSE)
   cat("\n")
@@ -1900,12 +1895,12 @@ methods::setMethod("show", "hrp_parameters", function(object) {
 
 #mmaf_parameters-------------------------------------------
 #' @title Show MMAF Parameters
-#' @description Displays the Micro–Macro Allocation Framework configuration contained in a `mmaf_parameters` object.
+#' @description Displays the Micro-Macro Allocation Framework configuration contained in a `mmaf_parameters` object.
 #' @param object A `mmaf_parameters` object.
 #' @method show mmaf_parameters
 #' @export
 setMethod("show", "mmaf_parameters", function(object) {
-  cat("\nMicro–Macro Allocation Framework (MMAF) Parameters:\n")
+  cat("\nMicro-Macro Allocation Framework (MMAF) Parameters:\n")
   cat("MMAF Method: ", object@mmaf_method, "\n")
   cat("Group Column: ", object@mmaf_group_col, "\n")
 

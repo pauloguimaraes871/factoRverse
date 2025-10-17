@@ -10,5 +10,5 @@
 \item{object}{A \code{mmaf_parameters} object.}
 }
 \description{
-Displays the Micro–Macro Allocation Framework configuration contained in a \code{mmaf_parameters} object.
+Displays the Micro-Macro Allocation Framework configuration contained in a \code{mmaf_parameters} object.
 }
