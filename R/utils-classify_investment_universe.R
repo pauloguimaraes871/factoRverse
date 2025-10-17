@@ -57,6 +57,7 @@
 #'   - `top_quantile_buffer`: A numeric value indicating a buffer value that relaxes `pre_eligible_assets` for stocks with the specified liquidity classification.
 #'   - `turnover_cap`: A numeric value specifying the turnover cap.
 #'   Stocks that are less liquid than specified for a buffer zone and have a signal higher than the respective buffer quantile will be considered eligible, even if they do not meet the `liquidity_floor_rule`.
+#' @param selected_benchmark A character vector describing the strategy benchmark.
 #' @param benchmark_weights_m_d_ref A data frame containing columns for id, tickers, dates, and current benchmark weights columns.
 #'  All tickers in the current universe must have a unique correspondence in this data frame.
 #' @param groups_m_d_ref A data frame containing columns for id, tickers, dates, and group classification columns following a given classification method.
@@ -68,6 +69,7 @@
 #' - `max_abs_active_group_weight`: The maximum absolute group active weight used for creating group constraints in `generate_group_constraints`.
 #' If a given group has no eligible asset, the one with the greatest signal will be automatically promoted.
 #' Note that, in the context of `generate_group_constraints`, a `benchmark_weights_m_d_ref` data frame must also be supplied.
+#' @param is_mmaf If TRUE, indicates that the concentration_constraint_policy refers to macro level and thus forces group eligibility.
 #' @param target_port_m_d_ref Optional. A data frame containing columns for id, tickers, dates, and target portfolio weights.
 #' @param ridge_pen Optional. A numeric value indicating the ridge penalty to be used when shrinking MVO weights towards the target portfolio.
 #' @param liquidity_floor_cutoffs Mandatory if `turnover_constraint_policy` and/or `liquidity_constraint_policy` are provided.
@@ -90,7 +92,8 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
                                          eligibility_quantile_range = NULL, min_eligible_assets_fallback = NULL, signal_significance_threshold = NULL, #Signal classification for only_pre_eligible_assets_rule
                                          liquidity_floor_cutoffs = NULL, liquidity_m_d_ref = NULL, liquidity_constraint_policy= NULL, #Liquidity policy
                                          updated_port_weights_m_lstd_ref = NULL, turnover_constraint_policy = NULL, #Turnover policy
-                                         benchmark_weights_m_d_ref = NULL, groups_m_d_ref = NULL, concentration_constraint_policy = NULL, #Concentration policy
+                                         selected_benchmark = NULL,
+                                         benchmark_weights_m_d_ref = NULL, groups_m_d_ref = NULL, concentration_constraint_policy = NULL, is_mmaf = FALSE, #Concentration policy
                                          target_port_m_d_ref = NULL, ridge_pen = NULL, #Shrinkage
                                          user_defined_AND_rules_m_d_ref = NULL, user_defined_OR_rules_m_d_ref = NULL, #User defined rules
                                          asset_object = "stocks", use_raw_for_eligibility = FALSE, verbose = TRUE
@@ -104,12 +107,12 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
   }
 
   #Check if exp_ret_score_raw columns exists if use_raw_for_eligibility is TRUE
-  if (use_raw_for_eligibility && !("exp_ret_score_raw" %in% colnames(universe_m_d_ref))){
+  if (!is.null(use_raw_for_eligibility) && use_raw_for_eligibility && !("exp_ret_score_raw" %in% colnames(universe_m_d_ref))){
     stop("use_raw_for_eligibility is TRUE but exp_ret_score_raw column does not exist in universe_m_d_ref")
   }
 
   #Throw an error if use_raw_for_eligibility is TRUE and asset_object is signals
-  if (use_raw_for_eligibility && asset_object == "signals"){
+  if (!is.null(use_raw_for_eligibility) && use_raw_for_eligibility && asset_object == "signals"){
     stop("use_raw_for_eligibility is TRUE but asset_object is signals.")
   }
 
@@ -246,7 +249,7 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
 
     ####Create a working copy that will store old values for exp_ret_score if use_raw_for_eligibility is TRUE
     pre_eligibility_m_d_ref <- universe_m_d_ref
-    if (isTRUE(use_raw_for_eligibility)){
+    if (!is.null(use_raw_for_eligibility) && isTRUE(use_raw_for_eligibility)){
       # Temporarily substitute exp_ret_score with the raw version
       universe_m_d_ref$exp_ret_score <- pre_eligibility_m_d_ref$exp_ret_score_raw
     }
@@ -261,7 +264,7 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
 
     # Print
     if (verbose) {
-      gate_col_label <- if (use_raw_for_eligibility) "exp_ret_score_raw" else "exp_ret_score"
+      gate_col_label <- if (!is.null(use_raw_for_eligibility) && use_raw_for_eligibility) "exp_ret_score_raw" else "exp_ret_score"
       pre_eligible_assets <- universe_m_d_ref %>% dplyr::filter(pre_eligible_assets == 1) %>% dplyr::pull(tickers)
       eligibility_proportion <- length(pre_eligible_assets) / nrow(universe_m_d_ref)
       cat(paste0(
@@ -293,10 +296,19 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
 
   ###Active Weights Constraint Policy
   ########################
-  if (!is.null(concentration_constraint_policy$benchmark)){ #If max_abs_active_individual_weight is NULL, do not apply rule
+  if ((!is.null(concentration_constraint_policy$benchmark) || !is.null(selected_benchmark)) &&
+       !is.null(benchmark_weights_m_d_ref)){
+
+    ### If both benchmarks are not NULL, check if they match
+    if (!is.null(concentration_constraint_policy$benchmark) && !is.null(selected_benchmark)){
+      if (!identical(concentration_constraint_policy$benchmark, selected_benchmark)){
+        stop("concentration_constraint_policy$benchmark and selected_benchmark are not identical.")
+      }
+    }
+
     ###Maximum Absolute Active Individual Weight Rule Meta Dataframe
-    #Select benchmark
-    selected_benchmark <- concentration_constraint_policy$benchmark
+    #Select benchmark based on availability
+    selected_benchmark <- if (!is.null(concentration_constraint_policy$benchmark)) concentration_constraint_policy$benchmark else selected_benchmark
 
     #Select only weights of that benchmark
     max_abs_active_weight_individual_rule_m_d_ref <- benchmark_weights_m_d_ref %>%
@@ -304,7 +316,7 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
 
     ##Apply Maximum Absolute Active Individual Weight Rule if present in policy
     ###Apply Maximum Absolute Active Individual Weight Rule
-    if (!is.null(concentration_constraint_policy$max_abs_active_individual_weight)){
+    if (!is.null(concentration_constraint_policy$max_abs_active_individual_weight) && !is_mmaf){
       ####Only one benchmark allowed in this case
       if (length(selected_benchmark) > 1) stop("Only one benchmark is allowed when setting max_abs_active_individual_weight.")
 
@@ -403,7 +415,7 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
   }
 
   ##2. Active Individual Weights Constraint Policy Eligibility
-  if(!is.null(concentration_constraint_policy$max_abs_active_individual_weight)){
+  if(!is.null(concentration_constraint_policy$max_abs_active_individual_weight) && !is_mmaf){
     universe_m_d_ref <- universe_m_d_ref %>%
       dplyr::mutate(is_eligible = is_eligible +
                       rowSums(dplyr::across(dplyr::starts_with("max_abs_aw_ind"))) #Select cols that start with "max_abs_aw" and sum
@@ -428,7 +440,8 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
   }
 
   ##Group Representativeness Eligibility
-  if(!is.null(concentration_constraint_policy$max_abs_active_group_weight) && !is.null(groups_m_d_ref)){
+  if((!is.null(concentration_constraint_policy$max_abs_active_group_weight) && !is.null(groups_m_d_ref)) ||
+     (is_mmaf && !is.null(concentration_constraint_policy$max_abs_active_individual_weight) && !is.null(groups_m_d_ref))){
     groups <- groups_m_d_ref %>% dplyr::select(-id, -tickers, -dates) %>% colnames()
     #For each group classification
     for(i in seq_along(groups)){
@@ -446,7 +459,7 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
             which(universe_m_d_ref[,groups[i]] == ineligible_groups[j]),]
 
           ##Replace is_eligible for 1 for that asset high highest signal
-          elig_col <- if (use_raw_for_eligibility) "exp_ret_score_raw" else "exp_ret_score"
+          elig_col <- if (!is.null(use_raw_for_eligibility) && use_raw_for_eligibility) "exp_ret_score_raw" else "exp_ret_score"
           best_ineligible_asset <- assets_in_ineligible_groups$tickers[which.max(assets_in_ineligible_groups[[elig_col]])]
           universe_m_d_ref[which(universe_m_d_ref$tickers == best_ineligible_asset),"is_eligible"] <- 1
 
@@ -480,7 +493,7 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
   universe_m_d_ref <- universe_m_d_ref %>% dplyr::relocate(is_eligible, .after = dplyr::last_col()) #Relocate to last column
 
   #If use_raw_for_eligibility is TRUE, bring back exp_ret_score values from pre_eligibility_m_d_ref
-  if (isTRUE(use_raw_for_eligibility)){
+  if (!is.null(use_raw_for_eligibility) && isTRUE(use_raw_for_eligibility)){
     universe_m_d_ref <- universe_m_d_ref %>%
       dplyr::left_join(pre_eligibility_m_d_ref %>% ##Use left_join to ensure order
                          dplyr::select(id, exp_ret_score), by = "id", suffix = c("", "_temp")) %>%
