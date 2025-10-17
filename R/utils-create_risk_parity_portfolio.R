@@ -5,11 +5,17 @@
 #' @param rp_method The method used to calculate the risk parity weights. Default is "cyclical-spinu". See riskParityPortfolio::riskParityPortfolio for more options.
 #' @param exp_ret_score_tilt One of 'none', 'inner' or 'final', indicating whether to apply the exp_ret_score tilt during the risk parity optimization ('inner'), after the optimization ('final'), or not at all ('none').
 #' @param exp_ret_score_tilt_eta The numeric tilt to apply to the risk parity weights based on the exp_ret_score column in universe_m_d_ref. If NULL, no tilt is applied.
+#' @param liquidity_constraint_policy A list containing liquidity constraint parameters. See generate_box_constraints for details.
+#' @param turnover_constraint_policy A list containing turnover constraint parameters. See generate_box_constraints for details.
+#' @param concentration_constraint_policy A list containing concentration constraint parameters. See generate_box_constraints for details.
 #' @param verbose If TRUE, will print messages to the console
 create_risk_parity_portfolio <- function(universe_m_d_ref, covariance_matrix,
                                          rp_method = "cyclical-spinu",
                                          exp_ret_score_tilt = NULL,
                                          exp_ret_score_tilt_eta = NULL,
+                                         liquidity_constraint_policy = NULL,
+                                         turnover_constraint_policy = NULL,
+                                         concentration_constraint_policy = NULL,
                                          verbose = TRUE){
 
   # Initial Setup---------------------------------------------------------------
@@ -26,21 +32,86 @@ create_risk_parity_portfolio <- function(universe_m_d_ref, covariance_matrix,
 
    }
 
+  ## Extract eligible tickers
+  eligible_universe_m_d_ref <- universe_m_d_ref %>%
+    dplyr::filter(is_eligible == 1L)
+  eligible_tickers <- eligible_universe_m_d_ref$tickers
+
     ### Defensively check if exp_ret_score column exists in universe_m_df
     if (!is.null(exp_ret_score_tilt) && exp_ret_score_tilt != "none" &&
-        !("exp_ret_score" %in% colnames(universe_m_d_ref))) {
+        !("exp_ret_score" %in% colnames(eligible_universe_m_d_ref))) {
       stop("exp_ret_score column is not present in universe_m_d_ref")
     }
 
-   ### Defensively check for alignment of cov and eligible tickers
-   if (!identical(rownames(covariance_matrix),
-                  universe_m_d_ref %>%
-                   dplyr::filter(is_eligible == 1L) %>%
-                   dplyr::pull(tickers)
-                  )) {
-     stop("covariance_matrix row/col names must exactly match eligible tickers order")
+    ### Defensively check for alignment of cov and eligible tickers
+     if (!identical(rownames(covariance_matrix), eligible_tickers)) {
+       stop("covariance_matrix row/col names must exactly match eligible tickers order")
+     }
+
+   ## If there is only one eligible ticker, return 100% weight
+   if (length(eligible_tickers) == 1L) {
+     if (isTRUE(verbose)) {
+        cat(crayon::yellow(
+          "\nOnly one eligible ticker found. Assigning 100% weight to it.\n"
+        ))
+      }
+     universe_m_d_ref <- universe_m_d_ref %>%
+       dplyr::mutate(
+         weights = ifelse(tickers == eligible_tickers, 1, 0)
+       )
+      return(
+        list(
+          universe_m_d_ref = universe_m_d_ref,
+          weights = universe_m_d_ref$weights,
+          rel_risk_contr = 1
+        )
+      )
    }
 
+  ### Tolerance levels
+  tol_violation <- 1e-3   # tolerance for violations
+  tol_clip  <- 1e-5       # just clean tiny numerical crumbs
+
+  # Default: long-only [0,1]
+  w_lb <- rep(0, length(eligible_tickers))
+  w_ub <- rep(1, length(eligible_tickers))
+
+  # Constraints-----------------------------------------------------------------
+  if (!is.null(concentration_constraint_policy$max_abs_active_individual_weight)) {
+
+    if (isTRUE(verbose)) {
+      cat("\nDefining box constraints based on provided policies...\n")
+    }
+
+    ## Apply generate_box_constraints
+    eligible_universe_m_d_ref <- generate_box_constraints(
+      universe_m_d_ref               = universe_m_d_ref,
+      liquidity_constraint_policy    = liquidity_constraint_policy,
+      turnover_constraint_policy     = turnover_constraint_policy,
+      concentration_constraint_policy= concentration_constraint_policy,
+      verbose = verbose
+    )
+
+    ## Make sure tickers column it is alligned with cov_matrix
+    if (!identical(eligible_universe_m_d_ref$tickers, rownames(covariance_matrix))){
+      stop("eligible_universe_m_d_ref tickers must exactly match cov_matrix row/col names order")
+    }
+
+    ## Update w_lb and w_ub
+    w_lb <- eligible_universe_m_d_ref$min_weight
+    w_ub <- eligible_universe_m_d_ref$max_weight
+
+    ## Merge for reference
+    universe_m_d_ref <- dplyr::left_join(
+      universe_m_d_ref,
+      dplyr::select(eligible_universe_m_d_ref, tickers, max_weight, min_weight),
+      by = "tickers"
+    )
+    universe_m_d_ref$max_weight[is.na(universe_m_d_ref$max_weight)] <- 0
+    universe_m_d_ref$min_weight[is.na(universe_m_d_ref$min_weight)] <- 0
+  }
+
+  has_constraints <- !is.null(concentration_constraint_policy$max_abs_active_individual_weight)
 
   # Tilted RP-------------------------------------------------------------------
   if (!is.null(exp_ret_score_tilt_eta) &&
@@ -49,35 +120,89 @@ create_risk_parity_portfolio <- function(universe_m_d_ref, covariance_matrix,
     ## Create rp_weights object depending on existence of a exp_ret_score_tilt_eta
 
       ### Apply rp with exp_ret_score_tilt_eta
-      rp <- riskParityPortfolio::riskParityPortfolio(
-        #### Cov
-        Sigma = covariance_matrix,
-        #### Tilt
-        mu = universe_m_d_ref$exp_ret_score[
-          match(rownames(covariance_matrix), universe_m_d_ref$tickers)],
-        lmd_mu = exp_ret_score_tilt_eta,
-        #### Method
-        method_init = rp_method
-      )
+      if (has_constraints){
+        rp <- riskParityPortfolio::riskParityPortfolio(
+          #### Cov
+          Sigma = covariance_matrix,
+          #### Tilt
+          mu = eligible_universe_m_d_ref$exp_ret_score[
+            match(rownames(covariance_matrix), eligible_universe_m_d_ref$tickers)],
+          lmd_mu = exp_ret_score_tilt_eta,
+          #### Constraints
+          w_lb = w_lb,
+          w_ub = w_ub,
+          #### Method
+          method_init = rp_method
+        )
+
+      } else {
+        rp <- riskParityPortfolio::riskParityPortfolio(
+          #### Cov
+          Sigma = covariance_matrix,
+          #### Tilt
+          mu = eligible_universe_m_d_ref$exp_ret_score[
+            match(rownames(covariance_matrix), eligible_universe_m_d_ref$tickers)],
+          lmd_mu = exp_ret_score_tilt_eta,
+          #### Method
+          method_init = rp_method
+        )
+      }
+
 
   # Traditional RP---------------------------------------------------------------
   } else {
 
     ### Apply rp without exp_ret_score_tilt
-    rp <- riskParityPortfolio::riskParityPortfolio(
-      Sigma = covariance_matrix,
-      method_init = rp_method
-    )
-
+    if (has_constraints){
+      rp <- riskParityPortfolio::riskParityPortfolio(
+        Sigma = covariance_matrix,
+        w_lb = w_lb,
+        w_ub = w_ub,
+        method_init = rp_method
+      )
+    } else {
+      rp <- riskParityPortfolio::riskParityPortfolio(
+        Sigma = covariance_matrix,
+        method_init = rp_method
+      )
+    }
   }
 
-  # Apply final tilt if specified------------------------------------------------
+  # Check for weights outside of bounds-----------------------------------------
+  ### Check for negative or >1 weights
+  if (any(rp$w < -tol_violation) || any(rp$w > 1 + tol_violation)) {
+    stop(crayon::red(
+      "\nSome weights fall outside the feasible range [0,1] beyond tolerance.\n",
+      "→ Suggestion: apply constraints to control weight bounds.\n"
+    ))
+  } else if (any(rp$w < 0)) {
+    # Only tiny negatives -> clip to 0 and renormalize
+    if (verbose) {
+      cat(crayon::yellow(
+        sprintf("\nClipping tiny negative weights to 0 (sum of negatives = %.3e) and renormalizing...\n",
+                sum(rp$w[rp$w < 0]))
+      ))
+    }
+    rp$w[rp$w < 0] <- 0
+    s <- sum(rp$w)
+    if (!isTRUE(all.equal(s, 1, tolerance = tol_clip))) rp$w <- rp$w / s
+  }
+
+  # Apply final tilt if specified-----------------------------------------------
   if (!is.null(exp_ret_score_tilt_eta) &&
       !is.null(exp_ret_score_tilt) && exp_ret_score_tilt == "final") {
 
-    exp_ret_scores <- universe_m_d_ref$exp_ret_score[
-      match(rownames(covariance_matrix), universe_m_d_ref$tickers)] %>%
-      setNames(rownames(covariance_matrix))
+    ## If has_constraints == TRUE, warn the user that constaints may be overwritten
+    if (has_constraints){
+      warning(crayon::yellow(
+        "\nApplying final tilt may violate previously set box constraints.\n",
+        "→ Suggestion: consider using 'inner' tilt instead of 'final' tilt.\n"
+      ))
+    }
+
+    exp_ret_scores <- eligible_universe_m_d_ref$exp_ret_score[
+      match(rownames(covariance_matrix), eligible_universe_m_d_ref$tickers)] %>%
+      stats::setNames(rownames(covariance_matrix))
 
     ### Apply final tilt to weights
     rp$w <- rp$w * ( exp_ret_scores ^ exp_ret_score_tilt_eta )
