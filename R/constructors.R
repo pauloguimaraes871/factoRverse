@@ -3060,7 +3060,7 @@ setMethod(
   "add_cov_est_method", signature(object = "sb_backtest_config", cov_est_method = "cov_est_method"),
   function(object, cov_est_method, ...) {
     # Check for sb algo
-    if (!(object@sb_algorithm %in% c("rp", "mvo"))) {
+    if (!(object@sb_algorithm %in% c("rp", "hrp", "mvo", "mmaf"))) {
       stop("Covariance estimation method is only available for 'rp' and 'mvo' strategies.")
     }
 
@@ -3081,7 +3081,7 @@ setMethod(
   "add_cov_est_method", signature(object = "sb_backtest_config", cov_est_method = "missing"),
   function(object, cov_est_method, cov_estimation_method = "sample", cov_matrix_sample_size = 36, active_returns = TRUE, cov_matrix_benchmark = NULL, ...) {
     # Check for sb algo
-    if (!(object@sb_algorithm %in% c("rp", "mvo"))) {
+    if (!(object@sb_algorithm %in% c("rp", "hrp", "mvo", "mmaf"))) {
       stop("Covariance estimation method is only available for 'rp' and 'mvo' strategies.")
     }
 
@@ -3109,8 +3109,8 @@ setMethod(
   "add_cov_est_method", signature(object = "port_backtest_config", cov_est_method = "cov_est_method"),
   function(object, cov_est_method, ...) {
     # Check for port construction method
-    if (!object@port_construction_method %in% c("rp", "mvo")) {
-      stop("Covariance estimation method is only available for 'rp' and 'mvo' strategies.")
+    if (!object@port_construction_method %in% c("rp", "hrp", "mvo", "mmaf")) {
+      stop("Covariance estimation method is only available for 'rp', 'hrp', 'mvo' and 'mmaf' strategies.")
     }
 
     # Check for existence of selected_benchmark
@@ -3136,8 +3136,8 @@ setMethod(
   "add_cov_est_method", signature(object = "port_backtest_config", cov_est_method = "missing"),
   function(object, cov_est_method, cov_estimation_method = "sample", cov_matrix_sample_size = 252, active_returns = TRUE, cov_matrix_benchmark = NULL, ...) {
     # Check for sb algo
-    if (!object@port_construction_method %in% c("rp", "mvo")) {
-      stop("Covariance estimation method is only available for 'rp' and 'mvo' strategies.")
+    if (!object@port_construction_method %in% c("rp", "hrp", "mvo", "mmaf")) {
+      stop("Covariance estimation method is only available for 'rp', 'hrp', 'mvo' and 'mmaf' strategies.")
     }
 
     # Check for existence of selected_benchmark
@@ -3857,7 +3857,7 @@ create_mmaf_parameters <- function(mmaf_method = "bottom_up",
   }
 
   # Validate mmaf_group_col
-  if (!is.character(mmaf_group_col) || length(mmaf_group_col) != 1) {
+  if (!is.null(mmaf_group_col) && (!is.character(mmaf_group_col) || length(mmaf_group_col) != 1)) {
     stop("mmaf_group_col must be a length 1 character string.")
   }
 
@@ -3937,7 +3937,7 @@ setMethod(
   function(object,
            mmaf_params,
            mmaf_method = "bottom_up",
-           top_down_proxy_port_method = "ew",
+           top_down_proxy_port_method = if (mmaf_method == "top_down") "ew" else NULL,
            mmaf_group_col,
            micro_port_construction_method,
            macro_port_construction_method,
@@ -3988,7 +3988,7 @@ setMethod(
   function(object,
            mmaf_params,
            mmaf_method = "bottom_up",
-           top_down_proxy_port_method = "ew",
+           top_down_proxy_port_method = if (mmaf_method == "top_down") "ew" else NULL,
            mmaf_group_col,
            micro_port_construction_method,
            macro_port_construction_method,
@@ -4005,6 +4005,7 @@ setMethod(
       micro_port_construction_method = micro_port_construction_method,
       macro_port_construction_method = macro_port_construction_method
     )
+
 
     object <- object %>% add_mmaf_parameters(mmaf_params = mmaf_params)
 
@@ -4036,7 +4037,7 @@ setMethod(
 #' @export
 create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tuning_strategy = NULL, training_sample_size, rebalancing_months, split_method = "expanding",
                                       chosen_signals_and_positions = NULL,
-                                      custom_objective = "squared_error", keras_architecture_parameters = NULL, signal_port_parameters = NULL, quantile_tau = 0.5, huber_delta = 1,
+                                      custom_objective = NULL, keras_architecture_parameters = NULL, signal_port_parameters = NULL, quantile_tau = 0.5, huber_delta = 1,
                                       config_name = "not_identified") {
   ## Give custom warning related to quantile tau and huber delta
   if (!is.null(quantile_tau) && quantile_tau != 0.5) {
@@ -4044,6 +4045,20 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tun
   }
   if (!is.null(huber_delta) && huber_delta != 1) {
     message("changing huber_delta impacts both chosen_eval_metric and custom_objective.")
+  }
+
+  ## Set custom objective default based on sb_algorithm
+  if (is.null(custom_objective)){
+
+    if (sb_algorithm %in% c("rp", "hrp", "mvo", "mmaf", "sw")){
+      ### Change custom objective default
+      custom_objective <- "max_info_ratio"
+      message("custom_objective set as 'max_info_ratio'. It can be changed by the argument custom_objective.",
+              "To see complete list of valid heuristic performance metrics, use 'display_valid_custom_objectives()")
+    } else {
+      custom_objective <- "squared_error"
+    }
+
   }
 
   ## Chosen_signals_and_positions
@@ -4376,8 +4391,8 @@ create_port_backtest_config <- function(chosen_score_metric_and_position = NULL,
       mmaf_method = "bottom_up",
       top_down_proxy_port_method = NULL,
       mmaf_group_col = NULL,
-      micro_port_config = NULL,
-      macro_port_config = NULL
+      micro_port_construction_method = "ew",
+      macro_port_construction_method = "ew"
     )
   }
   # Create and return the new port_backtest_config object
@@ -4425,6 +4440,22 @@ create_concentration_constraint_policy <- function(
     benchmark = character(0),
     max_abs_active_individual_weight = NA_real_,
     max_abs_active_group_weight = numeric(0)) {
+
+  ## If provided, max_abs_active_group_weight must be named
+  if (length(max_abs_active_group_weight) > 0 && is.null(names(max_abs_active_group_weight))) {
+    stop("max_abs_active_group_weight must be a named numeric vector.")
+  }
+
+  ## If provided, max_abs_active must be a numeric (not named)
+  if (length(max_abs_active_individual_weight) > 0 && !is.numeric(max_abs_active_individual_weight)) {
+    stop("max_abs_active_individual_weight must be a numeric value.")
+  }
+
+  ## Benchmark must be always provided and should be a character
+  if (!is.character(benchmark)) {
+    stop("benchmark must be a character vector (can be empty if no benchmark specified).")
+  }
+
   obj <- methods::new(
     "concentration_constraint_policy",
     benchmark = benchmark,
@@ -4502,8 +4533,8 @@ setMethod(
     selected_benchmark <- object@selected_benchmark
 
     # Check if port_construction_method is 'mvo' or 'mmaf'
-    if (!(object@port_construction_method %in% c("mvo", "mmaf"))) {
-      stop("Concentration constraint policy can only be added to 'mvo' or 'mmaf' port_construction_method.")
+    if (!(object@port_construction_method %in% c("mvo", "mmaf", "rp"))) {
+      stop("Concentration constraint policy can only be added to 'rp', 'mvo' or 'mmaf' port_construction_method.")
     }
 
     # Build a new policy on the fly
