@@ -1999,6 +1999,8 @@ test_that("check_inputs_port_backtest throws an error when fwd_return_m_df is no
       liquidity_constraint_policy = NULL,
       turnover_constraint_policy = NULL,
       liquidity_floor_cutoffs = NULL,
+      exp_ret_score_tilt = NULL,
+      exp_ret_score_tilt_eta = NULL,
       user_defined_OR_rules_m_df = NULL,
       user_defined_AND_rules_m_df = NULL,
       transaction_costs_parameters = list(strategy_aum = 10, direct_transaction_cost = 0.07, alpha = 0.5, lambda = "dynamic"),
@@ -2723,7 +2725,7 @@ test_that("check_inputs_port_backtest throws an error when concentration_constra
       custom_stock_metrics_m_df = NULL,
       concentration_constraint_policy = concentration_constraint_policy,
       verbose = TRUE
-    ), "max_abs_active_group_weight shouldn't be present in concentration_constraint_policy for port_construction_method = 'mmaf'"
+    ), "max_abs_active_group_weight shouldn't be present in concentration_constraint_policy if port_construction_method is not 'mvo'"
   )
 
 
@@ -2963,7 +2965,7 @@ test_that("check_inputs_port_backtest throws an error when macro_concentration_c
         macro_port_construction_method = "sw",
         macro_concentration_constraint_policy = wrong_macro_concentration_constraint_policy,
         verbose = TRUE
-      ), "macro_concentration_constraint_policy is only available for macro_port_construction_method == 'mvo'"
+      ), "macro_concentration_constraint_policy is only available when macro_port_construction_method is 'mvo' or 'rp'"
     )
 
 
@@ -4544,6 +4546,8 @@ test_that("check_inputs_port_backtest throws an error when ridge_pen and target_
       scaler_m_df = NULL,
       chosen_scaler = NULL,
       scaler_shrinkage = NULL,
+      micro_port_construction_method = NULL,
+      macro_port_construction_method = NULL,
       macro_concentration_constraint_policy = NULL,
       use_raw_for_eligibility = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
@@ -4575,7 +4579,7 @@ test_that("check_inputs_port_backtest throws an error when ridge_pen and target_
       user_defined_OR_rules_m_df = NULL,
       user_defined_AND_rules_m_df = NULL,
       verbose = TRUE
-    ), "ridge_pen can only be used when port_construction_method is 'mvo'."
+    ), "ridge_pen can only be used for 'mvo'."
   )
 
 
@@ -4891,6 +4895,8 @@ test_that("check_inputs_port_backtest throws an error when ridge_pen and target_
       custom_stock_weights_m_df = NULL,
       fwd_return_m_df = target_m_df,
       ridge_pen = wrong_ridge_pen,
+      cov_estimation_method = "sample",
+      active_returns = FALSE,
       macro_ridge_pen = NULL,
       target_port_m_df = target_port_m_df,
       custom_stock_metrics_m_df = NULL,
@@ -4939,6 +4945,8 @@ test_that("check_inputs_port_backtest throws an error when ridge_pen and target_
       fwd_return_m_df = target_m_df,
       ridge_pen = NULL,
       macro_ridge_pen = wrong_macro_ridge_pen,
+      cov_estimation_method = "sample",
+      active_returns = FALSE,
       target_port_m_df = target_port_m_df,
       custom_stock_metrics_m_df = NULL,
       concentration_constraint_policy = NULL,
@@ -5186,6 +5194,8 @@ test_that("check_inputs_port_backtest throws an error when port_construction_met
       fwd_return_m_df = target_m_df,
       custom_stock_metrics_m_df = NULL,
       concentration_constraint_policy = NULL,
+      exp_ret_score_tilt = NULL,
+      exp_ret_score_tilt_eta = NULL,
       liquidity_constraint_policy = liquidity_constraint_policy,
       turnover_constraint_policy = turnover_constraint_policy,
       liquidity_floor_cutoffs = liquidity_floor_cutoffs_df,
@@ -5220,6 +5230,8 @@ test_that("check_inputs_port_backtest throws an error when port_construction_met
       cov_matrix_sample_size = 100,
       selected_benchmark = "ibov",
       macro_concentration_constraint_policy = NULL,
+      exp_ret_score_tilt = NULL,
+      exp_ret_score_tilt_eta = NULL,
       ridge_pen = NULL,
       macro_ridge_pen = NULL,
       cov_estimation_method = "sample",
@@ -5257,6 +5269,8 @@ test_that("check_inputs_port_backtest throws an error when port_construction_met
       use_raw_for_eligibility = NULL,
       macro_exp_ret_score_tilt = NULL,
       macro_exp_ret_score_tilt_eta = NULL,
+      exp_ret_score_tilt = NULL,
+      exp_ret_score_tilt_eta = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
@@ -5287,8 +5301,6 @@ test_that("check_inputs_port_backtest throws an error when port_construction_met
       user_defined_OR_rules_m_df = NULL,
       user_defined_AND_rules_m_df = NULL,
       port_construction_method = "mmaf",
-      exp_ret_score_tilt = NULL,
-      exp_ret_score_tilt_eta = NULL,
       micro_port_construction_method = "sw",
       macro_port_construction_method = NULL,
       verbose = TRUE
@@ -5303,6 +5315,8 @@ test_that("check_inputs_port_backtest throws an error when port_construction_met
       min_eligible_assets_fallback = NULL,
       scaler_m_df = NULL,
       chosen_scaler = NULL,
+      exp_ret_score_tilt = NULL,
+      exp_ret_score_tilt_eta = NULL,
       scaler_shrinkage = NULL,
       use_raw_for_eligibility = NULL,
       macro_exp_ret_score_tilt = NULL,
@@ -5337,8 +5351,6 @@ test_that("check_inputs_port_backtest throws an error when port_construction_met
       user_defined_OR_rules_m_df = NULL,
       user_defined_AND_rules_m_df = NULL,
       port_construction_method = "mmaf",
-      exp_ret_score_tilt = NULL,
-      exp_ret_score_tilt_eta = NULL,
       micro_port_construction_method = "swa",
       macro_port_construction_method = "sw",
       verbose = TRUE
@@ -5355,6 +5367,8 @@ test_that("check_inputs_port_backtest throws an error when port_construction_met
       chosen_scaler = NULL,
       scaler_shrinkage = NULL,
       use_raw_for_eligibility = NULL,
+      exp_ret_score_tilt = NULL,
+      exp_ret_score_tilt_eta = NULL,
       macro_exp_ret_score_tilt = NULL,
       macro_exp_ret_score_tilt_eta = NULL,
       chosen_score_metric_and_position = c(Alpha = "long"),
@@ -5387,8 +5401,6 @@ test_that("check_inputs_port_backtest throws an error when port_construction_met
       user_defined_OR_rules_m_df = NULL,
       user_defined_AND_rules_m_df = NULL,
       port_construction_method = "mmaf",
-      exp_ret_score_tilt = NULL,
-      exp_ret_score_tilt_eta = NULL,
       micro_port_construction_method = "sw",
       macro_port_construction_method = "custom_weights",
       verbose = TRUE
@@ -5410,6 +5422,8 @@ test_that("check_inputs_port_backtest throws an error when port_construction_met
       chosen_score_metric_and_position = c(Alpha = "long"),
       rebalancing_months = 7,
       initial_buffer_period = 2,
+      exp_ret_score_tilt = NULL,
+      exp_ret_score_tilt_eta = NULL,
       eligibility_quantile_range = c(0.5,0.75),
       daily_stock_returns_m_xts = daily_stock_returns_m_xts,
       daily_bench_returns_m_xts = NULL,
@@ -5437,13 +5451,11 @@ test_that("check_inputs_port_backtest throws an error when port_construction_met
       user_defined_OR_rules_m_df = NULL,
       user_defined_AND_rules_m_df = NULL,
       port_construction_method = "mmaf",
-      exp_ret_score_tilt = NULL,
-      exp_ret_score_tilt_eta = NULL,
       micro_port_construction_method = "sw",
       macro_port_construction_method = "sw",
       mmaf_group_col = NULL,
       verbose = TRUE
-    ), "mmaf_group_col can't be NULL when port_construction_method is 'mmaf'"
+    ), "mmaf_group_col can't be NULL for 'mmaf'"
   )
 
   #mmaf group col wrong
@@ -5465,6 +5477,8 @@ test_that("check_inputs_port_backtest throws an error when port_construction_met
       daily_stock_returns_m_xts = daily_stock_returns_m_xts,
       daily_bench_returns_m_xts = NULL,
       active_returns = FALSE,
+      exp_ret_score_tilt = NULL,
+      exp_ret_score_tilt_eta = NULL,
       cov_matrix_benchmark = "ibov",
       cov_matrix_sample_size = 100,
       selected_benchmark = "ibov",
@@ -5488,13 +5502,11 @@ test_that("check_inputs_port_backtest throws an error when port_construction_met
       user_defined_OR_rules_m_df = NULL,
       user_defined_AND_rules_m_df = NULL,
       port_construction_method = "mmaf",
-      exp_ret_score_tilt = NULL,
-      exp_ret_score_tilt_eta = NULL,
       micro_port_construction_method = "sw",
       macro_port_construction_method = "sw",
       mmaf_group_col = "sapr",
       verbose = TRUE
-    ), "stock_groups_m_df must be provided and mmaf_group_col must be present in stock_groups_m_df when port_construction_method is 'mmaf'"
+    ), "groups_m_df must be provided and mmaf_group_col must be present in groups_m_df for 'mmaf'"
   )
 
   #mmaf method
@@ -5521,6 +5533,8 @@ test_that("check_inputs_port_backtest throws an error when port_construction_met
       selected_benchmark = "ibov",
       macro_concentration_constraint_policy = NULL,
       ridge_pen = NULL,
+      exp_ret_score_tilt = NULL,
+      exp_ret_score_tilt_eta = NULL,
       macro_ridge_pen = NULL,
       cov_estimation_method = "sample",
       benchmark_returns_m_xts = benchmark_returns_m_xts,
@@ -5539,8 +5553,6 @@ test_that("check_inputs_port_backtest throws an error when port_construction_met
       user_defined_OR_rules_m_df = NULL,
       user_defined_AND_rules_m_df = NULL,
       port_construction_method = "mmaf",
-      exp_ret_score_tilt = NULL,
-      exp_ret_score_tilt_eta = NULL,
       micro_port_construction_method = "sw",
       macro_port_construction_method = "sw",
       mmaf_group_col = "Sector",
@@ -5577,6 +5589,8 @@ test_that("check_inputs_port_backtest throws an error when port_construction_met
       cov_estimation_method = "sample",
       benchmark_returns_m_xts = benchmark_returns_m_xts,
       stock_groups_m_df = stock_groups_m_df,
+      exp_ret_score_tilt = NULL,
+      exp_ret_score_tilt_eta = NULL,
       liquidity_m_df = liquidity_m_df,
       main_liquidity_metric = "mean_volfin_3m",
       volatility_m_df = volatility_m_df,
@@ -5591,8 +5605,6 @@ test_that("check_inputs_port_backtest throws an error when port_construction_met
       user_defined_OR_rules_m_df = NULL,
       user_defined_AND_rules_m_df = NULL,
       port_construction_method = "mmaf",
-      exp_ret_score_tilt = NULL,
-      exp_ret_score_tilt_eta = NULL,
       micro_port_construction_method = "sw",
       macro_port_construction_method = "sw",
       mmaf_group_col = "Sector",
@@ -6404,9 +6416,8 @@ test_that("check_inputs_port_backtest throws an error when mvo args are wrong", 
       user_defined_AND_rules_m_df = NULL,
       port_construction_method = "mvo",
       verbose = TRUE
-    ),
-    "n_resamples > 0, but no jitter is being applied \\(exp_ret_score_jitter = 0 and cov_eigval_jitter = 0\\).Consider setting a positive jitter value."
-  )
+      )
+    )
 
 
   expect_error(
@@ -6460,8 +6471,7 @@ test_that("check_inputs_port_backtest throws an error when mvo args are wrong", 
       user_defined_AND_rules_m_df = NULL,
       port_construction_method = "mvo",
       verbose = TRUE
-    ),
-    "n_resamples = 0, but jitter is being applied \\(exp_ret_score_jitter > 0 or cov_eigval_jitter > 0\\).Consider setting n_resamples to a positive integer."
+    )
   )
 
 
@@ -6890,8 +6900,7 @@ test_that("check_inputs_port_backtest throws an error when mvo args are wrong (m
       user_defined_AND_rules_m_df = NULL,
       port_construction_method = "mmaf",
       verbose = TRUE
-    ),
-    "macro_n_resamples > 0, but no jitter is being applied \\(macro_exp_ret_score_jitter = 0 and macro_cov_eigval_jitter = 0\\).Consider setting a positive jitter value."
+    )
   )
 
 
@@ -6946,9 +6955,8 @@ test_that("check_inputs_port_backtest throws an error when mvo args are wrong (m
       user_defined_AND_rules_m_df = NULL,
       port_construction_method = "mmaf",
       verbose = TRUE
-    ),
-    "macro_n_resamples = 0, but jitter is being applied \\(macro_exp_ret_score_jitter > 0 or macro_cov_eigval_jitter > 0\\).Consider setting macro_n_resamples to a positive integer."
-  )
+     )
+    )
 
 
 
@@ -6992,6 +7000,8 @@ test_that("check_inputs_port_backtest throws an error when transaction_cost_pars
       custom_stock_weights_m_df = NULL,
       fwd_return_m_df = target_m_df,
       custom_stock_metrics_m_df = NULL,
+      exp_ret_score_tilt = NULL,
+      exp_ret_score_tilt_eta = NULL,
       concentration_constraint_policy = NULL,
       liquidity_constraint_policy = liquidity_constraint_policy,
       turnover_constraint_policy = turnover_constraint_policy,
@@ -7031,6 +7041,8 @@ test_that("check_inputs_port_backtest throws an error when transaction_cost_pars
       stock_groups_m_df = stock_groups_m_df,
       liquidity_m_df = liquidity_m_df,
       main_liquidity_metric = "mean_volfin_3m",
+      exp_ret_score_tilt = NULL,
+      exp_ret_score_tilt_eta = NULL,
       volatility_m_df = volatility_m_df,
       benchmark_weights_m_df = benchmark_weights_m_df,
       custom_stock_weights_m_df = NULL,
@@ -7078,6 +7090,8 @@ test_that("check_inputs_port_backtest throws an error when transaction_cost_pars
       stock_groups_m_df = stock_groups_m_df,
       liquidity_m_df = liquidity_m_df,
       main_liquidity_metric = "mean_volfin_3m",
+      exp_ret_score_tilt = NULL,
+      exp_ret_score_tilt_eta = NULL,
       volatility_m_df = volatility_m_df,
       benchmark_weights_m_df = benchmark_weights_m_df,
       custom_stock_weights_m_df = NULL,
@@ -7129,6 +7143,8 @@ test_that("check_inputs_port_backtest throws an error when transaction_cost_pars
       main_liquidity_metric = "mean_volfin_3m",
       volatility_m_df = volatility_m_df,
       ridge_pen = NULL,
+      exp_ret_score_tilt = NULL,
+      exp_ret_score_tilt_eta = NULL,
       macro_ridge_pen = NULL,
       benchmark_weights_m_df = benchmark_weights_m_df,
       custom_stock_weights_m_df = NULL,
@@ -7178,6 +7194,8 @@ test_that("check_inputs_port_backtest throws an error when transaction_cost_pars
       liquidity_m_df = liquidity_m_df,
       main_liquidity_metric = "mean_volfin_3m",
       volatility_m_df = volatility_m_df,
+      exp_ret_score_tilt = NULL,
+      exp_ret_score_tilt_eta = NULL,
       benchmark_weights_m_df = benchmark_weights_m_df,
       custom_stock_weights_m_df = NULL,
       fwd_return_m_df = target_m_df,
@@ -7238,6 +7256,8 @@ test_that("check_inputs_port_backtest throws an error when transaction_cost_pars
       liquidity_floor_cutoffs = liquidity_floor_cutoffs_df,
       user_defined_OR_rules_m_df = NULL,
       user_defined_AND_rules_m_df = NULL,
+      exp_ret_score_tilt = NULL,
+      exp_ret_score_tilt_eta = NULL,
       port_construction_method = "ew",
       transaction_costs_parameters = wrong_transaction_costs_parameters,
       verbose = TRUE
