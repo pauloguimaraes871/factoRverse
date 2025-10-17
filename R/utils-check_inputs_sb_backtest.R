@@ -22,6 +22,36 @@
 #' @param init_points Numeric, number of initial points for Bayesian optimization.
 #' @param early_stop Numeric, number of epochs for early stopping (for "xgb" and "nn" algorithms).
 #' @param keras_architecture_parameters List, containing units (numeric), n_layers (numeric between 1 and 5), activation_function and nn_optimizer ("Adam" or "RMSProp")
+#' @param rp_method A parameter specifying the risk parity method to be applied (when applicable).
+#' @param exp_ret_score_tilt A logical value indicating whether to apply expected return score tilting in risk parity or mean-variance optimization (when applicable).
+#' @param exp_ret_score_tilt_eta A numeric value specifying the exponent used for expected return score tilting (when applicable).
+#' @param n_random_ports A numeric value indicating the number of random portfolios to generate.
+#' @param random_ports_method A parameter specifying the method for generating random portfolios.
+#' @param opt_objective A parameter defining the optimization objective.
+#' @param opt_method A parameter specifying the optimization method.
+#' @param target_port_m_df A data frame containing target portfolio weights (when applicable).
+#' @param ridge_pen A numeric value indicating the ridge penalty (when applicable).
+#' @param n_resamples A numeric value specifying the number of resamples (when applicable).
+#' @param exp_ret_score_jitter A numeric value indicating the jitter applied to expected return scores (when applicable).
+#' @param cov_eigval_jitter A numeric value specifying the jitter applied to covariance eigenvalues (when applicable).
+#' @param mmaf_method Character. Method for micro-macro allocation framework: "bottom_up" or "top_down".
+#' @param top_down_proxy_port_method Character. Method to create top-down proxy portfolio proxy.
+#' @param mmaf_group_col Character. Column name in `stock_groups_m_df` defining groups for MMAF.
+#' @param micro_port_construction_method Character. Method for micro-level portfolio construction in MMAF.
+#' @param macro_port_construction_method Character. Method for macro-level portfolio construction in MMAF.
+#' @param macro_concentration_constraint_policy A `list` defining concentration constraints at the macro level.
+#' @param macro_n_random_ports Integer. Number of random portfolios for macro-level optimization.
+#' @param macro_random_ports_method Character. Method to sample random portfolios at the macro level.
+#' @param macro_opt_objective Character. Optimization target for macro-level portfolio.
+#' @param macro_opt_method Character. Optimization method for macro-level portfolio.
+#' @param macro_ridge_pen Numeric. Ridge penalty for macro-level optimization.
+#' @param macro_n_resamples Integer. Number of resamples for robust optimization at the macro level.
+#' @param macro_exp_ret_score_jitter Numeric. Jitter to add to expected return scores during macro-level resampling.
+#' @param macro_cov_eigval_jitter Numeric. Jitter to add to covariance matrix eigenvalues during macro-level resampling.
+#' @param macro_rp_method Character. Risk parity allocation method for macro-level portfolio.
+#' @param macro_exp_ret_score_tilt Logical. If TRUE, applies expected return score tilt in macro-level RP.
+#' @param macro_exp_ret_score_tilt_eta Numeric. Exponent for expected return score tilt in macro-level RP.
+#' @param macro_linkage Character. Linkage method for hierarchical clustering in macro-level HRP.
 #' @param backtest_returns_m_xts A xts containing historical backtested returns named according to signals in `signals_m_df`,
 #' @param benchmark_returns_m_xts A xts with benchmark returns, named accordingly.
 #' @param verbose Logical, whether to print verbose output.
@@ -51,7 +81,20 @@ check_inputs_sb_backtest <- function(
   #SB heuristic
   signal_universe_m_df, backtest_returns_m_xts, benchmark_returns_m_xts, cov_matrix_benchmark,
   cov_matrix_sample_size, cov_estimation_method, active_returns, signal_themes_m_df,
-  rp_method, n_random_ports, random_ports_method, opt_objective, concentration_constraint_policy,
+  #RP/MVO Parameters
+  rp_method, exp_ret_score_tilt, exp_ret_score_tilt_eta, linkage,
+  n_random_ports, random_ports_method, opt_objective, opt_method,
+  target_port_m_df, ridge_pen, n_resamples, exp_ret_score_jitter, cov_eigval_jitter,
+  # MMAF Parameters
+  mmaf_method, top_down_proxy_port_method, mmaf_group_col,
+  micro_port_construction_method, macro_port_construction_method,
+  macro_concentration_constraint_policy,
+  macro_n_random_ports, macro_random_ports_method,
+  macro_opt_objective, macro_opt_method, macro_ridge_pen,
+  macro_n_resamples, macro_exp_ret_score_jitter, macro_cov_eigval_jitter,
+  macro_rp_method, macro_exp_ret_score_tilt,  macro_exp_ret_score_tilt_eta,
+  macro_linkage,
+  concentration_constraint_policy,
   custom_signal_weights_m_df,
   #SB algorithm
   sb_algorithm, gsm_algorithm, custom_objective, chosen_eval_metric, huber_delta, quantile_tau,
@@ -138,11 +181,12 @@ check_inputs_sb_backtest <- function(
     stop("validation_sample_size should be positive.")
   }
 
-  if (!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") && ((training_sample_size + validation_sample_size - assumed_target_fwd) < training_sample_size)){
+  if (!sb_algorithm %in% c("ols", "ew", "sw", "rp", "hrp", "mvo", "mmaf", "custom_weights") &&
+      ((training_sample_size + validation_sample_size - assumed_target_fwd) < training_sample_size)){
     stop("training_sample_size should be bigger than training_sample_size + validation_sample_size - target_fwd")
   }
 
-  if(sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo") & validation_sample_size != 0){
+  if(sb_algorithm %in% c("ols", "ew", "sw", "rp", "hrp", "mvo", "mmaf") & validation_sample_size != 0){
     stop("ols and heuristic sb algorithms do not support validation split.")
   }
 
@@ -339,8 +383,8 @@ check_inputs_sb_backtest <- function(
   }
 
   #signal_themes_m_df
-  if(!sb_algorithm %in% c("rp", "mvo") && !is.null(signal_themes_m_df)){
-    stop("signal_themes_m_df is only needed when sb_algorithm is either rp or mvo.")
+  if(!sb_algorithm %in% c("rp", "hrp", "mvo", "mmaf") && !is.null(signal_themes_m_df)){
+    stop("signal_themes_m_df is only needed when sb_algorithm is heuristic.")
   }
 
   #concentration_constraint_policy validity
@@ -365,7 +409,6 @@ check_inputs_sb_backtest <- function(
                  Running run_ss_backtest with enable_theme_representativeness as TRUE may help.")
     }
   }
-
 
   if(!is.null(signal_themes_m_df)){
     ##Check if signal_themes_m_df contemplates theme column
@@ -545,12 +588,12 @@ check_inputs_sb_backtest <- function(
 
 
   #Check for correct hyperparameters names in hyper_grid_domain_list
-  if(sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") && !is.null(hyper_grid_domain_list)){
+  if(sb_algorithm %in% c("ols", "ew", "sw", "rp", "hrp", "mvo", "mmaf", "custom_weights") && !is.null(hyper_grid_domain_list)){
     stop("ols and heuristic sb algorithms do not support hyperparameters.")
   }
 
 
-  if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") && is.null(hyper_grid_domain_list)){
+  if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "hrp", "mvo", "mmaf", "custom_weights") && is.null(hyper_grid_domain_list)){
     stop("hyper_grid_domain must be set when sb_algorithm is different from ols.")
   }
 
@@ -579,12 +622,12 @@ check_inputs_sb_backtest <- function(
 
 
   #Check for valid format in tuning method
-  if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") && !tuning_method %in% c("random_search", "grid_search", "bayesian_opt")){
+  if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "hrp", "mvo", "mmaf", "custom_weights") && !tuning_method %in% c("random_search", "grid_search", "bayesian_opt")){
     stop("tuning_method should be one of random_search, grid_search or bayesian_opt.")
   }
 
   #Check for correct format in case tuning method is grid_search
-  if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") && tuning_method == c("grid_search")){
+  if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "hrp", "mvo", "mmaf", "custom_weights") && tuning_method == c("grid_search")){
     if(any(
       #Check if hyper_grid_domain_list is a list
       !(class(hyper_grid_domain_list) == "list") ||
@@ -598,12 +641,12 @@ check_inputs_sb_backtest <- function(
     }
   }
 
-  if(all(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights"), tuning_method == "grid_search",!is.null(n_iter))){
+  if(all(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "hrp", "mvo", "mmaf", "custom_weights"), tuning_method == "grid_search",!is.null(n_iter))){
     warning("When tuning_method is grid_search, hyperparameters are combined exhaustively. Ignoring any user set n_iter value")
   }
 
   #Check for correct format in case tuning method is random_search
-  if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") && tuning_method == c("random_search")){
+  if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "hrp", "mvo", "mmaf", "custom_weights") && tuning_method == c("random_search")){
 
 
     tryCatch({
@@ -644,7 +687,8 @@ check_inputs_sb_backtest <- function(
 
 
   #Check for correct format in case tuning method is Bayesian Optimization
-  if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") && tuning_method == c("bayesian_opt")){
+  if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "hrp", "mvo", "mmaf", "custom_weights") &&
+     tuning_method == c("bayesian_opt")){
     if(any(
       #Check if hyper_grid_domain_list is a list
       !is.list(hyper_grid_domain_list),
@@ -677,17 +721,17 @@ check_inputs_sb_backtest <- function(
   #SB algorithms
   ################
   #Check for correct choice in sb_algorithm
-  if(!sb_algorithm %in% c("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "mvo", "custom_weights")){
+  if(!sb_algorithm %in% c("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "hrp", "mvo", "mmaf", "custom_weights")){
     stop("sb_algorithm choice not supported.")
   }
 
   #Check for correct choice in custom_objective
-  if(all(!sb_algorithm %in% c("xgb", "nn", "sw", "mvo", "custom_weights") && custom_objective != "squared_error")){
+  if(all(!sb_algorithm %in% c("xgb", "nn", "sw", "mvo", "rp", "hrp", "mmaf", "custom_weights") && custom_objective != "squared_error")){
     stop("Custom objective functions are only allowed for xgb, nn, sw or mvo sb_algorithm choices")
   }
 
   #Check for custom objective
-  if(sb_algorithm %in% c("sw", "mvo")){
+  if(sb_algorithm %in% c("sw", "mvo", "mmaf") || (sb_algorithm %in% c("rp", "hrp") && !is.null(exp_ret_score_tilt))){
     if (!custom_objective %>% stringr::str_remove("max_") %>% stringr::str_remove("min_") %in% colnames(signal_universe_m_df)){
       stop("Invalid custom_objective. Should be 'max_' or 'min_' + one of columns in signal_universe_m_df (heuristic performance metrics).
                  To see complete list of base valid heuristic performance metrics, run 'display_valid_custom_objectives()'.")
@@ -746,41 +790,80 @@ check_inputs_sb_backtest <- function(
 
   }
 
-  #Check for RP and MVO
-  if(sb_algorithm %in% c("rp", "mvo")){
+  #Check for heuristics
+    ##Covariance matrix
+    if(sb_algorithm %in% c("rp", "hrp", "mvo", "mmaf")){
 
-    if(is.null(cov_estimation_method)){
-      stop("cov_estimation_method should be set for rp and mvo algorithms")
-    }
-    if(!is.numeric(cov_matrix_sample_size)){
-      stop("cov_matrix_sample_size should be numeric")
+      if(is.null(cov_estimation_method)){
+        stop("cov_estimation_method should be set for rp, hrp, mvo and mmaf algorithms")
+      }
+      if(!is.numeric(cov_matrix_sample_size)){
+        stop("cov_matrix_sample_size should be numeric")
+      }
+
+      if(cov_matrix_sample_size > training_sample_size){
+        stop("cov_matrix_sample_size should be smaller than or equal to training_sample_size")
+      }
+
+      if(!is.logical(active_returns)){
+        stop("active_returns should be logical")
+      }
+      if(active_returns && is.null(cov_matrix_benchmark)){
+        stop("cov_matrix_benchmark should be set if active_returns is TRUE")
+      }
     }
 
-    if(cov_matrix_sample_size > training_sample_size){
-      stop("cov_matrix_sample_size should be smaller than or equal to training_sample_size")
+    ##General checks
+    if(sb_algorithm %in% c("ew", "sw", "rp", "hrp", "mvo", "mmaf")){
+
+      # Validate port construction arguments
+      validate_port_construction_methods(
+        port_construction_method = sb_algorithm,
+        micro_port_construction_method = micro_port_construction_method,
+        macro_port_construction_method = macro_port_construction_method,
+        opt_method = opt_method,
+        random_ports_method = random_ports_method,
+        n_random_ports = n_random_ports,
+        opt_objective = opt_objective,
+        n_resamples = n_resamples,
+        exp_ret_score_jitter = exp_ret_score_jitter,
+        cov_eigval_jitter = cov_eigval_jitter,
+        macro_opt_method = macro_opt_method,
+        macro_random_ports_method = macro_random_ports_method,
+        macro_n_random_ports = macro_n_random_ports,
+        macro_opt_objective = macro_opt_objective,
+        macro_n_resamples = macro_n_resamples,
+        macro_exp_ret_score_jitter = macro_exp_ret_score_jitter,
+        macro_cov_eigval_jitter = macro_cov_eigval_jitter,
+        exp_ret_score_tilt = exp_ret_score_tilt,
+        exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
+        macro_exp_ret_score_tilt = macro_exp_ret_score_tilt,
+        macro_exp_ret_score_tilt_eta = macro_exp_ret_score_tilt_eta,
+        mmaf_group_col = mmaf_group_col,
+        stock_groups_m_df = signal_themes_m_df,
+        mmaf_method = mmaf_method,
+        top_down_proxy_port_method = top_down_proxy_port_method,
+        ridge_pen = ridge_pen,
+        macro_ridge_pen = macro_ridge_pen,
+        target_port_m_df = target_port_m_df,
+        signals_m_df = signal_universe_m_df,
+        dates_m_vector = dates_m_vector,
+        initial_buffer_period = training_sample_size
+      )
+
+      if (sb_algorithm == "mmaf"){
+        if (micro_port_construction_method %in% c("cw", "cs") ||
+            macro_port_construction_method %in% c("cw", "cs")){
+          stop("micro_port_construction_method and macro_port_construction_method cannot be 'cw' or 'cs' for signal_portfolios")
+        }
+      }
+
     }
 
-    if(!is.logical(active_returns)){
-      stop("active_returns should be logical")
-    }
-    if(active_returns && is.null(cov_matrix_benchmark)){
-      stop("cov_matrix_benchmark should be set if active_returns is TRUE")
-    }
+    ##Concentration constraints
+    if (!is.null(concentration_constraint_policy)){
 
-    if(sb_algorithm == "rp"){
-      if(!rp_method ==  "cyclical-spinu"){
-        stop("rp_method should be set to cyclical-spinu for rp algorithm")
-      }
-    } else {
-      if(!is.numeric(n_random_ports)){
-        stop("n_random_ports should be numeric")
-      }
-      if(!random_ports_method %in% c("sample", "simplex", "grid")){
-        stop("random_ports_method should be set to sample, simplex or grid")
-      }
-      if(!opt_objective %in% c("return", "risk", "sharpe")){
-        stop("opt_objective should be set to return, risk or sharpe")
-      }
+      ##SB Specific
       if(length(concentration_constraint_policy) > 0 && !concentration_constraint_policy$benchmark %in% c("theme_sb", "theme_ss")){
         stop("concentration_constraint_policy's benchmark should be set to theme_sb or theme_ss")
       }
@@ -790,8 +873,6 @@ check_inputs_sb_backtest <- function(
 
     }
 
-
-  }
 
   ################
 
