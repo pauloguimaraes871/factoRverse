@@ -2661,7 +2661,6 @@ setMethod(
 
 
 # Define the plot method for sb_backtest_results
-################################
 #' Plot Signal Blending Walk-Forward Validation Results
 #'
 #' This method generates various plots to visualize the performance of machine learning models using walk-forward validation metrics.
@@ -2728,7 +2727,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
     )
   }
 
-  if(sb_backtest_workflow$sb_algorithm %in% c("ols", "ew_ensemble", "optimal_ensemble", "ew", "sw", "rp", "mvo", "custom_weights")){
+  if(sb_backtest_workflow$sb_algorithm %in% c("ols", "ew_ensemble", "optimal_ensemble", "ew", "sw", "rp", "hrp", "mvo", "mmaf", "custom_weights")){
     available_plots <- c(
       "All Evaluation Metrics Over Time",
       "Consolidated OOS Testing Metrics",
@@ -2835,7 +2834,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
     oos_testing_eval_metrics$dates <- as.Date(oos_testing_eval_metrics$dates, format = "%Y-%m-%d") # Coerce to dates
   }
 
-  if (!sb_algorithm %in% c("ols", "rp", "sw", "ew", "mvo", "custom_weights")) {
+  if (!sb_algorithm %in% c("ols", "rp", "sw", "ew", "hrp", "mvo", "mmaf", "custom_weights")) {
     # Some treatments to validation_eval_metrics_hyper_choice
     # Change colnames
     colnames(validation_eval_metrics_hyper_choice) <- paste("validation_", colnames(validation_eval_metrics_hyper_choice), sep = "")
@@ -3610,14 +3609,14 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
 
     tryCatch(
       {
-      plot(x@final_sb_model@model)
+        plot(x@final_sb_model@model)
       }, error = function(e){
         warning("Error when plotting subjacent final signal-blending model. The following message was displayed by subjacent function: \n",
-            e$message, "\n")
+                e$message, "\n")
       })
 
-  #Feature Importance Plots
-  ########################
+    #Feature Importance Plots
+    ########################
   } else if (plot_name == "Time-Series Feature Importance by Signal"){
 
     plot_type <- "time_series"
@@ -3716,28 +3715,28 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
     }
 
     # Prompt for 'ticker'
-      cat("Which ticker predictions do you want to explain? (Please select just one) \n")
-      selection <- readline(prompt = "Enter your choice: ")
-      if (length(selection) == 1 && nzchar(selection)) {
-        selected_ticker <- selection
-      } else {
-        stop("Invalid ticker selection. Please select just one ticker. \n")
-      }
+    cat("Which ticker predictions do you want to explain? (Please select just one) \n")
+    selection <- readline(prompt = "Enter your choice: ")
+    if (length(selection) == 1 && nzchar(selection)) {
+      selected_ticker <- selection
+    } else {
+      stop("Invalid ticker selection. Please select just one ticker. \n")
+    }
 
     # Prompt for 'date'
-     cat("Which date? (Please select just one in format YYYY-MM-DD) \n")
-     selection <- readline(prompt = "Enter your choice: ")
-     if (!grepl("^\\d{4}-\\d{2}-\\d{2}$", selection)) {
-       stop("Invalid date format. Use 'YYYY-MM-DD'.")
-     }
-     if (length(selection) == 1 && nzchar(selection)) {
-       selected_date <- as.Date(selection)
-     } else {
-       stop("Invalid date selection. Please select just one date. \n")
-     }
+    cat("Which date? (Please select just one in format YYYY-MM-DD) \n")
+    selection <- readline(prompt = "Enter your choice: ")
+    if (!grepl("^\\d{4}-\\d{2}-\\d{2}$", selection)) {
+      stop("Invalid date format. Use 'YYYY-MM-DD'.")
+    }
+    if (length(selection) == 1 && nzchar(selection)) {
+      selected_date <- as.Date(selection)
+    } else {
+      stop("Invalid date selection. Please select just one date. \n")
+    }
 
-     #Explain
-     explain_prediction(x, features_m_df = features_m_df, selected_ticker = selected_ticker, selected_date = selected_date)
+    #Explain
+    explain_prediction(x, features_m_df = features_m_df, selected_ticker = selected_ticker, selected_date = selected_date)
 
   }
 
@@ -3870,7 +3869,7 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
                                           time_series_oos_testing_metrics = time_series_oos_testing_metrics, time_series_validation_metrics = time_series_validation_metrics,
                                           base_learners = base_learners,
                                           plot_name = plot_name
-                                          )
+    )
 
   } else if (plot_name == "Base Learners vs Meta Learners Over Time") {
     # Plot comparison of base learners and meta learners over time for a selected metric
@@ -4337,24 +4336,24 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
 
   # List of available plots
   if(ss_backtest_workflow$p_correction_method == "bayesian"){
-  available_plots <- c(
-    "Time-Series Metrics by Signal",
-    "Average Time-Series Metrics by Theme",
-    "Compare Metrics Side-by-Side by Signals",
-    "Compare Metrics Side-by-Side by Theme",
-    "Box-Plot by Theme",
-    "Box-Plot by Eligibility",
-    "Waterfall Plot by Signal",
-    "Waterfall Plot by Theme",
-    "Eligibility by Theme",
-    "Posterior Individual Alphas",
-    "Posterior Individual Betas",
-    "Posterior Random Effects",
-    "Waterfall Plot of Posterior Variance Components",
-    "Posterior Regression Lines",
-    "Waterfall Plot of Return Decomposition by Signal",
-    "Posterior Individual Alpha Distributions by Theme and Signal"
-  )
+    available_plots <- c(
+      "Time-Series Metrics by Signal",
+      "Average Time-Series Metrics by Theme",
+      "Compare Metrics Side-by-Side by Signals",
+      "Compare Metrics Side-by-Side by Theme",
+      "Box-Plot by Theme",
+      "Box-Plot by Eligibility",
+      "Waterfall Plot by Signal",
+      "Waterfall Plot by Theme",
+      "Eligibility by Theme",
+      "Posterior Individual Alphas",
+      "Posterior Individual Betas",
+      "Posterior Random Effects",
+      "Waterfall Plot of Posterior Variance Components",
+      "Posterior Regression Lines",
+      "Waterfall Plot of Return Decomposition by Signal",
+      "Posterior Individual Alpha Distributions by Theme and Signal"
+    )
   } else {
     available_plots <- c(
       "Time-Series Metrics by Signal",
@@ -4422,21 +4421,21 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
       elected_priors <- x@bayesian_results$elected_priors
     }
     #Extract tidy posteriores
-      ##Check if epred are needed
-      if (plot_name == "Waterfall Plot of Return Decomposition by Signal"){
-        compute_predictives_full <- TRUE
-        n_draws_predictive <- 200
-      } else {
-        compute_predictives_full <- FALSE
-        n_draws_predictive <- NULL
-      }
+    ##Check if epred are needed
+    if (plot_name == "Waterfall Plot of Return Decomposition by Signal"){
+      compute_predictives_full <- TRUE
+      n_draws_predictive <- 200
+    } else {
+      compute_predictives_full <- FALSE
+      n_draws_predictive <- NULL
+    }
 
     tidy_posteriors_list <- summarize_posteriors_draws(brm_model = brm_model,
                                                        selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
                                                        model_spec_theme_level = model_spec_theme_level,
                                                        compute_predictives_full = compute_predictives_full,
                                                        n_draws_predictive = n_draws_predictive
-                                                       )
+    )
   }
 
   # Plot 1: Time-Series Metrics by Ticker
@@ -4496,12 +4495,12 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
 
   } else if (plot_name == "Waterfall Plot by Signal") {
 
-        # Plot 7: Waterfall Plot by Ticker
+    # Plot 7: Waterfall Plot by Ticker
     if (ss_backtest_workflow$model_structure == "no_pooled"){
-    final_signal_universe_m_d_ref@data <- final_signal_universe_m_d_ref@data %>%
-      dplyr::mutate(mean_market_factor_proxy = mean(x@selected_market_factor_proxy_m_xts@data),
-                    beta_x_mean_market_factor_proxy = beta * mean_market_factor_proxy,
-                    residual = specific_risk)
+      final_signal_universe_m_d_ref@data <- final_signal_universe_m_d_ref@data %>%
+        dplyr::mutate(mean_market_factor_proxy = mean(x@selected_market_factor_proxy_m_xts@data),
+                      beta_x_mean_market_factor_proxy = beta * mean_market_factor_proxy,
+                      residual = specific_risk)
     } else {
       final_signal_universe_m_d_ref@data <- final_signal_universe_m_d_ref@data %>%
         dplyr::mutate(mean_market_factor_proxy = mean(x@selected_market_factor_proxy_m_xts@data),
@@ -4598,24 +4597,24 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
       dplyr::left_join(theme_ticker_key, by = c("tickers" = "tickers"))
 
     # Extract themes from `elected_priors`
-      ##Random Intercept or None
-      if(model_spec_theme_level %in% c("random_intercept_fixed_slope", "fixed_intercept_fixed_slope")){
-        prior_data <- elected_priors %>%
-          dplyr::filter(class == "Intercept") %>%
-          dplyr::rowwise() %>%
-          dplyr::mutate(
-            mean = as.numeric(stringr::str_extract(prior, "(?<=\\().+?(?=,)")), # Extract mean
-            sd = as.numeric(stringr::str_extract(prior, "(?<=, ).+?(?=\\))"))   # Extract sd
-          ) %>%
-          dplyr::ungroup() %>%
-          dplyr::select(mean, sd)
+    ##Random Intercept or None
+    if(model_spec_theme_level %in% c("random_intercept_fixed_slope", "fixed_intercept_fixed_slope")){
+      prior_data <- elected_priors %>%
+        dplyr::filter(class == "Intercept") %>%
+        dplyr::rowwise() %>%
+        dplyr::mutate(
+          mean = as.numeric(stringr::str_extract(prior, "(?<=\\().+?(?=,)")), # Extract mean
+          sd = as.numeric(stringr::str_extract(prior, "(?<=, ).+?(?=\\))"))   # Extract sd
+        ) %>%
+        dplyr::ungroup() %>%
+        dplyr::select(mean, sd)
 
-        prior_data <- data.frame(theme = unique(theme_ticker_key$theme), mean = prior_data$mean, sd = prior_data$sd)
+      prior_data <- data.frame(theme = unique(theme_ticker_key$theme), mean = prior_data$mean, sd = prior_data$sd)
 
-      }
+    }
 
-      ##Fixed intercepts or Fixed Intercepts and Slopes
-      if(model_spec_theme_level %in% c("theme_specific_intercept_fixed_slope", "theme_specific_intercept_theme_specific_slope")){
+    ##Fixed intercepts or Fixed Intercepts and Slopes
+    if(model_spec_theme_level %in% c("theme_specific_intercept_fixed_slope", "theme_specific_intercept_theme_specific_slope")){
       prior_data <- elected_priors %>%
         dplyr::filter(class == "b" & stringr::str_detect(coef, "^theme")) %>%
         dplyr::mutate(theme = stringr::str_remove(coef, "^theme")) %>%
@@ -4626,7 +4625,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
         ) %>%
         dplyr::ungroup() %>%
         dplyr::select(theme, mean, sd)
-      }
+    }
 
     # Generate draws for each theme and convert to long format
     long_draws_data <- prior_data %>%
@@ -4895,132 +4894,132 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
 
     #Waterfall plot
     if(model_spec_theme_level == "random_intercept_fixed_slope"){
-    #For random_intercept_fixed_slope, include var_theme_intercept
-    variance_data <- tidy_posterior_draws_sd %>%
-      dplyr::mutate(
-        # Variance components
-        var_theme_intercept = posterior_r_theme_alpha^2,
-        var_tickers_intercept = posterior_r_tickers_alpha^2,
-        var_tickers_slope = posterior_r_tickers_beta^2,
-        var_sigma = posterior_sigma^2
-      ) %>%
-      dplyr::mutate(
-        cov_tickers_intercept_slope = 2 * posterior_r_tickers_alpha * posterior_r_tickers_beta * posterior_cor_r_alpha_beta
-      ) %>%
-      dplyr::mutate(
-        total_variance = var_theme_intercept +
-          var_tickers_intercept +
-          var_tickers_slope +
-          var_sigma +
-          cov_tickers_intercept_slope
-      )
+      #For random_intercept_fixed_slope, include var_theme_intercept
+      variance_data <- tidy_posterior_draws_sd %>%
+        dplyr::mutate(
+          # Variance components
+          var_theme_intercept = posterior_r_theme_alpha^2,
+          var_tickers_intercept = posterior_r_tickers_alpha^2,
+          var_tickers_slope = posterior_r_tickers_beta^2,
+          var_sigma = posterior_sigma^2
+        ) %>%
+        dplyr::mutate(
+          cov_tickers_intercept_slope = 2 * posterior_r_tickers_alpha * posterior_r_tickers_beta * posterior_cor_r_alpha_beta
+        ) %>%
+        dplyr::mutate(
+          total_variance = var_theme_intercept +
+            var_tickers_intercept +
+            var_tickers_slope +
+            var_sigma +
+            cov_tickers_intercept_slope
+        )
 
-    #Get decomposition info
-    waterfall_data <- variance_data %>%
-      dplyr::select(
-        .draw,
-        var_theme_intercept,
-        var_tickers_intercept,
-        var_tickers_slope,
-        var_sigma,
-        cov_tickers_intercept_slope,
-        total_variance
-      ) %>%
-      # Calculate mean contributions across draws
-      dplyr::summarise(
-        var_theme_intercept = mean(var_theme_intercept),
-        var_tickers_intercept = mean(var_tickers_intercept),
-        var_tickers_slope = mean(var_tickers_slope),
-        var_sigma = mean(var_sigma),
-        cov_tickers_intercept_slope = mean(cov_tickers_intercept_slope),
-        total_variance = mean(total_variance)
-      ) %>%
-      # Reshape data to long format
-      tidyr::pivot_longer(
-        cols = -total_variance,
-        names_to = "Component",
-        values_to = "Variance"
-      ) %>%
-      dplyr::mutate(
-        # Order components for plotting
-        Component = factor(
-          Component,
-          levels = c(
-            "var_theme_intercept",
-            "var_tickers_intercept",
-            "var_tickers_slope",
-            "cov_tickers_intercept_slope",
-            "var_sigma"
-          ),
-          labels = c(
-            "Theme Intercept Variance",
-            "Tickers Intercept Variance",
-            "Tickers Slope Variance",
-            "Tickers Intercept-Slope Covariance",
-            "Residual Variance"
+      #Get decomposition info
+      waterfall_data <- variance_data %>%
+        dplyr::select(
+          .draw,
+          var_theme_intercept,
+          var_tickers_intercept,
+          var_tickers_slope,
+          var_sigma,
+          cov_tickers_intercept_slope,
+          total_variance
+        ) %>%
+        # Calculate mean contributions across draws
+        dplyr::summarise(
+          var_theme_intercept = mean(var_theme_intercept),
+          var_tickers_intercept = mean(var_tickers_intercept),
+          var_tickers_slope = mean(var_tickers_slope),
+          var_sigma = mean(var_sigma),
+          cov_tickers_intercept_slope = mean(cov_tickers_intercept_slope),
+          total_variance = mean(total_variance)
+        ) %>%
+        # Reshape data to long format
+        tidyr::pivot_longer(
+          cols = -total_variance,
+          names_to = "Component",
+          values_to = "Variance"
+        ) %>%
+        dplyr::mutate(
+          # Order components for plotting
+          Component = factor(
+            Component,
+            levels = c(
+              "var_theme_intercept",
+              "var_tickers_intercept",
+              "var_tickers_slope",
+              "cov_tickers_intercept_slope",
+              "var_sigma"
+            ),
+            labels = c(
+              "Theme Intercept Variance",
+              "Tickers Intercept Variance",
+              "Tickers Slope Variance",
+              "Tickers Intercept-Slope Covariance",
+              "Residual Variance"
+            )
           )
         )
-      )
 
-    # Calculate cumulative variance contributions
-    waterfall_data <- waterfall_data %>%
-      dplyr::mutate(
-        Cumulative = cumsum(Variance) - Variance[1],
-        Start = dplyr::lag(Cumulative, default = 0),
-        End = Cumulative,
-        Contribution_Type = ifelse(Variance >= 0, "Positive", "Negative")
-      )
+      # Calculate cumulative variance contributions
+      waterfall_data <- waterfall_data %>%
+        dplyr::mutate(
+          Cumulative = cumsum(Variance) - Variance[1],
+          Start = dplyr::lag(Cumulative, default = 0),
+          End = Cumulative,
+          Contribution_Type = ifelse(Variance >= 0, "Positive", "Negative")
+        )
 
-    # Plot the waterfall
-    p <- ggplot2::ggplot(waterfall_data, ggplot2::aes(
-      x = Component,
-      ymin = Start,
-      ymax = End,
-      fill = Contribution_Type
-    )) +
-      ggplot2::geom_rect(
-        ggplot2::aes(
-          xmin = as.numeric(Component) - 0.4,
-          xmax = as.numeric(Component) + 0.4
-        ),
-        color = black
-      ) +
-      ggplot2::geom_text(
-        ggplot2::aes(
-          x = Component,
-          y = End,
-          label = round(Variance, 4)
-        ),
-        vjust = ifelse(waterfall_data$Variance >= 0, -0.5, 1.5),
-        size = 3,
-        color = white  # Ensure text is visible against the background
-      ) +
-      ggplot2::scale_fill_manual(
-        values = c("Positive" = pos_color, "Negative" = neg_color)
-      ) +
-      ggplot2::labs(
-        title = "Waterfall Plot of Variance Components",
-        x = "Components",
-        y = "Cumulative Variance",
-        fill = "Contribution"  # Add fill legend title for clarity
-      ) +
-      ggplot2::theme_minimal() +
-      ggplot2::theme(
-        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-        panel.grid.major = ggplot2::element_blank(),
-        panel.grid.minor = ggplot2::element_blank(),
-        axis.text = ggplot2::element_text(color = white, angle = 45, hjust = 1),
-        axis.title = ggplot2::element_text(color = white),
-        plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-        plot.subtitle = ggplot2::element_text(color = white, size = 8, face = "italic"),
-        legend.position = "bottom",
-        legend.title = ggplot2::element_text(color = white),
-        legend.text = ggplot2::element_text(color = white),
-        strip.text = ggplot2::element_text(color = white)
-      )
+      # Plot the waterfall
+      p <- ggplot2::ggplot(waterfall_data, ggplot2::aes(
+        x = Component,
+        ymin = Start,
+        ymax = End,
+        fill = Contribution_Type
+      )) +
+        ggplot2::geom_rect(
+          ggplot2::aes(
+            xmin = as.numeric(Component) - 0.4,
+            xmax = as.numeric(Component) + 0.4
+          ),
+          color = black
+        ) +
+        ggplot2::geom_text(
+          ggplot2::aes(
+            x = Component,
+            y = End,
+            label = round(Variance, 4)
+          ),
+          vjust = ifelse(waterfall_data$Variance >= 0, -0.5, 1.5),
+          size = 3,
+          color = white  # Ensure text is visible against the background
+        ) +
+        ggplot2::scale_fill_manual(
+          values = c("Positive" = pos_color, "Negative" = neg_color)
+        ) +
+        ggplot2::labs(
+          title = "Waterfall Plot of Variance Components",
+          x = "Components",
+          y = "Cumulative Variance",
+          fill = "Contribution"  # Add fill legend title for clarity
+        ) +
+        ggplot2::theme_minimal() +
+        ggplot2::theme(
+          plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          panel.grid.major = ggplot2::element_blank(),
+          panel.grid.minor = ggplot2::element_blank(),
+          axis.text = ggplot2::element_text(color = white, angle = 45, hjust = 1),
+          axis.title = ggplot2::element_text(color = white),
+          plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+          plot.subtitle = ggplot2::element_text(color = white, size = 8, face = "italic"),
+          legend.position = "bottom",
+          legend.title = ggplot2::element_text(color = white),
+          legend.text = ggplot2::element_text(color = white),
+          strip.text = ggplot2::element_text(color = white)
+        )
 
-    print(p)
+      print(p)
 
     } else {
       ############################
@@ -5290,10 +5289,10 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     tidy_posterior_epred_draws_complete <- dplyr::left_join(tidy_posterior_epred_draws,
                                                             #Join with intercept
                                                             tidy_posterior_draws_intercept, by = c("tickers", ".draw")) %>%
-                                                            #Join with slopes
-                                           dplyr::left_join(tidy_posterior_draws_slope, by = c("tickers", ".draw")) %>%
-                                           #Filter given tickers
-                                           dplyr::filter(tickers %in% selected_tickers)
+      #Join with slopes
+      dplyr::left_join(tidy_posterior_draws_slope, by = c("tickers", ".draw")) %>%
+      #Filter given tickers
+      dplyr::filter(tickers %in% selected_tickers)
 
     #Waterfall plot
     # Prepare and compute contributions
@@ -5404,57 +5403,57 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
         dplyr::ungroup()
     }
 
-      # Create the waterfall plot per ticker
-      p <- ggplot2::ggplot(waterfall_data, ggplot2::aes(
-        x = Component,
-        ymin = Start,
-        ymax = End,
-        fill = Contribution_Type
-      )) +
-        ggplot2::geom_rect(
-          ggplot2::aes(
-            xmin = as.numeric(Component) - 0.4,
-            xmax = as.numeric(Component) + 0.4
-          ),
-          color = "black"
-        ) +
-        ggplot2::geom_text(
-          ggplot2::aes(
-            x = Component,
-            y = End,
-            label = round(Mean_Contribution, 4)
-          ),
-          vjust = ifelse(waterfall_data$Mean_Contribution >= 0, -0.5, 1.5),
-          size = 3,
-          color = "white"
-        ) +
-        ggplot2::scale_fill_manual(
-          values = c("Positive" = "#39FF14", "Negative" = "#FF5F1F")
-        ) +
-        ggplot2::labs(
-          title = "Waterfall Plot of Return Decomposition by Signal",
-          x = "Components",
-          y = "Cumulative Contribution"
-        ) +
-        ggplot2::theme_minimal() +
-        ggplot2::theme(
-          plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-          panel.grid.major = ggplot2::element_blank(),
-          panel.grid.minor = ggplot2::element_blank(),
-          axis.text = ggplot2::element_text(color = white, angle = 45, hjust = 1),
-          axis.title = ggplot2::element_text(color = white),
-          plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-          plot.subtitle = ggplot2::element_text(color = white, size = 8, face = "italic"),
-          legend.position = "bottom",
-          legend.title = ggplot2::element_text(color = white),
-          legend.text = ggplot2::element_text(color = white),
-          strip.text = ggplot2::element_text(color = white)
-        ) +
-        ggplot2::facet_wrap(~ tickers, scales = "free_y")
+    # Create the waterfall plot per ticker
+    p <- ggplot2::ggplot(waterfall_data, ggplot2::aes(
+      x = Component,
+      ymin = Start,
+      ymax = End,
+      fill = Contribution_Type
+    )) +
+      ggplot2::geom_rect(
+        ggplot2::aes(
+          xmin = as.numeric(Component) - 0.4,
+          xmax = as.numeric(Component) + 0.4
+        ),
+        color = "black"
+      ) +
+      ggplot2::geom_text(
+        ggplot2::aes(
+          x = Component,
+          y = End,
+          label = round(Mean_Contribution, 4)
+        ),
+        vjust = ifelse(waterfall_data$Mean_Contribution >= 0, -0.5, 1.5),
+        size = 3,
+        color = "white"
+      ) +
+      ggplot2::scale_fill_manual(
+        values = c("Positive" = "#39FF14", "Negative" = "#FF5F1F")
+      ) +
+      ggplot2::labs(
+        title = "Waterfall Plot of Return Decomposition by Signal",
+        x = "Components",
+        y = "Cumulative Contribution"
+      ) +
+      ggplot2::theme_minimal() +
+      ggplot2::theme(
+        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        panel.grid.major = ggplot2::element_blank(),
+        panel.grid.minor = ggplot2::element_blank(),
+        axis.text = ggplot2::element_text(color = white, angle = 45, hjust = 1),
+        axis.title = ggplot2::element_text(color = white),
+        plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+        plot.subtitle = ggplot2::element_text(color = white, size = 8, face = "italic"),
+        legend.position = "bottom",
+        legend.title = ggplot2::element_text(color = white),
+        legend.text = ggplot2::element_text(color = white),
+        strip.text = ggplot2::element_text(color = white)
+      ) +
+      ggplot2::facet_wrap(~ tickers, scales = "free_y")
 
 
-      print(p)
+    print(p)
 
   } else if (plot_name == "Posterior Individual Alpha Distributions by Theme and Ticker"){
 
@@ -5724,11 +5723,11 @@ setMethod(
         "Relative Risk Contribution",
         "Efficient Frontier",
         "Random Weights Distribution",
-        "Group Composition",
+        "Groups Allocation",
         "Hierarchical Clustering",
-        "MMAF Flow",
-        "MMAF Micro Composition",
-        "MMAF Risk Decomposition"
+        "Allocation Flow (Groups -> Assets)",
+        "Within-Group Composition",
+        "Group Risk Decomposition"
       )
       cat("\nPlease choose a plot type:\n")
       for (i in seq_along(available_types)) {
@@ -5756,12 +5755,66 @@ setMethod(
     asset_names       <- x@eligible_assets
     port_name         <- x@port_name
 
+    ## Helpers
+    .get_bench_vector <- function(universe_df, asset_names){
+      bench_cols <- base::grep("_bench_weights$", base::colnames(universe_df), value = TRUE)
+      if (length(bench_cols) == 0) stop("No columns matching '_bench_weights' found in 'universe_df'.")
+      bench_col <- if (length(bench_cols) == 1) {
+        bench_cols[1]
+      } else {
+        chosen <- utils::menu(bench_cols, title = "Select a benchmark to use for ACTIVE computations:")
+        if (chosen == 0) stop("No benchmark selected.")
+        bench_cols[chosen]
+      }
+      bench_df <- base::data.frame(tickers = asset_names, stringsAsFactors = FALSE) |>
+        dplyr::left_join(universe_df[, c("tickers", bench_col), drop = FALSE], by = "tickers")
+      bench_w <- bench_df[[bench_col]]
+      bench_w[base::is.na(bench_w)] <- 0
+      bench_w
+    }
+    # Resolve which column in x@groups defines the grouping:
+    # - If method == "mmaf" and mmaf_group_col is present, use it
+    # - Else, mimic your Group Composition logic (prompt if >1 group column)
+    .resolve_group_col <- function(x){
+      groups_df <- x@groups
+      if (is.null(groups_df)) stop("No valid groups slot found. This plot requires group information.")
+      required_cols <- c("id","tickers","dates")
+      if (!all(required_cols %in% colnames(groups_df))) {
+        stop("groups slot must contain at least 'id','tickers','dates'.")
+      }
+      group_cols <- setdiff(colnames(groups_df), required_cols)
+      if (length(group_cols) == 0) stop("No group columns found in 'groups' data.")
+
+      # If MMAF and the provided mmaf_group_col is valid, use it
+      if (identical(x@port_construction_method, "mmaf") &&
+          !is.null(x@mmaf_group_col) &&
+          x@mmaf_group_col %in% group_cols) {
+        return(list(groups_df = groups_df, main_group_col = x@mmaf_group_col))
+      }
+
+      # Otherwise replicate Group Composition behavior
+      if (length(group_cols) == 1) {
+        main_group_col <- group_cols[1]
+      } else {
+        for (i in seq_along(group_cols)) cat(paste0(i, ": ", group_cols[i], "\n"))
+        selection <- readline(prompt = "Choose the number for the group classification to use: ")
+        selection <- as.numeric(selection)
+        if (is.na(selection) || length(selection) != 1) stop("Invalid selection.")
+        main_group_col <- group_cols[selection]
+        if (!main_group_col %in% group_cols) stop("Invalid group selected.")
+      }
+
+      list(groups_df = groups_df, main_group_col = main_group_col)
+    }
+
     #------------------------------------------------------------------------------------------------
     # Handle nested MMAF portfolios (micro / macro)
     #------------------------------------------------------------------------------------------------
     # If the portfolio is of type MMAF and micro/macro slots exist,
     # prompt the user to select which level to visualize.
-    if (x@port_construction_method == "mmaf" && !type %in% c("MMAF Flow", "MMAF Micro Composition", "MMAF Risk Decomposition")) {
+    if (x@port_construction_method == "mmaf" &&
+        !type %in% c("Groups Allocation", "Allocation Flow (Groups -> Assets)",
+                     "Within-Group Composition", "Group Risk Decomposition")) {
 
       has_micro <- !is.null(x@micro)
       has_macro <- !is.null(x@macro)
@@ -5786,13 +5839,13 @@ setMethod(
           stop("Invalid selection.")
         }
 
-        if (options_list[selection] == "Macro portfolio (group-level)") {
+        if (options_list[selection] == "Groups portfolio (group-level)") {
           message("→ Plotting macro-level portfolio...")
           plot(x@macro, type = type, ...)
           return(invisible())
         }
 
-        if (options_list[selection] == "Micro portfolios (within-group)") {
+        if (options_list[selection] == "Individual assets (within-group)") {
           # If multiple micro portfolios exist (top_down MMAF),
           # ask the user which group to inspect
           if (is.list(x@micro) && length(x@micro) > 1) {
@@ -5822,7 +5875,6 @@ setMethod(
         message("→ Plotting overall MMAF portfolio...")
       }
     }
-
 
     #------------------------------------------------------------------------------------------------
     # Color definitions
@@ -6352,16 +6404,53 @@ setMethod(
     # 5) relative_risk_contribution - bar chart
     #------------------------------------------------------------------------------------------------
     if (type == "Relative Risk Contribution") {
-      if (is.null(rel_risk_contr))
-        stop("No 'rel_risk_contr' found in 'x'. This plot requires relative risk contributions.")
-      if (length(rel_risk_contr) != length(weights))
-        stop("Mismatch between rel_risk_contr and weights lengths.")
 
-      df_rrc <- data.frame(
-        Asset  = asset_names,
-        Weight = weights,
-        RRC    = rel_risk_contr
-      )
+      if (is.null(cov_mat))
+        stop("No 'covariance_matrix' found in 'x'. This plot requires covariance_matrix.")
+      if (length(weights) == 0 || length(asset_names) != length(weights))
+        stop("Weights not available or mismatch with eligible_assets.")
+
+      # ---- Choose between portfolio-RRC and active-RRC
+      cat("\nCompute contributions against:\n")
+      cat("1: Portfolio weights (standard RRC)\n")
+      cat("2: ACTIVE weights vs a benchmark (tracking-error RRC)\n")
+      rrc_mode <- base::as.integer(readline(prompt = "Your choice: "))
+      if (base::is.na(rrc_mode) || !rrc_mode %in% c(1L, 2L)) stop("Invalid choice for RRC mode.")
+
+      if (rrc_mode == 2L) {
+        if (is.null(universe_df) || !"tickers" %in% base::colnames(universe_df))
+          stop("To compute ACTIVE RRC you need 'universe_df' with a 'tickers' column.")
+        ## Compute active RRC
+        bench_w <- .get_bench_vector(universe_df, asset_names)
+        w_vec   <- weights - bench_w
+        rrc_tbl <- relative_risk_contribution(w_vec, cov_mat)
+        rrc_vec <- rrc_tbl$rel_risk_contr[match(asset_names, rrc_tbl$tickers)]
+
+        df_rrc <- base::data.frame(
+          Asset  = asset_names,
+          Weight = w_vec,          # ACTIVE weight
+          RRC    = rrc_vec,
+          stringsAsFactors = FALSE
+        )
+        rrc_title_suffix <- " (Active vs Benchmark)"
+        y_lab_weights    <- "Active Weight"
+      } else {
+        # Standard RRC on total portfolio weights
+        w_vec <- weights
+        rrc_vec <- if (!is.null(rel_risk_contr) && length(rel_risk_contr) == length(weights)) {
+          base::as.numeric(rel_risk_contr)
+        } else {
+          relative_risk_contribution(w_vec, cov_mat)
+        }
+        df_rrc <- base::data.frame(
+          Asset  = asset_names,
+          Weight = w_vec,
+          RRC    = rrc_vec,
+          stringsAsFactors = FALSE
+        )
+        rrc_title_suffix <- ""
+        y_lab_weights    <- "Weight"
+      }
 
       # 1) Subset logic (top x or individual selections)
       cat("\nHow do you want to choose which assets to display?\n")
@@ -6461,7 +6550,6 @@ setMethod(
       return(invisible(p))
     }
 
-
     #------------------------------------------------------------------------------------------------
     # 6) efficient_frontier - scatterplot using random_port_weights
     #------------------------------------------------------------------------------------------------
@@ -6505,7 +6593,7 @@ setMethod(
         base_df <- data.frame(tickers = asset_names) %>%
           dplyr::left_join(universe_df %>%
                              dplyr::select(tickers, base_weights), by = "tickers"
-                           )
+          )
 
         base_w <- base_df$base_weights
         base_return <- sum(base_w * exp_ret_score)
@@ -6559,6 +6647,16 @@ setMethod(
           y = "Expected Return",
           color = "Sharpe"
         )
+
+      ## Print that neon_blue point is base_weights and neon_orange is target_weights
+      if (!is.na(base_risk) && !is.na(base_return)) {
+        cat(paste0("Blue square point: Base Weights (Risk: ", round(base_risk,4), ", Return: ", round(base_return,4), ")\n"))
+      }
+      if (!is.na(target_risk) && !is.na(target_return)) {
+        cat(paste0("Orange diamond point: Target Weights (Risk: ", round(target_risk,4), ", Return: ", round(target_return,4), ")\n"))
+      }
+      cat(paste0("Red triangle point: Optimal Weights (Risk: ", round(opt_risk,4), ", Return: ", round(opt_return,4), ")\n"))
+
 
       print(p)
       return(invisible(p))
@@ -6716,7 +6814,7 @@ setMethod(
     #------------------------------------------------------------------------------------------------
     # 8) group_composition - compare group weights to a benchmark if available
     #------------------------------------------------------------------------------------------------
-    if (type == "Group Composition") {
+    if (type == "Groups Allocation") {
 
       if (is.null(groups_df)){
         stop("No valid groups slot found. This plot requires group information.")
@@ -6900,7 +6998,7 @@ setMethod(
         if (tolower(selection) == "all") {
           sel_assets <- asset_names
         } else {
-          parts <- strsplit(selection, ",")[[1]] |> trimws()
+          parts <- strsplit(selection, ",")[[1]] %>% trimws()
           all_numeric <- suppressWarnings(!any(is.na(as.numeric(parts))))
           if (all_numeric) {
             idx <- as.numeric(parts)
@@ -6969,32 +7067,31 @@ setMethod(
     }
 
     #------------------------------------------------------------------------------------------------
-    # 10) MMAF Flow — bipartite (Macro → Micro) flow using ggraph, with label-safe padding
+    # 10) Allocation Flow (Groups -> Assets) — bipartite (Macro → Micro) flow using ggraph
     #------------------------------------------------------------------------------------------------
-    if (type == "MMAF Flow") {
+    if (type == "Allocation Flow (Groups -> Assets)") {
 
-      if (x@port_construction_method != "mmaf")
-        stop("'MMAF Flow' is only available for 'mmaf' portfolios.")
-      if (is.null(x@groups) || is.null(x@mmaf_group_col))
-        stop("MMAF 'groups' and 'mmaf_group_col' must be set.")
       if (length(x@eligible_assets) == 0 || length(x@weights) == 0)
         stop("Need eligible_assets and final weights in 'x'.")
 
-      groups_df      <- x@groups
-      main_group_col <- x@mmaf_group_col
-      final_df <- data.frame(tickers = x@eligible_assets, w = x@weights, stringsAsFactors = FALSE) |>
+      grp <- .resolve_group_col(x)
+      groups_df      <- grp$groups_df %>%
+        dplyr::filter(dates == max(x@universe_m_d_ref@data$dates))
+      main_group_col <- grp$main_group_col
+
+      final_df <- data.frame(tickers = x@eligible_assets, w = x@weights, stringsAsFactors = FALSE) %>%
         dplyr::left_join(groups_df[, c("tickers", main_group_col)], by = "tickers")
 
       if (any(is.na(final_df[[main_group_col]])))
         stop("Some eligible assets have no group mapping in 'groups'.")
 
-      macro_tbl <- final_df |>
-        dplyr::group_by(.data[[main_group_col]]) |>
+      macro_tbl <- final_df %>%
+        dplyr::group_by(.data[[main_group_col]]) %>%
         dplyr::summarise(
           group_w_signed = sum(.data$w, na.rm = TRUE),
           group_w_abs    = sum(abs(.data$w), na.rm = TRUE),
           .groups = "drop"
-        ) |>
+        ) %>%
         dplyr::arrange(dplyr::desc(.data$group_w_abs))
 
       cat("\nHow many top groups (by final |weight|) do you want to show? ")
@@ -7005,7 +7102,7 @@ setMethod(
       }
       keep_groups <- macro_tbl[[main_group_col]][seq_len(g_choice)]
 
-      final_df <- final_df |>
+      final_df <- final_df %>%
         dplyr::filter(.data[[main_group_col]] %in% keep_groups)
 
       cat("Top how many assets per selected group (by |weight|)? ")
@@ -7015,18 +7112,18 @@ setMethod(
         message("→ Using default top ", n_choice, " assets per group.")
       }
 
-      final_df <- final_df |>
-        dplyr::group_by(.data[[main_group_col]]) |>
-        dplyr::slice_max(order_by = abs(.data$w), n = n_choice, with_ties = FALSE) |>
+      final_df <- final_df %>%
+        dplyr::group_by(.data[[main_group_col]]) %>%
+        dplyr::slice_max(order_by = abs(.data$w), n = n_choice, with_ties = FALSE) %>%
         dplyr::ungroup()
 
-      macro_filt <- final_df |>
-        dplyr::group_by(.data[[main_group_col]]) |>
+      macro_filt <- final_df %>%
+        dplyr::group_by(.data[[main_group_col]]) %>%
         dplyr::summarise(
           group_w_signed = sum(.data$w, na.rm = TRUE),
           group_w_abs    = sum(abs(.data$w), na.rm = TRUE),
           .groups = "drop"
-        ) |>
+        ) %>%
         dplyr::arrange(dplyr::desc(.data$group_w_abs))
 
       group_nodes <- data.frame(
@@ -7038,7 +7135,7 @@ setMethod(
         stringsAsFactors = FALSE
       )
 
-      asset_nodes <- final_df |>
+      asset_nodes <- final_df %>%
         dplyr::transmute(
           name    = paste0("A:", .data$tickers),
           label   = .data$tickers,
@@ -7046,7 +7143,7 @@ setMethod(
           size    = .data$w,
           size_abs= abs(.data$w),
           group   = .data[[main_group_col]]
-        ) |>
+        ) %>%
         dplyr::distinct()
 
       # --- Layout with safe padding so labels aren’t cut
@@ -7059,9 +7156,9 @@ setMethod(
       group_nodes$y <- cumsum(group_nodes$size_abs) - group_nodes$size_abs/2
 
       # place assets inside each group
-      a_tbl <- asset_nodes |>
-        dplyr::group_by(.data$group) |>
-        dplyr::arrange(dplyr::desc(.data$size_abs), .by_group = TRUE) |>
+      a_tbl <- asset_nodes %>%
+        dplyr::group_by(.data$group) %>%
+        dplyr::arrange(dplyr::desc(.data$size_abs), .by_group = TRUE) %>%
         dplyr::mutate(
           y = {
             cs <- cumsum(size_abs) - size_abs/2
@@ -7070,7 +7167,7 @@ setMethod(
             g_half  <- group_nodes$size_abs[g_idx]/2
             (g_center - g_half) + cs
           }
-        ) |>
+        ) %>%
         dplyr::ungroup()
       a_tbl$x <- 1 - right_pad
 
@@ -7148,7 +7245,7 @@ setMethod(
           plot.margin      = ggplot2::margin(12, 18, 12, 90)  # extra left margin for long group names
         ) +
         ggplot2::labs(
-          title = paste("MMAF Flow (Macro \u2192 Micro):",
+          title = paste("Allocation Flow (Groups \u2192 Assets):",
                         if (x@port_name == "") "not_identified" else x@port_name)
         )
 
@@ -7156,79 +7253,113 @@ setMethod(
       return(invisible(p))
     }
 
-
-
-
     #------------------------------------------------------------------------------------------------
-    # 11) mmaf_micro_composition - faceted bars of within-group weights (optionally ACTIVE)
+    # 11) groups_ind_composition - faceted bars of within-group weights (optionally ACTIVE)
     #------------------------------------------------------------------------------------------------
-    if (type == "MMAF Micro Composition") {
+    if (type == "Within-Group Composition") {
 
-      if (x@port_construction_method != "mmaf")
-        stop("'MMAF Micro Composition' is only available for 'mmaf' portfolios.")
+      grp <- .resolve_group_col(x)
+      groups_df      <- grp$groups_df
+      main_group_col <- grp$main_group_col
 
-      groups_df      <- x@groups
-      main_group_col <- x@mmaf_group_col
-
-      df <- data.frame(tickers = x@eligible_assets, weight = x@weights) |>
+      df <- data.frame(tickers = x@eligible_assets, weight = x@weights) %>%
         dplyr::left_join(groups_df[, c("tickers", main_group_col)], by = "tickers")
 
       if (any(is.na(df[[main_group_col]])))
         stop("Missing group mapping for some assets.")
 
+      # --- Choose metric to plot (Weight vs RRC)
+      cat("\nWhich metric do you want to plot?\n")
+      cat("1: Weight or Active Weight \n")
+      cat("2: Relative Risk Contribution (RRC)\n")
+      metric_choice <- base::as.integer(readline(prompt = "Your choice: "))
+      if (base::is.na(metric_choice) || !metric_choice %in% c(1L, 2L)) stop("Invalid choice for plot metric.")
+
+
+
       # -------------------------------
       # Ask if user wants ACTIVE weights
       # -------------------------------
-      cat("Do you want to compute active weights for this plot? (y/n): ")
-      active_choice <- tolower(readline())
-      active_mode <- active_choice %in% c("y", "yes")
-
       plot_title_suffix <- ""
       y_lab <- "Final Weight"
 
-      if (active_mode) {
-        if (is.null(universe_df) || !all(c("tickers") %in% colnames(universe_df))) {
-          stop("Cannot compute active weights: 'universe_df' with a 'tickers' column is required.")
-        }
-        bench_cols <- grep("_bench_weights$", colnames(universe_df), value = TRUE)
-        if (length(bench_cols) == 0) {
-          stop("No columns matching '_bench_weights' found in 'universe_df'.")
-        }
+      if (metric_choice == 1L) {
+        cat("Do you want to compute active weights for this plot? (y/n): ")
+        active_choice <- tolower(readline())
+        active_mode <- active_choice %in% c("y", "yes")
 
-        bench_col <- NULL
-        if (length(bench_cols) == 1) {
-          bench_col <- bench_cols[1]
-          message("Benchmark is: ", bench_col)
+
+        if (active_mode) {
+          if (is.null(universe_df) || !all(c("tickers") %in% colnames(universe_df))) {
+            stop("Cannot compute active weights: 'universe_df' with a 'tickers' column is required.")
+          }
+          bench_cols <- grep("_bench_weights$", colnames(universe_df), value = TRUE)
+          if (length(bench_cols) == 0) {
+            stop("No columns matching '_bench_weights' found in 'universe_df'.")
+          }
+
+          bench_col <- NULL
+          if (length(bench_cols) == 1) {
+            bench_col <- bench_cols[1]
+            message("Benchmark is: ", bench_col)
+          } else {
+            message("Multiple benchmarks found:")
+            chosen <- utils::menu(bench_cols, title = "Select a benchmark to use for active weights:")
+            if (chosen == 0) stop("No benchmark selected. Aborting.")
+            bench_col <- bench_cols[chosen]
+            message("Benchmark is: ", bench_col)
+          }
+
+          # Join benchmark weights and compute active = portfolio - benchmark
+          bench_join <- universe_df[, c("tickers", bench_col), drop = FALSE]
+          names(bench_join)[names(bench_join) == bench_col] <- "bench_w"
+          df <- dplyr::left_join(df, bench_join, by = "tickers")
+          if (!"bench_w" %in% names(df)) stop("Benchmark join failed.")
+          df$plot_value <- df$weight - df$bench_w
+
+          plot_title_suffix <- " (Active)"
+          y_lab <- "Active Weight"
         } else {
-          message("Multiple benchmarks found:")
-          chosen <- utils::menu(bench_cols, title = "Select a benchmark to use for active weights:")
-          if (chosen == 0) stop("No benchmark selected. Aborting.")
-          bench_col <- bench_cols[chosen]
-          message("Benchmark is: ", bench_col)
+          df$plot_value <- df$weight
         }
 
-        # Join benchmark weights and compute active = portfolio - benchmark
-        bench_join <- universe_df[, c("tickers", bench_col), drop = FALSE]
-        names(bench_join)[names(bench_join) == bench_col] <- "bench_w"
-        df <- dplyr::left_join(df, bench_join, by = "tickers")
-        if (!"bench_w" %in% names(df)) stop("Benchmark join failed.")
-        df$plot_value <- df$weight - df$bench_w
-
-        plot_title_suffix <- " (Active)"
-        y_lab <- "Active Weight"
       } else {
-        df$plot_value <- df$weight
+        if (is.null(cov_mat)) stop("covariance_matrix is required to compute RRC.")
+        cat("Do you want ACTIVE RRC vs a benchmark? (y/n): ")
+        active_rrc_choice <- base::tolower(readline())
+        active_rrc <- active_rrc_choice %in% c("y", "yes")
+
+        if (active_rrc) {
+          if (is.null(universe_df) || !"tickers" %in% base::colnames(universe_df))
+            stop("To compute ACTIVE RRC you need 'universe_df' with a 'tickers' column.")
+          bench_w <- .get_bench_vector(universe_df, asset_names)
+          rrc_tbl <- relative_risk_contribution(weights - bench_w, cov_mat)
+          rrc_vec <- rrc_tbl$rel_risk_contr[match(asset_names, rrc_tbl$tickers)]
+          plot_title_suffix <- " (RRC Active)"
+        } else {
+          rrc_tbl <- relative_risk_contribution(weights, cov_mat)
+          rrc_vec <- rrc_tbl$rel_risk_contr[match(asset_names, rrc_tbl$tickers)]
+          plot_title_suffix <- " (RRC)"
+        }
+
+        # merge RRC back to df by ticker
+        rrc_df <- base::data.frame(tickers = asset_names, plot_value = base::as.numeric(rrc_vec),
+                                   stringsAsFactors = FALSE)
+        df <- dplyr::left_join(df, rrc_df, by = "tickers")
+
+        y_lab <- "Relative Risk Contribution"
       }
+
 
       # -------------------------------
       # Choose top groups and top assets
       # -------------------------------
-      gsum <- df |>
-        dplyr::group_by(.data[[main_group_col]]) |>
-        dplyr::summarise(group_w = sum(.data$plot_value), .groups = "drop") |>
-        dplyr::arrange(dplyr::desc(.data$group_w))
+      gsum <- df %>%
+        dplyr::group_by(.data[[main_group_col]]) %>%
+        dplyr::summarise(group_value = sum(.data$plot_value), .groups = "drop") %>%
+        dplyr::arrange(dplyr::desc(.data$group_value))
 
-      cat("\nHow many top groups (by ", if (active_mode) "active " else "", "weight) do you want to show? ", sep = "")
+      cat("\nHow many top groups (by |value|) do you want to show? ")
       g_choice <- suppressWarnings(as.integer(readline()))
       if (is.na(g_choice) || g_choice < 1 || g_choice > nrow(gsum)) {
         g_choice <- min(nrow(gsum), 9L)
@@ -7236,17 +7367,17 @@ setMethod(
       }
       keep_groups <- gsum[[main_group_col]][seq_len(g_choice)]
 
-      cat("Top how many assets per group (by |", if (active_mode) "active " else "", "weight|)? ", sep = "")
+      cat("Top how many assets per group (by |value|)? ")
       n_choice <- suppressWarnings(as.integer(readline()))
       if (is.na(n_choice) || n_choice < 1) {
         n_choice <- 10L
         message("→ Using default top ", n_choice, " assets per group.")
       }
 
-      dfp <- df |>
-        dplyr::filter(.data[[main_group_col]] %in% keep_groups) |>
-        dplyr::group_by(.data[[main_group_col]]) |>
-        dplyr::slice_max(order_by = abs(.data$plot_value), n = n_choice, with_ties = FALSE) |>
+      dfp <- df %>%
+        dplyr::filter(.data[[main_group_col]] %in% keep_groups) %>%
+        dplyr::group_by(.data[[main_group_col]]) %>%
+        dplyr::slice_max(order_by = abs(.data$plot_value), n = n_choice, with_ties = FALSE) %>%
         dplyr::ungroup()
 
       # -------------------------------
@@ -7281,7 +7412,7 @@ setMethod(
           plot.title       = ggplot2::element_text(color = white, face = "bold")
         ) +
         ggplot2::labs(
-          title = paste0("MMAF Micro Composition", plot_title_suffix, ": ",
+          title = paste0("Within-Group Composition", plot_title_suffix, ": ",
                          if (x@port_name == "") "not_identified" else x@port_name),
           x = "Asset (ordered by |weight|)",
           y = y_lab
@@ -7291,37 +7422,84 @@ setMethod(
       return(invisible(p))
     }
 
-
-
     #------------------------------------------------------------------------------------------------
-    # 12) mmaf_risk_decomposition - macro RRC vs. aggregated micro RRC (+ optional console listing)
+    # 12) groups_risk_recomposition - group RRC vs. aggregated ind. RRC (+ optional console listing)
     #------------------------------------------------------------------------------------------------
-    if (type == "MMAF Risk Decomposition") {
+    if (type == "Group Risk Decomposition") {
 
-      if (x@port_construction_method != "mmaf")
-        stop("'MMAF Risk Decomposition' is only available for 'mmaf' portfolios.")
-      if (is.null(x@rel_risk_contr))
-        stop("Asset-level 'rel_risk_contr' required in 'x'.")
+      grp            <- .resolve_group_col(x)
+      groups_df      <- grp$groups_df
+      main_group_col <- grp$main_group_col
+      weights        <- x@weights
+      cov_mat        <- x@covariance_matrix
+      universe_df    <- if (methods::is(x@universe_m_d_ref, "meta_dataframe")) x@universe_m_d_ref@data else NULL
 
-      groups_df      <- x@groups
-      main_group_col <- x@mmaf_group_col
+      if (length(asset_names) == 0L || length(weights) != length(asset_names))
+        stop("Eligible assets and weights must be present and aligned.")
+
+      # ---- Choose RRC mode: portfolio vs ACTIVE (tracking error) ----------------
+      cat("\nCompute group/asset RRC against:\n")
+      cat("1: Portfolio weights (standard RRC)\n")
+      cat("2: ACTIVE weights vs a benchmark (tracking-error RRC)\n")
+      rrc_mode <- base::as.integer(readline(prompt = "Your choice: "))
+      if (base::is.na(rrc_mode) || !rrc_mode %in% c(1L, 2L)) stop("Invalid choice for RRC mode.")
+
+      title_suffix <- ""
+
+      if (rrc_mode == 2L) {
+        # ---- ACTIVE RRC (tracking error) ---------------------------------------
+        if (is.null(cov_mat))
+          stop("To compute ACTIVE RRC you must provide 'covariance_matrix' in 'x'.")
+        if (is.null(universe_df) || !"tickers" %in% base::colnames(universe_df))
+          stop("To compute ACTIVE RRC you need 'universe_df' with a 'tickers' column.")
+
+        bench_w <- .get_bench_vector(universe_df, asset_names)   # prompts if multiple benches
+        w_active <- weights - bench_w
+
+        # Compute active RRC using TE variance
+        rrc_tbl <- relative_risk_contribution(w_active, cov_mat)
+        rrc_vec <- rrc_tbl$rel_risk_contr[match(asset_names, rrc_tbl$tickers)]
+
+        # Build asset-level table for grouping
+        df_rc <- base::data.frame(
+          tickers = asset_names,
+          weight  = w_active,            # ACTIVE weight (for reference/printing)
+          rrc     = base::as.numeric(rrc_vec),
+          stringsAsFactors = FALSE
+        ) %>%
+          dplyr::left_join(groups_df[, c("tickers", main_group_col)], by = "tickers")
+
+        title_suffix <- " (Active vs Benchmark)"
+
+      } else {
+        # ---- Standard (portfolio) RRC ------------------------------------------
+        # Prefer asset-level RRC already in object; else compute.
+        rrc_base <- if (!is.null(x@rel_risk_contr) &&
+                        length(x@rel_risk_contr) == length(weights)) {
+          base::as.numeric(x@rel_risk_contr)
+        } else {
+          if (is.null(cov_mat)) stop("Need 'covariance_matrix' to compute RRC.")
+          relative_risk_contribution(weights, cov_mat)
+        }
+        df_rc <- base::data.frame(
+          tickers = asset_names,
+          weight  = weights,
+          rrc     = rrc_base,
+          stringsAsFactors = FALSE
+        ) %>%
+          dplyr::left_join(groups_df[, c("tickers", main_group_col)], by = "tickers")
+        # title_suffix stays ""
+      }
+
 
       # Asset-level RRC -> aggregate to groups
-      df_rc <- data.frame(
-        tickers = x@eligible_assets,
-        weight  = x@weights,
-        rrc     = as.numeric(x@rel_risk_contr),
-        stringsAsFactors = FALSE
-      ) |>
-        dplyr::left_join(groups_df[, c("tickers", main_group_col)], by = "tickers")
-
-      g_rc <- df_rc |>
-        dplyr::group_by(.data[[main_group_col]]) |>
+      g_rc <- df_rc %>%
+        dplyr::group_by(.data[[main_group_col]]) %>%
         dplyr::summarise(
           group_rrc = sum(.data$rrc, na.rm = TRUE),
           group_w   = sum(.data$weight, na.rm = TRUE),
           .groups   = "drop"
-        ) |>
+        ) %>%
         dplyr::arrange(dplyr::desc(.data$group_rrc))
 
       cat("\nHow many top groups (by RRC) do you want to highlight? ")
@@ -7348,13 +7526,13 @@ setMethod(
           axis.title       = ggplot2::element_text(color = "#FFFFFF"),
           plot.title       = ggplot2::element_text(color = "#FFFFFF", face = "bold")
         ) +
-        ggplot2::labs(title = "Macro: Group Relative Risk Contribution",
+        ggplot2::labs(title = paste0("Groups Relative Risk Contribution", title_suffix),
                       x = "Group", y = "Relative Risk Contribution")
 
       # Panel B: micro RRC within selected groups (stacked to 100%)
-      df_rc_f <- df_rc |>
-        dplyr::filter(.data[[main_group_col]] %in% keep_groups) |>
-        dplyr::group_by(.data[[main_group_col]], .data$tickers) |>
+      df_rc_f <- df_rc %>%
+        dplyr::filter(.data[[main_group_col]] %in% keep_groups) %>%
+        dplyr::group_by(.data[[main_group_col]], .data$tickers) %>%
         dplyr::summarise(rrc = sum(.data$rrc, na.rm = TRUE), .groups = "drop")
 
       # ---- NEW: Optional console print of asset names per group, ordered by RRC ----
@@ -7407,14 +7585,13 @@ setMethod(
           legend.position  = "none",
           plot.title       = ggplot2::element_text(color = "#FFFFFF", face = "bold")
         ) +
-        ggplot2::labs(title = "Micro: Within-Group RRC (stacked to 100%)",
+        ggplot2::labs(title = paste0("Within-Group RRC (stacked to 100%)", title_suffix),
                       x = "Group", y = "Share of Group RRC")
 
       # Arrange side-by-side
       gridExtra::grid.arrange(pA, pB, ncol = 2)
       return(invisible(list(macro_rrc = pA, micro_rrc = pB)))
     }
-
 
 
     #------------------------------------------------------------------------------------------------
@@ -7469,25 +7646,25 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_
   neg_color <- "red"         # Define negative contribution color
 
   # List of available plots
-    available_plots <- c(
-      "Time-Series Weights by Tickers",
-      "Time-Series Weights by Stock Group",
-      "Cross-Sectional Weights Statistic by Tickers",
-      "Cross-Sectional Weights Statistic by Stock Group",
-      "Tile Heatmap of Weights by Tickers",
-      "Tile Heatmap of Weights by Stock Group",
-      "Time-Series of Groups Composition",
-      "Time-Series of Expected Return Score by Tickers",
-      "Time-Series of Expected Return Score by Stock Group",
-      "Time-Series of Expected Return Score by Eligibility",
-      "Box-plot of Expected Return Score by Stock Group",
-      "Box-plot of Expected Return Score by Eligibility",
-      "Plot Subjacent Final Port",
-      "Time-Series of Port Returns",
-      "Cross-Sectional Performance Metric Plot",
-      "Time-Series of Transaction Costs",
-      "Time-Series of Port Metrics"
-      )
+  available_plots <- c(
+    "Time-Series Weights by Tickers",
+    "Time-Series Weights by Stock Group",
+    "Cross-Sectional Weights Statistic by Tickers",
+    "Cross-Sectional Weights Statistic by Stock Group",
+    "Tile Heatmap of Weights by Tickers",
+    "Tile Heatmap of Weights by Stock Group",
+    "Time-Series of Groups Composition",
+    "Time-Series of Expected Return Score by Tickers",
+    "Time-Series of Expected Return Score by Stock Group",
+    "Time-Series of Expected Return Score by Eligibility",
+    "Box-plot of Expected Return Score by Stock Group",
+    "Box-plot of Expected Return Score by Eligibility",
+    "Plot Subjacent Final Port",
+    "Time-Series of Port Returns",
+    "Cross-Sectional Performance Metric Plot",
+    "Time-Series of Transaction Costs",
+    "Time-Series of Port Metrics"
+  )
 
 
   if (is.null(plot_id)) {
@@ -7530,15 +7707,15 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_
   final_stock_port <- x@final_stock_port
 
   #Prompt the user if he wants to plot rebalance dates
-  if (is.null(vertical_lines)){
+  if (is.null(vertical_lines) && plot_name != "Plot Subjacent Final Port"){
     rebalance_dates <- readline(prompt = "Do you want to plot rebalance dates? (yes/no): ")
     if (rebalance_dates %in% c("y", "yes")) {
       vertical_lines <- as.Date(x@port_backtest_workflow[[length(x@port_backtest_workflow)]]$rebalance_dates)
     }
   }
 
-  #Select Group if plot_name contains "Stock Group"
-  if (grepl("Stock Group", plot_name)) {
+  #Select Group if plot_name contains "Group"
+  if (grepl("Group", plot_name)) {
 
     # Get character columns, excluding the first three columns
     char_cols <- names(which(sapply(stock_universe_m_df@data[,-c(1:3)], is.character)))
@@ -7715,20 +7892,20 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_
 
     #Add first date
     first_return_date <- zoo::index(port_returns_m_xts@data)[1]
-      ##Port Returns
-      port_returns_m_xts@data <- rbind(
-        xts::xts(data.frame(raw_return = 0, net_return = 0, raw_active_return = 0, net_active_return = 0),
+    ##Port Returns
+    port_returns_m_xts@data <- rbind(
+      xts::xts(data.frame(raw_return = 0, net_return = 0, raw_active_return = 0, net_active_return = 0),
+               order.by = lubridate::add_with_rollback(first_return_date, months(-1))), #Add a first row with 0 values
+      port_returns_m_xts@data
+    )
+    ##Bench Returns
+    if(!is.null(bench_returns_m_xts)){
+      bench_returns_m_xts@data <- rbind(
+        xts::xts(data.frame(selected_bench_return = 0),
                  order.by = lubridate::add_with_rollback(first_return_date, months(-1))), #Add a first row with 0 values
-        port_returns_m_xts@data
+        bench_returns_m_xts@data
       )
-      ##Bench Returns
-      if(!is.null(bench_returns_m_xts)){
-        bench_returns_m_xts@data <- rbind(
-          xts::xts(data.frame(selected_bench_return = 0),
-                   order.by = lubridate::add_with_rollback(first_return_date, months(-1))), #Add a first row with 0 values
-          bench_returns_m_xts@data
-        )
-      }
+    }
 
     plot(port_returns_m_xts, benchmark_returns_m_xts = bench_returns_m_xts, cumulative = TRUE, plot_perf_metric = plot_perf_metric,
          vertical_lines = vertical_lines)
