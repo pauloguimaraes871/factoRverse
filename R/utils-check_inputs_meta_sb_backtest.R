@@ -253,8 +253,8 @@ check_inputs_meta_sb_backtest <- function(
     stop("target_m_df object is not the same in every base SB base backtest results and/or with the target_m_df being currently supplied.")
   }
   ###Between base_learners themselves
-  ###Do it for signal_themes_m_df, backtest_returns and benchmark_returns (only valid for ew, rp, sw and mvo)
-  valid_algos <- c("rp","mvo")
+  ###Do it for signal_themes_m_df, backtest_returns and benchmark_returns (only valid for ew, rp, hrp, sw, mmaf and mvo)
+  valid_algos <- c("rp", "hrp", "mvo", "mmaf")
   ####signal_themes, backtest_returns and benchmark_returns
   relevant_indices_signal <- sapply(base_sb_backtest_results_list, function(x) {
     sb_backtest_workflow_last_batch <- x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]
