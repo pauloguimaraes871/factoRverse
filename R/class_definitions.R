@@ -1240,8 +1240,8 @@ setClass(
     }
 
     ##mmaf group must be length 1 character
-    if(!is.null(object@mmaf_group_col) && length(object@mmaf_group_col) != 1 ||
-       !is.character(object@mmaf_group_col)){
+    if(!is.null(object@mmaf_group_col) &&
+       (length(object@mmaf_group_col) != 1 || !is.character(object@mmaf_group_col))){
       stop("mmaf_group_col must be a length 1 character.")
     }
 
@@ -1276,21 +1276,24 @@ setClass(
   validity = function(object){
 
     #Just check that _parameters slots have the appropriate S4 class
-    if(object@port_construction_method == "mvo"){
-      if(!methods::is(object@mvo_parameters, "mvo_parameters")){
+    if (object@port_construction_method == "mvo"){
+      if (!is.null(object@mvo_parameters) && !methods::is(object@mvo_parameters, "mvo_parameters")){
         stop("mvo_parameters must be of class 'mvo_parameters' when port_construction_method is 'mvo'.")
       }
-    } else if(object@port_construction_method == "rp"){
-      if(!methods::is(object@rp_parameters, "rp_parameters")){
+    }
+
+    if (object@port_construction_method == "rp"){
+      if (!is.null(object@rp_parameters) && !methods::is(object@rp_parameters, "rp_parameters")){
         stop("rp_parameters must be of class 'rp_parameters' when port_construction_method is 'rp'.")
       }
-    } else if(object@port_construction_method == "hrp"){
-      if(!methods::is(object@hrp_parameters, "hrp_parameters")){
+    }
+
+    if (object@port_construction_method == "hrp"){
+      if (!is.null(object@hrp_parameters) && !methods::is(object@hrp_parameters, "hrp_parameters")){
         stop("hrp_parameters must be of class 'hrp_parameters' when port_construction_method is 'hrp'.")
       }
-    } else {
-      stop("Invalid port_construction_method. Must be one of 'mvo', 'rp', or 'hrp'.")
     }
+
   }
 )
 
@@ -1416,6 +1419,8 @@ methods::setClass(
 #' 'pca1', 'pca2', 'shrink_id' (shrinkage to identity matrix), 'shrink_cc' (shrinkage to constant correlation). This is only relevant for 'rp' and 'mvo'.
 #' @slot mvo_parameters An object of class `mvo_parameters` representing the parameters for mean-variance optimization. This is only relevant for 'mvo'.
 #' @slot rp_parameters An object of class `rp_parameters` representing the parameters for risk parity. This is only relevant for 'rp'.
+#' @slot hrp_parameters An object of class `hrp_parameters` representing the parameters for hierarchical risk parity. This is only relevant for 'hrp'.
+#' @slot mmaf_parameters An object of class `mmaf_parameters` representing the parameters for the MMAF portfolio construction method. This is only relevant for 'mmaf'.
 #' @slot concentration_constraint_policy The policy to handle concentration constraints.
 #'  It contains up to to three elements:
 #' - `benchmark`: A character vector describing the benchmark to be used to apply constraint.
@@ -1431,6 +1436,8 @@ setClass(
     cov_est_method = "cov_est_method",
     mvo_parameters = "ANY",
     rp_parameters = "ANY",
+    hrp_parameters = "ANY",
+    mmaf_parameters = "ANY",
     concentration_constraint_policy = "ANY"
   ),
   validity = function(object){
@@ -1444,6 +1451,17 @@ setClass(
         stop("rp_parameters must be of class 'rp_parameters'")
       }
     }
+    if (!is.null(object@hrp_parameters)) {
+      if (!inherits(object@hrp_parameters, "hrp_parameters")) {
+        stop("hrp_parameters must be of class 'hrp_parameters'")
+      }
+    }
+    if (!is.null(object@mmaf_parameters)) {
+      if (!inherits(object@mmaf_parameters, "mmaf_parameters")) {
+        stop("mmaf_parameters must be of class 'mmaf_parameters'")
+      }
+    }
+
     if (!is.null(object@concentration_constraint_policy)) {
       if (!inherits(object@concentration_constraint_policy, "concentration_constraint_policy")) {
         stop("concentration_constraint_policy must be of class 'concentration_constraint_policy'")
@@ -1925,13 +1943,14 @@ setClass(
     }
 
     #Check for valid sb_algorithm
-    valid_sb_algorithms <- c("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "mvo", "custom_weights")
-    if(!(object@sb_algorithm %in% valid_sb_algorithms)) {
-      return("Invalid sb_algorithm. Choose from 'ew', 'sw', 'rp', 'mvo', 'ols', 'glmnet', 'rf', 'xgb', 'nn' or 'custom_weights'.")
+    valid_sb_algorithms <- c("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "hrp", "mvo", "mmaf", "custom_weights")
+    if (!(object@sb_algorithm %in% valid_sb_algorithms)) {
+      return("Invalid sb_algorithm. Choose from 'ew', 'sw', 'rp', 'hrp', 'mvo', 'mmaf', 'ols', 'glmnet', 'rf', 'xgb', 'nn' or 'custom_weights'.")
     }
 
     #Check for custom objective
-    if(object@sb_algorithm %in% c("sw", "mvo")){
+    if ((object@sb_algorithm %in% c("sw", "mvo", "mmaf")) ||
+        (object@sb_algorithm %in% c("rp", "hrp") && !is.null(object@custom_objective))){
       if (!grepl("^max_|^min_", object@custom_objective)){
         stop("Invalid custom_objective. Should be 'max_' or 'min_' + one of valid heuristic performance metrics.
              To see complete list of valid heuristic performance metrics, use 'display_valid_custom_objectives()'")
@@ -1999,15 +2018,15 @@ setClass(
         return("Invalid custom_objective. Choose from 'squared_error', 'pseudo_huber_error', or 'absolute_error'.")
       }
     }
-    if (!(object@sb_algorithm %in% c("xgb", "nn", "sw", "mvo")) && !is.null(object@custom_objective) && object@custom_objective != "squared_error") {
-      return("Invalid custom_objective. Custom objectives are only allowed for 'sw', 'mvo', 'xgb' or 'nn' algorithms.")
+    if (!(object@sb_algorithm %in% c("xgb", "nn", "sw", "mvo", "rp", "hrp", "mmaf")) && !is.null(object@custom_objective) && object@custom_objective != "squared_error") {
+      return("Invalid custom_objective. Custom objectives are only allowed for 'sw', 'rp', 'hrp', 'mvo', 'mmaf', 'xgb' or 'nn' algorithms.")
     }
     if (!(object@sb_algorithm %in% c("xgb", "nn")) && !is.null(object@tuning_strategy) && !is.null(object@tuning_strategy@early_stop)) {
       return("Invalid early_stop. Early stop is only allowed for 'xgb' or 'nn' algorithms.")
     }
     #Check for tuning strategy
-    if(!object@sb_algorithm %in% c("ew", "sw", "rp", "mvo", "ols", "custom_weights") && is.null(object@tuning_strategy)){
-      message("when sb_algorithm is not 'ew', 'sw', 'rp', 'mvo' or 'ols', a tuning_strategy must be set")
+    if(!object@sb_algorithm %in% c("ew", "sw", "rp", "hrp", "mvo", "mmaf", "ols", "custom_weights") && is.null(object@tuning_strategy)){
+      message("when sb_algorithm is not 'ew', 'sw', 'rp', 'hrp', 'mvo', 'mmaf' or 'ols', a tuning_strategy must be set")
     }
     #ETC
     if((object@training_sample_size < 0)){
@@ -2033,8 +2052,8 @@ setClass(
       if(!inherits(object@signal_port_parameters, "signal_port_parameters")){
         return("Invalid signal_port_parameters Should be of class signal_port_parameters")
       }
-      if(!object@sb_algorithm %in% c("rp", "mvo")){
-        return("signal_port_parameters is only needed when sb_algorithm is rp or mvo")
+      if(!object@sb_algorithm %in% c("rp", "hrp", "mvo", "mmaf")){
+        return("signal_port_parameters is only needed when sb_algorithm is rp, hrp, mvo or mmaf")
       }
     }
     ##Quantile tau and huber delta
@@ -2049,8 +2068,8 @@ setClass(
       if(!is_tuning_strategy(object@tuning_strategy)){
         return("Invalid tuning_strategy. Should be of class tuning_strategy")
       }
-      if(object@sb_algorithm %in% c("ew", "sw", "rp", "mvo", "ols", "custom_weights")){
-        return("ew, sw, rp, mvo, ols and custom_weights do not support hyperparameter tuning")
+      if(object@sb_algorithm %in% c("ew", "sw", "rp", "hrp", "mvo", "mmaf", "ols", "custom_weights")){
+        return("ew, sw, rp, hrp, mvo, mmaf, ols and custom_weights do not support hyperparameter tuning")
       }
 
       # Check hyperparameters validity based on sb_algorithm
@@ -2349,14 +2368,14 @@ setClass(
   validity = function(object) {
 
     #Check for tuning strat
-    if (!object@meta_sb_backtest_config@sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights") &&
+    if (!object@meta_sb_backtest_config@sb_algorithm %in% c("ols", "ew", "sw", "rp", "hrp", "mvo", "mmaf", "custom_weights") &&
         is.null(object@meta_sb_backtest_config@tuning_strategy)){
       stop("tuning_strategy in meta_sb_backtest_config can't be NULL (except for ols and heuristic sb algorithms).")
     }
 
     #Check for rp or mvo at meta-level
-    if (object@meta_sb_backtest_config@sb_algorithm %in% c("rp", "mvo")){
-      stop("rp and mvo are not supported at meta-level at this time.")
+    if (object@meta_sb_backtest_config@sb_algorithm %in% c("rp", "hrp", "mvo", "mmaf")){
+      stop("rp, hrp, mvo and mmaf are not supported at meta-level at this time.")
     }
 
     #Check for ss_backtest_results at meta-level
@@ -2682,6 +2701,15 @@ setClass(
         stop("chosen_scaler must be provided if scaler_shrinkage is not NULL")
       }
     } else {
+
+      if (is.null(object@use_raw_for_eligibility)){
+        stop("use_raw_for_eligibility must be provided if chosen_scaler is not NULL")
+      }
+
+      if (is.null(object@scaler_shrinkage)){
+        stop("scaler_shrinkage must be provided if chosen_scaler is not NULL")
+      }
+
       if (!is.null(object@use_raw_for_eligibility) && !is.logical(object@use_raw_for_eligibility)){
         stop("use_raw_for_eligibility must be a logical value (TRUE or FALSE).")
       }
@@ -2898,7 +2926,7 @@ setClass(
       stop("weights must have the same length as eligible_assets")
     }
 
-    if(sum(object@weights) - 1 > 0.1){
+    if(sum(object@weights) - 1 > 0.01){
       stop("weights must sum to 1.")
     }
 
@@ -3023,12 +3051,26 @@ setClass(
       ## Micro must be a list of port objects
       ## If mmaf_method is 'bottom_up', micro should be a list of a single 'port'
       ## Otherwise, it should be a list of 'port's with groups as names
-      if (!is.list(object@micro) ||
-          !all(sapply(object@micro, function(x){
-            if (!is.null(x)) inherits(x, "port")
-          }))) {
-        stop("micro must be a list of 'port' objects.")
+      if (object@mmaf_method == "top_down"){
+        if (!is.list(object@micro) ||
+            !all(purrr::imap_lgl(object@micro, function(x, y){
+              if (!is.null(x) &&
+                  object@macro@universe_m_d_ref@data %>%
+                  dplyr::filter(tickers == y) %>%
+                  dplyr::pull(weights) >= 1e-8){
+                inherits(x, "port")
+              } else {
+                TRUE
+              }
+            }))){
+          stop("micro must be a list of 'port' objects.")
+        }
+      } else {
+        if (!inherits(object@micro$bottom_up, "port")){
+          stop("micro must be a list with one element named 'bottom_up' of class 'port'.")
+        }
       }
+
       ## If mmaf_method is 'top_down', micro must be a list with groups as names,
       ## matchings colnames of group_cov_matrix
       if (!is.null(object@groups) &&
@@ -3085,9 +3127,9 @@ setClass(
     }
 
     # If sw or mvo => heuristic_sb_metric should not be NULL
-    if (object@port_construction_method %in% c("sw","mvo")) {
+    if (object@port_construction_method %in% c("sw","mvo","mmaf")) {
       if (is.null(object@heuristic_sb_metric)) {
-        stop("heuristic_sb_metric cannot be NULL when port_construction_method is 'sw' or 'mvo'.")
+        stop("heuristic_sb_metric cannot be NULL when port_construction_method is 'sw', 'mvo' or 'mmaf'.")
       }
     }
 
