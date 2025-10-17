@@ -1556,6 +1556,194 @@ test_that("set portfolio weights work for MMAF (signals) - top_down - proxy = RP
 
 })
 
+test_that("mmaf works when one of groups has zero weights", {
+
+  #This comes from a run_sb workflow that generated a group with zero weights in one period
+
+  load(paste(test_path(),"/testdata/","toy_preprocessed_signal_selection_obj.RData", sep =""))
+  load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep ="")) #Overwrite all but signal_themes
+
+  signals_m_df <- create_meta_dataframe(signals_m_df, "signals_123")
+  fwd_return_m_df <- create_meta_dataframe(fwd_return_m_df, type = "target")
+  liquidity_m_df <- create_meta_dataframe(liquidity_m_df)
+  volatility_m_df <- create_meta_dataframe(volatility_m_df)
+  benchmark_weights_m_df <- create_meta_dataframe(benchmark_weights_m_df, type = "weights")
+  benchmark_returns_m_xts <- create_meta_xts(benchmark_returns_m_xts)
+  port_metrics_m_df <- create_meta_dataframe(signals_m_df@data %>% dplyr::select(id, tickers, dates, roe_3m))
+
+  #Characteristics portfolio
+  characteristics_ports <- c(
+    book_yield = "long",
+    dy_med_36m = "long",
+    eps_yield = "long",
+    mom_res_12m = "long",
+    roe_3m = "long",
+    sharpe_6m = "long",
+    vol_36m = "short"
+  )
+
+  #Create config list
+  port_backtest_config_list <- purrr::imap(characteristics_ports, function(pos, metric_name) {
+    create_port_backtest_config(
+      eligibility_quantile_range = c(0.67, 1),
+      selected_benchmark = "ibov",
+      initial_buffer_period = 2,
+      chosen_score_metric_and_position = stats::setNames(pos, metric_name),
+      rebalancing_months = 4,
+      port_construction_method = "sw",
+      main_liquidity_metric = "mean_volfin_3m",
+      config_name = metric_name
+    ) %>%
+      add_liquidity_floor_cutoffs(
+        metric_name = c("mean_volfin_3m", "presence"),
+        metric_cutoffs = list(
+          c(micro_caps = 1, small_caps = 50000, mid_caps = 100000, large_caps = 200000, mega_caps = 500000),
+          c(micro_caps = 97.5, small_caps = 100, mid_caps = 100, large_caps = 100, mega_caps = 100)
+        )) %>%
+      add_liquidity_constraint_policy(liquidity_floor_rule = "small_caps") %>%
+      add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1, lambda = "dynamic", strategy_aum = 25000)
+  })
+
+  #Run!
+  future::plan("sequential")
+  suppressWarnings(
+    port_backtest_cohort <- purrr::map(port_backtest_config_list, function(port_config) {
+      run_port_backtest(
+        signals_m_df = signals_m_df,
+        fwd_return_m_df = fwd_return_m_df,
+        liquidity_m_df = liquidity_m_df,
+        volatility_m_df = volatility_m_df,
+        config = port_config,
+        benchmark_weights_m_df = benchmark_weights_m_df,
+        benchmark_returns_m_xts = benchmark_returns_m_xts,
+        custom_stock_metrics_m_df = port_metrics_m_df,
+        verbose = TRUE
+      )
+    }) %>% create_port_backtest_cohort(cohort_name = "sw_signals")
+  )
+
+  #SS Configuration and results
+  chosen_signals_and_positions <- c(book_yield = "long", eps_yield = "long", dy_med_36m = "long",
+                                    roe_3m = "long", sharpe_6m = "long", vol_36m = "short")
+
+  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 3, rebalancing_months = 4,
+                                                     split_method = "expanding", config_name = "frequentist_ss", active_returns = TRUE,
+                                                     chosen_signals_and_positions = chosen_signals_and_positions) %>%
+    add_alpha_test_strategy(model_structure = "no_pooled",
+                            signal_significance_threshold = 0.50, p_correction_method = "none",
+                            market_factor_proxy = "ibov", enable_theme_representativeness = TRUE)
+
+  signal_themes_m_df <- create_meta_dataframe(signal_themes_m_df %>% dplyr::filter(dates <= "2023-04-15"),
+                                              "st_11", type =  "groups")
+
+
+
+  ss_results <- suppressWarnings( #This is for NA warning of NAs at the end of run_ss_backtest
+    run_ss_backtest(frequentist_ss_config,
+                    signals_m_df = signals_m_df, port_backtest_cohort = port_backtest_cohort,
+                    benchmark_returns_m_xts = benchmark_returns_m_xts,
+                    signal_themes_m_df = signal_themes_m_df,
+                    verbose = TRUE
+    )
+  )
+
+  ##MMAF Config
+  mmaf_config <- create_sb_backtest_config(sb_algorithm = "mmaf", rebalancing_months = 4, custom_objective = "max_info_ratio",
+                                           training_sample_size = 5, target_fwd_name = "fwd_premium_3m") %>%
+    add_cov_est_method(cov_estimation_method = "ewma", cov_matrix_sample_size = 2, active_returns = TRUE, cov_matrix_benchmark = "ibov") %>%
+    add_mmaf_parameters(mmaf_group_col = "theme", mmaf_method = "top_down", top_down_proxy_port_method = "hrp",
+                        macro_port_construction_method = "rp", micro_port_construction_method = "mvo") %>%
+    add_rp_parameters(rp_method = "cyclical-spinu", level = "macro", exp_ret_score_tilt = "inner", exp_ret_score_tilt_eta = 1) %>%
+    add_mvo_parameters(opt_objective = "risk", n_random_ports = 1000, ridge_pen = 3, level = "micro") %>%
+    add_concentration_constraint_policy(benchmark = "theme_sb",
+                                        max_abs_active_group_weight = c(theme = 0.2))
+
+  target_port_m_df <- ss_results@signal_universe_m_df@data %>%
+    dplyr::select(id, tickers, dates, theme_sb_bench_weights) %>%
+    dplyr::rename(target_weights = theme_sb_bench_weights) %>%
+    dplyr::bind_rows(
+      data.frame(
+        tickers = c("book_yield", "dy_med_36m", "eps_yield",
+                    "low_vol_36m", "roe_3m", "sharpe_6m"),
+        dates = as.Date("2023-03-15"),
+        target_weights = c(0, 0.5, 0, 0.25, 0.25, 0)
+      ) %>%
+        dplyr::mutate(id = paste0(tickers, "-", dates))
+    ) %>%
+    dplyr::arrange(id) %>%
+    create_meta_dataframe()
+
+
+  #Subset
+  backtest_returns_m_xts <- port_backtest_cohort@port_returns_m_xts_list$net_returns_m_xts
+  backtest_returns_m_xts@data <- backtest_returns_m_xts@data[,-8]
+  colnames(backtest_returns_m_xts@data) <- c("book_yield","dy_med_36m", "eps_yield", "mom_res_12m", "roe_3m", "sharpe_6m", "low_vol_36m")
+
+  most_recent_signal_universe_m_d_ref <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2023-04-15")
+  target_port_m_d_ref <- target_port_m_df@data %>% dplyr::filter(dates == "2023-04-15")
+  selected_backtest_returns_m_xts_upd_ref <- backtest_returns_m_xts@data["2022-12-15/2023-04-15",
+                                                                         most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)]
+  selected_cov_matrix_benchmark_m_xts_upd_ref <- benchmark_returns_m_xts@data["2022-12-15/2023-04-15", "ibov"]
+
+  #Features Objects
+  selected_signals_m_df <- signals_m_df@data %>% dplyr::mutate(low_vol_36m = vol_36m*-1) %>% dplyr::select(-vol_36m) %>%
+    dplyr::select(id, tickers, dates, most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers))
+
+  selected_features_rebal <- selected_signals_m_df[which(selected_signals_m_df$dates %in% c("2022-10-15", "2022-11-15", "2022-12-15",
+                                                                                                   "2023-01-15", "2023-01-15")),]
+
+  #Targets
+  targets_rebal_m_df <- target_m_df[which(target_m_df$dates %in% c("2022-10-15", "2022-11-15", "2022-12-15",
+                                                                          "2023-01-15", "2023-01-15")),]
+
+
+
+  #Fitting
+  set.seed(123)
+  sb_port <- suppressWarnings(
+    fit_sb_model(sb_algorithm = "mmaf", target_fwd_name = "fwd_premium_3m",
+                 selected_features_corrected_positions_m_refit = selected_features_first_rebal,
+                 most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
+                 selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_m_xts_upd_ref,
+                 cov_matrix_sample_size = 2, cov_estimation_method = "ewma", active_returns = TRUE,
+                 groups_m_d_ref = signal_themes_m_df@data %>% dplyr::filter(dates == as.Date("2023-04-15")),
+                 custom_objective_translated = "max_info_ratio", huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
+                 keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
+                 selected_cov_matrix_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
+                 macro_exp_ret_score_tilt = "inner", macro_exp_ret_score_tilt_eta = 10,
+                 n_random_ports = 1000, opt_objective = "risk", ridge_pen = 3,
+                 target_port_m_d_ref = target_port_m_d_ref, mmaf_method = "top_down",
+                 mmaf_group_col = "theme", top_down_proxy_port_method = "hrp",
+                 micro_port_construction_method = "mvo", macro_port_construction_method = "rp",
+                 macro_concentration_constraint_policy = list(benchmark = "theme_sb",
+                                                              max_abs_active_individual_weight = 0.2)
+    ))
+
+  #Test for presence of group with zero weight
+  expect_gt(
+    sb_port@model@macro@universe_m_d_ref@data %>%
+      dplyr::filter(weights == 0) %>%
+      nrow(),
+    0)
+
+
+  #Test for tickers belonging to that group having zero final weight
+  zero_weight_groups <- sb_port@model@macro@universe_m_d_ref@data %>%
+    dplyr::filter(weights == 0) %>%
+    dplyr::pull(tickers)
+  expect_equal(
+    sb_port@model@universe_m_d_ref@data %>%
+      dplyr::filter(theme %in% zero_weight_groups) %>%
+      dplyr::pull(weights) %>%
+      unique(),
+    0
+  )
+
+
+
+
+})
+
 #Stocks (in artificial_port_obj, all tickers are eligible, differently from toy_preprocessed)
 test_that("set portfolio weights works for stocks (ew) - artificial_port_obj ", {
 
@@ -1898,6 +2086,124 @@ test_that("set_portfolio weights works for stocks (rp + exp_ret_score_tilt = 'in
 
 
 
+
+
+})
+
+test_that("set portfolio weights work for stocks (rp constrained + exp_ret_score_tilt = 'inner')", {
+
+  #Create signals_m_d_ref
+  load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
+
+  #Quantile Range
+  eligibility_quantile_range <- c(0.67, 1)
+
+  #Current date
+  current_date <- "2001-06-15"
+
+  #Initial Preps
+  signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
+  liquidity_m_d_ref <- liquidity_m_df %>% dplyr::filter(dates == current_date)
+  benchmark_weights_m_d_ref <- benchmark_weights_m_df %>% dplyr::filter(dates == current_date)
+  stock_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
+  updated_port_weights_m_lstd_ref <- signals_m_df[which(signals_m_df$dates == "2001-05-15"), c(1:3)]
+  updated_port_weights_m_lstd_ref$bop_port_weights <- c(0.20, 0.20, 0.20, 0.20, 0.20)
+  exp_ret_score_tilt_eta <- 0.5
+
+  #Derive Stock Universe
+  stock_universe_m_d_ref <- derive_stock_universe_m_d_ref(signals_m_d_ref = signals_m_d_ref, chosen_score_metric_and_position = c(Gamma = "long"),
+                                                          upper_quantile_winsorization = upper_quantile_winsorization,
+                                                          lower_quantile_winsorization = lower_quantile_winsorization)
+
+  #Classify stock universe
+  stock_universe_m_d_ref <- classify_investment_universe(
+    universe_m_d_ref = stock_universe_m_d_ref,
+    eligibility_quantile_range = eligibility_quantile_range,
+    liquidity_m_d_ref = liquidity_m_d_ref,
+    liquidity_constraint_policy = liquidity_constraint_policy,
+    liquidity_floor_cutoffs = liquidity_floor_cutoffs_df,
+    benchmark_weights_m_d_ref = benchmark_weights_m_d_ref,
+    groups_m_d_ref = stock_groups_m_d_ref,
+    concentration_constraint_policy = concentration_constraint_policy,
+    updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
+    turnover_constraint_policy = turnover_constraint_policy
+  )
+
+  #Test RP
+  expected_results <- stock_universe_m_d_ref
+
+  daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),]
+
+  covariance_matrix <- estimate_covariance_matrix(tickers = c("Stock A", "Stock C", "Stock D", "Stock E"), returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+                                                  cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
+                                                  active_returns = FALSE,
+                                                  groups_m_d_ref = stock_groups_m_d_ref
+  )
+
+  # Generate box constraints
+  eligible_stock_universe_m_d_ref <- generate_box_constraints(universe_m_d_ref = stock_universe_m_d_ref,
+                                              liquidity_constraint_policy = liquidity_constraint_policy,
+                                              turnover_constraint_policy = turnover_constraint_policy,
+                                              concentration_constraint_policy = concentration_constraint_policy)
+
+  #Run RP with constraints
+  rp_results <- riskParityPortfolio::riskParityPortfolio(
+    Sigma = covariance_matrix,
+    mu = expected_results$exp_ret_score,
+    lmd_mu = exp_ret_score_tilt_eta,
+    w_lb = eligible_stock_universe_m_d_ref$min_weight,
+    w_ub = eligible_stock_universe_m_d_ref$max_weight
+  )
+
+  #join rp weights to expected_results
+  expected_results <- expected_results %>%
+    dplyr::left_join(eligible_stock_universe_m_d_ref %>% dplyr::select(id, max_weight, min_weight), by = "id") %>%
+    dplyr::left_join(data.frame(tickers = names(rp_results$w), weights = rp_results$w), by = "tickers")
+
+  #Add RRC
+  rrc <- relative_risk_contribution(weights = expected_results$weights[which(expected_results$is_eligible == 1)],
+                                           covariance_matrix = covariance_matrix)
+  expected_results <- expected_results %>% dplyr::left_join(rrc, by = "tickers") %>%
+    dplyr::relocate(rel_risk_contr, .before = weights)
+
+
+  # Run function
+  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "rp",
+                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
+                                   exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
+                                   exp_ret_score_tilt = "inner",
+                                   liquidity_m_d_ref = liquidity_m_d_ref,
+                                   liquidity_constraint_policy = liquidity_constraint_policy,
+                                   turnover_constraint_policy = turnover_constraint_policy,
+                                   concentration_constraint_policy = concentration_constraint_policy
+  )
+
+
+  expect_equal(results@universe_m_d_ref@data, expected_results)
+
+
+  # Check that constraints were followed
+  expect_true(all(results@universe_m_d_ref@data$weights <= results@universe_m_d_ref@data$max_weight))
+  expect_true(all(results@universe_m_d_ref@data$weights >= results@universe_m_d_ref@data$min_weight))
+
+  # micro_caps < 0.01 and small_caps 0.02
+  expect_equal(
+    results@universe_m_d_ref@data %>%
+      dplyr::filter(liquidity_classification == "micro_caps") %>%
+      dplyr::mutate(act_w = weights - ibov_bench_weights) %>%
+      dplyr::filter(act_w > liquidity_constraint_policy$liquidity_cap_rules[1] + 1e-08) %>%
+      nrow(),
+    0
+  )
+  expect_equal(
+    results@universe_m_d_ref@data %>%
+      dplyr::filter(liquidity_classification == "small_caps") %>%
+      dplyr::mutate(act_w = weights - ibov_bench_weights) %>%
+      dplyr::filter(act_w > liquidity_constraint_policy$liquidity_cap_rules[2]) %>%
+      nrow(),
+    0
+  )
 
 
 })
@@ -2621,6 +2927,8 @@ test_that("set portfolio weights works for stocks (ew) - toy_preprocessed", {
                              rebalancing_months = 6, initial_buffer_period = 6, port_construction_method = "ew",
                              eligibility_quantile_range = eligibility_quantile_range, selected_benchmark = "ibov",
                              min_eligible_assets_fallback = NULL, scaler_m_df = NULL, chosen_scaler = NULL, scaler_shrinkage = NULL,
+                             macro_concentration_constraint_policy = NULL, macro_ridge_pen = NULL,
+                             micro_port_construction_method = NULL, macro_port_construction_method = NULL,
                              use_raw_for_eligibility = NULL, exp_ret_score_tilt = NULL, exp_ret_score_tilt_eta = NULL,
                              rp_method = NULL, n_random_ports = NULL, random_ports_method = NULL, opt_objective = NULL, opt_method = NULL,
                              cov_estimation_method = NULL, cov_matrix_sample_size = NULL, active_returns = FALSE, cov_matrix_benchmark = NULL,
@@ -2684,6 +2992,8 @@ test_that("set portfolio weights works for stocks (cw) - toy_preprocessed", {
                              rebalancing_months = 6, initial_buffer_period = 6, port_construction_method = "cw",
                              eligibility_quantile_range = eligibility_quantile_range, selected_benchmark = "ibov",
                              scaler_m_df = NULL, chosen_scaler = NULL, scaler_shrinkage = NULL,
+                             macro_concentration_constraint_policy = NULL, macro_ridge_pen = NULL,
+                             micro_port_construction_method = NULL, macro_port_construction_method = NULL,
                              min_eligible_assets_fallback = NULL, use_raw_for_eligibility = NULL, exp_ret_score_tilt = NULL, exp_ret_score_tilt_eta = NULL,
                              rp_method = NULL, n_random_ports = NULL, random_ports_method = NULL, opt_objective = NULL, opt_method = NULL,
                              cov_estimation_method = NULL, cov_matrix_sample_size = NULL, active_returns = FALSE, cov_matrix_benchmark = NULL,
@@ -2753,6 +3063,8 @@ test_that("set portfolio weights works for stocks (sw) - toy_preprocessed", {
                              min_eligible_assets_fallback = NULL, scaler_m_df = NULL, chosen_scaler = NULL, scaler_shrinkage = NULL,
                              use_raw_for_eligibility = NULL, exp_ret_score_tilt = NULL, exp_ret_score_tilt_eta = NULL,
                              rp_method = NULL, n_random_ports = NULL, random_ports_method = NULL, opt_objective = NULL, opt_method = NULL,
+                             macro_concentration_constraint_policy = NULL, macro_ridge_pen = NULL,
+                             micro_port_construction_method = NULL, macro_port_construction_method = NULL,
                              cov_estimation_method = NULL, cov_matrix_sample_size = NULL, active_returns = FALSE, cov_matrix_benchmark = NULL,
                              daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = benchmark_returns_m_xts,
                              liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL,
@@ -2819,6 +3131,8 @@ test_that("set portfolio weights works for stocks (cs) - toy_preprocessed", {
                              rebalancing_months = 6, initial_buffer_period = 6, port_construction_method = "cw",
                              eligibility_quantile_range = eligibility_quantile_range, selected_benchmark = "ibov",
                              min_eligible_assets_fallback = NULL, scaler_m_df = NULL, chosen_scaler = NULL, scaler_shrinkage = NULL,
+                             macro_concentration_constraint_policy = NULL, macro_ridge_pen = NULL,
+                             micro_port_construction_method = NULL, macro_port_construction_method = NULL,
                              use_raw_for_eligibility = NULL, exp_ret_score_tilt = NULL, exp_ret_score_tilt_eta = NULL,
                              rp_method = NULL, n_random_ports = NULL, random_ports_method = NULL, opt_objective = NULL, opt_method = NULL,
                              cov_estimation_method = NULL, cov_matrix_sample_size = NULL, active_returns = FALSE, cov_matrix_benchmark = NULL,
@@ -2890,6 +3204,8 @@ test_that("set portfolio weights works for stocks (rp) - toy_preprocessed", {
                              min_eligible_assets_fallback = NULL, scaler_m_df = NULL, chosen_scaler = NULL, scaler_shrinkage = NULL,
                              use_raw_for_eligibility = NULL, exp_ret_score_tilt = NULL, exp_ret_score_tilt_eta = NULL,
                              rp_method = NULL, n_random_ports = NULL, random_ports_method = NULL, opt_objective = NULL, opt_method = NULL,
+                             macro_concentration_constraint_policy = NULL, macro_ridge_pen = NULL,
+                             micro_port_construction_method = NULL, macro_port_construction_method = NULL,
                              cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, active_returns = FALSE, cov_matrix_benchmark = NULL,
                              daily_stock_returns_m_xts = daily_stock_returns_m_xts, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = benchmark_returns_m_xts,
                              liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL,
@@ -2981,6 +3297,8 @@ test_that("set portfolio weights works for stocks (rp + exp_ret_score_tilt = 'in
                              min_eligible_assets_fallback = NULL, scaler_m_df = NULL, chosen_scaler = NULL, scaler_shrinkage = NULL,
                              use_raw_for_eligibility = NULL, exp_ret_score_tilt = exp_ret_score_tilt,
                              exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
+                             macro_concentration_constraint_policy = NULL, macro_ridge_pen = NULL,
+                             micro_port_construction_method = NULL, macro_port_construction_method = NULL,
                              rp_method = NULL, n_random_ports = NULL, random_ports_method = NULL, opt_objective = NULL, opt_method = NULL,
                              cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, active_returns = FALSE, cov_matrix_benchmark = NULL,
                              daily_stock_returns_m_xts = daily_stock_returns_m_xts, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = benchmark_returns_m_xts,
@@ -3121,6 +3439,8 @@ test_that("set portfolio weights works for stocks (rp + exp_ret_score_tilt = 'fi
                              min_eligible_assets_fallback = NULL, scaler_m_df = NULL, chosen_scaler = NULL, scaler_shrinkage = NULL,
                              use_raw_for_eligibility = NULL, exp_ret_score_tilt = exp_ret_score_tilt,
                              exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
+                             macro_concentration_constraint_policy = NULL, macro_ridge_pen = NULL,
+                             micro_port_construction_method = NULL, macro_port_construction_method = NULL,
                              rp_method = NULL, n_random_ports = NULL, random_ports_method = NULL, opt_objective = NULL, opt_method = NULL,
                              cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, active_returns = FALSE, cov_matrix_benchmark = NULL,
                              daily_stock_returns_m_xts = daily_stock_returns_m_xts, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = benchmark_returns_m_xts,
@@ -3272,6 +3592,8 @@ test_that("set portfolio weights works for stocks (hrp and hrp + exp_ret_score_t
                              min_eligible_assets_fallback = NULL, scaler_m_df = NULL, chosen_scaler = NULL, scaler_shrinkage = NULL,
                              use_raw_for_eligibility = NULL, exp_ret_score_tilt = exp_ret_score_tilt,
                              exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
+                             macro_concentration_constraint_policy = NULL, macro_ridge_pen = NULL,
+                             micro_port_construction_method = NULL, macro_port_construction_method = NULL,
                              rp_method = NULL, n_random_ports = NULL, random_ports_method = NULL, opt_objective = NULL, opt_method = NULL,
                              cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, active_returns = FALSE, cov_matrix_benchmark = NULL,
                              daily_stock_returns_m_xts = daily_stock_returns_m_xts, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = benchmark_returns_m_xts,
@@ -3474,6 +3796,8 @@ test_that("set portfolio weights works for stocks (hrp + exp_ret_score_tilt = 'i
                              min_eligible_assets_fallback = NULL, scaler_m_df = NULL, chosen_scaler = NULL, scaler_shrinkage = NULL,
                              use_raw_for_eligibility = NULL, exp_ret_score_tilt = exp_ret_score_tilt,
                              exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
+                             macro_concentration_constraint_policy = NULL, macro_ridge_pen = NULL,
+                             micro_port_construction_method = NULL, macro_port_construction_method = NULL,
                              rp_method = NULL, n_random_ports = NULL, random_ports_method = NULL, opt_objective = NULL, opt_method = NULL,
                              cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, active_returns = FALSE, cov_matrix_benchmark = NULL,
                              daily_stock_returns_m_xts = daily_stock_returns_m_xts, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = benchmark_returns_m_xts,
@@ -3688,6 +4012,8 @@ test_that("set portfolio weights works for stocks (mvo_unc) - toy_preprocessed",
                              use_raw_for_eligibility = NULL, exp_ret_score_tilt = NULL, exp_ret_score_tilt_eta = NULL,
                              rp_method = NULL, n_random_ports = 2000, random_ports_method = "sample", opt_objective = "return", opt_method = NULL,
                              n_resamples = 0, exp_ret_score_jitter = 0, cov_eigval_jitter = 0,
+                             macro_concentration_constraint_policy = NULL, macro_ridge_pen = NULL,
+                             micro_port_construction_method = NULL, macro_port_construction_method = NULL,
                              cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, active_returns = FALSE, cov_matrix_benchmark = NULL,
                              daily_stock_returns_m_xts = daily_stock_returns_m_xts, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = benchmark_returns_m_xts,
                              liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL,
@@ -4236,6 +4562,8 @@ test_that("set portfolio weights works for stocks (custom_weights) - toy_preproc
   check_inputs_port_backtest(signals_m_df = signals_m_df, oos_predictions_m_df = NULL, chosen_score_metric_and_position = chosen_score_metric_and_position,
                              rebalancing_months = 6, initial_buffer_period = 6, port_construction_method = "custom_weights",
                              eligibility_quantile_range = eligibility_quantile_range, selected_benchmark = "ibov",
+                             macro_concentration_constraint_policy = NULL, macro_ridge_pen = NULL,
+                             micro_port_construction_method = NULL, macro_port_construction_method = NULL,
                              min_eligible_assets_fallback = NULL,
                              scaler_m_df = NULL, chosen_scaler = NULL, scaler_shrinkage = NULL,
                              use_raw_for_eligibility = NULL, exp_ret_score_tilt = NULL, exp_ret_score_tilt_eta = NULL,
