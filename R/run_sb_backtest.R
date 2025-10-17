@@ -36,6 +36,7 @@ setMethod("update_sb_backtest",
                    updated_ss_backtest_results = NULL, #SS Backtest Results
                    updated_port_backtest_cohort = NULL, #Port Backtest Cohort
                    updated_backtest_returns_m_xts = NULL, benchmark_returns_m_xts = NULL, signal_themes_m_df = NULL, #Cov Estimation
+                   target_port_m_df = NULL,
                    custom_signal_weights_m_df = NULL, custom_signal_universe_metrics_m_df = NULL, #Custom objects
                    verbose = TRUE, parallel = TRUE, .test_seed = NULL){
 
@@ -95,7 +96,8 @@ setMethod("update_sb_backtest",
               target_m_df = target_m_df,
               backtest_returns_m_xts = updated_backtest_returns_m_xts,
               benchmark_returns_m_xts = benchmark_returns_m_xts,
-              signal_themes_m_df = signal_themes_m_df
+              signal_themes_m_df = signal_themes_m_df,
+              target_port_m_df = target_port_m_df
             )
 
             old_objects_names_list <- list(
@@ -103,7 +105,8 @@ setMethod("update_sb_backtest",
               target_m_df = old_sb_workflow_last_batch$target_object_name,
               backtest_returns_m_xts = old_sb_workflow_last_batch$backtest_returns_object_name,
               benchmark_returns_m_xts = old_sb_workflow_last_batch$benchmark_returns_object_name,
-              signal_themes_m_df = old_sb_workflow_last_batch$signal_themes_object_name
+              signal_themes_m_df = old_sb_workflow_last_batch$signal_themes_object_name,
+              target_port_m_df = old_sb_workflow_last_batch$target_port_object_name
             )
 
             old_objects_dates_covered_list <- list(  ##Baseline info for dates comparison
@@ -111,7 +114,8 @@ setMethod("update_sb_backtest",
               target_m_df = old_sb_workflow_last_batch$target_dates,
               backtest_returns_m_xts = old_sb_workflow_last_batch$backtest_returns_dates,
               benchmark_returns_m_xts = old_sb_workflow_last_batch$benchmark_returns_dates,
-              signal_themes_m_df = old_sb_workflow_last_batch$signal_themes_dates
+              signal_themes_m_df = old_sb_workflow_last_batch$signal_themes_dates,
+              target_port_m_df = old_sb_workflow_last_batch$target_port_dates
             )
 
             ##Perform check
@@ -189,6 +193,8 @@ setMethod("update_sb_backtest",
               ###Covariance
               backtest_returns_m_xts = updated_backtest_returns_m_xts,
               benchmark_returns_m_xts = benchmark_returns_m_xts, signal_themes_m_df = signal_themes_m_df,
+              ###Shrinkage
+              target_port_m_df = target_port_m_df,
               ###Custom weights and signal universe metrics
               custom_signal_weights_m_df = custom_signal_weights_m_df, custom_signal_universe_metrics_m_df = custom_signal_universe_metrics_m_df,
               ###Other
@@ -234,7 +240,7 @@ setMethod("update_sb_backtest",
             updated_consolidated_eval_metrics <- data.frame(metric = names(consolidated_eval_metrics_row), cons_oos = as.numeric(consolidated_eval_metrics_row),
                                                             row.names = NULL)
 
-            if (!new_config@sb_algorithm %in% c("ols", "sw", "ew", "rp", "mvo", "custom_weights")){
+            if (!new_config@sb_algorithm %in% c("ols", "sw", "ew", "rp", "hrp", "mvo", "mmaf", "custom_weights")){
               ####Get validation row
               avg_validation_eval_metrics_hyper_choice_df <-
                 data.frame(metric = colnames(updated_results_list[["validation_eval_metrics_hyper_choice_m_xts"]]@data),
@@ -256,7 +262,7 @@ setMethod("update_sb_backtest",
             updated_sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts <- updated_results_list[["validation_eval_metrics_hyper_choice_m_xts"]]
             updated_sb_backtest_results@feature_importance_m_df <- updated_results_list[["feature_importance_m_df"]]
             updated_sb_backtest_results@consolidated_eval_metrics <- updated_consolidated_eval_metrics
-            if (!new_config@sb_algorithm %in% c("ols", "sw", "ew", "rp", "mvo", "custom_weights")){
+            if (!new_config@sb_algorithm %in% c("ols", "sw", "ew", "rp", "hrp", "mmaf", "mvo", "custom_weights")){
               updated_sb_backtest_results@chosen_eval_metric_validation <- updated_chosen_eval_metric_validation
             }
 
@@ -499,6 +505,7 @@ setMethod("run_sb_backtest",
           function(features_m_df, target_m_df, config, #SB Backtest
                    ss_backtest_results = NULL, #SS Backtest Results
                    port_backtest_cohort = NULL, backtest_returns_m_xts = NULL, benchmark_returns_m_xts = NULL, signal_themes_m_df = NULL, #Cov Estimation
+                   target_port_m_df = NULL, #Shrinkage
                    custom_signal_weights_m_df = NULL, custom_signal_universe_metrics_m_df = NULL, #Custom objects
                    winsorization_probs = c(0.025, 0.975), gsm_algorithm = "ols", verbose = TRUE, parallel = TRUE, .test_seed = NULL,
                    .update = FALSE, .old_backtest_covered_dates = NULL, .old_oos_sb_outputs_m_df = NULL, .old_sb_model_fit = NULL
@@ -533,11 +540,36 @@ setMethod("run_sb_backtest",
             cov_matrix_benchmark <- NULL
             active_returns <- TRUE
             rp_method <- "cyclical-spinu"
+            exp_ret_score_tilt <- NULL
+            exp_ret_score_tilt_eta <- NULL
+            linkage <- "single"
             n_random_ports <- 2000
             random_ports_method <- "sample"
             opt_objective <- "sharpe"
             opt_method <- "random"
+            ridge_pen <- NULL
+            n_resamples <- 0
+            exp_ret_score_jitter <- 0
+            cov_eigval_jitter <- 0
             concentration_constraint_policy <- NULL
+            mmaf_method <- "bottom_up"
+            top_down_proxy_port_method <- "ew"
+            mmaf_group_col <- NULL
+            micro_port_construction_method <- NULL #Micro portfolio construction method
+            macro_port_construction_method <- NULL
+            macro_concentration_constraint_policy <- NULL
+            macro_n_random_ports <- 2000
+            macro_random_ports_method <- "sample"
+            macro_opt_objective <- "sharpe"
+            macro_opt_method <- "random"
+            macro_ridge_pen <- NULL
+            macro_n_resamples <- 0
+            macro_exp_ret_score_jitter <- 0
+            macro_cov_eigval_jitter <- 0
+            macro_rp_method <- "cyclical-spinu"
+            macro_exp_ret_score_tilt <- NULL
+            macro_exp_ret_score_tilt_eta <- NULL
+            macro_linkage <- "single"
 
 
             #Winsorization probs
@@ -551,7 +583,6 @@ setMethod("run_sb_backtest",
             if(missing(parallel)){
               parallel <- TRUE
             }
-
 
             ###########################
 
@@ -621,7 +652,7 @@ setMethod("run_sb_backtest",
             chosen_signals_and_positions <- derive_signal_universe_m_df_results_list$chosen_signals_and_positions #Get chosen_signals_and_positions from SB or SS
 
             ###Tuning Strategy
-            if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights")){
+            if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "hrp", "mvo", "mmaf", "custom_weights")){
               tuning_strategy <- config@tuning_strategy #Get tuning strategy
               ###Get objects inside tuning strategy
               tuning_method <- tuning_strategy@tuning_method #Get tuning method
@@ -645,8 +676,10 @@ setMethod("run_sb_backtest",
             }
 
             ###Signal Port Parameters
-            if(sb_algorithm %in% c("rp", "mvo")){
+            if(sb_algorithm %in% c("rp", "hrp", "mvo", "mmaf")){
+
               signal_port_parameters <- config@signal_port_parameters
+
               ####Covariance
               cov_est_method <- signal_port_parameters@cov_est_method
               cov_estimation_method <- cov_est_method@cov_estimation_method
@@ -654,29 +687,256 @@ setMethod("run_sb_backtest",
               active_returns <- cov_est_method@active_returns
               cov_matrix_benchmark <- cov_est_method@cov_matrix_benchmark
 
-              ###RP
-              if(sb_algorithm == "rp"){
-                rp_parameters <- signal_port_parameters@rp_parameters
-                rp_method <- rp_parameters@rp_method
+
+              ####MMAF Parameters
+              if (sb_algorithm %in% c("mmaf")){
+
+                mmaf_parameters <- signal_port_parameters@mmaf_parameters
+                mmaf_method <- mmaf_parameters@mmaf_method
+                top_down_proxy_port_method <- mmaf_parameters@top_down_proxy_port_method
+                mmaf_group_col <- mmaf_parameters@mmaf_group_col
+                micro_port_config <- mmaf_parameters@micro_port_config
+                macro_port_config <- mmaf_parameters@macro_port_config
+
+                micro_port_construction_method <- micro_port_config@port_construction_method
+                macro_port_construction_method <- macro_port_config@port_construction_method
+
+              } else {
+
+                micro_port_construction_method <- "none"
+                macro_port_construction_method <- "none"
+
               }
 
-              ###MVO
-              if(sb_algorithm == "mvo"){
-                mvo_parameters <- signal_port_parameters@mvo_parameters
-                random_ports_method <- mvo_parameters@random_ports_method
-                n_random_ports <- mvo_parameters@n_random_ports
-                opt_method <- mvo_parameters@opt_method
-                opt_objective <- mvo_parameters@opt_objective
+              ###RP
+              if (sb_algorithm %in% c("rp") ||
+                  micro_port_construction_method %in% c("rp") ||
+                  macro_port_construction_method %in% c("rp")) {
 
-                if (!is.null(signal_port_parameters@concentration_constraint_policy)){
-                  concentration_constraint_policy <-  as.list(signal_port_parameters@concentration_constraint_policy)
+                ###### Extract RP parameters from either config or micro/macro config
+                if (sb_algorithm %in% c("rp")){
+
+                  rp_parameters <- signal_port_parameters@rp_parameters
+                  rp_method <- rp_parameters@rp_method
+                  exp_ret_score_tilt <- rp_parameters@exp_ret_score_tilt
+                  exp_ret_score_tilt_eta <- rp_parameters@exp_ret_score_tilt_eta
+
                 } else {
+
+                  if (micro_port_construction_method %in% c("rp")){
+
+                    rp_parameters <- micro_port_config@rp_parameters
+                    rp_method <- rp_parameters@rp_method
+                    exp_ret_score_tilt <- rp_parameters@exp_ret_score_tilt
+                    exp_ret_score_tilt_eta <- rp_parameters@exp_ret_score_tilt_eta
+
+                  }
+
+                  if (macro_port_construction_method %in% c("rp")){
+
+                    macro_rp_parameters <- macro_port_config@rp_parameters
+                    macro_rp_method <- macro_rp_parameters@rp_method
+                    macro_exp_ret_score_tilt <- macro_rp_parameters@exp_ret_score_tilt
+                    macro_exp_ret_score_tilt_eta <- macro_rp_parameters@exp_ret_score_tilt_eta
+
+                  }
+                }
+              }
+
+              ###HRP
+              if (sb_algorithm %in% c("hrp") ||
+                  micro_port_construction_method %in% c("hrp") ||
+                  macro_port_construction_method %in% c("hrp")) {
+
+                ###### Extract HRP parameters from either config or micro/macro config
+                if (sb_algorithm %in% c("hrp")){
+
+                  hrp_parameters <- signal_port_parameters@hrp_parameters
+                  linkage <- hrp_parameters@linkage
+                  exp_ret_score_tilt <- hrp_parameters@exp_ret_score_tilt
+                  exp_ret_score_tilt_eta <- hrp_parameters@exp_ret_score_tilt_eta
+
+                } else {
+
+                  if (micro_port_construction_method %in% c("hrp")){
+
+                    hrp_parameters <- micro_port_config@hrp_parameters
+                    linkage <- hrp_parameters@linkage
+                    exp_ret_score_tilt <- hrp_parameters@exp_ret_score_tilt
+                    exp_ret_score_tilt_eta <- hrp_parameters@exp_ret_score_tilt_eta
+
+                  }
+
+                  if (macro_port_construction_method %in% c("hrp")){
+
+                    macro_hrp_parameters <- macro_port_config@hrp_parameters
+                    macro_linkage <- macro_hrp_parameters@linkage
+                    macro_exp_ret_score_tilt <- macro_hrp_parameters@exp_ret_score_tilt
+                    macro_exp_ret_score_tilt_eta <- macro_hrp_parameters@exp_ret_score_tilt
+
+                  }
+                }
+              }
+
+              ####MVO
+              if (sb_algorithm %in% c("mvo") ||
+                  micro_port_construction_method %in% c("mvo") ||
+                  macro_port_construction_method %in% c("mvo")) {
+
+                ###### Extract MVO parameters from either config or micro/macro config
+                if (sb_algorithm %in% c("mvo")){
+
+                  mvo_parameters <- signal_port_parameters@mvo_parameters
+                  n_random_ports <- mvo_parameters@n_random_ports
+                  random_ports_method <- mvo_parameters@random_ports_method
+                  opt_objective <- mvo_parameters@opt_objective
+                  opt_method <- mvo_parameters@opt_method
+                  ridge_pen <- mvo_parameters@ridge_pen
+                  n_resamples <- mvo_parameters@n_resamples
+                  exp_ret_score_jitter <- mvo_parameters@exp_ret_score_jitter
+                  cov_eigval_jitter <- mvo_parameters@cov_eigval_jitter
+
+                } else {
+
+                  if (micro_port_construction_method %in% c("mvo")){
+
+                    mvo_parameters <- micro_port_config@mvo_parameters
+                    n_random_ports <- mvo_parameters@n_random_ports
+                    random_ports_method <- mvo_parameters@random_ports_method
+                    opt_objective <- mvo_parameters@opt_objective
+                    opt_method <- mvo_parameters@opt_method
+                    ridge_pen <- mvo_parameters@ridge_pen
+                    n_resamples <- mvo_parameters@n_resamples
+                    exp_ret_score_jitter <- mvo_parameters@exp_ret_score_jitter
+                    cov_eigval_jitter <- mvo_parameters@cov_eigval_jitter
+                  }
+
+                  if (macro_port_construction_method %in% c("mvo")){
+
+                    macro_mvo_parameters <- macro_port_config@mvo_parameters
+                    macro_n_random_ports <- macro_mvo_parameters@n_random_ports
+                    macro_random_ports_method <- macro_mvo_parameters@random_ports_method
+                    macro_opt_objective <- macro_mvo_parameters@opt_objective
+                    macro_opt_method <- macro_mvo_parameters@opt_method
+                    macro_ridge_pen <- macro_mvo_parameters@ridge_pen
+                    macro_n_resamples <- macro_mvo_parameters@n_resamples
+                    macro_exp_ret_score_jitter <- macro_mvo_parameters@exp_ret_score_jitter
+                    macro_cov_eigval_jitter <- macro_mvo_parameters@cov_eigval_jitter
+
+                  }
+                }
+              }
+
+            }
+
+            #### Resolve concentration_constraint_policy
+            if (sb_algorithm %in% c("rp", "mvo", "mmaf") && !is.null(signal_port_parameters@concentration_constraint_policy)){
+              concentration_constraint_policy <-  as.list(signal_port_parameters@concentration_constraint_policy)
+            } else {
+              concentration_constraint_policy <- NULL
+            }
+            if (length(concentration_constraint_policy) > 0){
+
+              ##### Check if sb_algorithm is 'mmaf'
+              if (sb_algorithm == "mmaf"){
+
+                ##### If micro_port_construction method accepts constraints, keep concentration_constraint_policy for micro
+                if (micro_port_construction_method %in% c("rp", "mvo")){
+
+                  ### For micro, only keep group constraints if macro_port_construction_method is mvo or rp
+                  if (length(concentration_constraint_policy$max_abs_active_group_weight > 0) &&
+                      !macro_port_construction_method %in% c("rp", "mvo")){
+                    concentration_constraint_policy$max_abs_active_group_weight <- NULL
+
+                    #### State that it was removed because it is not supported for micro
+                    warning("max_abs_active_group_weight removed from concentration_constraint_policy because it is not",
+                            "supported for micro portfolio construction when macro_port_construction_method is not 'rp' or 'mvo'.")
+                  }
+                }
+
+                ##### If macro_port_construction_method accepts constraint, generate macro_concentration_constraint_policy
+                if (macro_port_construction_method %in% c("rp", "mvo")){
+
+                  ### Check that mmaf_group_col is one of the names in max_abs_active_group_weight
+                  if (is.null(mmaf_group_col)){
+                    stop("mmaf_group_col must be provided when using concentration_constraint_policy with port_construction_method = 'mmaf' and macro_port_construction_method in c('rp', 'mvo').")
+                  }
+                  if (!(mmaf_group_col %in% names(concentration_constraint_policy$max_abs_active_group_weight))){
+                    stop("mmaf_group_col must be one of the names in concentration_constraint_policy$max_abs_active_group_weight when using port_construction_method = 'mmaf' and macro_port_construction_method in c('rp', 'mvo').")
+                  }
+
+                  ### For macro, get group constraints and transform them into individual constraints
+                  macro_concentration_constraint_policy <- concentration_constraint_policy
+                  macro_concentration_constraint_policy$max_abs_active_group_weight <- NULL
+                  macro_concentration_constraint_policy$benchmark <- concentration_constraint_policy$benchmark
+
+                  ### Get max_abs_active_individual_weight based on the group weight for the mmaf_group_col
+                  macro_concentration_constraint_policy$max_abs_active_individual_weight <-
+                    concentration_constraint_policy$max_abs_active_group_weight[mmaf_group_col] %>% as.numeric()
+
+                  ### Remove group constraints from micro level concentration just to be sure. If no ind constraint, erase altogether
+                  if (length(concentration_constraint_policy$max_abs_active_individual_weight) > 0){
+                    concentration_constraint_policy$max_abs_active_group_weight <- NULL
+                  } else {
+                    concentration_constraint_policy <- NULL
+                  }
+
+                } else {
+
+                  ### If macro_port_construction_method does not accept constraints, remove group constraints from micro level concentration. If no ind constraint, erase altogether
+                  if (length(concentration_constraint_policy$max_abs_active_individual_weight) > 0){
+                    concentration_constraint_policy$max_abs_active_group_weight <- NULL
+                  } else {
+                    concentration_constraint_policy <- NULL
+                  }
+
+                }
+
+                ##### If micro_port_construction_method is not rp or mvo, set concentration as NULL
+                if (!micro_port_construction_method %in% c("rp", "mvo")){
                   concentration_constraint_policy <- NULL
                 }
+              }
+            } else {
+              concentration_constraint_policy <- NULL
+              macro_concentration_constraint_policy <- NULL
+            }
+
+            #### Some defensive logic guardrails
+            if (sb_algorithm == "mmaf" && !macro_port_construction_method %in% c("rp", "mvo")){
+              ##### In this context, macro_concentration_constraint_policy must be NULL and concentration_constraint_policy
+              ##### must have no group constraints
+              if (!is.null(macro_concentration_constraint_policy)){
+                stop("macro_concentration_constraint_policy must be NULL when sb_algorithm = 'mmaf' and macro_port_construction_method is not in c('rp', 'mvo').")
+              }
+            }
+            if (sb_algorithm == "mmaf" &&  macro_port_construction_method %in% c("rp", "mvo")){
+              ##### In this context, concentration_constraint_policy must have no group constraints
+              if (length(concentration_constraint_policy$max_abs_active_group_weight) > 0){
+                stop("concentration_constraint_policy cannot have group constraints when sb_algorithm = 'mmaf' and macro_port_construction_method is in c('rp', 'mvo').")
+              }
+            }
+            if (sb_algorithm == "mmaf" && !micro_port_construction_method %in% c("rp", "mvo")){
+              ##### In this context, concentration_constraint_policy must be NULL
+              if (!is.null(concentration_constraint_policy)){
+                stop("concentration_constraint_policy must be NULL or have no group constraints when sb_algorithm = 'mmaf' and micro_port_construction_method is not in c('rp', 'mvo').")
+              }
+            }
+            if (sb_algorithm == "mmaf" &&  micro_port_construction_method %in% c("rp", "mvo")){
+              ##### In this context, concentration_constraint_policy can't have group constraints
+              if (length(concentration_constraint_policy$max_abs_active_group_weight) > 0){
+                stop("concentration_constraint_policy cannot have group constraints when sb_algorithm = 'mmaf' and micro_port_construction_method is in c('rp', 'mvo').")
               }
             }
 
             ##Get signal themes, backtest returns and so on
+            ## target_port_m_df
+            if (!is.null(target_port_m_df)){
+              target_port_workflow <- target_port_m_df@workflow #Get workflow
+              target_port_object_name <- target_port_m_df@meta_dataframe_name #Get mdf name
+              target_port_current_date <- target_port_m_df@current_date #Get current date
+              target_port_m_df <- target_port_m_df@data #Get target_port_m_df
+            }
             ##Signal themes
             if(!is.null(signal_themes_m_df)){
               signal_themes_object_name <- signal_themes_m_df@meta_dataframe_name #Signal Themes Obj Name
@@ -687,13 +947,16 @@ setMethod("run_sb_backtest",
               if(sb_algorithm == "mvo" & !is.null(concentration_constraint_policy$max_abs_active_group_weight)){
                 stop("A signal_themes_m_df must be provided when setting group constraints")
               }
+              if (sb_algorithm == "mmaf"){
+                stop("A signal_themes_m_df must be provided when using sb_algorithm = 'mmaf'")
+              }
             }
             ##Backtest and benchmark (for heuristic portfolios)
-            if(sb_algorithm %in% c("rp", "mvo")){
+            if(sb_algorithm %in% c("rp", "hrp", "mvo", "mmaf")){
 
               ###Check if either backtest_returns_m_xts or port_backtest_cohort is provided
               if(is.null(backtest_returns_m_xts) && is.null(port_backtest_cohort)){
-                stop("A backtest_returns_m_xts or a port_backtest_cohort must be provided when using sb_algorithm = 'rp' or 'mvo'")
+                stop("A backtest_returns_m_xts or a port_backtest_cohort must be provided when using a heuristic sb_algorithm")
               }
 
               ###Check if both backtest_returns_m_xts and port_backtest_cohort are both provided
@@ -733,11 +996,12 @@ setMethod("run_sb_backtest",
                 benchmark_returns_m_xts <- benchmark_returns_m_xts@data
 
                 #Check for enable_theme_representativeness when grup constraint is enabled
-                if (sb_algorithm == "mvo" & !is.null(concentration_constraint_policy$max_abs_active_group_weight)){
+                if ((sb_algorithm == "mvo" & !is.null(concentration_constraint_policy$max_abs_active_group_weight)) ||
+                     sb_algorithm == "mmaf"){
                     if (!is.null(ss_backtest_results)){
                       if (!ss_backtest_results@ss_backtest_workflow[[length(ss_backtest_results@ss_backtest_workflow)]]$enable_theme_representativeness){
-                        warning("enable_theme_representativeness should be enabled in alpha_test_strategy when group constraints are enabled,",
-                                "to ensure that all themes have representatives when defining group constraints.")
+                        warning("enable_theme_representativeness should be enabled in alpha_test_strategy when group constraints are enabled",
+                                "or when sb_algorithm is mmaf, in order to ensure that all themes have representatives.")
                     }
                   }
                 }
@@ -785,7 +1049,8 @@ setMethod("run_sb_backtest",
                 if (!is.null(backtest_returns_m_xts)) backtest_returns_current_date else NULL,
                 if (!is.null(benchmark_returns_m_xts)) benchmark_returns_current_date else NULL,
                 if (!is.null(benchmark_returns_m_xts)) benchmark_returns_current_date else NULL,
-                if (!is.null(signal_themes_m_df)) signal_themes_current_date else NULL
+                if (!is.null(signal_themes_m_df)) signal_themes_current_date else NULL,
+                if (!is.null(target_port_m_df)) target_port_current_date else NULL
               ))
 
               ##Run SB Backtest
@@ -798,9 +1063,25 @@ setMethod("run_sb_backtest",
                 signal_universe_m_df = signal_universe_m_df,
                 cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, #Covariance Matrix
                 backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, cov_matrix_benchmark = cov_matrix_benchmark, #Covariance Matrix
-                rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective,  #RP/MVO
-                concentration_constraint_policy = concentration_constraint_policy, signal_themes_m_df = signal_themes_m_df, #MVO (Group constraints) and returns_sample_clean
-                custom_signal_weights_m_df = custom_signal_weights_m_df, #Custom Weights
+                  ##RP/HRP Parameters
+                  rp_method = rp_method, exp_ret_score_tilt = exp_ret_score_tilt, exp_ret_score_tilt_eta = exp_ret_score_tilt_eta, linkage = linkage,
+                  ##MVO Parameters
+                  n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective,  opt_method = opt_method, #MVO
+                  ridge_pen = ridge_pen, n_resamples = n_resamples, exp_ret_score_jitter = exp_ret_score_jitter, cov_eigval_jitter = cov_eigval_jitter,
+                  target_port_m_df = target_port_m_df,
+                  ##MMAF Parameters
+                  mmaf_method = mmaf_method, top_down_proxy_port_method = top_down_proxy_port_method, mmaf_group_col = mmaf_group_col,
+                  micro_port_construction_method = micro_port_construction_method, macro_port_construction_method = macro_port_construction_method,
+                  macro_concentration_constraint_policy = macro_concentration_constraint_policy,
+                  macro_n_random_ports = macro_n_random_ports, macro_random_ports_method = macro_random_ports_method, macro_opt_objective = macro_opt_objective,
+                  macro_opt_method = macro_opt_method, macro_ridge_pen = macro_ridge_pen, macro_n_resamples = macro_n_resamples,
+                  macro_exp_ret_score_jitter = macro_exp_ret_score_jitter, macro_cov_eigval_jitter = macro_cov_eigval_jitter,
+                  macro_rp_method = macro_rp_method, macro_exp_ret_score_tilt = macro_exp_ret_score_tilt, macro_exp_ret_score_tilt_eta = macro_exp_ret_score_tilt_eta,
+                  macro_linkage = macro_linkage,
+                  ##Concentration constraints
+                  concentration_constraint_policy = concentration_constraint_policy, signal_themes_m_df = signal_themes_m_df, #MVO, RP (Constraints) and returns_sample_clean
+                  ##Custom signal weights
+                  custom_signal_weights_m_df = custom_signal_weights_m_df, #Custom Weights
                 #Choice of SB algorithm
                 sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm,
                 #Loss/Eval Functions and Related
@@ -828,7 +1109,7 @@ setMethod("run_sb_backtest",
             ##IDs
             sb_backtest_results@sb_backtest_workflow$config_name <- config@config_name
             sb_backtest_results@sb_backtest_workflow$backtest_identifier <-
-              paste0("c:",config@config_name, "_f:", features_object_name, "_t:", target_object_name,"-",target_fwd_name)
+              paste0("c__",config@config_name, "_f__", features_object_name, "_t__", target_object_name,"_",target_fwd_name)
             sb_backtest_results@backtest_identifier <- sb_backtest_results@sb_backtest_workflow$backtest_identifier
             sb_backtest_results@sb_backtest_workflow$current_date <- features_current_date #already tested if all match
 
@@ -843,17 +1124,22 @@ setMethod("run_sb_backtest",
             #Add workflows, config_name and objects for target and features
               ##Target
               sb_backtest_results@sb_backtest_workflow$target_object_name <- target_object_name
-              sb_backtest_results@sb_backtest_workflow$target_workflow <- target_workflow
+              sb_backtest_results@sb_backtest_workflow$target_workflow <- names(target_workflow)
 
               ##Features
               sb_backtest_results@sb_backtest_workflow$features_object_name <- features_object_name
-              sb_backtest_results@sb_backtest_workflow$features_workflow <- features_workflow
+              sb_backtest_results@sb_backtest_workflow$features_workflow <- names(features_workflow)
 
               ##Covariance objects
               if (!is.null(signal_themes_m_df)){
-              sb_backtest_results@sb_backtest_workflow$signal_themes_object_name <- signal_themes_object_name
-              sb_backtest_results@sb_backtest_workflow$signal_themes_workflow <- signal_themes_workflow  #Get workflow
-             }
+                sb_backtest_results@sb_backtest_workflow$signal_themes_object_name <- signal_themes_object_name
+                sb_backtest_results@sb_backtest_workflow$signal_themes_workflow <- names(signal_themes_workflow)
+              }
+              ###Target Port
+              if (!is.null(target_port_m_df)){
+                sb_backtest_results@sb_backtest_workflow$target_port_object_name <- target_port_object_name
+                sb_backtest_results@sb_backtest_workflow$target_port_workflow <- names(target_port_workflow)
+              }
 
 
             #Workflow and names for feature_importance_m_df, oos_sb_outputs_m_df and final_sb_model
@@ -862,45 +1148,42 @@ setMethod("run_sb_backtest",
               if (!is.null(sb_backtest_results@feature_importance_m_df) && nrow(sb_backtest_results@feature_importance_m_df@data) > 0){ #If objects are not missing
               sb_backtest_results@feature_importance_m_df@workflow <- list(paste0("feature_importance_m_df result of ", sb_backtest_results@backtest_identifier))
               sb_backtest_results@final_feature_importance_m_d_ref@workflow <- list(paste0("final_feature_importance_m_d_ref result of ", sb_backtest_results@backtest_identifier))
-              sb_backtest_results@feature_importance_m_df@meta_dataframe_name <- paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
-              sb_backtest_results@final_feature_importance_m_d_ref@meta_dataframe_name <- paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
-              if(sb_algorithm %in% c("ew", "sw", "rp", "mvo", "custom_weights")) sb_backtest_results@final_sb_model@model@port_name <- paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
+              sb_backtest_results@feature_importance_m_df@meta_dataframe_name <- paste0("sb_backtest__",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
+              sb_backtest_results@final_feature_importance_m_d_ref@meta_dataframe_name <- paste0("sb_backtest__",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
+              if(sb_algorithm %in% c("ew", "sw", "rp", "hrp", "mvo", "mmaf", "custom_weights")) sb_backtest_results@final_sb_model@model@port_name <- paste0("sb_backtest__",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
               }
-              sb_backtest_results@oos_sb_outputs_m_df@meta_dataframe_name <- paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
+              sb_backtest_results@oos_sb_outputs_m_df@meta_dataframe_name <- paste0("sb_backtest__",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
               if(sb_algorithm == "custom_weights"){
                 sb_backtest_results@sb_backtest_workflow$custom_signal_weights_object_name <- custom_signal_weights_object_name
-                sb_backtest_results@sb_backtest_workflow$custom_signal_weights_workflow <- custom_signal_weights_workflow
+                sb_backtest_results@sb_backtest_workflow$custom_signal_weights_workflow <- names(custom_signal_weights_workflow)
               }
               if (!is.null(custom_signal_universe_metrics_m_df)){
                 sb_backtest_results@sb_backtest_workflow$custom_signal_universe_metrics_object_name <- custom_signal_universe_metrics_object_name
-                sb_backtest_results@sb_backtest_workflow$custom_signal_universe_metrics_workflow <- custom_signal_universe_metrics_workflow
+                sb_backtest_results@sb_backtest_workflow$custom_signal_universe_metrics_workflow <- names(custom_signal_universe_metrics_workflow)
               }
 
               ###Meta xts
               if (!is.null(sb_backtest_results@oos_testing_eval_metrics_m_xts)){
-                sb_backtest_results@oos_testing_eval_metrics_m_xts@source <- rep(paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier), ncol(sb_backtest_results@oos_testing_eval_metrics_m_xts@data))
-                sb_backtest_results@oos_testing_eval_metrics_m_xts@meta_xts_name <- paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
+                sb_backtest_results@oos_testing_eval_metrics_m_xts@source <- rep(paste0("sb_backtest__",sb_backtest_results@sb_backtest_workflow$backtest_identifier), ncol(sb_backtest_results@oos_testing_eval_metrics_m_xts@data))
+                sb_backtest_results@oos_testing_eval_metrics_m_xts@meta_xts_name <- paste0("sb_backtest__",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
               }
 
-              if (!sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights")){
+              if (!sb_algorithm %in% c("ols", "ew", "sw", "rp", "hrp", "mvo", "mmaf", "custom_weights")){
                 if (!is.null(sb_backtest_results@best_hyperparameters_m_xts) && nrow(sb_backtest_results@best_hyperparameters_m_xts@data) > 0 &&
                     !is.null(sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts) && nrow(sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@data) > 0){
-                sb_backtest_results@best_hyperparameters_m_xts@source <- rep(paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier), ncol(sb_backtest_results@best_hyperparameters_m_xts@data))
-                sb_backtest_results@best_hyperparameters_m_xts@meta_xts_name <- paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
-                sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@source <- rep(paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier), ncol(sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@data))
-                sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@meta_xts_name <- paste0("sb_backtest__:",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
+                sb_backtest_results@best_hyperparameters_m_xts@source <- rep(paste0("sb_backtest__",sb_backtest_results@sb_backtest_workflow$backtest_identifier), ncol(sb_backtest_results@best_hyperparameters_m_xts@data))
+                sb_backtest_results@best_hyperparameters_m_xts@meta_xts_name <- paste0("sb_backtest__",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
+                sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@source <- rep(paste0("sb_backtest__",sb_backtest_results@sb_backtest_workflow$backtest_identifier), ncol(sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@data))
+                sb_backtest_results@validation_eval_metrics_hyper_choice_m_xts@meta_xts_name <- paste0("sb_backtest__",sb_backtest_results@sb_backtest_workflow$backtest_identifier)
                 }
               }
 
-              if (sb_algorithm %in% c("rp", "mvo")){
+              if (sb_algorithm %in% c("rp", "hrp", "mvo", "mmaf")){
                 sb_backtest_results@sb_backtest_workflow$backtest_returns_object_name <- backtest_returns_object_name
-                sb_backtest_results@sb_backtest_workflow$backtest_returns_workflow <- backtest_returns_workflow
+                sb_backtest_results@sb_backtest_workflow$backtest_returns_workflow <- names(backtest_returns_workflow)
                 sb_backtest_results@sb_backtest_workflow$benchmark_returns_object_name <- benchmark_returns_object_name
-                sb_backtest_results@sb_backtest_workflow$benchmark_returns_workflow <- benchmark_returns_workflow
+                sb_backtest_results@sb_backtest_workflow$benchmark_returns_workflow <- names(benchmark_returns_workflow)
               }
-
-              ###Call
-              sb_backtest_results@sb_backtest_workflow$call <- sys.call(-2)
 
               ###Add date to workflow
               sb_backtest_results@sb_backtest_workflow <- list(sb_backtest_results@sb_backtest_workflow)
@@ -1067,7 +1350,7 @@ setMethod("run_sb_backtest",
               )
 
               ####Change meta_dataframe name
-              oos_predictions_m_df@meta_dataframe_name <- paste0("m_config:", config@config_name, "_", "f_mdf:", features_m_df@meta_dataframe_name)
+              oos_predictions_m_df@meta_dataframe_name <- paste0("m_config__", config@config_name, "_", "f_mdf__", features_m_df@meta_dataframe_name)
 
             ###Adapted chosen_signals_and_positions
               ####Recreate chosen_signals_and_positions based on backtest names (always long) and features_passthrough_and_positions
@@ -1191,9 +1474,6 @@ setMethod("run_sb_backtest",
 
             ### Type
             meta_learner_backtest_results@sb_backtest_workflow[[length(meta_learner_backtest_results@sb_backtest_workflow)]]$backtest_type <- "meta_learner"
-
-            ### Call
-            meta_learner_backtest_results@sb_backtest_workflow[[length(meta_learner_backtest_results@sb_backtest_workflow)]]$call <- sys.call(-2)
 
             ### Add Meta Config name
             meta_learner_backtest_results@sb_backtest_workflow[[length(meta_learner_backtest_results@sb_backtest_workflow)]]$config_name_meta <-
@@ -1344,7 +1624,19 @@ run_sb_backtest_internal <- function(
   signal_universe_m_df,
   cov_matrix_sample_size = 36, cov_estimation_method = "sample", active_returns = TRUE, #COV (for RP and MVO)
   backtest_returns_m_xts = NULL, benchmark_returns_m_xts = NULL, cov_matrix_benchmark = "IBOV", #COV (for RP and MVO)
-  rp_method = "cyclical-spinu", n_random_ports = 2000, random_ports_method = "sample", opt_objective = "sharpe", opt_method = "random", #RP/MVO
+  rp_method = "cyclical-spinu", exp_ret_score_tilt = "none", exp_ret_score_tilt_eta = NULL, linkage = "single", #RP
+  n_random_ports = 2000, random_ports_method = "sample", opt_objective = "sharpe", opt_method = "random", #MVO
+  target_port_m_df = NULL, ridge_pen = NULL, n_resamples = 0, exp_ret_score_jitter = 0, cov_eigval_jitter = 0,
+  #MMAF
+  mmaf_method = "bottom_up", top_down_proxy_port_method = "ew", mmaf_group_col,
+  micro_port_construction_method = NULL, macro_port_construction_method = NULL,
+  macro_concentration_constraint_policy = NULL,
+  macro_n_random_ports = 2000, macro_random_ports_method = "sample",
+  macro_opt_objective = "sharpe", macro_opt_method = "random", macro_ridge_pen = NULL,
+  macro_n_resamples = 0, macro_exp_ret_score_jitter = 0, macro_cov_eigval_jitter = 0,
+  macro_rp_method = "cyclical-spinu", macro_exp_ret_score_tilt = "none",  macro_exp_ret_score_tilt_eta = NULL,
+  macro_linkage = "single",
+  #Constraints
   concentration_constraint_policy = NULL, signal_themes_m_df = NULL, #Group constraints and returns sample clean
   custom_signal_weights_m_df = NULL, #Custom weights meta dataframe
   #Choice of SB algorithm
@@ -1380,7 +1672,19 @@ run_sb_backtest_internal <- function(
       validation_sample_size = validation_sample_size, rebalancing_months = rebalancing_months, split_method = split_method, signal_universe_m_df = signal_universe_m_df,
       backtest_returns_m_xts = backtest_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts, cov_matrix_benchmark = cov_matrix_benchmark,
       cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, signal_themes_m_df = signal_themes_m_df,
-      rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, concentration_constraint_policy = concentration_constraint_policy,
+      rp_method = rp_method, exp_ret_score_tilt = exp_ret_score_tilt, exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
+      n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method,
+      ridge_pen = ridge_pen, target_port_m_df = target_port_m_df,
+      n_resamples = n_resamples, exp_ret_score_jitter = exp_ret_score_jitter, cov_eigval_jitter = cov_eigval_jitter,
+      concentration_constraint_policy = concentration_constraint_policy,
+      mmaf_method = mmaf_method, top_down_proxy_port_method = top_down_proxy_port_method, mmaf_group_col = mmaf_group_col,
+      micro_port_construction_method = micro_port_construction_method, #Micro portfolio construction method
+      macro_port_construction_method = macro_port_construction_method, macro_concentration_constraint_policy = macro_concentration_constraint_policy,
+      macro_n_random_ports = macro_n_random_ports, macro_random_ports_method = macro_random_ports_method,
+      macro_opt_objective = macro_opt_objective, macro_opt_method = macro_opt_method, macro_ridge_pen = macro_ridge_pen,
+      macro_n_resamples = macro_n_resamples, macro_exp_ret_score_jitter = macro_exp_ret_score_jitter, macro_cov_eigval_jitter = macro_cov_eigval_jitter,
+      macro_rp_method = macro_rp_method, macro_exp_ret_score_tilt = macro_exp_ret_score_tilt, macro_exp_ret_score_tilt_eta = macro_exp_ret_score_tilt_eta,
+      macro_linkage = macro_linkage,
       custom_signal_weights_m_df = custom_signal_weights_m_df, sb_algorithm = sb_algorithm, gsm_algorithm = gsm_algorithm, custom_objective = custom_objective,
       chosen_eval_metric = chosen_eval_metric, huber_delta = huber_delta, quantile_tau = quantile_tau, hyper_grid_domain_list = hyper_grid_domain_list, tuning_method = tuning_method, n_iter = n_iter, k_iter = k_iter, acq = acq,
       init_points = init_points, early_stop = early_stop, keras_architecture_parameters = keras_architecture_parameters, verbose = verbose, parallel = parallel, .test_seed = .test_seed
@@ -1396,9 +1700,11 @@ run_sb_backtest_internal <- function(
       cat(crayon::cyan(paste("Signal-Blending Algo:", sb_algorithm)))
       cat("\n")
     }
-    adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric, custom_objective = custom_objective, early_stop = early_stop, huber_delta = huber_delta, verbose = verbose)
+    adjusted_metrics <- translate_metrics(sb_algorithm = sb_algorithm, chosen_eval_metric = chosen_eval_metric,
+                                          custom_objective = custom_objective, early_stop = early_stop,
+                                          huber_delta = huber_delta, exp_ret_score_tilt = exp_ret_score_tilt, verbose = verbose)
     #No tuning algos
-    non_tuning_algos <- c("ols", "sw", "ew", "rp", "mvo", "custom_weights")
+    non_tuning_algos <- c("ols", "sw", "ew", "rp", "hrp", "mvo", "mmaf", "custom_weights")
 
     #Pass adjusted metrics
     custom_objective_translated <- adjusted_metrics$custom_objective_translated
@@ -1408,7 +1714,7 @@ run_sb_backtest_internal <- function(
     #Prints for initial setup
     if(verbose){
       cat("\n")
-      if(!sb_algorithm %in% c("ew", "rp", "custom_weights")) cat(paste("Custom objective:", custom_objective, "\n"))
+      if(!sb_algorithm %in% c("ew", "custom_weights") || is.null(exp_ret_score_tilt) || exp_ret_score_tilt == "none") cat(paste("Custom objective:", custom_objective, "\n"))
       if(!sb_algorithm %in% non_tuning_algos) cat(paste("Eval Metric:", chosen_eval_metric, "\n"))
       cat(paste("Training sample size:", training_sample_size, "\n"))
       if(!sb_algorithm %in% non_tuning_algos) cat(paste("Validation sample size:", validation_sample_size, "\n"))
@@ -1645,7 +1951,8 @@ run_sb_backtest_internal <- function(
         ###backtest and selected market factor proxy split (get up to date references)
         selected_backtest_returns_corrected_positions_m_xts_upd_ref <- selected_backtest_returns_corrected_positions_m_xts[which(zoo::index(selected_backtest_returns_corrected_positions_m_xts) <= current_date), ] #Get backtest returns until current date
         selected_cov_matrix_benchmark_m_xts_upd_ref <- selected_cov_matrix_benchmark_m_xts[which(zoo::index(selected_cov_matrix_benchmark_m_xts) <= current_date), ]
-        signal_themes_m_d_ref <- if(!is.null(signal_themes_m_df)){signal_themes_m_df %>% dplyr::filter(dates == current_date)} else NULL #Not only selected because we need to compute groups for benchmark
+        signal_themes_m_d_ref <- if(!is.null(signal_themes_m_df)) signal_themes_m_df %>% dplyr::filter(dates == current_date) else NULL #Not only selected because we need to compute groups for benchmark
+        target_port_m_d_ref <- if(!is.null(target_port_m_df)) target_port_m_df %>% dplyr::filter(dates == current_date) else NULL
 
         ##################
 
@@ -1749,7 +2056,7 @@ run_sb_backtest_internal <- function(
         selected_full_data_corrected_positions_m_refit_clean <- ts_splits$refit$full_data_m_refit_clean #Full data
 
         ###Set seed specifically for MVO
-        if (!is.null(.test_seed) && is.numeric(.test_seed) && sb_algorithm == "mvo"){
+        if (!is.null(.test_seed) && is.numeric(.test_seed) && sb_algorithm %in% c("mvo", "mmaf")){
           set.seed(.test_seed)
         }
 
@@ -1769,7 +2076,21 @@ run_sb_backtest_internal <- function(
           most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref, most_recent_custom_signal_weights_m_d_ref = most_recent_custom_signal_weights_m_d_ref,
           selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref, selected_cov_matrix_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
           cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, groups_m_d_ref = signal_themes_m_d_ref,
-          rp_method = rp_method, n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method,
+           ##RP/HRP
+           rp_method = rp_method, exp_ret_score_tilt = exp_ret_score_tilt, exp_ret_score_tilt_eta = exp_ret_score_tilt_eta, linkage = linkage,
+           ##MVO
+           n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method, ridge_pen = ridge_pen,
+           n_resamples = n_resamples, exp_ret_score_jitter = exp_ret_score_jitter, cov_eigval_jitter = cov_eigval_jitter, target_port_m_d_ref = target_port_m_d_ref,
+           ## MMAF
+           mmaf_method = mmaf_method, top_down_proxy_port_method = top_down_proxy_port_method, mmaf_group_col = mmaf_group_col,
+           micro_port_construction_method = micro_port_construction_method, #Micro portfolio construction method
+           macro_port_construction_method = macro_port_construction_method, macro_concentration_constraint_policy = macro_concentration_constraint_policy,
+           macro_n_random_ports = macro_n_random_ports, macro_random_ports_method = macro_random_ports_method,
+           macro_opt_objective = macro_opt_objective, macro_opt_method = macro_opt_method, macro_ridge_pen = macro_ridge_pen,
+           macro_n_resamples = macro_n_resamples, macro_exp_ret_score_jitter = macro_exp_ret_score_jitter, macro_cov_eigval_jitter = macro_cov_eigval_jitter,
+           macro_rp_method = macro_rp_method, macro_exp_ret_score_tilt = macro_exp_ret_score_tilt,  macro_exp_ret_score_tilt_eta = macro_exp_ret_score_tilt_eta,
+           macro_linkage = macro_linkage,
+          #Constraints
           concentration_constraint_policy = concentration_constraint_policy,
           upper_quantile_winsorization = upper_quantile_winsorization, lower_quantile_winsorization = lower_quantile_winsorization,
           #etc
@@ -2020,14 +2341,14 @@ run_sb_backtest_internal <- function(
     #Target
     target_fwd_name = target_fwd_name,
     target_fwd = target_fwd,
-    target_workflow = NULL,
     target_object_name = "not_identified",
     target_dates = sort(unique(dplyr::pull(target_m_df, dates))),
+    target_workflow = NULL,
     #Features
     features = colnames(features_m_df[,-c(1:3)]),
-    features_workflow = NULL,
     features_object_name = "not_identified",
     features_dates = sort(unique(dplyr::pull(features_m_df, dates))),
+    features_workflow = NULL,
     #Tuning
     tuning_method = tuning_method,
     n_iter = n_iter,
@@ -2047,27 +2368,51 @@ run_sb_backtest_internal <- function(
     cov_matrix_benchmark = cov_matrix_benchmark,
     active_returns = active_returns,
     benchmark_returns_object_name = "not_identified",
-    benchmark_returns_workflow = NULL,
     benchmark_returns_dates = if (!is.null(benchmark_returns_m_xts)) zoo::index(benchmark_returns_m_xts) else NULL,
+    benchmark_returns_workflow = NULL,
     backtest_returns_object_name = "not_identified",
-    backtest_returns_workflow = NULL,
     backtest_returns_dates = if (!is.null(backtest_returns_m_xts)) zoo::index(backtest_returns_m_xts) else NULL,
+    backtest_returns_workflow = NULL,
     rp_method = rp_method,
+    exp_ret_score_tilt = exp_ret_score_tilt,
+    exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
+    linkage = linkage,
+    #MMAF
+    mmaf_method = mmaf_method,
+    top_down_proxy_port_method = top_down_proxy_port_method,
+    mmaf_group_col = mmaf_group_col,
+    micro_port_construction_method = micro_port_construction_method,
+    macro_port_construction_method = macro_port_construction_method,
+    macro_concentration_constraint_policy = macro_concentration_constraint_policy,
+    macro_n_random_ports = macro_n_random_ports,
+    macro_random_ports_method = macro_random_ports_method,
+    macro_opt_objective = macro_opt_objective,
+    macro_opt_method = macro_opt_method,
+    macro_ridge_pen = macro_ridge_pen,
+    macro_n_resamples = macro_n_resamples,
+    macro_exp_ret_score_jitter = macro_exp_ret_score_jitter,
+    macro_cov_eigval_jitter = macro_cov_eigval_jitter,
+    macro_rp_method = macro_rp_method,
+    macro_exp_ret_score_tilt = macro_exp_ret_score_tilt,
+    macro_exp_ret_score_tilt_eta = macro_exp_ret_score_tilt_eta,
+    macro_linkage = macro_linkage,
     n_random_ports = n_random_ports,
     random_ports_method = random_ports_method,
     opt_objective = opt_objective,
+    ridge_pen = ridge_pen,
+    n_resamples = n_resamples,
+    exp_ret_score_jitter = exp_ret_score_jitter,
+    cov_eigval_jitter = cov_eigval_jitter,
     concentration_constraint_policy = concentration_constraint_policy,
     signal_themes_object_name = "not_identified",
-    signal_themes_workflow = NULL,
     signal_themes_dates = if (!is.null(signal_themes_m_df)) sort(unique(dplyr::pull(signal_themes_m_df, dates))) else NULL,
+    signal_themes_workflow = NULL,
     lower_quantile_winsorization = lower_quantile_winsorization,
     upper_quantile_winsorization = upper_quantile_winsorization,
     #Performance
     timestamps = c(initialization = Sys.time()),
     elapsed_time = elapsed_time,
-    parallel = parallel,
-    #Call
-    call = match.call()
+    parallel = parallel
   )
 
   #Create meta_dataframes
