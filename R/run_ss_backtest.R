@@ -531,7 +531,7 @@ setMethod("run_ss_backtest",
             ###IDs
             ss_backtest_results@ss_backtest_workflow$config_name <- config@config_name
             ss_backtest_results@ss_backtest_workflow$backtest_identifier <-
-              paste0("c:",config@config_name, "_s:", signals_object_name, "_st:", signal_themes_object_name)
+              paste0("c__",config@config_name, "_s__", signals_object_name, "_st__", signal_themes_object_name)
             ss_backtest_results@ss_backtest_workflow$current_date <- signals_current_date #already tested if all match
 
             ##Add port_cohort identifier
@@ -540,51 +540,49 @@ setMethod("run_ss_backtest",
             #Add for priors_m_df
             if(!is.null(priors_m_df)){
               ss_backtest_results@ss_backtest_workflow$backtest_identifier <-
-                paste0(ss_backtest_results@ss_backtest_workflow$backtest_identifier, "_p:", priors_object_name)
+                paste0(ss_backtest_results@ss_backtest_workflow$backtest_identifier, "_p_", priors_object_name)
             }
             ss_backtest_results@backtest_identifier <- ss_backtest_results@ss_backtest_workflow$backtest_identifier
 
             ##Add workflows, config_name and objects for target and features
               ###Signals
               ss_backtest_results@ss_backtest_workflow$signals_object_name <- signals_object_name
-              ss_backtest_results@ss_backtest_workflow$signals_workflow <- signals_workflow
+              ss_backtest_results@ss_backtest_workflow$signals_workflow <- names(signals_workflow)
 
               ###Signal Themes
               ss_backtest_results@ss_backtest_workflow$signal_themes_object_name <- signal_themes_object_name
-              ss_backtest_results@ss_backtest_workflow$signal_themes_workflow <- signal_themes_workflow
+              ss_backtest_results@ss_backtest_workflow$signal_themes_workflow <- names(signal_themes_workflow)
 
               ###Priors Themes
               if(!is.null(priors_m_df)){
               ss_backtest_results@ss_backtest_workflow$priors_object_name <- priors_object_name
-              ss_backtest_results@ss_backtest_workflow$priors_workflow <- priors_workflow
+              ss_backtest_results@ss_backtest_workflow$priors_workflow <- names(priors_workflow)
               }
 
               ###Custom Signal Universe Metrics
               if(!is.null(custom_signal_universe_metrics_m_df)){
                 ss_backtest_results@ss_backtest_workflow$custom_signal_universe_metrics_object_name <- custom_signal_universe_metrics_object_name
-                ss_backtest_results@ss_backtest_workflow$custom_signal_universe_metrics_workflow <- custom_signal_universe_metrics_workflow
+                ss_backtest_results@ss_backtest_workflow$custom_signal_universe_metrics_workflow <- names(custom_signal_universe_metrics_workflow)
               }
 
               ###Backtest Returns
               ss_backtest_results@ss_backtest_workflow$backtest_returns_object_name <- backtest_returns_object_name
-              ss_backtest_results@ss_backtest_workflow$backtest_returns_workflow <- backtest_returns_workflow
+              ss_backtest_results@ss_backtest_workflow$backtest_returns_workflow <- names(backtest_returns_workflow)
 
               ###Benchmark Returns
               ss_backtest_results@ss_backtest_workflow$benchmark_returns_object_name <- benchmark_returns_object_name
-              ss_backtest_results@ss_backtest_workflow$benchmark_returns_workflow <- benchmark_returns_workflow
+              ss_backtest_results@ss_backtest_workflow$benchmark_returns_workflow <- names(benchmark_returns_workflow)
 
               ###Workflow and names for signal_universe_m_df and final_signal_universe_m_d_ref
                 ####Signal Universe
                 if (!(.update && is.null(ss_backtest_results@signal_universe_m_df))){ #Skip empty updates
                   ss_backtest_results@signal_universe_m_df@workflow <- list(paste0("signal_universe_m_df result of ", ss_backtest_results@backtest_identifier))
-                  ss_backtest_results@signal_universe_m_df@meta_dataframe_name <- paste0("ss_backtest___:",ss_backtest_results@ss_backtest_workflow$backtest_identifier)
+                  ss_backtest_results@signal_universe_m_df@meta_dataframe_name <- paste0("ss_backtest___",ss_backtest_results@ss_backtest_workflow$backtest_identifier)
                 }
                 if (!is.null(ss_backtest_results@signal_universe_m_df)){
                 ss_backtest_results@final_signal_universe_m_d_ref@workflow <- list(paste0("final_signal_universe_m_d_ref result of ", ss_backtest_results@backtest_identifier))
-                ss_backtest_results@final_signal_universe_m_d_ref@meta_dataframe_name <- paste0("ss_backtest___:",ss_backtest_results@ss_backtest_workflow$backtest_identifier)
+                ss_backtest_results@final_signal_universe_m_d_ref@meta_dataframe_name <- paste0("ss_backtest___",ss_backtest_results@ss_backtest_workflow$backtest_identifier)
                 }
-                ###Call
-                ss_backtest_results@ss_backtest_workflow$call <- sys.call(-2)
 
                 ###Add date to workflow
                 ss_backtest_results@ss_backtest_workflow <- list(ss_backtest_results@ss_backtest_workflow)
