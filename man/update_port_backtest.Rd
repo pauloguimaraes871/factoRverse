@@ -23,6 +23,8 @@ update_port_backtest(
   volatility_m_df,
   old_results,
   updated_sb_backtest_results = NULL,
+  scaler_m_df = NULL,
+  target_port_m_df = NULL,
   stock_groups_m_df = NULL,
   benchmark_weights_m_df = NULL,
   daily_stock_returns_m_xts = NULL,
@@ -51,6 +53,10 @@ update_port_backtest(
 \item{...}{Additional arguments (if needed).}
 
 \item{updated_sb_backtest_results}{An optional object of class \code{sb_backtest_results} or \code{sb_metabacktest_results} used to update the backtest using style-based results.}
+
+\item{scaler_m_df}{An optional meta_dataframe containing scaling factors, if applicable.}
+
+\item{target_port_m_df}{An optional meta_dataframe containing target portfolio weights for shrinkage, if applicable.}
 
 \item{stock_groups_m_df}{A \code{meta_dataframe} containing stock group classifications, if applicable.}
 

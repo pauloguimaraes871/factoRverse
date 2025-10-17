@@ -10,13 +10,29 @@
 \usage{
 add_rp_parameters(object, rp_params, ...)
 
-\S4method{add_rp_parameters}{sb_backtest_config,rp_parameters}(object, rp_params, ...)
+\S4method{add_rp_parameters}{sb_backtest_config,rp_parameters}(object, rp_params, level = NULL, ...)
 
-\S4method{add_rp_parameters}{sb_backtest_config,missing}(object, rp_params, rp_method = "cyclical-spinu", ...)
+\S4method{add_rp_parameters}{sb_backtest_config,missing}(
+  object,
+  rp_params,
+  rp_method = "cyclical-spinu",
+  exp_ret_score_tilt = "none",
+  exp_ret_score_tilt_eta = NULL,
+  level = NULL,
+  ...
+)
 
-\S4method{add_rp_parameters}{port_backtest_config,rp_parameters}(object, rp_params, ...)
+\S4method{add_rp_parameters}{port_backtest_config,rp_parameters}(object, rp_params, level = NULL, ...)
 
-\S4method{add_rp_parameters}{port_backtest_config,missing}(object, rp_params, rp_method = "cyclical-spinu", ...)
+\S4method{add_rp_parameters}{port_backtest_config,missing}(
+  object,
+  rp_params,
+  rp_method = "cyclical-spinu",
+  exp_ret_score_tilt = "none",
+  exp_ret_score_tilt_eta = NULL,
+  level = NULL,
+  ...
+)
 }
 \arguments{
 \item{object}{An object of class \code{sb_backtest_config} or \code{port_backtest_config}.}

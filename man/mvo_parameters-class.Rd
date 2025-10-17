@@ -22,5 +22,17 @@ generated under the constraints defined in the mvo_parameters object and the one
 \item{\code{n_random_ports}}{Number of random portfolios to generate. Only needed when opt_method is 'random'.}
 
 \item{\code{opt_objective}}{A character indicating the optimization objective. Possible options are 'return', 'risk' or 'sharpe'.}
+
+\item{\code{ridge_pen}}{A numeric value representing the ridge penalty to be applied to weights. If NULL, no ridge penalty is applied.}
+
+\item{\code{n_resamples}}{Number of resamples to perform when estimating the optimal portfolio. If 0, no resampling is performed.}
+
+\item{\code{exp_ret_score_jitter}}{A numeric value representing the standard deviation of the Gaussian
+noise to be added to the expected returns scores when estimating the optimal portfolio.
+This is used to introduce randomness in the optimization process and avoid overfitting to the expected returns.}
+
+\item{\code{cov_eigval_jitter}}{A numeric value representing the standard deviation of the Gaussian
+noise to be added to the covariance matrix eigenvalues when estimating the optimal portfolio.
+This is used to introduce randomness in the optimization process and avoid overfitting to the covariance matrix.}
 }}
 

@@ -16,6 +16,12 @@ An S4 class specifying parameters for backtesting stock-level portfolios.
 
 \item{\code{min_eligible_assets_fallback}}{A numeric value representing the minimum number of eligible assets.}
 
+\item{\code{chosen_scaler}}{A character string representing the chosen scaler method.}
+
+\item{\code{scaler_shrinkage}}{A numeric value representing the scaler shrinkage parameter.}
+
+\item{\code{use_raw_for_eligibility}}{Logical; if TRUE, uses raw scores for eligibility instead of scaled scores.}
+
 \item{\code{selected_benchmark}}{A character string representing the selected benchmark.}
 
 \item{\code{initial_buffer_period}}{A numeric value representing the initial buffer period.}
@@ -31,6 +37,10 @@ An S4 class specifying parameters for backtesting stock-level portfolios.
 \item{\code{mvo_parameters}}{An object of class \code{mvo_parameters} representing the parameters for mean-variance optimization. This is only relevant for 'mvo'.}
 
 \item{\code{rp_parameters}}{An object of class \code{rp_parameters} representing the parameters for risk parity. This is only relevant for 'rp'.}
+
+\item{\code{hrp_parameters}}{An object of class \code{hrp_parameters} representing the parameters for hierarchical risk parity. This is only relevant for 'hrp'.}
+
+\item{\code{mmaf_parameters}}{An object of class \code{mmaf_parameters} representing the parameters for the MMAF method. This is only relevant for 'mmaf'.}
 
 \item{\code{main_liquidity_metric}}{A character string indicating which of the variables in \code{liquidity_m_df} should be ultimately used.}
 
@@ -81,6 +91,8 @@ Note that, in the context of stocks, a \code{benchmark_weights_m_d_ref} data fra
 }}
 
 \item{\code{transaction_costs_parameters}}{An object of class \code{transaction_costs_parameters} containing the parameters for calculating direct and indirect costs.}
+
+\item{\code{macro_port_backtest_config}}{An object of class \code{macro_port_backtest_config} containing the configuration for the macro-level port}
 
 \item{\code{config_name}}{A character string representing the name of the configuration.}
 }}

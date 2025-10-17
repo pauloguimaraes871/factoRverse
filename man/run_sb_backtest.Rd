@@ -23,6 +23,7 @@ run_sb_backtest(
   backtest_returns_m_xts = NULL,
   benchmark_returns_m_xts = NULL,
   signal_themes_m_df = NULL,
+  target_port_m_df = NULL,
   custom_signal_weights_m_df = NULL,
   custom_signal_universe_metrics_m_df = NULL,
   winsorization_probs = c(0.025, 0.975),

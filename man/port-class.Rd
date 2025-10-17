@@ -28,6 +28,8 @@ These classes encapsulate various parameters and constraints used in backtesting
 
 \item{\code{rel_risk_contr}}{An object representing relative risk contributions (must be provided if \code{covariance_matrix} is not \code{NULL}).}
 
+\item{\code{clusters}}{An object for storing clusters of assets (used in HRP).}
+
 \item{\code{mvo_port_spec}}{An object of class \code{portfolio.spec} (from the \pkg{PortfolioAnalytics} or similar package) used for Markowitz optimization.}
 
 \item{\code{ind_max_weights}}{A numeric vector specifying maximum weight constraints per asset.}
@@ -37,6 +39,20 @@ These classes encapsulate various parameters and constraints used in backtesting
 \item{\code{random_port_weights}}{An object for storing random portfolio weights (used in MVO).}
 
 \item{\code{groups}}{An object for grouping assets (e.g., sectors).}
+
+\item{\code{group_weights}}{An object for storing group weights (used in MMAF).}
+
+\item{\code{mmaf_method}}{An object for storing the MMAF method (used in MMAF).}
+
+\item{\code{mmaf_group_col}}{An object for storing MMAF group colors (used in}
+
+\item{\code{group_cov_matrix}}{An object for storing group covariance matrix (used in MMAF).}
+
+\item{\code{top_down_proxy_port_method}}{An object for storing the top-down proxy portfolio method (used in MMAF).}
+
+\item{\code{micro}}{An object for storing micro-level port (used in MMAF).}
+
+\item{\code{macro}}{An object for storing macro-level port (used in MMAF).}
 
 \item{\code{port_name}}{A \code{character} giving a unique name or label for the configuration.}
 }}

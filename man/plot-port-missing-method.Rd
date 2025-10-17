@@ -30,6 +30,7 @@ The currently supported plot types are:
 \item \code{"efficient_frontier"} - A scatterplot of random portfolios with Sharpe ratio coloring and the optimal portfolio highlighted.
 \item \code{"random_weights_distribution"} - A jitter plot of random portfolio weights with constraints.
 \item \code{"group_composition"} - A grouped bar chart comparing portfolio and benchmark weights across classification variables (e.g., sectors).
+\item \code{"hierarchical_clustering"} - A dendrogram showing hierarchical clustering of assets.
 }
 
 This method is dispatched on signature \code{plot(x = "port", y = "missing")} and does not use the \code{y} argument.

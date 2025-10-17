@@ -17,6 +17,7 @@ update_sb_backtest(features_m_df, target_m_df, old_results, ...)
   updated_backtest_returns_m_xts = NULL,
   benchmark_returns_m_xts = NULL,
   signal_themes_m_df = NULL,
+  target_port_m_df = NULL,
   custom_signal_weights_m_df = NULL,
   custom_signal_universe_metrics_m_df = NULL,
   verbose = TRUE,

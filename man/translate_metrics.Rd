@@ -10,6 +10,7 @@ translate_metrics(
   custom_objective,
   early_stop,
   huber_delta,
+  exp_ret_score_tilt,
   verbose
 )
 }
@@ -23,6 +24,8 @@ translate_metrics(
 \item{early_stop}{Numeric or null, indicating whether early stopping is enabled.}
 
 \item{huber_delta}{Numeric specifying the delta parameter for Huber loss if applicable.}
+
+\item{exp_ret_score_tilt}{Character specifying whether the tilt should be applied 'inner', 'final' or 'none' in RP and HRP}
 
 \item{verbose}{Logical indicating whether to display verbose messages.}
 }

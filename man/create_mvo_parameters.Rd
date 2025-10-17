@@ -8,7 +8,11 @@ create_mvo_parameters(
   opt_method = "random",
   random_ports_method = "sample",
   n_random_ports = 1000,
-  opt_objective = "sharpe"
+  opt_objective = "sharpe",
+  ridge_pen = NULL,
+  n_resamples = 0,
+  exp_ret_score_jitter = 0,
+  cov_eigval_jitter = 0
 )
 }
 \arguments{
@@ -26,6 +30,14 @@ Options are 'sample', 'simplex' or 'grid'.}
 
 \item{opt_objective}{A character indicating the optimization objective. Possible options
 are 'return', 'risk' or 'sharpe'.}
+
+\item{ridge_pen}{A numeric value representing the ridge penalty to be used in the optimization.}
+
+\item{n_resamples}{A numeric value indicating the number of bootstrap resamples to perform}
+
+\item{exp_ret_score_jitter}{A numeric value indicating the jitter to be applied to the expected return scores}
+
+\item{cov_eigval_jitter}{A numeric value indicating the jitter to be applied to the covariance matrix eigenvalues}
 }
 \value{
 An S4 object of class \code{mvo_parameters}.

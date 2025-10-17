@@ -26,11 +26,37 @@ fit_sb_model(
   selected_cov_matrix_benchmark_m_xts_upd_ref,
   groups_m_d_ref,
   rp_method = "cyclical-spinu",
+  exp_ret_score_tilt = NULL,
+  exp_ret_score_tilt_eta = NULL,
+  linkage = "single",
   n_random_ports = 2000,
   random_ports_method = "sample",
   opt_objective = "sharpe",
   opt_method = "random",
-  concentration_constraint_policy,
+  ridge_pen = NULL,
+  n_resamples = 0,
+  exp_ret_score_jitter = 0,
+  cov_eigval_jitter = 0,
+  target_port_m_d_ref = NULL,
+  concentration_constraint_policy = NULL,
+  mmaf_method = "bottom_up",
+  top_down_proxy_port_method,
+  mmaf_group_col,
+  micro_port_construction_method = NULL,
+  macro_port_construction_method = NULL,
+  macro_concentration_constraint_policy = NULL,
+  macro_n_random_ports = 2000,
+  macro_random_ports_method = "sample",
+  macro_opt_objective = "sharpe",
+  macro_opt_method = "random",
+  macro_ridge_pen = NULL,
+  macro_n_resamples = 0,
+  macro_exp_ret_score_jitter = 0,
+  macro_cov_eigval_jitter = 0,
+  macro_rp_method = "cyclical-spinu",
+  macro_exp_ret_score_tilt = NULL,
+  macro_exp_ret_score_tilt_eta = NULL,
+  macro_linkage = "single",
   upper_quantile_winsorization = 0.95,
   lower_quantile_winsorization = 0.05,
   verbose
@@ -80,6 +106,12 @@ fit_sb_model(
 
 \item{rp_method}{A \code{character} specifying the method for Risk Parity optimization.}
 
+\item{exp_ret_score_tilt}{Character argument specififying whether tilt must be applied during of after risk-parity weights}
+
+\item{exp_ret_score_tilt_eta}{Numeric. The intensity of the tilt effect when using \code{exp_ret_score_tilt}. Higher values increase the tilt effect.}
+
+\item{linkage}{Character. Linkage method for hierarchical clustering in Risk Parity. Defaults to \code{"single"}.}
+
 \item{n_random_ports}{A numeric value specifying the number of random portfolios to generate (for MVO).}
 
 \item{random_ports_method}{A \code{character} specifying the method for generating random portfolios.}
@@ -88,7 +120,57 @@ fit_sb_model(
 
 \item{opt_method}{A \code{character} specifying the optimization method (e.g., \code{"random"}).}
 
+\item{ridge_pen}{Numeric. Ridge penalty for MVO optimization to improve numerical stability. Defaults to \code{NULL}.}
+
+\item{n_resamples}{Number of resamples for resampled MVO. Defaults to \code{0}.}
+
+\item{exp_ret_score_jitter}{Numeric. Standard deviation of jitter added to expected return
+scores during resampling. Defaults to \code{0}.}
+
+\item{cov_eigval_jitter}{Numeric. Standard deviation of jitter added to covariance
+matrix eigenvalues during resampling. Defaults to \code{0}.}
+
+\item{target_port_m_d_ref}{Optional. A data frame containing columns for id, tickers, dates, and target portfolio weights.}
+
 \item{concentration_constraint_policy}{A policy object defining concentration constraints.}
+
+\item{mmaf_method}{Character. Method for Micro-Macro Allocation Framework. Options are \code{"bottom_up"} or \code{"top_down"}. Defaults to \code{"bottom_up"}.}
+
+\item{top_down_proxy_port_method}{Character. Method for constructing the top-down proxy portfolio in MMAF. Options are \code{"ew"}, \code{"sw"}, \code{"rp"}, or \code{"mvo"}.}
+
+\item{mmaf_group_col}{Character. Column name in \code{groups_m_d_ref} used to define groups for MMAF.}
+
+\item{micro_port_construction_method}{Character micro method used to allocate within groups (e.g., \code{"ew"}, \code{"rp"}, \code{"hrp"}, \code{"mvo"}).}
+
+\item{macro_port_construction_method}{Character macro method used to allocate across groups
+(e.g., \code{"ew"}, \code{"rp"}, \code{"hrp"}, \code{"mvo"}). For a strictly \emph{neutral} top-down
+sector allocation, prefer \code{"ew"}, \code{"rp"} or \code{"hrp"} and keep \code{macro_exp_ret_score_tilt = NULL}.}
+
+\item{macro_concentration_constraint_policy}{Optional list with group-level weight caps.}
+
+\item{macro_n_random_ports}{Integer, number of random portfolios at macro level.}
+
+\item{macro_random_ports_method}{Character, sampling method (macro).}
+
+\item{macro_opt_objective}{Character, optimization objective at macro.}
+
+\item{macro_opt_method}{Character, optimizer selector at macro.}
+
+\item{macro_ridge_pen}{Numeric or \code{NULL}, ridge penalty for macro MVO.}
+
+\item{macro_n_resamples}{Integer, number of resamples for macro MVO.}
+
+\item{macro_exp_ret_score_jitter}{Numeric, jitter on sector ER (macro MVO).}
+
+\item{macro_cov_eigval_jitter}{Numeric, jitter on macro covariance eigenvalues.}
+
+\item{macro_rp_method}{Character, risk parity method at macro.}
+
+\item{macro_exp_ret_score_tilt}{Optional numeric vector/column name for RP tilt (macro).}
+
+\item{macro_exp_ret_score_tilt_eta}{Optional numeric, tilt intensity for macro RP.}
+
+\item{macro_linkage}{Character, passed to macro hierarchical methods when applicable.}
 
 \item{upper_quantile_winsorization}{A numeric value specifying the upper winsorization quantile.}
 

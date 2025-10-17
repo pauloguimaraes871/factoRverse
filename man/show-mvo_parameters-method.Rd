@@ -8,6 +8,8 @@
 }
 \arguments{
 \item{object}{A \code{mvo_parameters} object.}
+
+\item{hide_title}{Logical indicating whether to hide the title when displaying the parameters. Default is FALSE.}
 }
 \description{
 Displays the mean-variance optimization parameters contained in a \code{mvo_parameters} object.

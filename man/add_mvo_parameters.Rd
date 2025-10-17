@@ -10,7 +10,7 @@
 \usage{
 add_mvo_parameters(object, mvo_params, ...)
 
-\S4method{add_mvo_parameters}{sb_backtest_config,mvo_parameters}(object, mvo_params, ...)
+\S4method{add_mvo_parameters}{sb_backtest_config,mvo_parameters}(object, mvo_params, level = NULL, ...)
 
 \S4method{add_mvo_parameters}{sb_backtest_config,missing}(
   object,
@@ -19,10 +19,15 @@ add_mvo_parameters(object, mvo_params, ...)
   random_ports_method = "sample",
   n_random_ports = 1000,
   opt_objective = "sharpe",
+  ridge_pen = NULL,
+  n_resamples = 0,
+  exp_ret_score_jitter = 0,
+  cov_eigval_jitter = 0,
+  level = NULL,
   ...
 )
 
-\S4method{add_mvo_parameters}{port_backtest_config,mvo_parameters}(object, mvo_params, ...)
+\S4method{add_mvo_parameters}{port_backtest_config,mvo_parameters}(object, mvo_params, level = NULL, ...)
 
 \S4method{add_mvo_parameters}{port_backtest_config,missing}(
   object,
@@ -31,6 +36,11 @@ add_mvo_parameters(object, mvo_params, ...)
   random_ports_method = "sample",
   n_random_ports = 1000,
   opt_objective = "sharpe",
+  ridge_pen = NULL,
+  n_resamples = 0,
+  exp_ret_score_jitter = 0,
+  cov_eigval_jitter = 0,
+  level = NULL,
   ...
 )
 }
@@ -59,6 +69,14 @@ Possible options are 'return', 'risk' or 'sharpe'.
 \item{n_random_ports}{Number of random portfolios to generate.}
 
 \item{opt_objective}{A character indicating the optimization objective.}
+
+\item{ridge_pen}{A numeric value representing the ridge penalty to be used in the optimization.}
+
+\item{n_resamples}{A numeric value indicating the number of bootstrap resamples to perform}
+
+\item{exp_ret_score_jitter}{A numeric value indicating the jitter to be applied to the expected return scores}
+
+\item{cov_eigval_jitter}{A numeric value indicating the jitter to be applied to the covariance matrix eigenvalues}
 }
 \value{
 An updated object of class \code{sb_backtest_config} or \code{port_backtest_config} with

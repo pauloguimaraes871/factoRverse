@@ -18,6 +18,10 @@ sb_algorithm is 'rp' or 'mvo'.
 
 \item{\code{rp_parameters}}{An object of class \code{rp_parameters} representing the parameters for risk parity. This is only relevant for 'rp'.}
 
+\item{\code{hrp_parameters}}{An object of class \code{hrp_parameters} representing the parameters for hierarchical risk parity. This is only relevant for 'hrp'.}
+
+\item{\code{mmaf_parameters}}{An object of class \code{mmaf_parameters} representing the parameters for the MMAF portfolio construction method. This is only relevant for 'mmaf'.}
+
 \item{\code{concentration_constraint_policy}}{The policy to handle concentration constraints.
 It contains up to to three elements:
 \itemize{

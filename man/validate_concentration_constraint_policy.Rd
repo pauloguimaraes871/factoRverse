@@ -4,7 +4,10 @@
 \alias{validate_concentration_constraint_policy}
 \title{Validate Concentration Constraint Policy}
 \usage{
-validate_concentration_constraint_policy(concentration_constraint_policy)
+validate_concentration_constraint_policy(
+  concentration_constraint_policy,
+  macro = FALSE
+)
 }
 \arguments{
 \item{concentration_constraint_policy}{A list with the following possible elements:
@@ -12,7 +15,8 @@ validate_concentration_constraint_policy(concentration_constraint_policy)
 \item{benchmark}{Benchmark weights (not validated by this function).}
 \item{max_abs_active_individual_weight}{A numeric value in (0, 1] representing the maximum absolute active weight for an individual asset.}
 \item{max_abs_active_group_weight}{A named numeric vector in (0, 1] representing the maximum absolute active weight for groups of assets. Names must be unique.}
-}}
+}
+@param macro If true, indicates concentration_constraint_policy is for a macro portfolio.}
 }
 \value{
 Invisibly returns TRUE if the policy is valid.

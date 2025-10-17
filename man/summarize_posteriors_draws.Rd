@@ -8,7 +8,9 @@ summarize_posteriors_draws(
   brm_model,
   signal_universe_m_d_ref = NULL,
   selected_signal_themes_m_d_ref,
-  model_spec_theme_level
+  model_spec_theme_level,
+  compute_predictives_full = FALSE,
+  n_draws_predictive = NULL
 )
 }
 \arguments{
@@ -27,6 +29,10 @@ Options include:
 \item \code{"theme_specific_intercept_theme_specific_slope"}: Includes fixed intercepts and slopes for each theme.
 \item \code{"fixed_intercept_fixed_slope"}: Omits theme-level intercepts but includes random effects at the theme:signal level.
 }}
+
+\item{compute_predictives_full}{If TRUE, computes the full posterior predictive distribution.}
+
+\item{n_draws_predictive}{Number of posterior draws to use for predictive computations. If NULL, all available draws are used.}
 }
 \value{
 The \code{signal_universe_m_d_ref} data frame is updated in place with posterior summary statistics.

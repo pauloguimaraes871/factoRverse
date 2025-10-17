@@ -115,6 +115,8 @@ Collate:
     'utils-create_custom_weighted_portfolio.R'
     'utils-create_equal_weighted_portfolio.R'
     'utils-create_expanded_hyper_grid_list.R'
+    'utils-create_hrp_portfolio.R'
+    'utils-create_mmaf_portfolio.R'
     'utils-create_mvo_portfolio.R'
     'utils-create_performance_m_df.R'
     'utils-create_risk_parity_portfolio.R'

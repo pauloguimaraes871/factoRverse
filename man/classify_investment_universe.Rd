@@ -14,12 +14,17 @@ classify_investment_universe(
   liquidity_constraint_policy = NULL,
   updated_port_weights_m_lstd_ref = NULL,
   turnover_constraint_policy = NULL,
+  selected_benchmark = NULL,
   benchmark_weights_m_d_ref = NULL,
   groups_m_d_ref = NULL,
   concentration_constraint_policy = NULL,
+  is_mmaf = FALSE,
+  target_port_m_d_ref = NULL,
+  ridge_pen = NULL,
   user_defined_AND_rules_m_d_ref = NULL,
   user_defined_OR_rules_m_d_ref = NULL,
   asset_object = "stocks",
+  use_raw_for_eligibility = FALSE,
   verbose = TRUE
 )
 }
@@ -69,6 +74,8 @@ Stocks that are less liquid than specified for a buffer zone and have a signal h
 }
 }}
 
+\item{selected_benchmark}{A character vector describing the strategy benchmark.}
+
 \item{benchmark_weights_m_d_ref}{A data frame containing columns for id, tickers, dates, and current benchmark weights columns.
 All tickers in the current universe must have a unique correspondence in this data frame.}
 
@@ -84,6 +91,12 @@ Must have a correspondence in \code{benchmark_weights_m_d_ref}
 If a given group has no eligible asset, the one with the greatest signal will be automatically promoted.
 Note that, in the context of \code{generate_group_constraints}, a \code{benchmark_weights_m_d_ref} data frame must also be supplied.
 }}
+
+\item{is_mmaf}{If TRUE, indicates that the concentration_constraint_policy refers to macro level and thus forces group eligibility.}
+
+\item{target_port_m_d_ref}{Optional. A data frame containing columns for id, tickers, dates, and target portfolio weights.}
+
+\item{ridge_pen}{Optional. A numeric value indicating the ridge penalty to be used when shrinking MVO weights towards the target portfolio.}
 
 \item{user_defined_AND_rules_m_d_ref}{Optional. A named list of named data frames containing a column with tickers, columns with metrics to be passed to the final data frame, and a column that describes the filter with the same name as the list element.
 For example, to apply a filter with stocks that begin with A, \code{user_defined_AND_rules_m_d_ref} can contain a data frame element named "starts_with_A_rule".

@@ -21,9 +21,36 @@ check_inputs_sb_backtest(
   active_returns,
   signal_themes_m_df,
   rp_method,
+  exp_ret_score_tilt,
+  exp_ret_score_tilt_eta,
+  linkage,
   n_random_ports,
   random_ports_method,
   opt_objective,
+  opt_method,
+  target_port_m_df,
+  ridge_pen,
+  n_resamples,
+  exp_ret_score_jitter,
+  cov_eigval_jitter,
+  mmaf_method,
+  top_down_proxy_port_method,
+  mmaf_group_col,
+  micro_port_construction_method,
+  macro_port_construction_method,
+  macro_concentration_constraint_policy,
+  macro_n_random_ports,
+  macro_random_ports_method,
+  macro_opt_objective,
+  macro_opt_method,
+  macro_ridge_pen,
+  macro_n_resamples,
+  macro_exp_ret_score_jitter,
+  macro_cov_eigval_jitter,
+  macro_rp_method,
+  macro_exp_ret_score_tilt,
+  macro_exp_ret_score_tilt_eta,
+  macro_linkage,
   concentration_constraint_policy,
   custom_signal_weights_m_df,
   sb_algorithm,
@@ -63,6 +90,66 @@ check_inputs_sb_backtest(
 \item{backtest_returns_m_xts}{A xts containing historical backtested returns named according to signals in \code{signals_m_df},}
 
 \item{benchmark_returns_m_xts}{A xts with benchmark returns, named accordingly.}
+
+\item{rp_method}{A parameter specifying the risk parity method to be applied (when applicable).}
+
+\item{exp_ret_score_tilt}{A logical value indicating whether to apply expected return score tilting in risk parity or mean-variance optimization (when applicable).}
+
+\item{exp_ret_score_tilt_eta}{A numeric value specifying the exponent used for expected return score tilting (when applicable).}
+
+\item{n_random_ports}{A numeric value indicating the number of random portfolios to generate.}
+
+\item{random_ports_method}{A parameter specifying the method for generating random portfolios.}
+
+\item{opt_objective}{A parameter defining the optimization objective.}
+
+\item{opt_method}{A parameter specifying the optimization method.}
+
+\item{target_port_m_df}{A data frame containing target portfolio weights (when applicable).}
+
+\item{ridge_pen}{A numeric value indicating the ridge penalty (when applicable).}
+
+\item{n_resamples}{A numeric value specifying the number of resamples (when applicable).}
+
+\item{exp_ret_score_jitter}{A numeric value indicating the jitter applied to expected return scores (when applicable).}
+
+\item{cov_eigval_jitter}{A numeric value specifying the jitter applied to covariance eigenvalues (when applicable).}
+
+\item{mmaf_method}{Character. Method for micro-macro allocation framework: "bottom_up" or "top_down".}
+
+\item{top_down_proxy_port_method}{Character. Method to create top-down proxy portfolio proxy.}
+
+\item{mmaf_group_col}{Character. Column name in \code{stock_groups_m_df} defining groups for MMAF.}
+
+\item{micro_port_construction_method}{Character. Method for micro-level portfolio construction in MMAF.}
+
+\item{macro_port_construction_method}{Character. Method for macro-level portfolio construction in MMAF.}
+
+\item{macro_concentration_constraint_policy}{A \code{list} defining concentration constraints at the macro level.}
+
+\item{macro_n_random_ports}{Integer. Number of random portfolios for macro-level optimization.}
+
+\item{macro_random_ports_method}{Character. Method to sample random portfolios at the macro level.}
+
+\item{macro_opt_objective}{Character. Optimization target for macro-level portfolio.}
+
+\item{macro_opt_method}{Character. Optimization method for macro-level portfolio.}
+
+\item{macro_ridge_pen}{Numeric. Ridge penalty for macro-level optimization.}
+
+\item{macro_n_resamples}{Integer. Number of resamples for robust optimization at the macro level.}
+
+\item{macro_exp_ret_score_jitter}{Numeric. Jitter to add to expected return scores during macro-level resampling.}
+
+\item{macro_cov_eigval_jitter}{Numeric. Jitter to add to covariance matrix eigenvalues during macro-level resampling.}
+
+\item{macro_rp_method}{Character. Risk parity allocation method for macro-level portfolio.}
+
+\item{macro_exp_ret_score_tilt}{Logical. If TRUE, applies expected return score tilt in macro-level RP.}
+
+\item{macro_exp_ret_score_tilt_eta}{Numeric. Exponent for expected return score tilt in macro-level RP.}
+
+\item{macro_linkage}{Character. Linkage method for hierarchical clustering in macro-level HRP.}
 
 \item{sb_algorithm}{Character, choice of signal blending algorithm ("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "mvo").}
 

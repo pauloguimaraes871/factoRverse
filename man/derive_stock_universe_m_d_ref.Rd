@@ -8,6 +8,9 @@ derive_stock_universe_m_d_ref(
   signals_m_d_ref,
   oos_predictions_m_d_ref = NULL,
   chosen_score_metric_and_position = NULL,
+  scaler_m_d_ref = NULL,
+  chosen_scaler = NULL,
+  scaler_shrinkage = 0,
   lower_quantile_winsorization,
   upper_quantile_winsorization
 )
@@ -24,6 +27,16 @@ from \code{signals_m_d_ref} is used.}
 signal metric and its associated position. For example, \code{c("signal" = "long")}
 implies a long position (multiplier 1) while \code{c("signal" = "short")} implies
 a short position (multiplier -1).}
+
+\item{scaler_m_d_ref}{Optional. A data frame containing scaling factors with columns \code{id}, \code{tickers},
+\code{dates}, and one or more scaler metrics. If not provided (i.e. \code{NULL}), no scaling is applied.}
+
+\item{chosen_scaler}{Optional. A string indicating the chosen scaler metric from \code{scaler_m_d_ref}.
+If not provided (i.e. \code{NULL}), no scaling is applied.}
+
+\item{scaler_shrinkage}{Numeric between 0 and 1. If greater than 0, applies shrinkage to the scaler values
+towards 1 (i.e., no scaling). A value of 0 means no shrinkage, while a value of 1 means all scalers are set to 1.
+Default is 0.}
 
 \item{lower_quantile_winsorization}{Numeric. Lower quantile value for winsorization
 in \code{signal_transform}.}

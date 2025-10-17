@@ -10,6 +10,7 @@ set_portfolio_weights(
   liquidity_m_d_ref = NULL,
   cap_weighting_metric = NULL,
   groups_m_d_ref = NULL,
+  covariance_matrix = NULL,
   returns_m_xts_upd_ref = NULL,
   selected_benchmark_m_xts_upd_ref = NULL,
   active_returns = if (is.null(selected_benchmark_m_xts_upd_ref)) FALSE else TRUE,
@@ -23,10 +24,37 @@ set_portfolio_weights(
   random_ports_method = "sample",
   opt_objective = "sharpe",
   opt_method = "random",
+  ridge_pen = NULL,
+  n_resamples = 0,
+  exp_ret_score_jitter = 0,
+  cov_eigval_jitter = 0,
   rp_method = "cyclical-spinu",
+  exp_ret_score_tilt = NULL,
+  exp_ret_score_tilt_eta = NULL,
+  linkage = "single",
   custom_weights_m_d_ref = NULL,
+  mmaf_method = "bottom_up",
+  top_down_proxy_port_method,
+  mmaf_group_col,
+  micro_port_construction_method = NULL,
+  macro_port_construction_method = NULL,
+  macro_concentration_constraint_policy = NULL,
+  macro_cap_weighting_metric = NULL,
+  macro_n_random_ports = 2000,
+  macro_random_ports_method = "sample",
+  macro_opt_objective = "sharpe",
+  macro_opt_method = "random",
+  macro_ridge_pen = NULL,
+  macro_n_resamples = 0,
+  macro_exp_ret_score_jitter = 0,
+  macro_cov_eigval_jitter = 0,
+  macro_rp_method = "cyclical-spinu",
+  macro_exp_ret_score_tilt = NULL,
+  macro_exp_ret_score_tilt_eta = NULL,
+  macro_linkage = "single",
   lower_quantile_winsorization = 0.025,
-  upper_quantile_winsorization = 0.975
+  upper_quantile_winsorization = 0.975,
+  parallel = FALSE
 )
 }
 \arguments{
@@ -47,6 +75,8 @@ set_portfolio_weights(
 \item{cap_weighting_metric}{An optional character string specifying the metric to use for capitalization weighting or scaling. Defaults to \code{NULL}.}
 
 \item{groups_m_d_ref}{An optional data frame used for group constraints and covariance matrix estimation. Should include group information if used. Defaults to \code{NULL}.}
+
+\item{covariance_matrix}{An optional covariance matrix for the eligible tickers. If \code{NULL}, the function will estimate the covariance matrix using the provided return data. Defaults to \code{NULL}.}
 
 \item{returns_m_xts_upd_ref}{An optional \code{xts} object containing return data for the eligible tickers, used in covariance matrix estimation for Risk-Parity and MVO methods.}
 
@@ -72,13 +102,71 @@ set_portfolio_weights(
 
 \item{opt_method}{Character. Optimization method for MVO. Defaults to \code{"random"} and can include methods like \code{"grid"}, \code{"bayesian"}, or \code{"differential_evolution"}.}
 
-\item{rp_method}{Character. Method to compute the Risk Parity portfolio. Defaults to \code{"cyclical-spinu"}. Other methods may include \code{"inverse-vol"} or \code{"erc"} (equal risk contribution).}
+\item{ridge_pen}{Numeric. Ridge penalty for MVO optimization to improve numerical stability. Defaults to \code{NULL}.}
+
+\item{n_resamples}{Number of resamples for resampled MVO. Defaults to \code{0}.}
+
+\item{exp_ret_score_jitter}{Numeric. Standard deviation of jitter added to expected return
+scores during resampling. Defaults to \code{0}.}
+
+\item{cov_eigval_jitter}{Numeric. Standard deviation of jitter added to covariance
+matrix eigenvalues during resampling. Defaults to \code{0}.}
+
+\item{rp_method}{Character. Method to compute the Risk Parity portfolio. Defaults to \code{"cyclical-spinu"}.}
+
+\item{exp_ret_score_tilt}{Character argument specififying whether tilt must be applied during of after risk-parity weights}
+
+\item{exp_ret_score_tilt_eta}{Numeric. The intensity of the tilt effect when using \code{exp_ret_score_tilt}. Higher values increase the tilt effect.}
+
+\item{linkage}{Character. Linkage method for hierarchical clustering in Risk Parity. Defaults to \code{"single"}.}
 
 \item{custom_weights_m_d_ref}{A meta dataframe containing custom user-defined weights. Required when \code{port_construction_method = "custom_weights"}. Must contain columns \code{tickers}, \code{dates}, and \code{weights}.}
+
+\item{mmaf_method}{Character. Method for Micro-Macro Allocation Framework. Options are \code{"bottom_up"} or \code{"top_down"}. Defaults to \code{"bottom_up"}.}
+
+\item{top_down_proxy_port_method}{Character. Method for constructing the top-down proxy portfolio in MMAF. Options are \code{"ew"}, \code{"sw"}, \code{"cw"}, \code{"cs"}, \code{"rp"}, or \code{"mvo"}.}
+
+\item{mmaf_group_col}{Character. Column name in \code{groups_m_d_ref} used to define groups for MMAF.}
+
+\item{micro_port_construction_method}{Character micro method used to allocate within groups (e.g., \code{"ew"}, \code{"rp"}, \code{"hrp"}, \code{"mvo"}).}
+
+\item{macro_port_construction_method}{Character macro method used to allocate across groups
+(e.g., \code{"ew"}, \code{"rp"}, \code{"hrp"}, \code{"mvo"}). For a strictly \emph{neutral} top-down
+sector allocation, prefer \code{"ew"}, \code{"rp"} or \code{"hrp"} and keep \code{macro_exp_ret_score_tilt = NULL}.}
+
+\item{macro_concentration_constraint_policy}{Optional list with group-level weight caps.}
+
+\item{macro_cap_weighting_metric}{Optional character for cap-based macro weighting (if used).}
+
+\item{macro_n_random_ports}{Integer, number of random portfolios at macro level.}
+
+\item{macro_random_ports_method}{Character, sampling method (macro).}
+
+\item{macro_opt_objective}{Character, optimization objective at macro.}
+
+\item{macro_opt_method}{Character, optimizer selector at macro.}
+
+\item{macro_ridge_pen}{Numeric or \code{NULL}, ridge penalty for macro MVO.}
+
+\item{macro_n_resamples}{Integer, number of resamples for macro MVO.}
+
+\item{macro_exp_ret_score_jitter}{Numeric, jitter on sector ER (macro MVO).}
+
+\item{macro_cov_eigval_jitter}{Numeric, jitter on macro covariance eigenvalues.}
+
+\item{macro_rp_method}{Character, risk parity method at macro.}
+
+\item{macro_exp_ret_score_tilt}{Optional numeric vector/column name for RP tilt (macro).}
+
+\item{macro_exp_ret_score_tilt_eta}{Optional numeric, tilt intensity for macro RP.}
+
+\item{macro_linkage}{Character, passed to macro hierarchical methods when applicable.}
 
 \item{lower_quantile_winsorization}{An optional numeric value for lower quantile winsorization when handling cap weighting and scaling. Defaults to \code{NULL}.}
 
 \item{upper_quantile_winsorization}{An optional numeric value for upper quantile winsorization when handling cap weighting and scaling. Defaults to \code{NULL}.}
+
+\item{parallel}{Logical. If \code{TRUE}, enables parallel processing for computationally intensive tasks. Defaults to \code{FALSE}.}
 }
 \value{
 A data frame or object (depending on the portfolio construction method) with the updated portfolio weights assigned based on the specified method and constraints.

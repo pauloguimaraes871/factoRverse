@@ -8,6 +8,11 @@ create_risk_parity_portfolio(
   universe_m_d_ref,
   covariance_matrix,
   rp_method = "cyclical-spinu",
+  exp_ret_score_tilt = NULL,
+  exp_ret_score_tilt_eta = NULL,
+  liquidity_constraint_policy = NULL,
+  turnover_constraint_policy = NULL,
+  concentration_constraint_policy = NULL,
   verbose = TRUE
 )
 }
@@ -17,6 +22,16 @@ create_risk_parity_portfolio(
 \item{covariance_matrix}{The covariance matrix of all eligible stocks in universe_m_d_ref.}
 
 \item{rp_method}{The method used to calculate the risk parity weights. Default is "cyclical-spinu". See riskParityPortfolio::riskParityPortfolio for more options.}
+
+\item{exp_ret_score_tilt}{One of 'none', 'inner' or 'final', indicating whether to apply the exp_ret_score tilt during the risk parity optimization ('inner'), after the optimization ('final'), or not at all ('none').}
+
+\item{exp_ret_score_tilt_eta}{The numeric tilt to apply to the risk parity weights based on the exp_ret_score column in universe_m_d_ref. If NULL, no tilt is applied.}
+
+\item{liquidity_constraint_policy}{A list containing liquidity constraint parameters. See generate_box_constraints for details.}
+
+\item{turnover_constraint_policy}{A list containing turnover constraint parameters. See generate_box_constraints for details.}
+
+\item{concentration_constraint_policy}{A list containing concentration constraint parameters. See generate_box_constraints for details.}
 
 \item{verbose}{If TRUE, will print messages to the console}
 }

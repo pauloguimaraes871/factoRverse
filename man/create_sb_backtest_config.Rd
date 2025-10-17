@@ -12,7 +12,7 @@ create_sb_backtest_config(
   rebalancing_months,
   split_method = "expanding",
   chosen_signals_and_positions = NULL,
-  custom_objective = "squared_error",
+  custom_objective = NULL,
   keras_architecture_parameters = NULL,
   signal_port_parameters = NULL,
   quantile_tau = 0.5,

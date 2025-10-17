@@ -8,6 +8,9 @@ create_port_backtest_config(
   chosen_score_metric_and_position = NULL,
   eligibility_quantile_range = c(0.9, 1),
   min_eligible_assets_fallback = NULL,
+  chosen_scaler = NULL,
+  scaler_shrinkage = NULL,
+  use_raw_for_eligibility = NULL,
   selected_benchmark = NULL,
   initial_buffer_period,
   rebalancing_months,
@@ -15,6 +18,8 @@ create_port_backtest_config(
   port_construction_method = "ew",
   mvo_parameters = NULL,
   rp_parameters = NULL,
+  hrp_parameters = NULL,
+  mmaf_parameters = NULL,
   main_liquidity_metric,
   liquidity_floor_cutoffs = NULL,
   liquidity_constraint_policy = NULL,
@@ -30,6 +35,12 @@ create_port_backtest_config(
 \item{eligibility_quantile_range}{A numeric vector of length 2 (e.g., c(0.9, 1.0)) specifying the quantile range used to determine eligible assets.}
 
 \item{min_eligible_assets_fallback}{A numeric value indicating the minimum number of eligible assets to include in the portfolio.}
+
+\item{chosen_scaler}{An object of class \code{scaler} specifying the scaling variable to be applied to the scores.}
+
+\item{scaler_shrinkage}{A numeric value between 0 and 1 indicating the shrinkage intensity for the scaler.}
+
+\item{use_raw_for_eligibility}{A logical value indicating whether to use raw scores for determining eligibility.}
 
 \item{selected_benchmark}{A character string indicating the benchmark to use for benchmark-relative backtests.}
 
@@ -48,6 +59,10 @@ If missing and port_construction_method is "mvo", a default is created.}
 
 \item{rp_parameters}{An object of class \code{rp_parameters} for risk parity portfolios. Only required if \code{port_construction_method} is "rp".
 If missing and port_construction_method is "rp", a default is created.}
+
+\item{hrp_parameters}{An object of class \code{hrp_parameters} for hierarchical risk parity portfolios. Only required if \code{port_construction_method} is "hrp".}
+
+\item{mmaf_parameters}{An object of class \code{mmaf_parameters} for micro-macro allocation framework portfolios. Only required if \code{port_construction_method} is "mmaf".}
 
 \item{main_liquidity_metric}{A character string indicating which liquidity metric (i.e. column in liquidity_m_df) to use.}
 
