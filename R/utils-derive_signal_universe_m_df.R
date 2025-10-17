@@ -36,7 +36,7 @@ derive_signal_universe_m_df <- function(config,
   ################################
   chosen_signals_and_positions <- config@chosen_signals_and_positions
   features_object_name = features_m_df@meta_dataframe_name
-  if (config@sb_algorithm %in% c("rp", "mvo")){
+  if (config@sb_algorithm %in% c("rp", "hrp", "mvo", "mmaf")){
     cov_matrix_benchmark <- config@signal_port_parameters@cov_est_method@cov_matrix_benchmark
   } else {
     cov_matrix_benchmark <- NULL
