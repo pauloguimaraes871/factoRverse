@@ -654,9 +654,9 @@ test_that("set top down micro weights work with group weights for a MVO + constr
     opt_objective = "risk",
     n_random_ports = 500
   ),
-  "After scaling, ibov_bench_weights in group Exportador sums to more than 1. Normalizing to sum to 1.This might indicate that overall constraints do not hold because of this group."
+  "For concentration constraint: after scaling, ibov_bench_weights in group Exportador sums to more than 1. Normalizing to sum to 1.This might indicate that overall constraints do not hold because of this group."
   ),
- "After scaling, target_weights in group Exportador sums to more than 1. Normalizing to sum to 1.This might indicate that overall constraints do not hold because of this group."
+ "For target weights: after scaling, target_weights in group Exportador sums to more than 1. Normalizing to sum to 1.This might indicate that overall constraints do not hold because of this group."
   )
 
 
@@ -816,9 +816,9 @@ test_that("set top down micro weights work with group weights for a MVO + constr
       opt_objective = "risk",
       n_random_ports = 500
     ),
-    "After scaling, ibov_bench_weights in group Exportador sums to more than 1. Normalizing to sum to 1.This might indicate that overall constraints do not hold because of this group."
+    "For concentration constraint: after scaling, ibov_bench_weights in group Exportador sums to more than 1. Normalizing to sum to 1.This might indicate that overall constraints do not hold because of this group."
   ),
-  "After scaling, target_weights in group Exportador sums to more than 1. Normalizing to sum to 1.This might indicate that overall constraints do not hold because of this group."
+  "For target weights: after scaling, target_weights in group Exportador sums to more than 1. Normalizing to sum to 1.This might indicate that overall constraints do not hold because of this group."
   )
 
 
@@ -1151,10 +1151,7 @@ test_that("set top down micro weights work with group weights for a MVO + constr
       cov_eigval_jitter = 0.01,
       opt_objective = "risk",
       n_random_ports = 500
-    ),"After scaling, ibov_bench_weights in group Doméstico Defensivo sums to more than 1. Normalizing to sum to 1.This might indicate that overall constraints do not hold because of this group."
-  ),
-  "After scaling, target_weights in group Doméstico Defensivo sums to more than 1. Normalizing to sum to 1.This might indicate that overall constraints do not hold because of this group."
-  )
+    )))
 
 
   ## Test that only liquidity constraints are satisfied at the final portfolio-level
@@ -1667,3 +1664,5 @@ testthat::test_that("process_micro_portfolios errors when covariance matrix our 
 
 
 })
+
+
