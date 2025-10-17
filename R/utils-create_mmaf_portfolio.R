@@ -261,7 +261,7 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
 
       ### Message
       if (verbose){
-        cat("\n  Applying bottom-up micro-level portfolio method...")
+        cat("\nApplying bottom-up micro-level portfolio method...")
         cat("\n")
         cat("Portfolio construction method: ", micro_port_construction_method)
         cat("\n")
@@ -513,7 +513,7 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
 
     ## Set Portfolio Weights
     if (verbose){
-      cat("\n  Applying macro-level portfolio method...")
+      cat("\nApplying macro-level portfolio method...")
       cat("\n")
       cat("Portfolio construction method: ", macro_port_construction_method)
       cat("\n")
@@ -569,11 +569,12 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
 
       ### Message
       if (verbose){
-        cat("\n  Applying top-down micro-level portfolio method...")
+        cat("\nApplying top-down micro-level portfolio method...")
         cat("\n")
         cat("Portfolio construction method: ", micro_port_construction_method)
         cat("\n")
       }
+
 
       ### For each group, apply micro portfolio method
       micro_port_list <- process_micro_portfolios(
@@ -601,8 +602,13 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
 
       ### Break up into micro_universe_m_d_ref
       micro_universe_m_d_ref_list <- purrr::map(
-        micro_port_list, function(port) port@universe_m_d_ref@data
-      )
+        micro_port_list, function(port){
+          if (!is.null(port) && inherits(port, "port")){
+            port@universe_m_d_ref@data
+          } else {
+            NULL #This is for group_weights == 0
+          }
+        })
 
     } else {
 
@@ -617,10 +623,18 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
     final_weights_m_d_ref <- purrr::map_dfr(groups, function(g){
 
       ### Current micro universe
-      current_micro_universe_m_d_ref <- micro_universe_m_d_ref_list[[g]] %>%
-        dplyr::select(id, weights)
+        #### For groups with zero weight
+        if (group_weights[g] < 1e-8){
+          current_micro_universe_m_d_ref <- universe_m_d_ref %>%
+            dplyr::filter(tickers %in% group_members[g]) %>%
+            dplyr::mutate(weights = 0) %>%
+            dplyr::select(id, weights)
+        } else {
+          current_micro_universe_m_d_ref <- micro_universe_m_d_ref_list[[g]] %>%
+            dplyr::select(id, weights)
+        }
 
-      ### Multiply weights by group weight
+     ### Multiply weights by group weight
       current_micro_universe_m_d_ref %>%
         dplyr::mutate(weights = weights * group_weights[g])
 
@@ -777,7 +791,7 @@ set_top_down_micro_weights <- function(group_name, group_weights = NULL,
 
   ### If group weight is 0, return NULL
   if (!is.null(group_weights) && group_weights[group_name] < .Machine$double.eps){
-    cat("      Group weight is 0, skipping optimization and returning 0 weights.\n")
+    cat("      Group weight is 0, skipping portfolio construction...\n")
     return(NULL)
   }
 
@@ -1114,7 +1128,7 @@ process_micro_portfolios <- function(parallel, groups, group_weights,
 
   ### Use furrr or purrr to iterate through groups
   if (isTRUE(parallel)) {
-    if (isTRUE(verbose)) cat("\n  Applying micro level portfolio method in parallel...")
+    if (isTRUE(verbose)) cat("\nApplying micro level portfolio method in parallel...")
     micro_port_list <- furrr::future_map(
       groups, function(group_name){
         set_top_down_micro_weights(
@@ -1138,6 +1152,7 @@ process_micro_portfolios <- function(parallel, groups, group_weights,
           # Risk parity
           rp_method = rp_method,
           exp_ret_score_tilt = exp_ret_score_tilt,
+          exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
 
           # MVO
           n_random_ports = n_random_ports,
@@ -1157,7 +1172,7 @@ process_micro_portfolios <- function(parallel, groups, group_weights,
       .options = furrr::furrr_options(seed = TRUE)
     )
   } else {
-    if (isTRUE(verbose)) cat("\n  Applying micro level portfolio method sequentially...")
+    if (isTRUE(verbose)) cat("\nApplying micro level portfolio method sequentially...")
     micro_port_list <- purrr::map(
       groups, function(group_name){
         set_top_down_micro_weights(
@@ -1181,6 +1196,7 @@ process_micro_portfolios <- function(parallel, groups, group_weights,
           # Risk parity
           rp_method = rp_method,
           exp_ret_score_tilt = exp_ret_score_tilt,
+          exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
 
           # MVO
           n_random_ports = n_random_ports,
