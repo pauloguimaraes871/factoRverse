@@ -757,18 +757,23 @@ check_inputs_port_backtest <- function(
     }
 
     #Check accordance with port_construction_method
-    if (!is.null(concentration_constraint_policy) && !(port_construction_method %in% c("mvo", "mmaf"))){
-      message("concentration_constraint_policy is only available for mvo or mmaf. Ignoring concentration_constraint_policy")
+    if (!is.null(concentration_constraint_policy) && !(port_construction_method %in% c("rp", "mvo", "mmaf"))){
+      message("concentration_constraint_policy is only available for rp, mvo or mmaf. Ignoring concentration_constraint_policy")
     }
 
     #Check that if concentration_constraint_policy is set and port_construction_method is mmaf, micro_port_construction should be mvo
-    if (!is.null(concentration_constraint_policy) && (port_construction_method == "mmaf") && (micro_port_construction_method != "mvo")){
+    if (!is.null(concentration_constraint_policy) && (port_construction_method == "mmaf") && (!micro_port_construction_method %in% c("rp", "mvo"))){
       stop("If concentration_constraint_policy is set and port_construction_method is 'mmaf', micro_port_construction_method must be 'mvo'")
     }
 
-    #If port_construction_method is mmaf, stop if max_abs_active_group_weight is not null
-    if (!is.null(concentration_constraint_policy$max_abs_active_group_weight) && port_construction_method == "mmaf"){
-      stop("max_abs_active_group_weight shouldn't be present in concentration_constraint_policy for port_construction_method = 'mmaf'")
+    #If port_construction_method is mmaf or rp, stop if max_abs_active_group_weight is not null
+    if (!is.null(concentration_constraint_policy$max_abs_active_group_weight) && port_construction_method %in% c("rp", "mmaf")){
+      stop("max_abs_active_group_weight shouldn't be present in concentration_constraint_policy if port_construction_method is not 'mvo'")
+    }
+
+    #If port_construction_method is rp and exp_ret_score_tilt is final, stop
+    if (!is.null(concentration_constraint_policy) && port_construction_method == "rp" && !is.null(exp_ret_score_tilt) && exp_ret_score_tilt == "final"){
+      stop("exp_ret_score_tilt can't be 'final' if port_construction_method is 'rp' and concentration_constraint_policy is set")
     }
 
   }
@@ -802,8 +807,8 @@ check_inputs_port_backtest <- function(
     if (!(port_construction_method %in% c("mmaf"))){
       stop("macro_concentration_constraint_policy is only available for mmaf")
     }
-    if (!(macro_port_construction_method %in% c("mvo"))){
-      stop("macro_concentration_constraint_policy is only available for macro_port_construction_method == 'mvo'")
+    if (!(macro_port_construction_method %in% c("mvo", "rp"))){
+      stop("macro_concentration_constraint_policy is only available when macro_port_construction_method is 'mvo' or 'rp'")
     }
 
 
@@ -937,74 +942,6 @@ check_inputs_port_backtest <- function(
 
   ######################
 
-  #Ridge penalty
-  ######################
-  if (!is.null(ridge_pen) || !is.null(macro_ridge_pen)){
-
-    ##target_port_m_df must exist
-    if (is.null(target_port_m_df)){
-      stop("target_port_m_df must be provided when ridge_pen is not NULL")
-    }
-
-    ##port_construction method must be mvo
-    if (!is.null(ridge_pen) && port_construction_method != "mvo"){
-      stop("ridge_pen can only be used when port_construction_method is 'mvo'.")
-    }
-
-    ##macro_port_construction must be mvo for macro_ridge_pen
-    if (!is.null(macro_ridge_pen) && macro_port_construction_method != "mvo"){
-      stop("macro_ridge_pen can only be used when macro_port_construction_method is 'mvo'.")
-    }
-
-    ##Check validity of target_port_m_df
-    ###Coercible
-    if (!(is_coercible_to_meta_dataframe(target_port_m_df))){
-      stop("target_port_m_df should be coercible to meta_dataframe object")
-    }
-
-    ###Check structure between target_port_m_df and signals_m_df
-    if (any(!(signals_m_df %>% dplyr::filter(dates >= dates_m_vector[initial_buffer_period]) %>% dplyr::pull(id)) %in%
-            (target_port_m_df %>% dplyr::pull(id)))){
-      stop("all id's from signals_m_df after initial_buffer_period must have a correspondence in target_port_m_df")
-    }
-
-    ###Check for NAs
-    if (any(is.na(target_port_m_df))){
-      stop("target_port_m_df should not have NAs")
-    }
-
-    ###Check for target_weights column
-    if(colnames(target_port_m_df)[4] != "target_weights"){
-      stop("target_port_m_df should have a column named target_weights")
-    }
-
-    #Check if w are right
-    if(any(target_port_m_df$target_weights < 0 | target_port_m_df$target_weights > 1)){
-      stop("weights in target_port_m_df should be between 0 and 1")
-    }
-
-    #Get sum of stock weights by date
-    target_weights_sum <- target_port_m_df %>%
-      dplyr::group_by(dates) %>%
-      dplyr::summarise(dplyr::across(dplyr::where(is.numeric), ~ sum(., na.rm = TRUE), .names = "sum_{col}"))
-
-    if(any(apply(as.data.frame(target_weights_sum[,-1]), 2, function(x) any(abs(x - 1) > 0.02)))){
-      stop("weights in target_port_m_df should sum to 1 in every date.")
-    }
-
-    ##Check ridge_pen
-    if (!is.null(ridge_pen) && (!is.numeric(ridge_pen) || length(ridge_pen) != 1 || ridge_pen < 0)){
-      stop("ridge_pen should be a single non-negative numeric value")
-    }
-
-    ##Check macro_ridge_pen
-    if (!is.null(macro_ridge_pen) && (!is.numeric(macro_ridge_pen) || length(macro_ridge_pen) != 1 || macro_ridge_pen < 0)){
-      stop("macro_ridge_pen should be a single non-negative numeric value")
-    }
-
-  }
-
-
 
   ######################
 
@@ -1018,7 +955,7 @@ check_inputs_port_backtest <- function(
     stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'hrp', 'mmaf', 'mvo' or 'custom_weights'")
   }
 
-  #RP, HRP, MVO or MMAF
+  #Covariance matrix (RP, HRP, MVO or MMAF)
   if(port_construction_method %in% c("rp", "hrp", "mvo", "mmaf")){
 
     if(is.null(cov_estimation_method)){
@@ -1036,192 +973,46 @@ check_inputs_port_backtest <- function(
 
   }
 
-  #MVO Specific
-  if (port_construction_method == "mvo" ||
-      (!is.null(micro_port_construction_method) && micro_port_construction_method == "mvo")){
-    if (!is.null(opt_method) && !opt_method %in% c("random")) {
-      stop("Currently, 'opt_method' must be 'random'.")
-    }
-    if (!random_ports_method %in% c("sample", "simplex", "grid")) {
-      stop("random_ports_method must be one of 'sample', 'simplex', 'grid'.")
-    }
-    if (n_random_ports < 1) {
-      stop("n_random_ports must be at least 1.")
-    }
-    if (!opt_objective %in% c("return", "risk", "sharpe")) {
-      stop("opt_objective must be one of 'return', 'risk', 'sharpe'.")
-    }
-    if(n_resamples < 0 || length(n_resamples) != 1 ||
-       n_resamples != round(n_resamples)){
-      stop("n_resamples must be a non-negative integer.")
-    }
-    if(exp_ret_score_jitter < 0 || length(exp_ret_score_jitter) != 1){
-      stop("exp_ret_score_jitter must be a non-negative numeric value.")
-    }
-    if(cov_eigval_jitter < 0 || length(cov_eigval_jitter) != 1){
-      stop("cov_eigval_jitter must be a non-negative numeric value.")
-    }
-    ##Warn the user in case n_resamples is > 0, but no jitter is being applied
-    if(n_resamples > 0 && exp_ret_score_jitter == 0 && cov_eigval_jitter == 0){
-      stop("n_resamples > 0, but no jitter is being applied (exp_ret_score_jitter = 0 and cov_eigval_jitter = 0).",
-      "Consider setting a positive jitter value.")
-    }
-    ##Do the same otherwise (n_resamples = 0, but exp_ret_score_jitter or cov_eigval_jitter > 0)
-    if(n_resamples == 0 && (exp_ret_score_jitter > 0 || cov_eigval_jitter > 0)){
-      stop("n_resamples = 0, but jitter is being applied (exp_ret_score_jitter > 0 or cov_eigval_jitter > 0).",
-      "Consider setting n_resamples to a positive integer.")
-    }
-  }
-
-  #MVO Specific for macro_port_construction_method == MVO (the same)
-  if (!is.null(macro_port_construction_method) && macro_port_construction_method == "mvo"){
-    if (!is.null(macro_opt_method) && !macro_opt_method %in% c("random")) {
-      stop("Currently, 'macro_opt_method' must be 'random'.")
-    }
-    if (!macro_random_ports_method %in% c("sample", "simplex", "grid")) {
-      stop("macro_random_ports_method must be one of 'sample', 'simplex', 'grid'.")
-    }
-    if (macro_n_random_ports < 1) {
-      stop("macro_n_random_ports must be at least 1.")
-    }
-    if (!macro_opt_objective %in% c("return", "risk", "sharpe")) {
-      stop("macro_opt_objective must be one of 'return', 'risk', 'sharpe'.")
-    }
-    if(macro_n_resamples < 0 || length(macro_n_resamples) != 1 ||
-       macro_n_resamples != round(macro_n_resamples)){
-      stop("macro_n_resamples must be a non-negative integer.")
-    }
-    if(macro_exp_ret_score_jitter < 0 || length(macro_exp_ret_score_jitter) != 1){
-      stop("macro_exp_ret_score_jitter must be a non-negative numeric value.")
-    }
-    if(macro_cov_eigval_jitter < 0 || length(macro_cov_eigval_jitter) != 1){
-      stop("macro_cov_eigval_jitter must be a non-negative numeric value.")
-    }
-    ##Warn the user in case n_resamples is > 0, but no jitter is being applied
-    if(macro_n_resamples > 0 && macro_exp_ret_score_jitter == 0 && macro_cov_eigval_jitter == 0){
-      stop("macro_n_resamples > 0, but no jitter is being applied (macro_exp_ret_score_jitter = 0 and macro_cov_eigval_jitter = 0).",
-              "Consider setting a positive jitter value.")
-    }
-    ##Do the same otherwise (n_resamples = 0, but exp_ret_score_jitter or cov_eigval_jitter > 0)
-    if(macro_n_resamples == 0 && (macro_exp_ret_score_jitter > 0 || macro_cov_eigval_jitter > 0)){
-      stop("macro_n_resamples = 0, but jitter is being applied (macro_exp_ret_score_jitter > 0 or macro_cov_eigval_jitter > 0).",
-              "Consider setting macro_n_resamples to a positive integer.")
-    }
-  }
-
-  #RP/HRP specific
-    #exp_ret_score_tilt must be provided only for 'rp' or 'hrp'
-    if(!port_construction_method %in% c("rp", "hrp") &&
-       (!is.null(micro_port_construction_method) && !micro_port_construction_method %in% c("rp", "hrp")) &&
-       !is.null(exp_ret_score_tilt)){
-      stop("exp_ret_score_tilt must be provided only when port_construction_method is 'rp' or 'hrp'")
-    }
-    #exp_ret_score_tilt_eta must be provided only for 'rp' or 'hrp'
-    if(!port_construction_method %in% c("rp", "hrp") &&
-       (!is.null(micro_port_construction_method) && !micro_port_construction_method %in% c("rp", "hrp")) &&
-       !is.null(exp_ret_score_tilt_eta)){
-      stop("exp_ret_score_tilt_eta must be provided only when port_construction_method is 'rp' or 'hrp'")
-    }
-    if (port_construction_method %in% c("rp", "hrp") ||
-        (!is.null(micro_port_construction_method) && micro_port_construction_method %in% c("rp", "hrp"))){
-
-      if (!is.null(exp_ret_score_tilt) && !(exp_ret_score_tilt %in% c("none", "inner", "final"))){
-        stop("exp_ret_score_tilt must be one of 'none', 'inner' or 'final'")
-      }
-      #exp_ret_score_tilt_eta should be positive and single if provided
-      if(!is.null(exp_ret_score_tilt_eta) && (!is.numeric(exp_ret_score_tilt_eta) ||
-         length(exp_ret_score_tilt_eta) != 1 || exp_ret_score_tilt_eta <= 0)){
-        stop("exp_ret_score_tilt_eta should be a single positive numeric value")
-      }
-      #exp_ret_score_tilt_eta should be NULL if exp_ret_score_tilt is NULL
-      if(is.null(exp_ret_score_tilt) && !is.null(exp_ret_score_tilt_eta)){
-        stop("exp_ret_score_tilt_eta should be NULL when exp_ret_score_tilt is NULL")
-      }
-      #exp_ret_score_tilt_eta should be NULL if exp_ret_score_tilt = "none"
-      if(!is.null(exp_ret_score_tilt) && exp_ret_score_tilt == "none" && !is.null(exp_ret_score_tilt_eta)){
-        stop("exp_ret_score_tilt_eta should be NULL when exp_ret_score_tilt = 'none'")
-      }
-    }
-
-  #RP/HRP specific for macro_port_construction_method (the same)
-    #exp_ret_score_tilt must be provided only for 'rp' or 'hrp'
-    if((!is.null(macro_port_construction_method) && !macro_port_construction_method %in% c("rp", "hrp")) &&
-       !is.null(macro_exp_ret_score_tilt)){
-      stop("macro_exp_ret_score_tilt must be provided only when macro_port_construction_method is 'rp' or 'hrp'")
-    }
-    #exp_ret_score_tilt_eta must be provided only for 'rp' or 'hrp'
-    if ((!is.null(macro_port_construction_method) && !macro_port_construction_method %in% c("rp", "hrp")) && !is.null(macro_exp_ret_score_tilt_eta)){
-      stop("macro_exp_ret_score_tilt_eta must be provided only when macro_port_construction_method is 'rp' or 'hrp'")
-    }
-    if (!is.null(macro_port_construction_method) && macro_port_construction_method %in% c("rp", "hrp")){
-
-      if (!is.null(macro_exp_ret_score_tilt) && !(macro_exp_ret_score_tilt %in% c("none", "inner", "final"))){
-        stop("macro_exp_ret_score_tilt must be one of 'none', 'inner' or 'final'")
-      }
-      #exp_ret_score_tilt_eta should be positive and single if provided
-      if(!is.null(macro_exp_ret_score_tilt_eta) && (!is.numeric(macro_exp_ret_score_tilt_eta) ||
-         length(macro_exp_ret_score_tilt_eta) != 1 || macro_exp_ret_score_tilt_eta <= 0)){
-        stop("macro_exp_ret_score_tilt_eta should be a single positive numeric value")
-      }
-      #exp_ret_score_tilt_eta should be NULL if exp_ret_score_tilt is NULL
-      if(is.null(macro_exp_ret_score_tilt) && !is.null(macro_exp_ret_score_tilt_eta)){
-        stop("macro_exp_ret_score_tilt_eta should be NULL when macro_exp_ret_score_tilt is NULL")
-      }
-      #exp_ret_score_tilt_eta should be NULL if exp_ret_score_tilt = "none"
-      if(!is.null(macro_exp_ret_score_tilt) && macro_exp_ret_score_tilt == "none" && !is.null(macro_exp_ret_score_tilt_eta)){
-        stop("macro_exp_ret_score_tilt_eta should be NULL when macro_exp_ret_score_tilt = 'none'")
-      }
-    }
+  # Validate port construction arguments
+  validate_port_construction_methods(
+    port_construction_method = port_construction_method,
+    micro_port_construction_method = micro_port_construction_method,
+    macro_port_construction_method = macro_port_construction_method,
+    opt_method = opt_method,
+    random_ports_method = random_ports_method,
+    n_random_ports = n_random_ports,
+    opt_objective = opt_objective,
+    n_resamples = n_resamples,
+    exp_ret_score_jitter = exp_ret_score_jitter,
+    cov_eigval_jitter = cov_eigval_jitter,
+    macro_opt_method = macro_opt_method,
+    macro_random_ports_method = macro_random_ports_method,
+    macro_n_random_ports = macro_n_random_ports,
+    macro_opt_objective = macro_opt_objective,
+    macro_n_resamples = macro_n_resamples,
+    macro_exp_ret_score_jitter = macro_exp_ret_score_jitter,
+    macro_cov_eigval_jitter = macro_cov_eigval_jitter,
+    exp_ret_score_tilt = exp_ret_score_tilt,
+    exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
+    macro_exp_ret_score_tilt = macro_exp_ret_score_tilt,
+    macro_exp_ret_score_tilt_eta = macro_exp_ret_score_tilt_eta,
+    mmaf_group_col = mmaf_group_col,
+    stock_groups_m_df = stock_groups_m_df,
+    mmaf_method = mmaf_method,
+    top_down_proxy_port_method = top_down_proxy_port_method,
+    ridge_pen = ridge_pen,
+    macro_ridge_pen = macro_ridge_pen,
+    target_port_m_df = target_port_m_df,
+    signals_m_df = signals_m_df,
+    dates_m_vector = dates_m_vector,
+    initial_buffer_period = initial_buffer_period
+  )
 
   #Custom Weights
   if(port_construction_method == "custom_weights" && is.null(custom_stock_weights_m_df)){
     stop("custom_stock_weights_m_df must be provided when port_construction_method is 'custom_weights'")
   }
 
-  #MMAF specific
-  if (port_construction_method == "mmaf"){
-
-    ## micro_port_construction must be provided
-    if (is.null(micro_port_construction_method)){
-      stop("micro_port_construction_method can't be missing if port_construction_method is 'mmaf'")
-    }
-    ## macro_port_construction_method must be provided
-    if (is.null(macro_port_construction_method)){
-      stop("macro_port_construction_method can't be missing if port_construction_method is 'mmaf'")
-    }
-    ## micro_port_construction_method must be one of the allowed methods
-    if (!micro_port_construction_method %in% c("ew", "sw", "cw", "cs", "rp", "hrp", "mvo")){
-      stop("micro_port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'hrp' or 'mvo'")
-    }
-    ## macro_port_construction_method must be one of the allowed methods
-    if (!macro_port_construction_method %in% c("ew", "sw", "cw", "cs", "rp", "hrp", "mvo")){
-      stop("macro_port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'hrp' or 'mvo'")
-    }
-    ## mmaf_group_col can't be NULL
-    if (is.null(mmaf_group_col)){
-      stop("mmaf_group_col can't be NULL when port_construction_method is 'mmaf'")
-    }
-    ## mmaf_group_col must be present in stock_groups_m_df (and stock_groups_m_df can't be NULL)
-    if (is.null(stock_groups_m_df) || !(mmaf_group_col %in% colnames(stock_groups_m_df))){
-      stop("stock_groups_m_df must be provided and mmaf_group_col must be present in stock_groups_m_df when port_construction_method is 'mmaf'")
-    }
-    ## mmaf_method must be either bottom_up or top_down
-    if (!mmaf_method %in% c("bottom_up", "top_down")){
-      stop("mmaf_method must be one of 'bottom_up' or 'top_down'")
-    }
-    ## top_down_proxy_port_method must be provided if mmaf_method is top_down
-    if (mmaf_method == "top_down" && is.null(top_down_proxy_port_method)){
-      stop("top_down_proxy_port_method must be provided when mmaf_method is 'top_down'")
-    }
-    ## top_down_proxy_port_method must be one of the allowed methods
-    if (mmaf_method == "top_down" && !top_down_proxy_port_method %in% c("ew", "sw", "cs", "rp", "hrp")){
-      stop("top_down_proxy_port_method must be one of 'ew', 'sw', 'cs', 'rp' or 'hrp'")
-    }
-
-
-
-
-  }
 
   ###################################
 
