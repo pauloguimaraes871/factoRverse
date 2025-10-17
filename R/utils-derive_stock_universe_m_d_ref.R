@@ -60,7 +60,7 @@ derive_stock_universe_m_d_ref <- function(signals_m_d_ref, oos_predictions_m_d_r
     }
 
     ##Check if scaler_shrinkage is between 0 and 1
-    if (scaler_shrinkage < 0 || scaler_shrinkage > 1) {
+    if (!is.null(scaler_shrinkage) && (scaler_shrinkage < 0 || scaler_shrinkage > 1)) {
       stop("scaler_shrinkage must be a numeric value between 0 and 1.")
     }
 
