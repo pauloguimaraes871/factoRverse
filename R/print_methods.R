@@ -523,7 +523,7 @@ setMethod("show", "sb_backtest_config", function(object) {
   cat("  Quantile Tau:", object@quantile_tau, "\n")
 
   #Display ML stuff
-  if(!object@sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo")){
+  if(!object@sb_algorithm %in% c("ols", "ew", "sw", "rp", "hrp", "mvo", "mmaf")){
     cat("------------------------------\n")
 
     # Display Keras Architecture Parameters Information
@@ -592,7 +592,7 @@ setMethod("show", "sb_backtest_config", function(object) {
   }
 
   #Display signal port
-  if(object@sb_algorithm %in% c("rp", "mvo")){
+  if(object@sb_algorithm %in% c("rp", "hrp", "mvo", "mmaf")){
     if (!is.null(object@signal_port_parameters)) {
       cat("\n------------------------------\n")
       cat("Signal Portfolio Parameters:\n")
@@ -609,25 +609,24 @@ setMethod("show", "sb_backtest_config", function(object) {
         cat("  Cov Matrix Benchmark:", signal_port_parameters@cov_est_method@cov_matrix_benchmark, "\n")
       }
 
-      cat("\n------------------------------\n")
-
       # RP parameters
       if (object@sb_algorithm == "rp"){
-        cat("RP Parameters:\n")
-        cat("  RP Method:", signal_port_parameters@rp_parameters@rp_method, "\n")
+        show(signal_port_parameters@rp_parameters)
+      }
 
-        cat("\n------------------------------\n")
+      # HRP Parameters
+      if (object@sb_algorithm == "hrp"){
+        show(signal_port_parameters@hrp_parameters)
       }
 
       # MVO parameters
       if (object@sb_algorithm == "mvo"){
-        cat("MVO Parameters:\n")
-        cat("  Optimization Method:", signal_port_parameters@mvo_parameters@opt_method, "\n")
-        cat("  Random Ports Method:", signal_port_parameters@mvo_parameters@random_ports_method, "\n")
-        cat("  n_random_ports:", signal_port_parameters@mvo_parameters@n_random_ports, "\n")
-        cat("  Objective:", signal_port_parameters@mvo_parameters@opt_objective, "\n")
+        show(signal_port_parameters@mvo_parameters)
+      }
 
-        cat("\n------------------------------\n")
+      # MMAF parameters
+      if (object@sb_algorithm == "mmaf"){
+        show(signal_port_parameters@mmaf_parameters)
       }
 
       # Concentration Constraint Policy
@@ -644,7 +643,6 @@ setMethod("show", "sb_backtest_config", function(object) {
       } else {
         cat("  (No concentration constraint policy set)\n")
       }
-      cat("\n------------------------------\n")
 
     }
   }
@@ -925,7 +923,7 @@ setMethod("show", "sb_backtest_results", function(object) {
   cat("=================================\n")
 
   # Display Tuning Information
-  if(!sb_backtest_workflow$sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights")){
+  if(!sb_backtest_workflow$sb_algorithm %in% c("ols", "ew", "sw", "rp", "hrp", "mvo", "mmaf", "custom_weights")){
     cat("Tuning Information:\n")
     cat("  Tuning Method:", sb_backtest_workflow$tuning_method, "\n")
     if(sb_backtest_workflow$tuning_method == "random_search" || sb_backtest_workflow$tuning_method == "bayesian_opt"){
@@ -1469,6 +1467,15 @@ setMethod("show", "port_backtest_config", function(object) {
   cat("Min Eligible Assets Fallback: ")
   if(is.null(object@min_eligible_assets_fallback)) cat("Not available.\n") else cat(object@min_eligible_assets_fallback, "\n")
 
+  # Scaler
+  if (!is.null(object@chosen_scaler)){
+    cat("Chosen Scaler: ", object@chosen_scaler, "\n")
+    cat("Scaler Shrinkage: ", object@scaler_shrinkage, "\n")
+    cat("Use raw score for eligibility: ", object@use_raw_for_eligibility, "\n")
+  } else {
+    cat("Scaler not applied.\n")
+  }
+
   # Covariance Estimation
   cat("------------------------------\n")
   methods::show(object@cov_est_method)
@@ -1550,6 +1557,69 @@ setMethod(
   signature = "port",
   definition = function(object) {
 
+    # Helpers to calculate metrics
+    hhi_weights <- function(w) sum(w^2)
+    hhi_rrc <- function(rrc) sum(rrc^2)
+
+    effective_n_bets <- function(w) 1 / hhi_weights(w)
+    effective_n_rrc <- function(rrc) 1 / hhi_rrc(rrc)
+
+    entropy_weights <- function(w){
+      wpos <- w[w > 0]
+      -sum(wpos * log(wpos))
+    }
+    entropy_effective_n <- function(w) exp(entropy_weights(w))
+
+    gini_weights <- function(w){
+      w <- sort(w)
+      n <- length(w)
+      # Gini for non-negative weights that sum to 1
+      num <- 2 * sum(w * seq_len(n)) / n - (n + 1) / n
+      num
+    }
+
+    top_k_concentration <- function(w, k = 10L){
+      sum(sort(w, decreasing = TRUE)[seq_len(min(k, length(w)))])
+    }
+
+    diversification_ratio <- function(w, covmat){
+      sig_i <- sqrt(diag(covmat))
+      top <- sum(w * sig_i)
+      bot <- sqrt(as.numeric(t(w) %*% covmat %*% w))
+      top / bot
+    }
+
+    weighted_avg_pairwise_corr <- function(w, corr){
+      n <- length(w)
+      idx <- which(upper.tri(corr), arr.ind = TRUE)
+      num <- sum(w[idx[,1]] * w[idx[,2]] * corr[idx])
+      den <- sum(w[idx[,1]] * w[idx[,2]])
+      if (den == 0) NA_real_ else num / den
+    }
+
+    active_share <- function(w, w_bench) 0.5 * sum(abs(w - w_bench))
+    ex_ante_te <- function(w, w_bench, covmat){
+      d <- w - w_bench
+      sqrt(as.numeric(t(d) %*% covmat %*% d))
+    }
+    rrc_distance_to_erc <- function(rrc){
+      n <- length(rrc)
+      erc <- rep(1/n, n)
+      sqrt(sum((rrc - erc)^2))
+    }
+
+    group_concentration <- function(w, group_labels){
+      # Aggregate by group and compute HHI / n_eff / top group
+      agg <- tapply(w, group_labels, sum)
+      hhi_g <- sum(agg^2)
+      list(
+        hhi_groups     = hhi_g,
+        n_eff_groups   = if (isTRUE(all.equal(hhi_g, 0))) NA_real_ else 1 / hhi_g,
+        top_group_w    = max(agg)
+      )
+    }
+
+
     # 1) Class Identification
     # Check if object is one of the subclasses
     subclass <- if (methods::is(object, "signal_port")) {
@@ -1581,12 +1651,14 @@ setMethod(
     }
     cat("Portfolio Name:       ", object@port_name, "\n")
     cat("Method:               ", object@port_construction_method, "\n")
-    if(subclass == "signal_port" && object@port_construction_method %in% c("sw", "mvo")){
+    if(subclass == "signal_port" && !is.null(object@heuristic_sb_metric)){
       cat("Heuristic SB Metric:  ", object@heuristic_sb_metric, "\n")
     }
     cat("Eligible Assets:      ", paste(object@eligible_assets, collapse = ", "), "\n")
     cat("Number of Assets:     ", length(object@eligible_assets), "\n")
+    cat("-------------------\n")
 
+    #### 2a) Classic ex-ante metrics (if available)
     if(!is.null(object@exp_ret_score)){
       port_exp_ret_score <- object@weights %*% object@exp_ret_score
       cat("Port Expected Return: ", round(port_exp_ret_score, 3), "\n")
@@ -1601,6 +1673,46 @@ setMethod(
       cat("Port Expected Sharpe: ", round(port_sharpe_ratio, 3), "\n")
     }
 
+    #### 2b) New: Concentration, breadth, diversification, exposures
+    w <- object@weights
+
+    # Weight-based concentration
+    hhi_w  <- hhi_weights(w)
+    enb_w  <- effective_n_bets(w)
+    ent_w  <- entropy_weights(w)
+    enH_w  <- entropy_effective_n(w)
+    gini_w <- gini_weights(w)
+    top5   <- top_k_concentration(w, 5L)
+    top10  <- top_k_concentration(w, 10L)
+
+    cat("\nConcentration & Breadth:\n")
+    cat("  HHI (weights):            ", round(hhi_w, 4), "\n")
+    cat("  Effective N (1/HHI):      ", round(enb_w, 2), "\n")
+    cat("  Entropy Eff. N (exp H):   ", round(enH_w, 2), "\n")
+    cat("  Gini (weights):           ", round(gini_w, 3), "\n")
+    cat("  Top-5 weight:             ", round(top5, 3), "\n")
+    cat("  Top-10 weight:            ", round(top10, 3), "\n")
+
+    # Diversification quality
+    if (!is.null(object@covariance_matrix)){
+      dr <- diversification_ratio(w, object@covariance_matrix)
+      cat("  Diversification Ratio:     ", round(dr, 3), "\n")
+    }
+    if (!is.null(object@correlation_matrix)){
+      wa_r <- weighted_avg_pairwise_corr(w, object@correlation_matrix)
+      cat("  Wtd Avg Pairwise Corr:     ", round(wa_r, 3), "\n")
+    }
+
+    # Risk-contribution concentration (if available)
+    if (!is.null(object@rel_risk_contr)){
+      rrc <- as.numeric(object@rel_risk_contr)
+      hhi_r   <- hhi_rrc(rrc)
+      enb_r   <- effective_n_rrc(rrc)
+      distERC <- rrc_distance_to_erc(rrc)
+      cat("  HHI (risk contrib):        ", round(hhi_r, 4), "\n")
+      cat("  Eff. N (risk contrib):     ", round(enb_r, 2), "\n")
+      cat("  RRC distance to ERC (L2):  ", round(distERC, 4), "\n")
+    }
 
     # 3) Weights and Return Scores
     cat("\nWeights (first few shown):\n")
@@ -1630,8 +1742,48 @@ setMethod(
       cat("No correlation matrix.\n")
     }
 
+    # 5) Group/sector concentration across ALL group columns
+    if (!is.null(object@groups)) {
+      grp_df <- object@groups
 
-    # 5) Additional Fields (if they exist)
+      # Identify group columns: everything except id, tickers, dates
+      core_cols   <- c("id", "tickers", "dates")
+      group_cols  <- setdiff(colnames(grp_df), core_cols)
+
+      if (length(group_cols) == 0L) {
+        cat("  No group columns found in 'groups' (need columns beyond id/tickers/dates).\n")
+      } else if (!("tickers" %in% colnames(grp_df))) {
+        cat("  Cannot compute group concentration: 'groups' lacks a 'tickers' column.\n")
+      } else if (!all(object@eligible_assets %in% grp_df$tickers)) {
+        cat("  Cannot compute group concentration: not all eligible_assets are present in groups$tickers.\n")
+      } else {
+        # Align groups to eligible_assets order
+        ord <- match(object@eligible_assets, grp_df$tickers)
+
+        cat("\nGroup Concentration (by each group column):\n")
+        for (gcol in group_cols) {
+          grp_labels <- grp_df[[gcol]][ord]
+
+          # Handle cases where the group column might be all NA for these assets
+          if (all(is.na(grp_labels))) {
+            cat("  -", gcol, ": all NA for eligible assets; skipping.\n")
+            next
+          }
+
+          # Replace any NA labels with an explicit "UNKNOWN" bucket to avoid dropping weights
+          grp_labels[is.na(grp_labels)] <- "UNKNOWN"
+
+          gc <- group_concentration(w, grp_labels)
+          cat("  - ", gcol, ":\n", sep = "")
+          cat("      HHI (groups):           ", round(gc$hhi_groups, 4), "\n", sep = "")
+          cat("      Effective N (groups):   ", round(gc$n_eff_groups, 2), "\n",  sep = "")
+          cat("      Top Group Weight:       ", round(gc$top_group_w, 3), "\n",   sep = "")
+        }
+      }
+    }
+
+
+    # 6) Additional Fields (if they exist)
     if (!is.null(object@ind_max_weights)) {
       ind_constraints_df <- data.frame(assets = object@eligible_assets,
                                        ind_max_weights = object@ind_max_weights, ind_min_weights = object@ind_min_weights)
@@ -1644,6 +1796,16 @@ setMethod(
       print(utils::head(dplyr::select(object@groups, -id, -dates), 25))
     } else {
       cat("\nNo groups specified.\n")
+    }
+    if (!is.null(object@mmaf_method)){
+      cat("\nMMAF Method: ", object@mmaf_method, "\n")
+      cat("Group Column: ", object@mmaf_group_col, "\n")
+      if (!is.null(object@group_cov_matrix)) {
+        cat("Group Correlation Matrix (first few rows shown):\n")
+        print(utils::head(round(stats::cov2cor(object@group_cov_matrix), 2), n = 10))
+      } else {
+        cat("No group covariance matrix provided.\n")
+      }
     }
 
     # Wrap up
@@ -1674,53 +1836,70 @@ setMethod("show", "cov_est_method", function(object) {
 #' @title Show MVO Parameters
 #' @description Displays the mean-variance optimization parameters contained in a `mvo_parameters` object.
 #' @param object A `mvo_parameters` object.
+#' @param hide_title Logical indicating whether to hide the title when displaying the parameters. Default is FALSE.
 #' @method show mvo_parameters
 #' @export
-setMethod("show", "mvo_parameters", function(object) {
-  cat("\nMean-Variance Optimization Parameters:\n")
-  cat("-----------------------------------------\n")
-  cat("Optimization Method: ", object@opt_method, "\n")
-  cat("Random Ports Method: ", object@random_ports_method, "\n")
-  cat("Number of Random Ports: ", object@n_random_ports, "\n")
-  cat("Optimization Objective: ", object@opt_objective, "\n")
-  cat("Ridge Penalty: ", ifelse(is.null(object@ridge_penalty), "None", object@ridge_penalty), "\n")
-  cat("Number of resamples: ", object@n_resamples, "\n")
-  if (object@n_resamples > 0) {
-    cat("Exp Return Score Jitter: ", object@exp_ret_score_jitter, "\n")
-    cat("Covariance Eigenvalues Jitter: ", object@cov_eigval_jitter, "\n")
-
-  }
-
-
+methods::setMethod("show", "mvo_parameters", function(object) {
+  .print_mvo_parameters(object, hide_title = FALSE)
 })
+
+.print_mvo_parameters <- function(object, hide_title = FALSE) {
+  if (!hide_title){
+    cat("\nMean-Variance Optimization Parameters:\n")
+  }
+  cat(" Optimization Method: ", object@opt_method, "\n")
+  cat(" Random Ports Method: ", object@random_ports_method, "\n")
+  cat(" Number of Random Ports: ", object@n_random_ports, "\n")
+  cat(" Optimization Objective: ", object@opt_objective, "\n")
+  cat(" Ridge Penalty: ", ifelse(is.null(object@ridge_pen), "None", object@ridge_pen), "\n")
+  cat(" Number of resamples: ", object@n_resamples, "\n")
+  if (object@n_resamples > 0) {
+    cat(" Exp Return Score Jitter: ", object@exp_ret_score_jitter, "\n")
+    cat(" Covariance Eigenvalues Jitter: ", object@cov_eigval_jitter, "\n")
+  }
+}
+
 
 #rp_parameters--------------------------
 #' @title Show Risk-Parity Parameters
 #' @description Displays the risk-parity configuration contained in a `rp_parameters` object.
 #' @param object A `rp_parameters` object.
+#' @param hide_title Logical indicating whether to hide the title when displaying the parameters. Default is FALSE.
 #' @method show rp_parameters
 #' @export
-setMethod("show", "rp_parameters", function(object) {
-  cat("\nRisk-Parity Parameters:\n")
-  cat("-------------------------\n")
-  cat("Risk-Parity Method: ", object@rp_method, "\n")
-  cat("Expected Return Tilt: ", object@exp_ret_score_tilt, "\n")
-  cat("Tilt Eta: ", ifelse(is.null(object@exp_ret_score_tilt_eta), "None", object@exp_ret_score_tilt_eta), "\n")
+methods::setMethod("show", "rp_parameters", function(object) {
+  .print_rp_parameters(object, hide_title = FALSE)
 })
+
+.print_rp_parameters <- function(object, hide_title = FALSE) {
+  if (!hide_title){
+    cat("\nRisk-Parity Parameters:\n")
+  }
+  cat(" Risk-Parity Method: ", object@rp_method, "\n")
+  cat(" Expected Return Tilt: ", object@exp_ret_score_tilt, "\n")
+  cat(" Tilt Eta: ", ifelse(is.null(object@exp_ret_score_tilt_eta), "None", object@exp_ret_score_tilt_eta), "\n")
+}
 
 #hrp_parameters-------------------------------------------
 #' @title Show HRP Parameters
 #' @description Displays the hierarchical risk parity configuration contained in a `hrp_parameters` object.
 #' @param object A `hrp_parameters` object.
+#' @param hide_title Logical indicating whether to hide the title when displaying the parameters. Default is FALSE.
 #' @method show hrp_parameters
 #' @export
-setMethod("show", "hrp_parameters", function(object) {
-  cat("\nHierarchical Risk-Parity Parameters:\n")
-  cat("------------------------------------\n")
-  cat("Linkage Method: ", object@linkage, "\n")
-  cat("Expected Return Tilt: ", object@exp_ret_score_tilt, "\n")
-  cat("Tilt Eta: ", ifelse(is.null(object@exp_ret_score_tilt_eta), "None", object@exp_ret_score_tilt_eta), "\n")
+methods::setMethod("show", "hrp_parameters", function(object) {
+  .print_hrp_parameters(object, hide_title = FALSE)
 })
+
+.print_hrp_parameters <- function(object, hide_title = FALSE) {
+  if (!hide_title){
+    cat("\nHierarchical Risk-Parity Parameters:\n")
+  }
+  cat(" Linkage Method: ", object@linkage, "\n")
+  cat(" Expected Return Tilt: ", object@exp_ret_score_tilt, "\n")
+  cat(" Tilt Eta: ", ifelse(is.null(object@exp_ret_score_tilt_eta), "None", object@exp_ret_score_tilt_eta), "\n")
+}
+
 
 #mmaf_parameters-------------------------------------------
 #' @title Show MMAF Parameters
@@ -1730,7 +1909,6 @@ setMethod("show", "hrp_parameters", function(object) {
 #' @export
 setMethod("show", "mmaf_parameters", function(object) {
   cat("\nMicro–Macro Allocation Framework (MMAF) Parameters:\n")
-  cat("---------------------------------------------------\n")
   cat("MMAF Method: ", object@mmaf_method, "\n")
   cat("Group Column: ", object@mmaf_group_col, "\n")
 
@@ -1741,10 +1919,35 @@ setMethod("show", "mmaf_parameters", function(object) {
   }
 
   cat("\nMicro Portfolio Configuration:\n")
-  cat("  Construction Method: ", object@micro_port_config@port_construction_method, "\n")
+  cat(" Construction Method: ", object@micro_port_config@port_construction_method, "\n")
+  if (!is.null(object@micro_port_config@mvo_parameters)){
+    cat(" MVO Parameters:\n")
+    .print_mvo_parameters(object@micro_port_config@mvo_parameters, hide_title = TRUE)
+  }
+  if (!is.null(object@micro_port_config@rp_parameters)){
+    cat(" RP Parameters:\n")
+    .print_rp_parameters(object@micro_port_config@rp_parameters, hide_title = TRUE)
+  }
+  if (!is.null(object@micro_port_config@hrp_parameters)){
+    cat(" HRP Parameters:\n")
+    .print_hrp_parameters(object@micro_port_config@hrp_parameters, hide_title = TRUE)
+  }
   cat("\nMacro Portfolio Configuration:\n")
-  cat("  Construction Method: ", object@macro_port_config@port_construction_method, "\n")
+  cat(" Construction Method: ", object@macro_port_config@port_construction_method, "\n")
+  if (!is.null(object@macro_port_config@mvo_parameters)){
+    cat(" MVO Parameters:\n")
+    .print_mvo_parameters(object@macro_port_config@mvo_parameters, hide_title = TRUE)
+  }
+  if (!is.null(object@macro_port_config@rp_parameters)){
+    cat(" RP Parameters:\n")
+    .print_rp_parameters(object@macro_port_config@rp_parameters, hide_title = TRUE)
+  }
+  if (!is.null(object@macro_port_config@hrp_parameters)){
+    cat(" HRP Parameters:\n")
+    .print_hrp_parameters(object@macro_port_config@hrp_parameters, hide_title = TRUE)
+  }
 })
+
 
 #concentration_constraint_policy--------------------------
 #' @title Show Concentration Constraint Policy
@@ -2004,6 +2207,14 @@ setMethod("show", "port_backtest_cohort", function(object) {
     }
     if(port_backtest_config@port_construction_method == "rp"){
       methods::show(port_backtest_config@rp_parameters)
+      cat("\n")
+    }
+    if(port_backtest_config@port_construction_method == "hrp"){
+      methods::show(port_backtest_config@hrp_parameters)
+      cat("\n")
+    }
+    if(port_backtest_config@port_construction_method == "mmaf"){
+      methods::show(port_backtest_config@mmaf_parameters)
       cat("\n")
     }
 
