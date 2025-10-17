@@ -5,6 +5,7 @@
 #' @param sb_algorithm Character string specifying the machine learning algorithm.
 #' @param chosen_eval_metric Character string specifying the chosen evaluation metric.
 #' @param custom_objective Character string specifying the custom objective function.
+#' @param exp_ret_score_tilt Character specifying whether the tilt should be applied 'inner', 'final' or 'none' in RP and HRP
 #' @param early_stop Numeric or null, indicating whether early stopping is enabled.
 #' @param huber_delta Numeric specifying the delta parameter for Huber loss if applicable.
 #' @param verbose Logical indicating whether to display verbose messages.
@@ -17,7 +18,8 @@
 #' - Adjusts \code{custom_objective} based on the specified \code{sb_algorithm}.
 #'
 #'
-translate_metrics <- function(sb_algorithm, chosen_eval_metric, custom_objective, early_stop, huber_delta, verbose){
+translate_metrics <- function(sb_algorithm, chosen_eval_metric, custom_objective, early_stop, huber_delta,
+                              exp_ret_score_tilt, verbose){
 
   #Adapt chosen_eval_metric if needed
   if(is.null(chosen_eval_metric)){
@@ -31,7 +33,7 @@ translate_metrics <- function(sb_algorithm, chosen_eval_metric, custom_objective
       quantile_error = "mpe",
       "rmse"
     )
-    if(verbose && !sb_algorithm %in% c("ols", "ew", "sw", "rp", "mvo", "custom_weights")){
+    if(verbose && !sb_algorithm %in% c("ols", "ew", "sw", "rp", "hrp", "mvo", "mmaf", "custom_weights")){
       cat(crayon::yellow("chosen_eval_metric not declared. Choice will be based on custom_objective"))
       cat("\n")
     }
@@ -39,14 +41,16 @@ translate_metrics <- function(sb_algorithm, chosen_eval_metric, custom_objective
 
 
   #Translate custom_objective and chosen_eval_metric for early stop
-  if(sb_algorithm %in% c("ols","glmnet","rf","ew","rp","custom_weights")){
-    custom_objective_translated <- NULL
-    chosen_eval_metric_translated <- NULL
+  if((sb_algorithm %in% c("ols","glmnet","rf","ew","custom_weights")) ||
+     (sb_algorithm %in% c("rp", "hrp") && exp_ret_score_tilt == "none")){
+      custom_objective_translated <- NULL
+      chosen_eval_metric_translated <- NULL
   }
 
-  if(sb_algorithm %in% c("sw", "mvo")){
-    custom_objective_translated <- custom_objective
-    chosen_eval_metric_translated <- NULL
+  if((sb_algorithm %in% c("sw", "mvo", "mmaf")) ||
+     (sb_algorithm %in% c("rp", "hrp") & exp_ret_score_tilt != "none")){
+      custom_objective_translated <- custom_objective
+      chosen_eval_metric_translated <- NULL
   }
 
 
