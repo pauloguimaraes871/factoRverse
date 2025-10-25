@@ -69,13 +69,13 @@ test_that("convert_oos_predictions_lists_to_m_df returns a meta_dataframe with e
   #Expect columns to be backtest names
   expect_equal(names(predictions_m_df@data), c("id", "tickers", "dates", unname(sapply(sb_backtest_results_list, function(x) x@backtest_identifier))))
   #Expect predictions to be correctly set
-  expect_equal(predictions_m_df@data %>% dplyr::pull(`c:ols1_f:feat123_t:target123-fwd_premium_3m`),
+  expect_equal(predictions_m_df@data %>% dplyr::pull(c__ols1_f__feat123_t__target123_fwd_premium_3m),
                ols_results@oos_sb_outputs_m_df@data %>% dplyr::pull(pred))
 
-  expect_equal(predictions_m_df@data %>% dplyr::pull(`c:glm1_f:feat123_t:target123-fwd_premium_3m`),
+  expect_equal(predictions_m_df@data %>% dplyr::pull(c__glm1_f__feat123_t__target123_fwd_premium_3m),
                glmnet_results@oos_sb_outputs_m_df@data %>% dplyr::pull(pred))
 
-  expect_equal(predictions_m_df@data %>% dplyr::pull(`c:rf1_f:feat123_t:target123-fwd_premium_3m`),
+  expect_equal(predictions_m_df@data %>% dplyr::pull(c__rf1_f__feat123_t__target123_fwd_premium_3m),
                rf_results@oos_sb_outputs_m_df@data %>% dplyr::pull(pred))
 
   #Expect ids to be the same
@@ -240,13 +240,13 @@ test_that("convert_oos_predictions_lists_to_m_df returns a meta_dataframe with e
 
 
   #Expect predictions to be correctly set
-  expect_equal(predictions_m_df@data %>% dplyr::pull(`c:ols1_f:feat123_t:target123-fwd_premium_3m`),
+  expect_equal(predictions_m_df@data %>% dplyr::pull(c__ols1_f__feat123_t__target123_fwd_premium_3m),
                ols_results@oos_sb_outputs_m_df@data %>% dplyr::pull(pred))
 
-  expect_equal(predictions_m_df@data %>% dplyr::pull(`c:glm1_f:feat123_t:target123-fwd_premium_3m`),
+  expect_equal(predictions_m_df@data %>% dplyr::pull(c__glm1_f__feat123_t__target123_fwd_premium_3m),
                glmnet_results@oos_sb_outputs_m_df@data %>% dplyr::pull(pred))
 
-  expect_equal(predictions_m_df@data %>% dplyr::pull(`c:rf1_f:feat123_t:target123-fwd_premium_3m`),
+  expect_equal(predictions_m_df@data %>% dplyr::pull(c__rf1_f__feat123_t__target123_fwd_premium_3m),
                rf_results@oos_sb_outputs_m_df@data %>% dplyr::pull(pred))
 
   #Expect ids to be the same
@@ -265,10 +265,10 @@ test_that("convert_oos_predictions_lists_to_m_df returns a meta_dataframe with e
     step_winsorize(recipes::all_numeric_predictors(), probs = c(0.025,0.975)) %>%
     recipes::step_range(recipes::all_numeric_predictors(), min = -1, max = 1) %>%
     recipes::step_mutate(
-      `c:glm1_f:feat123_t:target123-fwd_premium_3m` :=
-        ifelse(is.nan(`c:glm1_f:feat123_t:target123-fwd_premium_3m`),
+      c__glm1_f__feat123_t__target123_fwd_premium_3m :=
+        ifelse(is.nan(c__glm1_f__feat123_t__target123_fwd_premium_3m),
                0,
-               `c:glm1_f:feat123_t:target123-fwd_premium_3m`)
+               c__glm1_f__feat123_t__target123_fwd_premium_3m)
     )
 
   res <- testthat::evaluate_promise(

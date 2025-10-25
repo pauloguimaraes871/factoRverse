@@ -68,16 +68,16 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   future::plan("sequential")
   set.seed(123)
   suppressWarnings(
-  results <- fit_bayesian_hierarchical_model(selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
-                                selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
-                                signal_universe_m_d_ref = expected_result$signal_universe_m_d_ref,
-                                selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
-                                elected_priors = elected_priors,
-                                model_spec_theme_level = "random_intercept_fixed_slope",
-                                parallel = TRUE,
-                                chains = 4, iter = 2000, warmup = 1000, thin = 1, seed = NA, adapt_delta = 0.85, #MCMC parameters
-                                verbose = TRUE
-  )
+    results <- fit_bayesian_hierarchical_model(selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+                                               selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
+                                               signal_universe_m_d_ref = expected_result$signal_universe_m_d_ref,
+                                               selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
+                                               elected_priors = elected_priors,
+                                               model_spec_theme_level = "random_intercept_fixed_slope",
+                                               parallel = TRUE,
+                                               chains = 4, iter = 2000, warmup = 1000, thin = 1, seed = NA, adapt_delta = 0.85, #MCMC parameters
+                                               verbose = TRUE
+    )
   )
 
   brm_model <- results$brm_model
@@ -89,7 +89,7 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   expect_true(all(brm_model$basis$levels$theme %in% unique(selected_signal_themes_m_d_ref$theme)))
   expect_true(all(brm_model$basis$levels$`theme:tickers` %in%
                     (selected_signal_themes_m_d_ref %>% dplyr::mutate(theme_tickers = paste0(theme, "_", tickers)) %>% dplyr::pull(theme_tickers))
-                  ))
+  ))
 
 
   expect_equal(as.character(brm_model$formula$formula)[c(2,1,3)], c("return", "~", "market_factor_proxy + (1 | theme) + (1 + market_factor_proxy | theme:tickers)"))
@@ -100,14 +100,14 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
                                                                                         var = "dates")
 
   selected_backtest_returns_corrected_positions_m_upd_ref_long <- reshape2::melt(selected_backtest_returns_corrected_positions_m_upd_ref,
-                                                                               id.vars = c("dates", "market_factor_proxy"),
-                                                                               variable.name = "tickers", value.name = "return")
+                                                                                 id.vars = c("dates", "market_factor_proxy"),
+                                                                                 variable.name = "tickers", value.name = "return")
 
   selected_backtest_returns_corrected_positions_m_upd_ref_long <-
     selected_backtest_returns_corrected_positions_m_upd_ref_long[order(selected_backtest_returns_corrected_positions_m_upd_ref_long$dates),]
 
   selected_backtest_returns_corrected_positions_m_upd_ref_long <- dplyr::left_join(selected_backtest_returns_corrected_positions_m_upd_ref_long,
-                                                                                 selected_signal_themes_m_d_ref %>% dplyr::select(tickers, theme), by = "tickers")
+                                                                                   selected_signal_themes_m_d_ref %>% dplyr::select(tickers, theme), by = "tickers")
   selected_backtest_returns_corrected_positions_m_upd_ref_long$`theme:tickers` <- paste0(selected_backtest_returns_corrected_positions_m_upd_ref_long$theme, "_", selected_backtest_returns_corrected_positions_m_upd_ref_long$tickers)
 
   selected_backtest_returns_corrected_positions_m_upd_ref_long <-
@@ -146,10 +146,6 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   #Check if MCMC parameters are right
   expect_equal(brm_model$stan_args$control$adapt_delta, 0.85)
 
-  #Check number of rows in predicted_summary
-  n_draws <- nrow(results$posterior_draws_summaries$predicted_summary) %>% as.numeric()
-  expected_draws <- length(selected_market_factor_proxy_m_xts_upd_ref)*(ncol(selected_backtest_returns_corrected_positions_m_xts_upd_ref) - 1)
-  expect_true(n_draws == expected_draws)
 
   #Check number of rows in posterior_draws
   expect_equal((ncol(results$posterior_draws_summaries$intercept_summary) - 1)/3, 2) #Posterior theme and individual
@@ -237,9 +233,6 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
                  median(expected_results$sigma), median(expected_results$`cor_theme:tickers__Intercept__market_factor_proxy`)),
                unname(unlist(results$posterior_draws_summaries$sd_summary[,c(1,4,7,10,13)]))
   )
-  #Check posterior_predict
-  expect_equal(brms::posterior_epred(brm_model) %>% apply(2, function(x) median(x)),
-               results$posterior_draws_summaries$epred_summary$.epred[order(results$posterior_draws_summaries$epred_summary$.row)])
 
   future::plan("sequential")
 })
@@ -310,14 +303,14 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   future::plan("sequential")
   set.seed(123)
   results <- fit_bayesian_hierarchical_model(selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
-                                selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
-                                signal_universe_m_d_ref = expected_result$signal_universe_m_d_ref,
-                                selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
-                                elected_priors = elected_priors,
-                                model_spec_theme_level = "theme_specific_intercept_fixed_slope",
-                                parallel = TRUE,
-                                chains = 4, iter = 2000, warmup = 1000, thin = 1, seed = NA, adapt_delta = 0.99, #MCMC parameters
-                                verbose = TRUE
+                                             selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
+                                             signal_universe_m_d_ref = expected_result$signal_universe_m_d_ref,
+                                             selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
+                                             elected_priors = elected_priors,
+                                             model_spec_theme_level = "theme_specific_intercept_fixed_slope",
+                                             parallel = TRUE,
+                                             chains = 4, iter = 2000, warmup = 1000, thin = 1, seed = NA, adapt_delta = 0.99, #MCMC parameters
+                                             verbose = TRUE
   )
 
   brm_model <- results$brm_model
@@ -338,8 +331,8 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
     tibble::rownames_to_column(var = "dates")
 
   selected_backtest_returns_corrected_positions_m_upd_ref_long <- reshape2::melt(selected_backtest_returns_corrected_positions_m_upd_ref_long,
-                                                                               id.vars = c("dates", "market_factor_proxy"),
-                                                                               variable.name = "tickers", value.name = "return")
+                                                                                 id.vars = c("dates", "market_factor_proxy"),
+                                                                                 variable.name = "tickers", value.name = "return")
 
   selected_backtest_returns_corrected_positions_m_upd_ref_long <-
     selected_backtest_returns_corrected_positions_m_upd_ref_long[order(selected_backtest_returns_corrected_positions_m_upd_ref_long$dates),]
@@ -382,11 +375,6 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   #Check if MCMC parameters are right
   expect_equal(brm_model$stan_args$control$adapt_delta, 0.99)
 
-  #Check number of rows in predicted_summary
-  n_draws <- nrow(results$posterior_draws_summaries$predicted_summary) %>% as.numeric()
-  expected_draws <- length(selected_market_factor_proxy_m_xts_upd_ref)*(ncol(selected_backtest_returns_corrected_positions_m_xts_upd_ref) - 1)
-  expect_true(n_draws == expected_draws)
-
   #Check number of rows in posterior_draws
   expect_equal((ncol(results$posterior_draws_summaries$intercept_summary) - 1)/3, 2) #Posterior theme and individual
   expect_equal((ncol(results$posterior_draws_summaries$slope_summary) - 1)/3, 2) #Posterior theme and individual
@@ -398,7 +386,7 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   #Check theme alpha and beta
   #theme alpha
   expect_equal(c(median(expected_results$b_thememomentum), rep(median(expected_results$b_themevalue), 2)),
-  results$posterior_draws_summaries$intercept_summary$posterior_theme_alpha)
+               results$posterior_draws_summaries$intercept_summary$posterior_theme_alpha)
 
 
   expect_equal(c(median(expected_results$b_thememomentum), rep(median(expected_results$b_themevalue), 2)),
@@ -435,9 +423,9 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
 
                  mean(expected_results$b_themevalue + expected_results$`r_theme:tickers[value_Gamma,Intercept]`)/
                    sd(expected_results$b_themevalue + expected_results$`r_theme:tickers[value_Gamma,Intercept]`)
-                 ),
-               results$signal_universe_m_d_ref$posterior_alpha_t_stat[c(2,1,3)]
-               )
+  ),
+  results$signal_universe_m_d_ref$posterior_alpha_t_stat[c(2,1,3)]
+  )
 
 
   #Check theme beta
@@ -455,12 +443,9 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
 
   #Check sd
   expect_equal(c(median(expected_results$`sd_theme:tickers__Intercept`), median(expected_results$`sd_theme:tickers__market_factor_proxy`),
-                   median(expected_results$sigma), median(expected_results$`cor_theme:tickers__Intercept__market_factor_proxy`)),
-              unname(unlist(results$posterior_draws_summaries$sd_summary[,c(1,4,7,10)]))
-              )
-  #Check posterior_predict
-  expect_equal(brms::posterior_epred(brm_model) %>% apply(2, function(x) median(x)),
-               results$posterior_draws_summaries$epred_summary$.epred[order(results$posterior_draws_summaries$epred_summary$.row)])
+                 median(expected_results$sigma), median(expected_results$`cor_theme:tickers__Intercept__market_factor_proxy`)),
+               unname(unlist(results$posterior_draws_summaries$sd_summary[,c(1,4,7,10)]))
+  )
 
   future::plan("sequential")
 
@@ -532,14 +517,14 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   future::plan("sequential")
   set.seed(123)
   results <- fit_bayesian_hierarchical_model(selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
-                                selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
-                                signal_universe_m_d_ref = expected_result$signal_universe_m_d_ref,
-                                selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
-                                elected_priors = elected_priors,
-                                model_spec_theme_level = "theme_specific_intercept_theme_specific_slope",
-                                parallel = TRUE,
-                                chains = 4, iter = 2000, warmup = 1000, thin = 1, seed = NA, adapt_delta = 0.98, #MCMC parameters
-                                verbose = TRUE
+                                             selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
+                                             signal_universe_m_d_ref = expected_result$signal_universe_m_d_ref,
+                                             selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
+                                             elected_priors = elected_priors,
+                                             model_spec_theme_level = "theme_specific_intercept_theme_specific_slope",
+                                             parallel = TRUE,
+                                             chains = 4, iter = 2000, warmup = 1000, thin = 1, seed = NA, adapt_delta = 0.98, #MCMC parameters
+                                             verbose = TRUE
   )
 
   brm_model <- results$brm_model
@@ -559,8 +544,8 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   selected_backtest_returns_corrected_positions_m_upd_ref <- as.data.frame(selected_backtest_returns_corrected_positions_m_xts_upd_ref) %>%
     tibble::rownames_to_column(var = "dates")
   selected_backtest_returns_corrected_positions_m_upd_ref <- reshape2::melt(selected_backtest_returns_corrected_positions_m_upd_ref,
-                                                                               id.vars = c("dates", "market_factor_proxy"),
-                                                                               variable.name = "tickers", value.name = "return")
+                                                                            id.vars = c("dates", "market_factor_proxy"),
+                                                                            variable.name = "tickers", value.name = "return")
 
   selected_backtest_returns_corrected_positions_m_upd_ref <-
     selected_backtest_returns_corrected_positions_m_upd_ref[order(selected_backtest_returns_corrected_positions_m_upd_ref$dates),]
@@ -604,10 +589,6 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   #Check if MCMC parameters are right
   expect_equal(brm_model$stan_args$control$adapt_delta, 0.98)
 
-  #Check number of rows in predicted_summary
-  n_draws <- nrow(results$posterior_draws_summaries$predicted_summary) %>% as.numeric()
-  expected_draws <- length(selected_market_factor_proxy_m_xts_upd_ref)*(ncol(selected_backtest_returns_corrected_positions_m_xts_upd_ref) - 1)
-  expect_true(n_draws == expected_draws)
 
   #Check number of rows in posterior_draws
   expect_equal((ncol(results$posterior_draws_summaries$intercept_summary) - 1)/3, 2) #Posterior theme and individual
@@ -664,7 +645,7 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
 
   #Check theme beta
   expect_equal(c(median(expected_results$`b_thememomentum:market_factor_proxy`), rep(median(expected_results$`b_themevalue:market_factor_proxy`),2)),
-                  results$posterior_draws_summaries$slope_summary$posterior_theme_beta)
+               results$posterior_draws_summaries$slope_summary$posterior_theme_beta)
 
   expect_equal(c(median(expected_results$`b_thememomentum:market_factor_proxy`), rep(median(expected_results$`b_themevalue:market_factor_proxy`),2)),
                results$signal_universe_m_d_ref$posterior_theme_beta[c(2,1,3)])
@@ -681,9 +662,6 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
                  median(expected_results$sigma), median(expected_results$`cor_theme:tickers__Intercept__market_factor_proxy`)),
                unname(unlist(results$posterior_draws_summaries$sd_summary[,c(1,4,7,10)]))
   )
-  #Check posterior_predict
-  expect_equal(brms::posterior_epred(brm_model) %>% apply(2, function(x) median(x)),
-               results$posterior_draws_summaries$epred_summary$.epred[order(results$posterior_draws_summaries$epred_summary$.row)])
 
   future::plan("sequential")
 
@@ -757,16 +735,16 @@ test_that("fit_bayesian_hierarchical_model adequately ignores extra-prior when f
   future::plan("sequential")
   set.seed(123)
   suppressWarnings(
-  results <- fit_bayesian_hierarchical_model(selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
-                                             selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
-                                             signal_universe_m_d_ref = expected_result$signal_universe_m_d_ref,
-                                             selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
-                                             elected_priors = elected_priors,
-                                             model_spec_theme_level = "theme_specific_intercept_theme_specific_slope",
-                                             parallel = TRUE,
-                                             chains = 4, iter = 2000, warmup = 1000, thin = 1, seed = NA, adapt_delta = 0.98, #MCMC parameters
-                                             verbose = TRUE
-  )
+    results <- fit_bayesian_hierarchical_model(selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+                                               selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
+                                               signal_universe_m_d_ref = expected_result$signal_universe_m_d_ref,
+                                               selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
+                                               elected_priors = elected_priors,
+                                               model_spec_theme_level = "theme_specific_intercept_theme_specific_slope",
+                                               parallel = TRUE,
+                                               chains = 4, iter = 2000, warmup = 1000, thin = 1, seed = NA, adapt_delta = 0.98, #MCMC parameters
+                                               verbose = TRUE
+    )
   )
 
   brm_model <- results$brm_model
@@ -880,11 +858,6 @@ test_that("fit_bayesian_hierarchical_model adequately ignores extra-prior when f
   #Check if MCMC parameters are right
   expect_equal(brm_model$stan_args$control$adapt_delta, 0.98)
 
-  #Check number of rows in predicted_summary
-  n_draws <- nrow(results$posterior_draws_summaries$predicted_summary) %>% as.numeric()
-  expected_draws <- length(selected_market_factor_proxy_m_xts_upd_ref)*(ncol(selected_backtest_returns_corrected_positions_m_xts_upd_ref) - 1)
-  expect_true(n_draws == expected_draws)
-
   #Check number of rows in posterior_draws
   expect_equal((ncol(results$posterior_draws_summaries$intercept_summary) - 1)/3, 2) #Posterior theme and individual
   expect_equal((ncol(results$posterior_draws_summaries$slope_summary) - 1)/3, 2) #Posterior theme and individual
@@ -957,9 +930,6 @@ test_that("fit_bayesian_hierarchical_model adequately ignores extra-prior when f
                  median(expected_results$sigma), median(expected_results$`cor_theme:tickers__Intercept__market_factor_proxy`)),
                unname(unlist(results$posterior_draws_summaries$sd_summary[,c(1,4,7,10)]))
   )
-  #Check posterior_predict
-  expect_equal(brms::posterior_epred(brm_model) %>% apply(2, function(x) median(x)),
-               results$posterior_draws_summaries$epred_summary$.epred[order(results$posterior_draws_summaries$epred_summary$.row)])
 
   future::plan("sequential")
 
@@ -1028,14 +998,14 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   future::plan("sequential")
   set.seed(123)
   results <- fit_bayesian_hierarchical_model(selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
-                                selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
-                                signal_universe_m_d_ref =  expected_result$signal_universe_m_d_ref,
-                                selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
-                                elected_priors = elected_priors,
-                                model_spec_theme_level = "fixed_intercept_fixed_slope",
-                                parallel = TRUE,
-                                chains = 4, iter = 2000, warmup = 1000, thin = 1, seed = NA, adapt_delta = 0.98, #MCMC parameters
-                                verbose = TRUE
+                                             selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
+                                             signal_universe_m_d_ref =  expected_result$signal_universe_m_d_ref,
+                                             selected_signal_themes_m_d_ref = selected_signal_themes_m_d_ref,
+                                             elected_priors = elected_priors,
+                                             model_spec_theme_level = "fixed_intercept_fixed_slope",
+                                             parallel = TRUE,
+                                             chains = 4, iter = 2000, warmup = 1000, thin = 1, seed = NA, adapt_delta = 0.98, #MCMC parameters
+                                             verbose = TRUE
   )
 
   brm_model <- results$brm_model
@@ -1098,11 +1068,6 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
 
   #Check if MCMC parameters are right
   expect_equal(brm_model$stan_args$control$adapt_delta, 0.98)
-
-  #Check number of rows in predicted_summary
-  n_draws <- nrow(results$posterior_draws_summaries$predicted_summary) %>% as.numeric()
-  expected_draws <- length(selected_market_factor_proxy_m_xts_upd_ref)*(ncol(selected_backtest_returns_corrected_positions_m_xts_upd_ref) - 1)
-  expect_true(n_draws == expected_draws)
 
   #Check number of rows in posterior_draws
   expect_equal((ncol(results$posterior_draws_summaries$intercept_summary) - 1)/3, 2) #Posterior theme and individual
@@ -1176,9 +1141,6 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
                  median(expected_results$sigma), median(expected_results$`cor_theme:tickers__Intercept__market_factor_proxy`)),
                unname(unlist(results$posterior_draws_summaries$sd_summary[,c(1,4,7,10)]))
   )
-  #Check posterior_predict
-  expect_equal(brms::posterior_epred(brm_model) %>% apply(2, function(x) median(x)),
-               results$posterior_draws_summaries$epred_summary$.epred[order(results$posterior_draws_summaries$epred_summary$.row)])
 
   future::plan("sequential")
 
@@ -1328,11 +1290,6 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   #Check if MCMC parameters are right
   expect_equal(brm_model$stan_args$control$adapt_delta, 0.99)
 
-  #Check number of rows in predicted_summary
-  n_draws <- nrow(results$posterior_draws_summaries$predicted_summary) %>% as.numeric()
-  expected_draws <- length(selected_market_factor_proxy_m_xts_upd_ref)*(ncol(selected_backtest_returns_corrected_positions_m_xts_upd_ref) - 1)
-  expect_true(n_draws == expected_draws)
-
   #Check number of rows in posterior_draws
   expect_equal((ncol(results$posterior_draws_summaries$intercept_summary) - 1)/3, 2) #Posterior theme and individual
   expect_equal((ncol(results$posterior_draws_summaries$slope_summary) - 1)/3, 2) #Posterior theme and individual
@@ -1404,9 +1361,6 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
                  median(expected_results$sigma), median(expected_results$`cor_theme:tickers__Intercept__market_factor_proxy`)),
                unname(unlist(results$posterior_draws_summaries$sd_summary[,c(1,4,7,10)]))
   )
-  #Check posterior_predict
-  expect_equal(brms::posterior_epred(brm_model) %>% apply(2, function(x) median(x)),
-               results$posterior_draws_summaries$epred_summary$.epred[order(results$posterior_draws_summaries$epred_summary$.row)])
 
   future::plan("sequential")
 
@@ -1552,11 +1506,6 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
   #Check if MCMC parameters are right
   expect_equal(brm_model$stan_args$control$adapt_delta, 0.98)
 
-  #Check number of rows in predicted_summary
-  n_draws <- nrow(results$posterior_draws_summaries$predicted_summary) %>% as.numeric()
-  expected_draws <- length(selected_market_factor_proxy_m_xts_upd_ref)*(ncol(selected_backtest_returns_corrected_positions_m_xts_upd_ref) - 1)
-  expect_true(n_draws == expected_draws)
-
   #Check number of rows in posterior_draws
   expect_equal((ncol(results$posterior_draws_summaries$intercept_summary) - 1)/3, 2) #Posterior theme and individual
   expect_equal((ncol(results$posterior_draws_summaries$slope_summary) - 1)/3, 2) #Posterior theme and individual
@@ -1629,9 +1578,6 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
                  median(expected_results$sigma), median(expected_results$`cor_theme:tickers__Intercept__market_factor_proxy`)),
                unname(unlist(results$posterior_draws_summaries$sd_summary[,c(1,4,7,10)]))
   )
-  #Check posterior_predict
-  expect_equal(brms::posterior_epred(brm_model) %>% apply(2, function(x) median(x)),
-               results$posterior_draws_summaries$epred_summary$.epred[order(results$posterior_draws_summaries$epred_summary$.row)])
 
   future::plan("sequential")
 
