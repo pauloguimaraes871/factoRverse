@@ -54,6 +54,8 @@ These classes encapsulate various parameters and constraints used in backtesting
 
 \item{\code{macro}}{An object for storing macro-level port (used in MMAF).}
 
+\item{\code{selected_benchmark_port}}{An object for storing the selected benchmark portfolio.}
+
 \item{\code{port_name}}{A \code{character} giving a unique name or label for the configuration.}
 }}
 

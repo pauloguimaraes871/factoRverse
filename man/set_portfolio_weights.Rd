@@ -52,6 +52,7 @@ set_portfolio_weights(
   macro_exp_ret_score_tilt = NULL,
   macro_exp_ret_score_tilt_eta = NULL,
   macro_linkage = "single",
+  selected_benchmark = NULL,
   lower_quantile_winsorization = 0.025,
   upper_quantile_winsorization = 0.975,
   parallel = FALSE
@@ -161,6 +162,8 @@ sector allocation, prefer \code{"ew"}, \code{"rp"} or \code{"hrp"} and keep \cod
 \item{macro_exp_ret_score_tilt_eta}{Optional numeric, tilt intensity for macro RP.}
 
 \item{macro_linkage}{Character, passed to macro hierarchical methods when applicable.}
+
+\item{selected_benchmark}{It controls whether a 'port' object for the benchmark should be created and added to portolio results.}
 
 \item{lower_quantile_winsorization}{An optional numeric value for lower quantile winsorization when handling cap weighting and scaling. Defaults to \code{NULL}.}
 

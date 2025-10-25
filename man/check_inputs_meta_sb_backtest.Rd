@@ -19,7 +19,7 @@ check_inputs_meta_sb_backtest(
   base_benchmark_returns_m_xts,
   meta_backtest_returns_m_xts,
   meta_benchmark_returns_m_xts,
-  verbose
+  verbose = TRUE
 )
 }
 \arguments{
