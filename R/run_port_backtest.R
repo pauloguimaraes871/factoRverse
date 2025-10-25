@@ -456,7 +456,7 @@ setMethod("run_port_backtest",
               } else {
                 #####signals_m_df
                 if (stringr::str_remove(sb_backtest_workflow_last_batch$features_object_name,
-                                        pattern = paste0("m_config:", meta_config_name, "_", "f_mdf:")) !=
+                                        pattern = paste0("m_config__", meta_config_name, "_", "f_mdf__")) !=
                     signals_m_df@meta_dataframe_name){
                   stop("Signals object name does not match the one used in the SB Backtest")
                 }
@@ -1753,8 +1753,11 @@ run_port_backtest_internal <- function(
           macro_linkage = macro_linkage,
           #Custom Weights
           custom_weights_m_d_ref = custom_stock_weights_m_d_ref,
+          #Selected benchmark for benchmark port obj
+          selected_benchmark = selected_benchmark,
           #Winsorization
-          lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization #Quantiles for winsorization
+          lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization, #Quantiles for winsorization
+          parallel = parallel
           )
 
 
