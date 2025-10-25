@@ -2854,6 +2854,7 @@ setClass(
 #' @slot top_down_proxy_port_method An object for storing the top-down proxy portfolio method (used in MMAF).
 #' @slot micro An object for storing micro-level port (used in MMAF).
 #' @slot macro An object for storing macro-level port (used in MMAF).
+#' @slot selected_benchmark_port An object for storing the selected benchmark portfolio.
 #' @slot port_name A \code{character} giving a unique name or label for the configuration.
 #'
 #' @section signal_port-class:
@@ -2906,11 +2907,13 @@ setClass(
     ind_min_weights = "ANY",
     random_port_weights = "ANY",
     groups = "ANY",
+    group_col = "ANY",
     mmaf_method = "ANY",
-    mmaf_group_col = "ANY",
     group_cov_matrix = "ANY",
     micro = "ANY",
     macro = "ANY",
+    selected_benchmark_port = "ANY",
+    port_stats = "data.frame",
     port_name = "character"
   ),
   validity = function(object) {
@@ -2942,7 +2945,6 @@ setClass(
       if(!is.numeric(object@exp_ret_score)){
         stop("exp_ret_score must be numeric.")
       }
-
       if(length(object@eligible_assets) != length(object@exp_ret_score)){
         stop("exp_ret_score must have the same length as eligible_assets")
       }
@@ -2965,20 +2967,18 @@ setClass(
       if (is.null(object@rel_risk_contr)){
         stop("rel_risk_contr must be provided when covariance_matrix is not NULL.")
       }
-
       if(length(object@eligible_assets) != ncol(object@covariance_matrix)){
         stop("covariance_matrix must have the same number of cols as eligible_assets")
       }
       if(!any(colnames(object@covariance_matrix) == object@eligible_assets)){
         stop("covariance_matrix must have the same colnames as eligible_assets")
       }
-
       if(length(object@eligible_assets) != length(object@rel_risk_contr)){
         stop("rel_risk_contr must have the same length as eligible_assets")
       }
     }
 
-    # Do the same for group_covariance_matrix if port_construction_method is mmaf
+    # Do the same for group_covariance_matrix
     if(object@port_construction_method == "mmaf" & is.null(object@group_cov_matrix)){
       stop("group_cov_matrix must be provided for port_construction_method 'mmaf'.")
     }
@@ -2992,12 +2992,25 @@ setClass(
       if (!is.numeric(object@group_cov_matrix)){
         stop("group_cov_matrix must be numeric.")
       }
-      if (length(unique(object@groups[[object@mmaf_group_col]])) != ncol(object@group_cov_matrix)){
-        stop("group_cov_matrix must have the same number of cols as groups")
+      eligible_groups <- object@groups %>%
+        dplyr::filter(tickers %in% object@eligible_assets) %>%
+        dplyr::pull(!!rlang::sym(object@group_col)) %>%
+        unique()
+      if (length(eligible_groups) != ncol(object@group_cov_matrix)){
+        stop("group_cov_matrix must have the same number of cols as eligible groups")
       }
-      if (any(!colnames(object@group_cov_matrix) %in% object@groups[[object@mmaf_group_col]])){
-        stop("group_cov_matrix must have the same colnames as groups")
+      if (any(!colnames(object@group_cov_matrix) %in% eligible_groups)){
+        stop("group_cov_matrix must have the same colnames as eligible groups")
       }
+      ### colnames must be ordered according to sort
+      if (!identical(colnames(object@group_cov_matrix), sort(colnames(object@group_cov_matrix)))){
+        stop("group_cov_matrix colnames must be ordered alphabetically")
+      }
+    }
+    if (is.null(object@group_cov_matrix) &&
+        !is.null(object@covariance_matrix) &&
+        !is.null(object@groups)){
+      stop("groups must be provided when group_cov_matrix is not NULL.")
     }
 
     # Check for mvo
@@ -3007,18 +3020,15 @@ setClass(
         stop("random_port_weights must not be NULL for port_construction_method 'mvo' when, ",
              "there is more than one eligible asset.")
       }
-
       if(!is.null(object@random_port_weights) &&
          !any(object@random_port_weights$tickers %in% object@eligible_assets)){
         stop("random_port_weights must have the same colnames as eligible_assets")
       }
-
       if(!is.null(object@ind_max_weights)){
         if(length(object@ind_max_weights) != length(object@eligible_assets)){
           stop("ind_max_weights must have the same length as eligible_assets")
         }
       }
-
       if(!is.null(object@ind_min_weights)){
         if(length(object@ind_min_weights) != length(object@eligible_assets)){
           stop("ind_min_weights must have the same length as assets")
@@ -3031,10 +3041,6 @@ setClass(
       # Require macro/micro and some minimal structure
       if (is.null(object@macro)) {
         stop("macro slot must be provided for 'mmaf'.")
-      }
-      ## Macro should be of S4 class port
-      if (!inherits(object@macro, "port")) {
-        stop("macro must be a 'port' object.")
       }
       if (is.null(object@micro)) {
         stop("micro slot must be provided for 'mmaf'.")
@@ -3069,16 +3075,14 @@ setClass(
           stop("micro must be a list with one element named 'bottom_up' of class 'port'.")
         }
       }
-
       ## If mmaf_method is 'top_down', micro must be a list with groups as names,
       ## matchings colnames of group_cov_matrix
       if (!is.null(object@groups) &&
           object@mmaf_method == "top_down" &&
           !identical(
             names(object@micro),
-            sort(unique(object@groups[[object@mmaf_group_col]]))
-            )
-          ) {
+            sort(unique(object@groups[[object@group_col]]))
+          )) {
         stop("Names of micro list must match groups.")
       }
       ## If mmaf_method is 'bottom_up', micro must be list with only one element
@@ -3088,23 +3092,87 @@ setClass(
            length(object@micro) != 1)) {
         stop("For 'bottom_up' mmaf_method, micro must be a list with one element named 'bottom_up'.")
       }
-      ## Check if names of tickers in macro port match groups
-      if (any(!object@macro@eligible_assets %in%
-              sort(unique(object@groups[[object@mmaf_group_col]])))) {
-        stop("eligible_assets in macro port must match groups.")
-      }
-
     }
 
-    #Check for hrp
-    if (object@port_construction_method == "hrp"){
+    if (!is.null(object@macro)){
+      ## Macro should be of S4 class port
+      if (!inherits(object@macro, "port")) {
+        stop("macro must be a 'port' object.")
+      }
+      ## If port_construction_method is not mmaf, macro port construction method must be "custom_weights"
+      if (object@port_construction_method != "mmaf" &&
+          object@macro@port_construction_method != "custom_weights") {
+        stop("If port_construction_method is not 'mmaf', macro port_construction_method must be 'custom_weights'.")
+      }
+      ## Macro universe_m_d_ref tickers order must match group_covariance
+      if (!is.null(object@group_cov_matrix) &&
+          !identical(object@macro@universe_m_d_ref@data$tickers,
+                     sort(colnames(object@group_cov_matrix)))) {
+        stop("Tickers in macro universe_m_d_ref must match group_cov_matrix colnames and be ordered alphabetically.")
+      }
+      if (is.null(object@groups)){
+        stop("groups slot must be provided for 'macro'.")
+      }
+      ## Check if names of tickers in macro port match groups
+      all_groups <- object@groups %>%
+        dplyr::pull(!!rlang::sym(object@group_col)) %>%
+        unique()
+      missing_groups <- setdiff(all_groups, object@macro@eligible_assets)
+      if (length(missing_groups) > 0) {
+        warning(paste0("The following groups are missing in macro eligible_assets: ",
+                        paste(missing_groups, collapse = ", ")))
+      }
+    }
+
+    #Check for clusters
+    if (!is.null(object@covariance_matrix)){
       # hclust type check if provided
-      if (!is.null(object@clusters) &&
-          !inherits(object@clusters, "hclust")) {
+      if (!inherits(object@clusters, "hclust")) {
         stop("clusters must be an 'hclust' object.")
       }
     }
 
+    #Check for selected_benchmark_port
+    if (!is.null(object@selected_benchmark_port)){
+
+      ## Should be of class 'port'
+      if (!inherits(object@selected_benchmark_port, "port")) {
+        stop("selected_benchmark_port must be a 'port' object.")
+      }
+
+      ## PCM should be custom_weights
+      if (object@selected_benchmark_port@port_construction_method != "custom_weights") {
+        stop("selected_benchmark_port must have port_construction_method 'custom_weights'.")
+      }
+    }
+
+    #Port stats
+      ## If covariance matrix is not NULL, port_stats must have rrc columns as not NA
+      ## and as NA otherwise
+      if (!is.null(object@covariance_matrix)){
+        rrc_cols <- setdiff(names(object@port_stats %>% dplyr::select(dplyr::contains("rrc"))), "group_hhi_rrc")
+        if (any(sapply(rrc_cols, function(x) all(is.na(x))))){
+          stop("When covariance_matrix is not NULL, port_stats must have relative risk contribution (rrc) columns as not NA.")
+        }
+      } else {
+        rrc_cols <- setdiff(names(object@port_stats %>% dplyr::select(dplyr::contains("rrc"))), "group_hhi_rrc")
+        if (any(sapply(rrc_cols, function(x) !all(is.na(x))))){
+          stop("When covariance_matrix is NULL, port_stats must have relative risk contribution (rrc) columns as NA.")
+        }
+      }
+      ## The same goes for object having groups as not NULL and group_columns existing
+      ## Those cols should exist only if groups is not NULL
+      if (!is.null(object@macro)){
+        group_cols <- object@port_stats %>% dplyr::select(dplyr::contains("group"))
+        if (ncol(group_cols) == 0){
+          stop("When groups is not NULL, port_stats must have group-related columns.")
+        }
+      } else {
+        group_cols <- object@port_stats %>% dplyr::select(dplyr::contains("group"))
+        if (ncol(group_cols) > 0){
+          stop("When groups is NULL, port_stats must not have group-related columns.")
+        }
+      }
     TRUE
   }
 )
