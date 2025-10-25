@@ -1804,23 +1804,23 @@ setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NU
     }
   }
 
-    ## Call Appropriate Method
-    if (available_objects[which_backtest_results] == "meta_learner_sb_backtest_results"){
-      summary(object@meta_sb_backtest_results)
+  ## Call Appropriate Method
+  if (available_objects[which_backtest_results] == "meta_learner_sb_backtest_results"){
+    summary(object@meta_sb_backtest_results)
+  }
+  if (available_objects[which_backtest_results] == "base_learners_sb_backtest_results"){
+    cat("Which base learner do you want?\n")
+    available_base_learners <- names(object@base_sb_backtest_results_list)
+    for (i in seq_along(available_base_learners)) {
+      cat(paste0(i, ": ", available_base_learners[i], "\n"))
     }
-    if (available_objects[which_backtest_results] == "base_learners_sb_backtest_results"){
-      cat("Which base learner do you want?\n")
-      available_base_learners <- names(object@base_sb_backtest_results_list)
-      for (i in seq_along(available_base_learners)) {
-        cat(paste0(i, ": ", available_base_learners[i], "\n"))
-      }
-      selection <- readline(prompt = "Enter the number of your choice: ")
-      chosen_base_learner <- as.numeric(selection)
-      if (is.na(chosen_base_learner) || chosen_base_learner < 1) {
-        stop("Invalid selection.")
-      }
-      summary(object@base_sb_backtest_results_list[[chosen_base_learner]])
+    selection <- readline(prompt = "Enter the number of your choice: ")
+    chosen_base_learner <- as.numeric(selection)
+    if (is.na(chosen_base_learner) || chosen_base_learner < 1) {
+      stop("Invalid selection.")
     }
+    summary(object@base_sb_backtest_results_list[[chosen_base_learner]])
+  }
 
 
   # List of available tables
@@ -2553,43 +2553,82 @@ methods::setMethod("summary", "port", function(object, summary_id = NULL){
     stop("Packages 'DT', 'htmltools', and 'htmlwidgets' are required. Please install them.")
   }
 
+  ## small helpers for interactive prompts (local to summary)
+  .prompt_weights_args <- function(object) {
+    # weights_kind
+    wk_in <- readline(prompt = "Use active weights? (yes/no) [no]: ")
+    use_active <- tolower(trimws(wk_in)) %in% c("yes","y")
+    weights_kind <- if (use_active) "active" else "regular"
+
+    bench_weights_col <- NULL
+    if (weights_kind == "active") {
+      uni <- object@universe_m_d_ref@data
+      if (is.null(uni) || !"tickers" %in% names(uni)) {
+        stop("To use active weights, universe_m_d_ref@data must contain 'tickers'.")
+      }
+      cand <- grep("_bench_weights$", names(uni), value = TRUE)
+      if (length(cand) == 0L) {
+        stop("No '*_bench_weights' columns found; cannot compute active weights.")
+      } else if (length(cand) == 1L) {
+        bench_weights_col <- cand[1L]
+      } else {
+        cat("Available benchmark weight columns:\n")
+        for (i in seq_along(cand)) cat(sprintf("%d: %s\n", i, cand[i]))
+        sel <- readline(
+          prompt = sprintf("Choose benchmark column (name or number) [default = %s]: ", cand[1L])
+        )
+        if (nzchar(sel) && !is.na(suppressWarnings(as.numeric(sel)))) {
+          sidx <- as.numeric(sel)
+          if (!is.na(sidx) && sidx >= 1 && sidx <= length(cand)) bench_weights_col <- cand[sidx]
+        } else if (nzchar(sel) && (sel %in% cand)) {
+          bench_weights_col <- sel
+        } else {
+          bench_weights_col <- cand[1L]
+        }
+      }
+    }
+    list(weights_kind = weights_kind, bench_weights_col = bench_weights_col)
+  }
+
+  .prompt_group_col <- function(object) {
+    gdf <- object@groups
+    if (!is.data.frame(gdf) || !"tickers" %in% names(gdf)) return(NULL)
+    grouping_cols <- setdiff(names(gdf), c("id","tickers","dates"))
+    if (length(grouping_cols) == 0L) return(NULL)
+
+    # mmaf default
+    if (object@port_construction_method == "mmaf" &&
+        !is.null(object@mmaf_group_col) &&
+        object@mmaf_group_col %in% grouping_cols) {
+      def <- object@mmaf_group_col
+    } else {
+      def <- grouping_cols[1L]
+    }
+
+    # if only one, use it silently; else prompt
+    if (length(grouping_cols) == 1L) return(grouping_cols[1L])
+
+    cat("Available group columns:\n")
+    for (i in seq_along(grouping_cols)) cat(sprintf("%d: %s\n", i, grouping_cols[i]))
+    sel <- readline(
+      prompt = sprintf("Choose group column (name or number) [default = %s]: ", def)
+    )
+    if (nzchar(sel) && !is.na(suppressWarnings(as.numeric(sel)))) {
+      sidx <- as.numeric(sel)
+      if (!is.na(sidx) && sidx >= 1 && sidx <= length(grouping_cols)) {
+        return(grouping_cols[sidx])
+      }
+    } else if (nzchar(sel) && (sel %in% grouping_cols)) {
+      return(sel)
+    }
+    def
+  }
+
+
   ## Palette
   deep_navy <- "#000033"
   black <- "#000000"
   white <- "#FFFFFF"
-
-  ## Helpers (base R)
-  hhi_weights <- function(w) sum(w^2)
-  hhi_rrc     <- function(rrc) sum(rrc^2)
-  effective_n_bets <- function(w) { h <- hhi_weights(w); if (isTRUE(all.equal(h, 0))) NA_real_ else 1 / h }
-  effective_n_rrc  <- function(rrc) { h <- hhi_rrc(rrc); if (isTRUE(all.equal(h, 0))) NA_real_ else 1 / h }
-  entropy_weights  <- function(w){ wpos <- w[w > 0]; if (length(wpos) == 0) return(NA_real_); -sum(wpos * log(wpos)) }
-  entropy_effective_n <- function(w){ H <- entropy_weights(w); if (is.na(H)) NA_real_ else exp(H) }
-  gini_weights <- function(w){
-    if (any(w < 0)) { ww <- abs(w); s <- sum(ww); if (isTRUE(all.equal(s, 0))) return(NA_real_); w <- ww / s }
-    w <- sort(w); n <- length(w); 2 * sum(w * seq_len(n)) / n - (n + 1) / n
-  }
-  top_k_concentration <- function(w, k = 10L){ if (length(w) == 0) return(NA_real_); sum(sort(w, decreasing = TRUE)[seq_len(min(k, length(w)))]) }
-  diversification_ratio <- function(w, covmat){
-    sig_i <- sqrt(diag(covmat)); top <- sum(w * sig_i); bot <- sqrt(as.numeric(t(w) %*% covmat %*% w))
-    if (isTRUE(all.equal(bot, 0))) NA_real_ else top / bot
-  }
-  weighted_avg_pairwise_corr <- function(w, corr){
-    n <- length(w); if (is.null(corr) || n <= 1) return(NA_real_)
-    idx <- which(upper.tri(corr), arr.ind = TRUE); if (nrow(idx) == 0) return(NA_real_)
-    num <- sum(w[idx[,1]] * w[idx[,2]] * corr[idx]); den <- sum(w[idx[,1]] * w[idx[,2]])
-    if (isTRUE(all.equal(den, 0))) NA_real_ else num / den
-  }
-  rrc_distance_to_erc <- function(rrc){ n <- length(rrc); if (n == 0) return(NA_real_); erc <- rep(1/n, n); sqrt(sum((rrc - erc)^2)) }
-  gross_exposure <- function(w) sum(abs(w)); net_exposure <- function(w) sum(w)
-  group_concentration <- function(w, group_labels){
-    agg <- tapply(w, group_labels, sum); hhi_g <- sum(agg^2)
-    data.frame(hhi_groups = hhi_g,
-               n_eff_groups = if (isTRUE(all.equal(hhi_g, 0))) NA_real_ else 1 / hhi_g,
-               top_group_w = max(agg),
-               n_groups = length(agg),
-               stringsAsFactors = FALSE)
-  }
 
   ## Menu
   available_tables <- c(
@@ -2657,73 +2696,127 @@ methods::setMethod("summary", "port", function(object, summary_id = NULL){
 
   ## 1) Portfolio Metrics -----------------------------------------------------
   if (table_name == "Portfolio Metrics") {
-    w   <- object@weights
-    sigma   <- object@covariance_matrix
-    rho   <- object@correlation_matrix
-    rrc <- if (!is.null(object@rel_risk_contr)) as.numeric(object@rel_risk_contr) else NULL
 
-    port_exp_ret <- if (!is.null(object@exp_ret_score)) as.numeric(w %*% object@exp_ret_score) else NA_real_
-    port_risk    <- if (!is.null(sigma)) sqrt(as.numeric(t(w) %*% sigma %*% w)) else NA_real_
-    port_sharpe  <- if (!is.na(port_exp_ret) && !is.na(port_risk) && !isTRUE(all.equal(port_risk, 0))) port_exp_ret / port_risk else NA_real_
+    # Prompt for args needed by calculate_port_stats()
+    wa <- .prompt_weights_args(object) # list(weights_kind, bench_weights_col)
+    gc <- .prompt_group_col(object)    # may be NULL
 
-    metrics <- list(
-      "Port Expected Return"     = port_exp_ret,
-      "Port Expected Risk"       = port_risk,
-      "Port Expected Sharpe"     = port_sharpe,
-      "HHI (weights)"            = hhi_weights(w),
-      "Effective N (1/HHI)"      = effective_n_bets(w),
-      "Entropy Eff. N (exp H)"   = entropy_effective_n(w),
-      "Gini (weights)"           = gini_weights(w),
-      "Top-5 weight"             = top_k_concentration(w, 5L),
-      "Top-10 weight"            = top_k_concentration(w, 10L),
-      "Gross Exposure"           = gross_exposure(w),
-      "Net Exposure"             = net_exposure(w),
-      "Diversification Ratio"    = if (!is.null(sigma)) diversification_ratio(w, sigma) else NA_real_,
-      "Wtd Avg Pairwise Corr"    = if (!is.null(rho)) weighted_avg_pairwise_corr(w, rho) else NA_real_,
-      "HHI (risk contrib)"       = if (!is.null(rrc)) hhi_rrc(rrc) else NA_real_,
-      "Eff. N (risk contrib)"    = if (!is.null(rrc)) effective_n_rrc(rrc) else NA_real_,
-      "RRC distance to ERC (L2)" = if (!is.null(rrc)) rrc_distance_to_erc(rrc) else NA_real_
+    # Compute
+    port_stats <- calculate_port_stats(
+      object,
+      group_col = gc,
+      weights_kind = wa$weights_kind,
+      bench_weights_col = wa$bench_weights_col
     )
 
-    df <- data.frame(Metric = names(metrics),
-                     Value  = unlist(metrics, use.names = FALSE),
-                     stringsAsFactors = FALSE, check.names = FALSE)
-    df$Value <- ifelse(is.na(df$Value), NA, round(as.numeric(df$Value), 4))
+    # Build display from returned columns (no recomputation)
+    metrics <- list(
+      "Port Expected Return"       = port_stats$port_exp_ret,
+      "Port Expected Risk"         = port_stats$port_risk,
+      "Port Expected Sharpe"       = port_stats$port_sharpe,
+      "HHI (weights)"              = port_stats$hhi_weights,
+      "Effective N (1/HHI)"        = port_stats$n_eff_weights,
+      "Entropy (weights)"          = port_stats$entropy_weights,
+      "Entropy Eff. N (exp H)"     = port_stats$entropy_effective_n,
+      "Gini (weights)"             = port_stats$gini_weights,
+      "Top-5 concentration"        = port_stats$top_5_concentration,
+      "Top-10 concentration"       = port_stats$top_10_concentration,
+      "Top-25 concentration"       = port_stats$top_25_concentration,
+      "Diversification Ratio"      = port_stats$diversification_ratio,
+      "Wtd Avg Pairwise Corr"      = port_stats$wavg_pairwise_corr,
+      "HHI (risk contrib)"         = port_stats$hhi_rrc,
+      "Eff. N (risk contrib)"      = port_stats$n_eff_rrc,
+      "RRC distance to ERC (L2)"   = port_stats$rrc_dist_to_erc,
+      "Group HHI"                  = port_stats$hhi_groups,
+      "Group Effective N"          = port_stats$n_eff_groups,
+      "Top Group Weight"           = port_stats$top_group_weight,
+      "Number of Groups"           = port_stats$n_groups
+    )
 
-    print(render_dt(df, paste0(object@port_name, ": Portfolio Metrics")))
+    df <- data.frame(
+      Metric = names(metrics),
+      Value  = unlist(metrics, use.names = FALSE),
+      stringsAsFactors = FALSE, check.names = FALSE
+    )
+    df$Value <- ifelse(is.na(df$Value), NA, round(as.numeric(df$Value), 6))
+
+    cap_bits <- c(
+      paste0("weights=", wa$weights_kind),
+      if (!is.null(wa$bench_weights_col)) paste0("bench=", wa$bench_weights_col) else NULL,
+      if (!is.null(gc)) paste0("group_col=", gc) else NULL
+    )
+    caption <- paste0(object@port_name, ": Portfolio Metrics",
+                      if (length(cap_bits)) paste0(" (", paste(cap_bits, collapse = " · "), ")") else "")
+
+    print(render_dt(df, caption))
     return(invisible(object))
   }
 
   ## 2) Group Concentration by Column ----------------------------------------
   if (table_name == "Group Concentration by Column") {
-    if (is.null(object@groups)) { cat("No 'groups' slot available.\n"); return(invisible(object)) }
+    if (is.null(object@groups)) {
+      cat("No 'groups' slot available.\n"); return(invisible(object))
+    }
     grp_df <- object@groups
+
+    # Basic validations
+    if (!is.data.frame(grp_df)) {
+      cat("'groups' must be a data.frame.\n")
+      return(invisible(object))
+    }
+    if (!("tickers" %in% names(grp_df))) {
+      cat("'groups' lacks a 'tickers' column.\n")
+      return(invisible(object))
+    }
+    if (!all(object@eligible_assets %in% grp_df$tickers)) {
+      cat("Not all eligible_assets are present in groups$tickers.\n")
+      return(invisible(object))
+    }
+
     core_cols  <- c("id","tickers","dates")
     group_cols <- setdiff(colnames(grp_df), core_cols)
-    if (length(group_cols) == 0L) { cat("No group columns found in 'groups'.\n"); return(invisible(object)) }
-    if (!("tickers" %in% colnames(grp_df))) { cat("'groups' lacks a 'tickers' column.\n"); return(invisible(object)) }
-    if (!all(object@eligible_assets %in% grp_df$tickers)) { cat("Not all eligible_assets are present in groups$tickers.\n"); return(invisible(object)) }
-
-    ord <- match(object@eligible_assets, grp_df$tickers)
-    w   <- object@weights
-
-    out_list <- lapply(group_cols, function(gcol){
-      glab <- grp_df[[gcol]][ord]
-      if (all(is.na(glab))) {
-        data.frame(group_column = gcol, hhi_groups = NA_real_, n_eff_groups = NA_real_,
-                   top_group_w = NA_real_, n_groups = NA_integer_, stringsAsFactors = FALSE)
-      } else {
-        glab[is.na(glab)] <- "UNKNOWN"
-        gc <- group_concentration(w, glab)
-        data.frame(group_column = gcol, gc, stringsAsFactors = FALSE)
+    if (length(group_cols) == 0L) {
+      cat("No group columns found in 'groups'.\n")
+      return(invisible(object))
       }
+
+    # Prompt once for weights mode / benchmark (consistent across all group columns)
+    wa <- .prompt_weights_args(object) # list(weights_kind, bench_weights_col)
+
+    # Compute group metrics by calling calculate_port_stats for each group_col
+    rows <- lapply(group_cols, function(gcol) {
+      # calculate only the group metrics for this column; other fields are available but we pick the relevant ones
+      st <- calculate_port_stats(
+        object,
+        group_col        = gcol,
+        weights_kind     = wa$weights_kind,
+        bench_weights_col= wa$bench_weights_col
+      )
+
+      data.frame(
+        group_column       = gcol,
+        hhi_groups         = st$hhi_groups,
+        n_eff_groups       = st$n_eff_groups,
+        top_group_weight   = st$top_group_weight,
+        n_groups           = st$n_groups,
+        stringsAsFactors = FALSE
+      )
     })
 
-    res <- do.call(rbind, out_list)
-    num_cols <- c("hhi_groups","n_eff_groups","top_group_w")
-    res[num_cols] <- lapply(res[num_cols], function(x) ifelse(is.na(x), NA, round(as.numeric(x), 4)))
+    res <- do.call(rbind, rows)
 
-    print(render_dt(res, paste0(object@port_name, ": Group Concentration by Column")))
+    # Nicely round numeric columns
+    num_cols <- c("hhi_groups","n_eff_groups","top_group_weight")
+    res[num_cols] <- lapply(res[num_cols], function(x) ifelse(is.na(x), NA, round(as.numeric(x), 6)))
+
+    cap_bits <- c(
+      paste0("weights=", wa$weights_kind),
+      if (!is.null(wa$bench_weights_col)) paste0("bench=", wa$bench_weights_col) else NULL
+    )
+    caption <- paste0(object@port_name, ": Group Concentration by Column",
+                      if (length(cap_bits)) paste0(" (", paste(cap_bits, collapse = " · "), ")") else "")
+
+    print(render_dt(res, caption))
     return(invisible(object))
   }
 

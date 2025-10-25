@@ -1552,69 +1552,6 @@ setMethod(
   signature = "port",
   definition = function(object) {
 
-    # Helpers to calculate metrics
-    hhi_weights <- function(w) sum(w^2)
-    hhi_rrc <- function(rrc) sum(rrc^2)
-
-    effective_n_bets <- function(w) 1 / hhi_weights(w)
-    effective_n_rrc <- function(rrc) 1 / hhi_rrc(rrc)
-
-    entropy_weights <- function(w){
-      wpos <- w[w > 0]
-      -sum(wpos * log(wpos))
-    }
-    entropy_effective_n <- function(w) exp(entropy_weights(w))
-
-    gini_weights <- function(w){
-      w <- sort(w)
-      n <- length(w)
-      # Gini for non-negative weights that sum to 1
-      num <- 2 * sum(w * seq_len(n)) / n - (n + 1) / n
-      num
-    }
-
-    top_k_concentration <- function(w, k = 10L){
-      sum(sort(w, decreasing = TRUE)[seq_len(min(k, length(w)))])
-    }
-
-    diversification_ratio <- function(w, covmat){
-      sig_i <- sqrt(diag(covmat))
-      top <- sum(w * sig_i)
-      bot <- sqrt(as.numeric(t(w) %*% covmat %*% w))
-      top / bot
-    }
-
-    weighted_avg_pairwise_corr <- function(w, corr){
-      n <- length(w)
-      idx <- which(upper.tri(corr), arr.ind = TRUE)
-      num <- sum(w[idx[,1]] * w[idx[,2]] * corr[idx])
-      den <- sum(w[idx[,1]] * w[idx[,2]])
-      if (den == 0) NA_real_ else num / den
-    }
-
-    active_share <- function(w, w_bench) 0.5 * sum(abs(w - w_bench))
-    ex_ante_te <- function(w, w_bench, covmat){
-      d <- w - w_bench
-      sqrt(as.numeric(t(d) %*% covmat %*% d))
-    }
-    rrc_distance_to_erc <- function(rrc){
-      n <- length(rrc)
-      erc <- rep(1/n, n)
-      sqrt(sum((rrc - erc)^2))
-    }
-
-    group_concentration <- function(w, group_labels){
-      # Aggregate by group and compute HHI / n_eff / top group
-      agg <- tapply(w, group_labels, sum)
-      hhi_g <- sum(agg^2)
-      list(
-        hhi_groups     = hhi_g,
-        n_eff_groups   = if (isTRUE(all.equal(hhi_g, 0))) NA_real_ else 1 / hhi_g,
-        top_group_w    = max(agg)
-      )
-    }
-
-
     # 1) Class Identification
     # Check if object is one of the subclasses
     subclass <- if (methods::is(object, "signal_port")) {
@@ -1651,65 +1588,102 @@ setMethod(
     }
     cat("Eligible Assets:      ", paste(object@eligible_assets, collapse = ", "), "\n")
     cat("Number of Assets:     ", length(object@eligible_assets), "\n")
-    cat("-------------------\n")
+    cat("---------------------------------\n")
 
-    #### 2a) Classic ex-ante metrics (if available)
-    if(!is.null(object@exp_ret_score)){
-      port_exp_ret_score <- object@weights %*% object@exp_ret_score
-      cat("Port Expected Return: ", round(port_exp_ret_score, 3), "\n")
-    }
-    if(!is.null(object@covariance_matrix)){
-      cov_matrix <- object@covariance_matrix
-      port_exp_risk <- sqrt(object@weights %*% cov_matrix %*% object@weights)
-      cat("Port Expected Risk:   ", round(port_exp_risk, 3), "\n")
-    }
-    if(!is.null(object@exp_ret_score) && !is.null(object@covariance_matrix)){
-      port_sharpe_ratio <- port_exp_ret_score / port_exp_risk
-      cat("Port Expected Sharpe: ", round(port_sharpe_ratio, 3), "\n")
-    }
+    #### 2) Classic ex-ante metrics
+      ##### First choose group col
+      chosen_group_col <- NULL
+        if (is.data.frame(object@groups) && "tickers" %in% names(object@groups)) {
+          core_cols  <- c("id", "tickers", "dates")
+          gcols      <- setdiff(names(object@groups), core_cols)
+          if (object@port_construction_method == "mmaf" &&
+              !is.null(object@mmaf_group_col) &&
+              object@mmaf_group_col %in% gcols) {
+            chosen_group_col <- object@mmaf_group_col
+          } else if (length(gcols) >= 1L) {
+            chosen_group_col <- gcols[1L]
+          }
+        }
 
-    #### 2b) New: Concentration, breadth, diversification, exposures
-    w <- object@weights
+      ##### Now choose bench_weights col
+      weights_kind_default  <- "regular"
+      bench_col_default     <- NULL
+      if ("universe_m_d_ref" %in% methods::slotNames(object) &&
+          !is.null(object@universe_m_d_ref) &&
+          !is.null(object@universe_m_d_ref@data)) {
+        universe_m_d_ref <- object@universe_m_d_ref@data
+        if (is.data.frame(universe_m_d_ref)) {
+          bench_cols <- grep("_bench_weights$", names(universe_m_d_ref), value = TRUE)
+          if (length(bench_cols) >= 1L) {
+            weights_kind_default <- "active"
+            bench_col_default    <- bench_cols[1L]  # if multiple, use the first
+          }
+        }
+      }
 
-    # Weight-based concentration
-    hhi_w  <- hhi_weights(w)
-    enb_w  <- effective_n_bets(w)
-    ent_w  <- entropy_weights(w)
-    enH_w  <- entropy_effective_n(w)
-    gini_w <- gini_weights(w)
-    top5   <- top_k_concentration(w, 5L)
-    top10  <- top_k_concentration(w, 10L)
 
-    cat("\nConcentration & Breadth:\n")
-    cat("  HHI (weights):            ", round(hhi_w, 4), "\n")
-    cat("  Effective N (1/HHI):      ", round(enb_w, 2), "\n")
-    cat("  Entropy Eff. N (exp H):   ", round(enH_w, 2), "\n")
-    cat("  Gini (weights):           ", round(gini_w, 3), "\n")
-    cat("  Top-5 weight:             ", round(top5, 3), "\n")
-    cat("  Top-10 weight:            ", round(top10, 3), "\n")
+      #### Calculate portfolio stats
+      port_stats <- calculate_port_stats(
+        object,
+        group_col         = chosen_group_col,
+        weights_kind      = weights_kind_default,
+        bench_weights_col = bench_col_default
+      )
+        #####
+        active_mode <- identical(weights_kind_default, "active")
 
-    # Diversification quality
-    if (!is.null(object@covariance_matrix)){
-      dr <- diversification_ratio(w, object@covariance_matrix)
-      cat("  Diversification Ratio:     ", round(dr, 3), "\n")
-    }
-    if (!is.null(object@correlation_matrix)){
-      wa_r <- weighted_avg_pairwise_corr(w, object@correlation_matrix)
-      cat("  Wtd Avg Pairwise Corr:     ", round(wa_r, 3), "\n")
-    }
+        if (!active_mode) {
+          cat("\nRisk x Return:\n")
+          cat(" Port Expected Return: ", round(as.numeric(port_stats$port_exp_ret), 3), "\n")
+          cat(" Port Expected Risk:   ", round(as.numeric(port_stats$port_risk), 3), "\n")
+          cat(" Port Expected Sharpe: ", round(as.numeric(port_stats$port_sharpe), 3), "\n")
 
-    # Risk-contribution concentration (if available)
-    if (!is.null(object@rel_risk_contr)){
-      rrc <- as.numeric(object@rel_risk_contr)
-      hhi_r   <- hhi_rrc(rrc)
-      enb_r   <- effective_n_rrc(rrc)
-      distERC <- rrc_distance_to_erc(rrc)
-      cat("  HHI (risk contrib):        ", round(hhi_r, 4), "\n")
-      cat("  Eff. N (risk contrib):     ", round(enb_r, 2), "\n")
-      cat("  RRC distance to ERC (L2):  ", round(distERC, 4), "\n")
-    }
+          cat("\nConcentration & Breadth:\n")
+          cat("  HHI (weights):             ", round(as.numeric(port_stats$hhi_weights), 4), "\n")
+          cat("  Effective N (1/HHI):       ", round(as.numeric(port_stats$n_eff_weights), 2), "\n")
+          cat("  Entropy Eff. N (exp H):    ", round(as.numeric(port_stats$entropy_effective_n), 2), "\n")
+          cat("  Gini (weights):            ", round(as.numeric(port_stats$gini_weights), 3), "\n")
+          cat("  Top-5 weight:              ", round(as.numeric(port_stats$top_5_concentration), 3), "\n")
+          cat("  Top-10 weight:             ", round(as.numeric(port_stats$top_10_concentration), 3), "\n")
+          cat("  Top-25 weight:             ", round(as.numeric(port_stats$top_25_concentration), 3), "\n")
+          if (!is.na(port_stats$diversification_ratio)) {
+            cat("  Diversification Ratio:      ", round(as.numeric(port_stats$diversification_ratio), 3), "\n")
+          }
+          if (!is.na(port_stats$wavg_pairwise_corr)) {
+            cat("  Wtd Avg Pairwise Corr:      ", round(as.numeric(port_stats$wavg_pairwise_corr), 3), "\n")
+          }
+        } else {
+          cat("\nRisk x Return:\n")
+          cat(" Port Expected Act. Return: ", round(as.numeric(port_stats$port_exp_ret), 3), "\n")
+          cat(" Port Expected TE:   ", round(as.numeric(port_stats$port_risk), 3), "\n")
+          cat(" Port Expected IR: ", round(as.numeric(port_stats$port_sharpe), 3), "\n")
+
+          cat("\nConcentration & Breadth:\n")
+          cat("  HHI (act. weights):        ", round(as.numeric(port_stats$hhi_weights), 4), "\n")
+          cat("  Effective N (act. 1/HHI):  ", round(as.numeric(port_stats$n_eff_weights), 2), "\n")
+          cat("  Entropy Eff. N (act. exp H):", round(as.numeric(port_stats$entropy_effective_n), 2), "\n")
+          cat("  Gini (act. weights):       ", round(as.numeric(port_stats$gini_weights), 3), "\n")
+          cat("  Top-5 act. weight:         ", round(as.numeric(port_stats$top_5_concentration), 3), "\n")
+          cat("  Top-10 act. weight:        ", round(as.numeric(port_stats$top_10_concentration), 3), "\n")
+          cat("  Top-25 act. weight:        ", round(as.numeric(port_stats$top_25_concentration), 3), "\n")
+          if (!is.na(port_stats$diversification_ratio)) {
+            cat("  Diversification Ratio (act.):", round(as.numeric(port_stats$diversification_ratio), 3), "\n")
+          }
+          if (!is.na(port_stats$wavg_pairwise_corr)) {
+            cat("  Wtd Avg Pairwise Corr (act.):", round(as.numeric(port_stats$wavg_pairwise_corr), 3), "\n")
+          }
+        }
+
+        ##### Risk-contribution metrics
+        if (!is.na(port_stats$hhi_rrc) || !is.na(port_stats$n_eff_rrc) || !is.na(port_stats$rrc_dist_to_erc)) {
+          cat("  HHI (risk contrib):         ", round(as.numeric(port_stats$hhi_rrc), 4), "\n")
+          cat("  Eff. N (risk contrib):      ", round(as.numeric(port_stats$n_eff_rrc), 2), "\n")
+          cat("  RRC distance to ERC (L2):   ", round(as.numeric(port_stats$rrc_dist_to_erc), 4), "\n")
+        }
+
 
     # 3) Weights and Return Scores
+    cat("---------------------------------\n")
     cat("\nWeights (first few shown):\n")
     weights_vector <- object@weights
     names(weights_vector) <- object@eligible_assets
@@ -1737,48 +1711,7 @@ setMethod(
       cat("No correlation matrix.\n")
     }
 
-    # 5) Group/sector concentration across ALL group columns
-    if (!is.null(object@groups)) {
-      grp_df <- object@groups
-
-      # Identify group columns: everything except id, tickers, dates
-      core_cols   <- c("id", "tickers", "dates")
-      group_cols  <- setdiff(colnames(grp_df), core_cols)
-
-      if (length(group_cols) == 0L) {
-        cat("  No group columns found in 'groups' (need columns beyond id/tickers/dates).\n")
-      } else if (!("tickers" %in% colnames(grp_df))) {
-        cat("  Cannot compute group concentration: 'groups' lacks a 'tickers' column.\n")
-      } else if (!all(object@eligible_assets %in% grp_df$tickers)) {
-        cat("  Cannot compute group concentration: not all eligible_assets are present in groups$tickers.\n")
-      } else {
-        # Align groups to eligible_assets order
-        ord <- match(object@eligible_assets, grp_df$tickers)
-
-        cat("\nGroup Concentration (by each group column):\n")
-        for (gcol in group_cols) {
-          grp_labels <- grp_df[[gcol]][ord]
-
-          # Handle cases where the group column might be all NA for these assets
-          if (all(is.na(grp_labels))) {
-            cat("  -", gcol, ": all NA for eligible assets; skipping.\n")
-            next
-          }
-
-          # Replace any NA labels with an explicit "UNKNOWN" bucket to avoid dropping weights
-          grp_labels[is.na(grp_labels)] <- "UNKNOWN"
-
-          gc <- group_concentration(w, grp_labels)
-          cat("  - ", gcol, ":\n", sep = "")
-          cat("      HHI (groups):           ", round(gc$hhi_groups, 4), "\n", sep = "")
-          cat("      Effective N (groups):   ", round(gc$n_eff_groups, 2), "\n",  sep = "")
-          cat("      Top Group Weight:       ", round(gc$top_group_w, 3), "\n",   sep = "")
-        }
-      }
-    }
-
-
-    # 6) Additional Fields (if they exist)
+    # 5) Additional Fields (if they exist)
     if (!is.null(object@ind_max_weights)) {
       ind_constraints_df <- data.frame(assets = object@eligible_assets,
                                        ind_max_weights = object@ind_max_weights, ind_min_weights = object@ind_min_weights)
@@ -1789,6 +1722,19 @@ setMethod(
     if (!is.null(object@groups)) {
       cat("\nGroups Provided (First 25):\n")
       print(utils::head(dplyr::select(object@groups, -id, -dates), 25))
+
+      # Group/sector concentration
+        #### Group metrics
+        if (!is.null(chosen_group_col)) {
+          cat("\nGroup Concentration (", chosen_group_col, "):\n", sep = "")
+          cat("  HHI (groups):               ", round(as.numeric(port_stats$hhi_groups), 4), "\n")
+          cat("  Effective N (groups):       ", round(as.numeric(port_stats$n_eff_groups), 2), "\n")
+          cat("  Top Group Weight:           ", round(as.numeric(port_stats$top_group_weight), 3), "\n")
+          cat("  Number of Groups:           ", as.integer(port_stats$n_groups), "\n")
+        } else if (is.data.frame(object@groups)) {
+          cat("\nGroup Concentration:   Multiple or no group columns detected; run summary(object, \"Group Concentration by Column\") for a full table.\n")
+        }
+
     } else {
       cat("\nNo groups specified.\n")
     }
