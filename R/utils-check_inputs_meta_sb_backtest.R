@@ -27,7 +27,7 @@ check_inputs_meta_sb_backtest <- function(
     meta_signal_themes_m_df, meta_custom_signal_weights_m_df, meta_custom_signal_universe_metrics_m_df,
     base_backtest_returns_m_xts, base_benchmark_returns_m_xts,
     meta_backtest_returns_m_xts, meta_benchmark_returns_m_xts,
-    verbose
+    verbose = TRUE
 ) {
 
 
