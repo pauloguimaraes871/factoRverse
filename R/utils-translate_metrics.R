@@ -37,8 +37,7 @@ translate_metrics <- function(sb_algorithm, chosen_eval_metric, custom_objective
       cat(crayon::yellow("chosen_eval_metric not declared. Choice will be based on custom_objective"))
       cat("\n")
     }
-  } else {}
-
+  }
 
   #Translate custom_objective and chosen_eval_metric for early stop
   if((sb_algorithm %in% c("ols","glmnet","rf","ew","custom_weights")) ||
@@ -48,7 +47,7 @@ translate_metrics <- function(sb_algorithm, chosen_eval_metric, custom_objective
   }
 
   if((sb_algorithm %in% c("sw", "mvo", "mmaf")) ||
-     (sb_algorithm %in% c("rp", "hrp") & exp_ret_score_tilt != "none")){
+     (sb_algorithm %in% c("rp", "hrp") && exp_ret_score_tilt != "none")){
       custom_objective_translated <- custom_objective
       chosen_eval_metric_translated <- NULL
   }
