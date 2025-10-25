@@ -178,13 +178,11 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
     eligible_universe_m_d_ref <- universe_m_d_ref %>% dplyr::filter(is_eligible == 1)
     eligible_tickers <- eligible_universe_m_d_ref %>% dplyr::pull(tickers)
 
-      ### Defensively check if covariance is ordered according to eligible tickers
+      ### Defensive checks
       if (!all(rownames(covariance_matrix) == colnames(covariance_matrix) &
                rownames(covariance_matrix) == eligible_tickers)) {
         stop("Covariance matrix rownames/colnames do not match eligible tickers.")
       }
-
-      ### Other checks to be passed to check_port_inputs later
       if (mmaf_method == "bottom_up" && !is.null(concentration_constraint_policy)){
         warning("For bottom_up, micro-level concentration constraints might not hold globally.")
       }
@@ -195,6 +193,12 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
           !top_down_proxy_port_method %in% c("ew", "rp", "hrp", "cs", "sw")){
         stop("top_down_proxy_port_method must be one of 'ew', 'rp', 'hrp', 'cs', 'sw'.")
       }
+      if (!mmaf_group_col %in% names(eligible_universe_m_d_ref)){
+        stop("mmaf_group_col not found in eligible_universe_m_d_ref.")
+      }
+      if (!mmaf_group_col %in% names(groups_m_d_ref)){
+        stop("mmaf_group_col not found in groups_m_d_ref")
+      }
 
     ## Get groups
       ### If mmaf_group_col is NULL, assign the first after id, tickers and dates as mmaf_group_col
@@ -204,7 +208,7 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
       }
 
       ### Get unique groups
-      groups <- unique(groups_m_d_ref[[mmaf_group_col]])
+      groups <- unique(eligible_universe_m_d_ref[[mmaf_group_col]])
 
         ### Re-order groups alphabetically
         groups <- sort(groups)
@@ -307,6 +311,14 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
 
       ### Break up into micro_universe_m_d_ref_list
       micro_universe_m_d_ref_list <- purrr::map(groups, function(g) {
+
+        #### Check that all assets are eligible
+        if (micro_port@universe_m_d_ref@data %>%
+              dplyr::filter(is_eligible == 0) %>%
+              nrow() > 0) {
+          stop("Micro portfolio contains ineligible assets.")
+        }
+
         #### Subset universe and normalize weights
           ##### If sum of weights is 0, return a vector of 0 weights
           if (sum(micro_port@universe_m_d_ref@data %>%
@@ -378,137 +390,19 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
 
   # Macro Metrics --------------------------------------------------------------
 
-    ## group_universe_m_d_ref
-    group_universe_m_d_ref <- purrr::map_dfr(groups, function(g){
+    ## Compute aggregate objects
+    agg_macro_objects <- compute_agg_macro_objects(
+      eligible_universe_m_d_ref = eligible_universe_m_d_ref,
+      covariance_matrix = covariance_matrix,
+      group_col = mmaf_group_col,
+      micro_universe_m_d_ref_list = micro_universe_m_d_ref_list,
+      liquidity_m_d_ref = liquidity_m_d_ref
+    )
 
-      ### Current universe_m_d_ref
-      current_micro_universe_m_d_ref <- micro_universe_m_d_ref_list[[g]]
-      current_date <- unique(current_micro_universe_m_d_ref$dates)
+    group_universe_m_d_ref   <- agg_macro_objects$group_universe_m_d_ref
+    group_liquidity_m_d_ref  <- agg_macro_objects$group_liquidity_m_d_ref
+    group_covariance_matrix  <- agg_macro_objects$group_covariance_matrix
 
-      ### Calculate weighted average of exp_ret_score
-      group_exp_ret_score <- stats::weighted.mean(
-        current_micro_universe_m_d_ref$exp_ret_score,
-        current_micro_universe_m_d_ref$weights,
-        na.rm = TRUE
-      )
-
-      ### Calculate weighted average of liquidity_m_d_ref colnames and liquidity_m_d_ref
-      group_liq_cols <- list()
-      if (!is.null(liquidity_m_d_ref)){
-        liquidity_colnames <- names(liquidity_m_d_ref[,-c(1:3)]) #Exclude id, tickers, dates
-
-        if (length(liquidity_colnames) > 0){
-          for (liq_col in liquidity_colnames){
-            group_liq_cols[[liq_col]] <- stats::weighted.mean(
-              current_micro_universe_m_d_ref[[liq_col]],
-              current_micro_universe_m_d_ref$weights,
-              na.rm = TRUE
-            )
-          }
-        }
-      }
-
-      ### Data frame
-      group_row <- data.frame(
-        id = paste0(g, "-", current_date),
-        tickers = g,
-        dates = as.Date(current_date),
-        exp_ret_score = group_exp_ret_score,
-        is_eligible = 1
-      )
-        #### Add group liquidity columns if any
-        if (length(group_liq_cols) > 0){
-          group_row <- group_row %>%
-            dplyr::bind_cols(as.data.frame(group_liq_cols))
-        }
-
-      group_row
-
-    })
-
-        ### Add group bench_weights and target_weights
-        group_weight_colnames <- names(universe_m_d_ref)[
-          stringr::str_detect(names(universe_m_d_ref), "_bench_weights") |
-          stringr::str_detect(names(universe_m_d_ref), "target_weights")
-        ]
-        if (length(group_weight_colnames) > 0){
-          #### Build total weights per sector, considering all stocks (universe_m_d_ref)
-          #### and sum them by sector
-          group_weights_m_d_ref <- universe_m_d_ref %>%
-            dplyr::group_by(!!rlang::sym(mmaf_group_col)) %>%
-            dplyr::summarise(dplyr::across(
-              dplyr::all_of(group_weight_colnames),
-              \(x) sum(x, na.rm = TRUE)
-              ),
-              .groups = "drop"
-            ) %>%
-            dplyr::rename(sector = !!rlang::sym(mmaf_group_col))
-
-          #### Join to group_universe_m_d_ref
-          group_universe_m_d_ref <- group_universe_m_d_ref %>%
-            dplyr::left_join(group_weights_m_d_ref,
-                             by = c("tickers" = "sector"))
-        }
-
-        ### Relocate exp_ret_score and is_eligible to end
-        group_universe_m_d_ref <- group_universe_m_d_ref %>%
-          dplyr::relocate(exp_ret_score, .after = dplyr::last_col()) %>%
-          dplyr::relocate(is_eligible,   .after = dplyr::last_col())
-
-    ## Construct group_liquidity_m_d_ref if liquidity_m_d_ref exists
-    group_liquidity_m_d_ref <- NULL
-    if (!is.null(liquidity_m_d_ref)){
-      group_liquidity_m_d_ref <- group_universe_m_d_ref %>%
-        dplyr::select(dplyr::all_of(names(liquidity_m_d_ref)))
-    }
-
-    ## Compute sector-by-sector covariance
-    group_covariance_matrix <- matrix(NA_real_, n_groups, n_groups,
-                                      dimnames = list(groups, groups))
-
-    ## Fill group covariance matrix
-    for (g1 in seq_len(n_groups)){
-
-      ## Get group members for first group
-      group_g1 <- groups[g1]
-      group_g1_tickers <- eligible_universe_m_d_ref %>%
-        dplyr::filter(!is.na(!!rlang::sym(mmaf_group_col)) &
-                        !!rlang::sym(mmaf_group_col) == group_g1) %>%
-        dplyr::pull(tickers)
-
-      ## Get weights for group g1
-      w_g1_df <- micro_universe_m_d_ref_list[[group_g1]] %>%
-        dplyr::filter(tickers %in% group_g1_tickers) %>%
-        dplyr::slice(match(group_g1_tickers, tickers)) # Ensure order matches
-      w_g1 <- w_g1_df %>% dplyr::pull(weights) %>% setNames(group_g1_tickers)
-
-      ## Fill group covariance matrix
-      for (g2 in seq_len(n_groups)){
-
-        ### Get group members for second group
-        group_g2 <- groups[g2]
-        group_g2_tickers <- eligible_universe_m_d_ref %>%
-          dplyr::filter(!is.na(!!rlang::sym(mmaf_group_col)) &
-                          !!rlang::sym(mmaf_group_col) == group_g2) %>%
-          dplyr::pull(tickers)
-
-        ### Get weights for group g2
-        w_g2_df <- micro_universe_m_d_ref_list[[group_g2]] %>%
-          dplyr::filter(tickers %in% group_g2_tickers) %>%
-          dplyr::slice(match(group_g2_tickers, tickers)) # Ensure order matches
-        w_g2 <- w_g2_df %>% dplyr::pull(weights) %>% setNames(group_g2_tickers)
-
-        ### Calculate covariance between groups
-        cov_between_groups <- as.numeric(
-          t(w_g1) %*% covariance_matrix[group_g1_tickers, group_g2_tickers,
-                                        drop = FALSE] %*% w_g2
-        )
-
-        ### Fill group covariance matrix
-        group_covariance_matrix[g1, g2] <- cov_between_groups
-
-      }
-    }
 
   # Macro-level ----------------------------------------------------------------
 
@@ -1212,4 +1106,11 @@ process_micro_portfolios <- function(parallel, groups, group_weights,
 
   micro_port_list
 }
+
+
+
+
+
+
+
 
