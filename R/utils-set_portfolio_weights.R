@@ -63,7 +63,9 @@
 #' @param macro_exp_ret_score_tilt_eta Optional numeric, tilt intensity for macro RP.
 #' @param lower_quantile_winsorization An optional numeric value for lower quantile winsorization when handling cap weighting and scaling. Defaults to \code{NULL}.
 #' @param upper_quantile_winsorization An optional numeric value for upper quantile winsorization when handling cap weighting and scaling. Defaults to \code{NULL}.
-#'
+#' @param selected_benchmark It controls whether a 'port' object for the benchmark should be created and added to portolio results.
+#' @param level Character. Level of the portfolio object. Options are `"port"`, `"benchmark"`, or `"group"`. Defaults to `"port"`.
+#' Helps in assessing which type of portfolio is being created.
 #' @return A data frame or object (depending on the portfolio construction method) with the updated portfolio weights assigned based on the specified method and constraints.
 #'
 #' @export
@@ -88,12 +90,26 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
                                   macro_n_resamples = 0, macro_exp_ret_score_jitter = 0, macro_cov_eigval_jitter = 0,
                                   macro_rp_method = "cyclical-spinu", macro_exp_ret_score_tilt = NULL,  macro_exp_ret_score_tilt_eta = NULL,
                                   macro_linkage = "single",
-                                  ## End MMAF
+                                  ## Benchmark Port Obj
+                                  selected_benchmark = NULL,
+                                  ##
+                                  level = "port",
                                   lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975, parallel = FALSE
+
 ){
 
   ##Get eligible tickers
-  eligible_tickers <-  universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+  if (port_construction_method == "custom_weights"){
+    ### For custom_weights, eligible tickers are those with weights > 0 in custom_weights_m_d_ref
+    ### Thus positive weights dominates eligibility from classify_investment_universe
+    eligible_tickers <- universe_m_d_ref %>%
+      dplyr::left_join(custom_weights_m_d_ref %>%
+                         dplyr::select(id, weights), by = "id") %>%
+      dplyr::filter(weights > 0) %>%
+      dplyr::pull(tickers)
+  } else {
+    eligible_tickers <-  universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+  }
 
   #Calculate covariance matrix
   ###################
@@ -241,26 +257,13 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
 
   ###################
 
-  #Get results
+  #Create PORT Object
   ###################
+  ## Get results
   universe_m_d_ref <- port_results_list$universe_m_d_ref
 
-  #Calculate relative risk contribution
-  if (!is.null(covariance_matrix)){
-    relative_risk_contribution_df <- relative_risk_contribution(
-      weights = universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(weights), #Weights
-      covariance_matrix = covariance_matrix #Covariance
-    )
-
-    ##Attach relative risk contribution to universe_m_d_ref object
-    universe_m_d_ref <- universe_m_d_ref %>% dplyr::left_join(relative_risk_contribution_df, by = "tickers") %>%
-      dplyr::relocate(rel_risk_contr, .before = weights) #Move to the left of weights
-    universe_m_d_ref$rel_risk_contr[which(is.na(universe_m_d_ref$rel_risk_contr))] <- 0 #Fill NAs with 0
-  }
-
-  #Create PORT Object
-  ##Define eligible universe
-  if(!port_construction_method == "custom_weights"){
+  ## Define eligible universe
+  if(port_construction_method != "custom_weights"){
     #For general port_construction_methods, only eligible assets can have weights different from zero.
     eligible_universe_m_d_ref <- universe_m_d_ref %>% dplyr::filter(is_eligible == 1)
   } else {
@@ -268,29 +271,167 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
     eligible_universe_m_d_ref <- universe_m_d_ref %>% dplyr::filter(weights != 0)
   }
 
+  ##Calculate relative risk contribution
+  if (!is.null(covariance_matrix)){
+
+    ### Make sure that covariance matrix and universe_m_d_ref are aligned
+    if (!identical(eligible_universe_m_d_ref %>% dplyr::pull(tickers), rownames(covariance_matrix))){
+      stop("universe_m_d_ref tickers and covariance matrix rownames do not match")
+    }
+
+    ### Compute relative risk contribution
+    relative_risk_contribution_df <- relative_risk_contribution(
+      weights = eligible_universe_m_d_ref %>% dplyr::pull(weights), #Weights
+      covariance_matrix = covariance_matrix #Covariance
+    )
+
+    ###Attach relative risk contribution to universe_m_d_ref object
+    universe_m_d_ref <- universe_m_d_ref %>% dplyr::left_join(relative_risk_contribution_df, by = "tickers") %>%
+      dplyr::relocate(rel_risk_contr, .before = weights) #Move to the left of weights
+    universe_m_d_ref$rel_risk_contr[which(is.na(universe_m_d_ref$rel_risk_contr))] <- 0 #Fill NAs with 0
+
+    ###Also update eligible_universe_m_d_ref
+    eligible_universe_m_d_ref <- eligible_universe_m_d_ref %>% dplyr::left_join(relative_risk_contribution_df, by = "tickers") %>%
+      dplyr::relocate(rel_risk_contr, .before = weights)
+  }
+
+  ##Compute hierarchical clusters
+  if (!is.null(covariance_matrix)){
+    hc <- compute_hierarchical_clusters(correlation_matrix = stats::cov2cor(covariance_matrix), linkage = linkage)$hc
+  } else {
+      hc <- NULL
+  }
+
+  ##For active portfolios, build bench port object
+  if (!is.null(selected_benchmark) &&
+      paste0(selected_benchmark,"_bench_weights") %in% colnames(universe_m_d_ref) &&
+      level == "port"){
+
+    ### Create a custom_weights_m_d_ref
+    bench_weights_m_d_ref <- universe_m_d_ref %>%
+      dplyr::select(id, tickers, dates, !!sym(paste0(selected_benchmark,"_bench_weights"))) %>%
+      dplyr::rename(weights = !!sym(paste0(selected_benchmark,"_bench_weights")))
+
+    ### Create simple bench_universe_m_d_ref
+    bench_universe_m_d_ref <- universe_m_d_ref %>%
+      dplyr::select(-weights, -rel_risk_contr) %>%
+      dplyr::left_join(bench_weights_m_d_ref %>% dplyr::select(id, weights),
+                       by = "id") %>%
+      dplyr::mutate(is_eligible = ifelse(weights > 0, 1, 0)) %>%
+      dplyr::select(-weights)
+
+    ### Create benchmark port object
+    selected_benchmark_port_obj <- set_portfolio_weights(
+      universe_m_d_ref = bench_universe_m_d_ref, #Universe
+      port_construction_method = "custom_weights",
+      custom_weights_m_d_ref = bench_weights_m_d_ref,
+      returns_m_xts_upd_ref = returns_m_xts_upd_ref, #Return sample
+      cov_matrix_sample_size = cov_matrix_sample_size, #Cov estimation
+      cov_estimation_method = cov_estimation_method,
+      groups_m_d_ref = groups_m_d_ref,
+      selected_benchmark = NULL, #Avoid infinite recursion
+      level = "benchmark"
+    )
+
+    selected_benchmark_port_obj@port_name <- selected_benchmark
+    bench_universe_m_d_ref <- selected_benchmark_port_obj@universe_m_d_ref@data
+    bench_cov_matrix <- selected_benchmark_port_obj@covariance_matrix
+
+  } else {
+
+      selected_benchmark_port_obj <- NULL
+      bench_universe_m_d_ref <- NULL
+      bench_cov_matrix <- NULL
+  }
+
+  ##Calculate macro portfolio
+  if (port_construction_method != "mmaf"){
+    if (!is.null(groups_m_d_ref) &&
+        level %in% c("port", "benchmark")){
+
+        ### Get group column
+        group_col <- names(groups_m_d_ref)[4] #First column is tickers
+
+        ### Compute macro objects
+        macro_objects_list <- compute_agg_macro_objects(
+          eligible_universe_m_d_ref = eligible_universe_m_d_ref,
+          covariance_matrix = covariance_matrix,
+          group_col = group_col,
+          liquidity_m_d_ref = liquidity_m_d_ref,
+          micro_universe_m_d_ref_list = NULL
+        )
+
+        ### Create a custom_weights_m_d_ref
+        group_weights_m_d_ref <- macro_objects_list$group_universe_m_d_ref %>%
+          dplyr::select(id, tickers, dates, weights)
+
+        ### Create benchmark port object
+        macro_port_obj <- set_portfolio_weights(
+          universe_m_d_ref = macro_objects_list$group_universe_m_d_ref %>%
+            dplyr::select(-weights), #Universe
+          port_construction_method = "custom_weights",
+          custom_weights_m_d_ref = group_weights_m_d_ref,
+          covariance_matrix = macro_objects_list$group_covariance_matrix,
+          groups_m_d_ref = NULL,
+          selected_benchmark = NULL, #Avoid infinite recursion
+          level = "group"
+        )
+
+        macro_port_obj@port_name <- group_col
+        group_universe_m_d_ref <- macro_objects_list$group_universe_m_d_ref
+        group_cov_matrix <- macro_objects_list$group_covariance_matrix
+
+    } else {
+      macro_port_obj <- NULL
+      group_col <- NULL
+      group_universe_m_d_ref <- NULL
+      group_cov_matrix <- NULL
+    }
+  } else {
+      macro_port_obj <- port_results_list$macro
+      group_col <- mmaf_group_col
+  }
+
+  ##Calculate port stats
+  port_stats <- calculate_port_stats(
+    universe_m_d_ref = universe_m_d_ref,
+    group_universe_m_d_ref = group_universe_m_d_ref,
+    group_cov_matrix = group_cov_matrix,
+    selected_benchmark = selected_benchmark,
+    bench_universe_m_d_ref = bench_universe_m_d_ref,
+    returns_m_xts_upd_ref = returns_m_xts_upd_ref, #Return sample
+    selected_benchmark_m_xts_upd_ref = selected_benchmark_m_xts_upd_ref, #Benchmark for calculating active returns
+    cov_matrix_sample_size = cov_matrix_sample_size, #Cov estimation
+    cov_estimation_method = cov_estimation_method,
+    groups_m_d_ref = groups_m_d_ref
+  )
+
+
   ##Create the s4 obj
   eligible_assets <- eligible_universe_m_d_ref %>% dplyr::pull(tickers)
   port_obj <- methods::new("port",
                             universe_m_d_ref = suppressMessages(create_meta_dataframe(universe_m_d_ref %>% dplyr::arrange(id))), ##Re-order according to id
                             port_construction_method = port_construction_method,
                             eligible_assets = eligible_assets,
-                            exp_ret_score = if (port_construction_method %in% c("sw", "cs", "mvo", "mmaf") || (port_construction_method == "rp" && !is.null(exp_ret_score_tilt) && exp_ret_score_tilt != "none")) eligible_universe_m_d_ref %>% dplyr::pull(exp_ret_score) else NULL,
+                            exp_ret_score = if (port_construction_method %in% c("sw", "cs", "mvo", "mmaf") || (port_construction_method %in% c("rp", "hrp") && !is.null(exp_ret_score_tilt) && exp_ret_score_tilt != "none")) eligible_universe_m_d_ref %>% dplyr::pull(exp_ret_score) else NULL,
                             covariance_matrix = covariance_matrix,
-                            correlation_matrix = if (!is.null(covariance_matrix)) cov2cor(covariance_matrix) else NULL,
+                            correlation_matrix = if (!is.null(covariance_matrix)) stats::cov2cor(covariance_matrix) else NULL,
                             weights = eligible_universe_m_d_ref %>% dplyr::pull(weights),
                             rel_risk_contr = if (!is.null(covariance_matrix)) eligible_universe_m_d_ref %>% dplyr::pull(rel_risk_contr) else NULL,
-                            clusters = if (port_construction_method == "hrp") port_results_list$clusters else NULL,
+                            clusters = hc,
                             mvo_port_spec = if (port_construction_method == "mvo") port_results_list$port_spec else NULL,
                             random_port_weights = if (port_construction_method == "mvo" && opt_method == "random" && length(eligible_assets) > 1) port_results_list$random_portfolios_weights_df %>% dplyr::select(-exp_ret_score) else NULL,
-                           ind_max_weights = if (!is.null(concentration_constraint_policy$max_abs_active_individual_weight) && port_construction_method == "mvo" && length(eligible_assets) > 1) eligible_universe_m_d_ref %>% dplyr::pull(max_weight) else NULL,
-                           ind_min_weights = if (!is.null(concentration_constraint_policy$max_abs_active_individual_weight) && port_construction_method == "mvo" && length(eligible_assets) > 1) eligible_universe_m_d_ref %>% dplyr::pull(min_weight) else NULL,
-                           groups = if (!is.null(groups_m_d_ref)) groups_m_d_ref else NULL,
-                           mmaf_method = if (port_construction_method == "mmaf") mmaf_method else NULL,
-                           mmaf_group_col = if (port_construction_method == "mmaf") mmaf_group_col else NULL,
-                           group_cov_matrix = if (port_construction_method == "mmaf") port_results_list$group_cov_matrix else NULL,
-                           micro = if (port_construction_method == "mmaf") port_results_list$micro else NULL,
-                           macro = if (port_construction_method == "mmaf") port_results_list$macro else NULL,
-                           port_name = "not_identified"
+                            ind_max_weights = if (!is.null(concentration_constraint_policy$max_abs_active_individual_weight) && port_construction_method == "mvo" && length(eligible_assets) > 1) eligible_universe_m_d_ref %>% dplyr::pull(max_weight) else NULL,
+                            ind_min_weights = if (!is.null(concentration_constraint_policy$max_abs_active_individual_weight) && port_construction_method == "mvo" && length(eligible_assets) > 1) eligible_universe_m_d_ref %>% dplyr::pull(min_weight) else NULL,
+                            groups = if (!is.null(groups_m_d_ref)) groups_m_d_ref else NULL,
+                            group_col = group_col,
+                            mmaf_method = if (port_construction_method == "mmaf") mmaf_method else NULL,
+                            group_cov_matrix = group_cov_matrix,
+                            micro = if (port_construction_method == "mmaf") port_results_list$micro else NULL,
+                            macro = macro_port_obj,
+                            port_stats = port_stats,
+                            selected_benchmark_port = selected_benchmark_port_obj,
+                            port_name = "not_identified"
   )
 
   #Return portfolio results
