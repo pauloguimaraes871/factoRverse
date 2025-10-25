@@ -95,19 +95,14 @@ create_hrp_portfolio <- function(universe_m_d_ref, covariance_matrix, linkage = 
       ## Calculate correlation matrix between assets
       correlation_matrix <- stats::cov2cor(covariance_matrix)
 
-      ## Distance matrix D^G_ij = sqrt(0.5 * (1 - rho_ij))
-      dist_matrix <- sqrt(0.5 * (1 - correlation_matrix))
+      ## Compute hierarchical clusters
+      hier_results <- compute_hierarchical_clusters(
+        correlation_matrix = correlation_matrix,
+        linkage = linkage
+      )
+      hc <- hier_results$hc
+      dist_matrix <- hier_results$dist_matrix
 
-        ### Correct possible problems ( < 0 -> 0; > 1 -> 1)
-        dist_matrix[dist_matrix < 0] <- 0
-        dist_matrix[dist_matrix > 1] <- 1
-
-      ## Distance-of-distances (Euclidean distance between rows of dist_matrix
-      dist_of_dist_matrix <- stats::dist(dist_matrix, method = "euclidean",
-                                         diag = TRUE, upper = TRUE)
-
-      ## Quasi-Diagonalization via hierarchical clustering
-      hc <- stats::hclust(dist_of_dist_matrix, method = linkage)
         ### dendrogram leaf order (mirrors allowed;
         ### HRP is flip-invariant)
         eligible_tickers_order <- eligible_tickers[hc$order]
@@ -275,6 +270,27 @@ create_hrp_portfolio <- function(universe_m_d_ref, covariance_matrix, linkage = 
 }
 
 
+compute_hierarchical_clusters <- function(correlation_matrix, linkage){
+
+  ## Distance matrix D^G_ij = sqrt(0.5 * (1 - rho_ij))
+  dist_matrix <- sqrt(0.5 * (1 - correlation_matrix))
+
+  ### Correct possible problems ( < 0 -> 0; > 1 -> 1)
+  dist_matrix[dist_matrix < 0] <- 0
+  dist_matrix[dist_matrix > 1] <- 1
+
+  ## Distance-of-distances (Euclidean distance between rows of dist_matrix
+  dist_of_dist_matrix <- stats::dist(dist_matrix, method = "euclidean",
+                                     diag = TRUE, upper = TRUE)
+
+  ## Quasi-Diagonalization via hierarchical clustering
+  hc <- stats::hclust(dist_of_dist_matrix, method = linkage)
+
+  return(list(
+    hc = hc,
+    dist_matrix = dist_matrix
+  ))
+}
 
 
 
