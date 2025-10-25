@@ -7323,13 +7323,13 @@ setMethod(
 
       } else {
         if (is.null(cov_mat)) stop("covariance_matrix is required to compute RRC.")
-        cat("Do you want ACTIVE RRC vs a benchmark? (y/n): ")
+        cat("Do you want active RRC vs a benchmark? (y/n): ")
         active_rrc_choice <- base::tolower(readline())
         active_rrc <- active_rrc_choice %in% c("y", "yes")
 
         if (active_rrc) {
           if (is.null(universe_df) || !"tickers" %in% base::colnames(universe_df))
-            stop("To compute ACTIVE RRC you need 'universe_df' with a 'tickers' column.")
+            stop("To compute active RRC you need 'universe_df' with a 'tickers' column.")
           bench_w <- .get_bench_vector(universe_df, asset_names)
           rrc_tbl <- relative_risk_contribution(weights - bench_w, cov_mat)
           rrc_vec <- rrc_tbl$rel_risk_contr[match(asset_names, rrc_tbl$tickers)]
