@@ -20,6 +20,24 @@ estimate_covariance_matrix <- function(tickers, returns_m_xts_upd_ref,
                                        active_returns, selected_benchmark_m_xts_upd_ref,
                                        verbose = TRUE){
 
+  # If only one ticker is being provided, fallback to returning a variance
+  if(length(tickers) == 1){
+    if(verbose){
+      cat("\n")
+      cat(crayon::yellow("Only one ticker provided. Returning variance."))
+      cat("\n")
+    }
+    #Get returns for the ticker
+    returns_vector <- returns_m_xts_upd_ref[, tickers]
+    #Calculate variance
+    variance_value <- stats::var(returns_vector, na.rm = TRUE)
+    #Return as a 1x1 matrix
+    covariance_matrix <- matrix(variance_value, nrow = 1, ncol = 1)
+    colnames(covariance_matrix) <- tickers
+    rownames(covariance_matrix) <- tickers
+    return(covariance_matrix)
+  }
+
   #Checks
   if(!all(tickers %in% colnames(returns_m_xts_upd_ref))){
     stop("Tickers without correspondence in returns_m_xts_upd_ref")
