@@ -19,10 +19,10 @@
 #' @param cov_estimation_method An optional character string specifying the method for estimating the covariance matrix. Defaults to \code{NULL}.
 #' @param liquidity_constraint_policy An optional list specifying the policy for liquidity constraints. Defaults to \code{NULL}.
 #' @param turnover_constraint_policy An optional list specifying the policy for turnover constraints. Defaults to \code{NULL}.
-#' @param returns_m_xts_upd_ref An optional `xts` object containing return data for the eligible tickers, used in covariance matrix estimation for Risk-Parity and MVO methods.
+#' @param eligible_returns_m_xts_upd_ref An optional `xts` object containing return data for the eligible tickers, used in covariance matrix estimation for Risk-Parity and MVO methods.
 #' @param selected_benchmark_m_xts_upd_ref An optional `xts` object containing benchmark returns used to compute active returns (only if `active_returns = TRUE`).
 #' @param active_returns Logical. If `TRUE`, covariance estimation will use active returns (asset returns minus benchmark). Defaults to `FALSE` if `selected_benchmark_m_xts_upd_ref` is `NULL`, otherwise `TRUE`.
-#' @param cov_matrix_sample_size Integer. Number of time periods (rows in `returns_m_xts_upd_ref`) used to estimate the covariance matrix. If `NULL`, uses all available observations.
+#' @param cov_matrix_sample_size Integer. Number of time periods (rows in `eligible_returns_m_xts_upd_ref`) used to estimate the covariance matrix. If `NULL`, uses all available observations.
 #' @param concentration_constraint_policy Optional list specifying concentration constraints for MVO optimization. Typically includes `max_abs_active_individual_weight` or other individual/sector limits.
 #' @param ridge_pen Numeric. Ridge penalty for MVO optimization to improve numerical stability. Defaults to `NULL`.
 #' @param opt_method Character. Optimization method for MVO. Defaults to `"random"` and can include methods like `"grid"`, `"bayesian"`, or `"differential_evolution"`.
@@ -64,6 +64,7 @@
 #' @param lower_quantile_winsorization An optional numeric value for lower quantile winsorization when handling cap weighting and scaling. Defaults to \code{NULL}.
 #' @param upper_quantile_winsorization An optional numeric value for upper quantile winsorization when handling cap weighting and scaling. Defaults to \code{NULL}.
 #' @param selected_benchmark It controls whether a 'port' object for the benchmark should be created and added to portolio results.
+#' @param bench_assets_returns_m_xts_upd_ref Optional. A 'xts' object containing returns for all stocks. Needed for computing benchmark and port stats.
 #' @param level Character. Level of the portfolio object. Options are `"port"`, `"benchmark"`, or `"group"`. Defaults to `"port"`.
 #' Helps in assessing which type of portfolio is being created.
 #' @return A data frame or object (depending on the portfolio construction method) with the updated portfolio weights assigned based on the specified method and constraints.
@@ -73,8 +74,8 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
                                   liquidity_m_d_ref = NULL, cap_weighting_metric = NULL, #Cap-Weight and Cap-Scaled
                                   groups_m_d_ref = NULL, #Used for filling returns for covariance matrix estimation and/or setting group constraints
                                   covariance_matrix = NULL,
-                                  returns_m_xts_upd_ref = NULL, selected_benchmark_m_xts_upd_ref = NULL, active_returns = if(is.null(selected_benchmark_m_xts_upd_ref)) FALSE else TRUE,  #Returns to estimate cov matrix
-                                  cov_estimation_method = "sample", cov_matrix_sample_size = if(is.null(returns_m_xts_upd_ref)) NULL else nrow(returns_m_xts_upd_ref), #How to estimate covariance matrix?
+                                  eligible_returns_m_xts_upd_ref = NULL, selected_benchmark_m_xts_upd_ref = NULL, active_returns = if(is.null(selected_benchmark_m_xts_upd_ref)) FALSE else TRUE,  #Returns to estimate cov matrix
+                                  cov_estimation_method = "sample", cov_matrix_sample_size = if(is.null(eligible_returns_m_xts_upd_ref)) NULL else nrow(eligible_returns_m_xts_upd_ref), #How to estimate covariance matrix?
                                   liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL, concentration_constraint_policy = NULL, #Policies
                                   n_random_ports = 2000, random_ports_method = "sample", opt_objective = "sharpe", opt_method = "random", ridge_pen = NULL,
                                   n_resamples = 0, exp_ret_score_jitter = 0, cov_eigval_jitter = 0, #MVO
@@ -91,12 +92,17 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
                                   macro_rp_method = "cyclical-spinu", macro_exp_ret_score_tilt = NULL,  macro_exp_ret_score_tilt_eta = NULL,
                                   macro_linkage = "single",
                                   ## Benchmark Port Obj
-                                  selected_benchmark = NULL,
-                                  ##
+                                  selected_benchmark = NULL, bench_assets_returns_m_xts_upd_ref = NULL,
                                   level = "port",
-                                  lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975, parallel = FALSE
+                                  lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975, parallel = FALSE, verbose = TRUE
 
 ){
+
+  if (isTRUE(verbose) && level == "port"){
+    cat("\n")
+    cat(crayon::cyan("Computing portfolio..."))
+    tictoc::tic()
+  }
 
   ##Get eligible tickers
   if (port_construction_method == "custom_weights"){
@@ -116,12 +122,12 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
   ##Check if cov matrix is already provided
   if (is.null(covariance_matrix)){
     ###Check if there is returns data
-    if(!is.null(returns_m_xts_upd_ref)){
+    if(!is.null(eligible_returns_m_xts_upd_ref)){
 
       ####Run estimation function
       covariance_matrix <- estimate_covariance_matrix(
         tickers = eligible_tickers, #Eligible universe
-        returns_m_xts_upd_ref = returns_m_xts_upd_ref, #Return sample
+        returns_m_xts_upd_ref = eligible_returns_m_xts_upd_ref, #Return sample
         cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, #Cov estimation
         selected_benchmark_m_xts_upd_ref = selected_benchmark_m_xts_upd_ref, #Benchmark for calculating active returns
         groups_m_d_ref = groups_m_d_ref #Groups for correcting NAs
@@ -219,7 +225,7 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
       liquidity_constraint_policy = liquidity_constraint_policy, #Liquidity constraints
       turnover_constraint_policy = turnover_constraint_policy, #Turnover constraints
       concentration_constraint_policy = concentration_constraint_policy, #Concentration constraints
-      groups_m_d_ref = groups_m_d_ref, #Sectors for generate_sector_constraints
+      groups_m_d_ref = if (level == "sub_port") NULL else groups_m_d_ref, #Sectors for generate_sector_constraints
       n_random_ports = n_random_ports,  random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method, #MVO methods
       ridge_pen = ridge_pen, #Ridge penalty
       n_resamples = n_resamples, exp_ret_score_jitter = exp_ret_score_jitter, cov_eigval_jitter = cov_eigval_jitter #MVO
@@ -296,42 +302,58 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
   }
 
   ##Compute hierarchical clusters
-  if (!is.null(covariance_matrix)){
+  if (!is.null(covariance_matrix) && nrow(covariance_matrix) > 1){
     hc <- compute_hierarchical_clusters(correlation_matrix = stats::cov2cor(covariance_matrix), linkage = linkage)$hc
   } else {
-      hc <- NULL
+    hc <- NULL
   }
 
   ##For active portfolios, build bench port object
   if (!is.null(selected_benchmark) &&
       paste0(selected_benchmark,"_bench_weights") %in% colnames(universe_m_d_ref) &&
-      level == "port"){
+      level %in% c("port", "sub_port")){
 
     ### Create a custom_weights_m_d_ref
     bench_weights_m_d_ref <- universe_m_d_ref %>%
-      dplyr::select(id, tickers, dates, !!sym(paste0(selected_benchmark,"_bench_weights"))) %>%
-      dplyr::rename(weights = !!sym(paste0(selected_benchmark,"_bench_weights")))
+      dplyr::select(id, tickers, dates, !!rlang::sym(paste0(selected_benchmark,"_bench_weights"))) %>%
+      dplyr::rename(weights = !!rlang::sym(paste0(selected_benchmark,"_bench_weights")))
+
+      #### If level is sub_port, normalize weights to sum to 1 and do not pass groups_m_d_ref
+      if (level == "sub_port"){
+        bench_weights_m_d_ref <- bench_weights_m_d_ref %>%
+          dplyr::mutate(
+            weights = weights/sum(weights)
+          )
+      }
 
     ### Create simple bench_universe_m_d_ref
     bench_universe_m_d_ref <- universe_m_d_ref %>%
-      dplyr::select(-weights, -rel_risk_contr) %>%
+      dplyr::select(-dplyr::any_of(c("min_weight", "max_weight", "weights", "rel_risk_contr"))) %>%
       dplyr::left_join(bench_weights_m_d_ref %>% dplyr::select(id, weights),
                        by = "id") %>%
       dplyr::mutate(is_eligible = ifelse(weights > 0, 1, 0)) %>%
       dplyr::select(-weights)
 
     ### Create benchmark port object
+    if (isTRUE(verbose)){
+      cat("\n")
+      cat(crayon::blurred(paste0("Calculating ", selected_benchmark, " portfolio...\n")))
+    }
     selected_benchmark_port_obj <- set_portfolio_weights(
       universe_m_d_ref = bench_universe_m_d_ref, #Universe
       port_construction_method = "custom_weights",
       custom_weights_m_d_ref = bench_weights_m_d_ref,
-      returns_m_xts_upd_ref = returns_m_xts_upd_ref, #Return sample
+      eligible_returns_m_xts_upd_ref = bench_assets_returns_m_xts_upd_ref, #Return sample
       cov_matrix_sample_size = cov_matrix_sample_size, #Cov estimation
       cov_estimation_method = cov_estimation_method,
       groups_m_d_ref = groups_m_d_ref,
       selected_benchmark = NULL, #Avoid infinite recursion
-      level = "benchmark"
+      level = if (level == "sub_port") "sub_benchmark" else "benchmark"
     )
+    if (isTRUE(verbose)){
+      cat("\n")
+      cat(crayon::blurred("Finished benchmark portfolio.\n"))
+    }
 
     selected_benchmark_port_obj@port_name <- selected_benchmark
     bench_universe_m_d_ref <- selected_benchmark_port_obj@universe_m_d_ref@data
@@ -366,6 +388,10 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
           dplyr::select(id, tickers, dates, weights)
 
         ### Create benchmark port object
+        if (isTRUE(verbose)){
+          cat("\n")
+          cat(crayon::blurred("Calculating macro portfolio...\n"))
+        }
         macro_port_obj <- set_portfolio_weights(
           universe_m_d_ref = macro_objects_list$group_universe_m_d_ref %>%
             dplyr::select(-weights), #Universe
@@ -376,6 +402,10 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
           selected_benchmark = NULL, #Avoid infinite recursion
           level = "group"
         )
+        if (isTRUE(verbose)){
+          cat("\n")
+          cat(crayon::blurred("Finished macro portfolio.\n"))
+        }
 
         macro_port_obj@port_name <- group_col
         group_universe_m_d_ref <- macro_objects_list$group_universe_m_d_ref
@@ -388,24 +418,84 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
       group_cov_matrix <- NULL
     }
   } else {
+
       macro_port_obj <- port_results_list$macro
       group_col <- mmaf_group_col
+      group_universe_m_d_ref <- macro_port_obj@universe_m_d_ref@data
+      group_cov_matrix <- macro_port_obj@covariance_matrix
   }
 
   ##Calculate port stats
-  port_stats <- calculate_port_stats(
-    universe_m_d_ref = universe_m_d_ref,
-    group_universe_m_d_ref = group_universe_m_d_ref,
-    group_cov_matrix = group_cov_matrix,
-    selected_benchmark = selected_benchmark,
-    bench_universe_m_d_ref = bench_universe_m_d_ref,
-    returns_m_xts_upd_ref = returns_m_xts_upd_ref, #Return sample
-    selected_benchmark_m_xts_upd_ref = selected_benchmark_m_xts_upd_ref, #Benchmark for calculating active returns
-    cov_matrix_sample_size = cov_matrix_sample_size, #Cov estimation
-    cov_estimation_method = cov_estimation_method,
-    groups_m_d_ref = groups_m_d_ref
-  )
+    ### Call 'calculate_port_stats'
+    if (isTRUE(verbose)){
+      cat("\n")
+      cat("Calculating portfolio statistics...\n")
+    }
 
+    ### Resolver all_returns_m_xts_upd_ref
+    if (level %in% c("benchmark", "sub_benchmark")){
+      all_returns_m_xts_upd_ref <- eligible_returns_m_xts_upd_ref
+    }
+    if (level %in% c("port", "sub_port")) {
+      #### Grab all tickers from eligible and bench universes
+      if (is.null(bench_universe_m_d_ref)){
+        tickers_use <- eligible_universe_m_d_ref %>% dplyr::filter(is_eligible == 1L) %>% dplyr::pull(tickers)
+      } else {
+        tickers_use <- dplyr::union(
+          eligible_universe_m_d_ref %>% dplyr::filter(is_eligible == 1L) %>% dplyr::pull(tickers),
+          bench_universe_m_d_ref %>% dplyr::filter(is_eligible == 1L) %>% dplyr::pull(tickers)
+        )
+      }
+
+      #### Bind eligible and bench returns and subset with tickers_use
+      all_returns_m_xts_upd_ref <- cbind(eligible_returns_m_xts_upd_ref,
+                                         bench_assets_returns_m_xts_upd_ref)[, tickers_use]
+    }
+    if (level == "group"){
+      all_returns_m_xts_upd_ref <- NULL
+    }
+
+
+    stats_res <- calculate_port_stats(
+      universe_m_d_ref = universe_m_d_ref,
+      #### For level == "port", it is safer to recalculate cov matrix to assume
+      #### full coverage in case of benchmark. The same happens for level == "benchmark"
+      #### For level == "group", one can reuse covariance_matrix
+      covariance_matrix = if (level %in% c("group")) covariance_matrix else NULL,
+      #### For level == "groups", we should not pass group metrics
+      group_universe_m_d_ref = if (level %in% c("port", "benchmark")) group_universe_m_d_ref else NULL,
+      group_cov_matrix = if (level %in% c("port", "benchmark")) group_cov_matrix else NULL,
+      #### A benchmark is only to be provided for level port
+      selected_benchmark = if (level %in% c("port", "sub_port")) selected_benchmark else NULL,
+      bench_universe_m_d_ref = if (level %in% c("port", "sub_port")) bench_universe_m_d_ref else NULL,
+      #### Reestimate only for port level
+      all_returns_m_xts_upd_ref = if (level %in% c("port", "sub_port", "benchmark", "sub_benchmark")) all_returns_m_xts_upd_ref else NULL, #Return sample
+      cov_matrix_sample_size = if (level %in% c("port", "sub_port", "benchmark", "sub_benchmark")) cov_matrix_sample_size else NULL, #Cov estimation
+      cov_estimation_method = if (level %in% c("port", "sub_port", "benchmark", "sub_benchmark")) cov_estimation_method else NULL,
+      groups_m_d_ref = if (level %in% c("port", "sub_port", "benchmark", "sub_benchmark")) groups_m_d_ref else NULL
+    )
+
+  port_stats <- stats_res$port_stats
+
+    #### If level is 'port' and a benchmark is provided to port_stats, add act_weights and act_rel_risk_contr columns
+    if (level %in% c("port", "sub_port") && !is.null(selected_benchmark)){
+      universe_m_d_ref <- universe_m_d_ref %>%
+        dplyr::left_join(
+          stats_res$assets_stats %>%
+            dplyr::select(dplyr::any_of(c("tickers", "rel_risk_contr", "weights"))) %>%
+            ##### Rename weights and rel_risk_contr to active versions (if rel_risk_contr exists)
+            dplyr::rename_with(
+              .cols = dplyr::any_of(c("weights", "rel_risk_contr")),
+              .fn = ~ paste0("act_", .)
+            ),
+          by = "tickers"
+        )
+      ### Replace NAs with zero
+      universe_m_d_ref$act_weights[which(is.na(universe_m_d_ref$act_weights))] <- 0
+      if ("act_rel_risk_contr" %in% colnames(universe_m_d_ref)){
+        universe_m_d_ref$act_rel_risk_contr[which(is.na(universe_m_d_ref$act_rel_risk_contr))] <- 0
+      }
+    }
 
   ##Create the s4 obj
   eligible_assets <- eligible_universe_m_d_ref %>% dplyr::pull(tickers)
@@ -413,7 +503,9 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
                             universe_m_d_ref = suppressMessages(create_meta_dataframe(universe_m_d_ref %>% dplyr::arrange(id))), ##Re-order according to id
                             port_construction_method = port_construction_method,
                             eligible_assets = eligible_assets,
-                            exp_ret_score = if (port_construction_method %in% c("sw", "cs", "mvo", "mmaf") || (port_construction_method %in% c("rp", "hrp") && !is.null(exp_ret_score_tilt) && exp_ret_score_tilt != "none")) eligible_universe_m_d_ref %>% dplyr::pull(exp_ret_score) else NULL,
+                            exp_ret_score = if (port_construction_method %in% c("sw", "cs", "mvo", "mmaf") || (port_construction_method %in% c("rp", "hrp") && !is.null(exp_ret_score_tilt) && exp_ret_score_tilt != "none")){
+                              eligible_universe_m_d_ref %>% dplyr::pull(exp_ret_score)
+                            } else NULL,
                             covariance_matrix = covariance_matrix,
                             correlation_matrix = if (!is.null(covariance_matrix)) stats::cov2cor(covariance_matrix) else NULL,
                             weights = eligible_universe_m_d_ref %>% dplyr::pull(weights),
@@ -436,7 +528,11 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
 
   #Return portfolio results
   ###################
-
+  if (isTRUE(verbose) && level == "port"){
+    cat("\n")
+    cat(crayon::cyan("Finished portfolio.\n"))
+    tictoc::toc()
+  }
   return(port_obj)
 
 }
