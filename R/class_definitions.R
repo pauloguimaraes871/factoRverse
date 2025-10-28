@@ -3007,9 +3007,9 @@ setClass(
         stop("group_cov_matrix colnames must be ordered alphabetically")
       }
     }
-    if (is.null(object@group_cov_matrix) &&
+    if (!is.null(object@group_cov_matrix) &&
         !is.null(object@covariance_matrix) &&
-        !is.null(object@groups)){
+        is.null(object@groups)){
       stop("groups must be provided when group_cov_matrix is not NULL.")
     }
 
@@ -3127,7 +3127,7 @@ setClass(
     #Check for clusters
     if (!is.null(object@covariance_matrix)){
       # hclust type check if provided
-      if (!inherits(object@clusters, "hclust")) {
+      if (!is.null(object@clusters) && !inherits(object@clusters, "hclust")) {
         stop("clusters must be an 'hclust' object.")
       }
     }
@@ -3144,18 +3144,35 @@ setClass(
       if (object@selected_benchmark_port@port_construction_method != "custom_weights") {
         stop("selected_benchmark_port must have port_construction_method 'custom_weights'.")
       }
+
+      ## universe_m_d_ref should contain act_weights and act_rel_risk_contr columns
+      req_cols <- ifelse(!is.null(object@covariance_matrix), c("act_weights", "act_rel_risk_contr"), "act_weights")
+      if (!all(req_cols %in% names(object@universe_m_d_ref@data))) {
+        stop("When a benchmark is provided, active columns must exist in universe_m_d_ref.")
+      }
+
+      ## tickers between univers_m_d_ref from port and benchmark must match
+      if (!identical(object@universe_m_d_ref@data$tickers, object@selected_benchmark_port@universe_m_d_ref@data$tickers)) {
+        stop("Tickers in universe_m_d_ref must match those in selected_benchmark_port universe_m_d_ref.")
+      }
+
+      ## exp_ret_score must match between port and benchmark
+      if (!identical(object@universe_m_d_ref@data$exp_ret_score, object@selected_benchmark_port@universe_m_d_ref@data$exp_ret_score)) {
+        stop("exp_ret_score must match between port and selected_benchmark_port.")
+      }
+
     }
 
     #Port stats
       ## If covariance matrix is not NULL, port_stats must have rrc columns as not NA
       ## and as NA otherwise
       if (!is.null(object@covariance_matrix)){
-        rrc_cols <- setdiff(names(object@port_stats %>% dplyr::select(dplyr::contains("rrc"))), "group_hhi_rrc")
+        rrc_cols <- object@port_stats[, setdiff(names(object@port_stats %>% dplyr::select(dplyr::contains("rrc"))), "group_hhi_rrc")]
         if (any(sapply(rrc_cols, function(x) all(is.na(x))))){
           stop("When covariance_matrix is not NULL, port_stats must have relative risk contribution (rrc) columns as not NA.")
         }
       } else {
-        rrc_cols <- setdiff(names(object@port_stats %>% dplyr::select(dplyr::contains("rrc"))), "group_hhi_rrc")
+        rrc_cols <- object@port_stats[, setdiff(names(object@port_stats %>% dplyr::select(dplyr::contains("rrc"))), "group_hhi_rrc")]
         if (any(sapply(rrc_cols, function(x) !all(is.na(x))))){
           stop("When covariance_matrix is NULL, port_stats must have relative risk contribution (rrc) columns as NA.")
         }
