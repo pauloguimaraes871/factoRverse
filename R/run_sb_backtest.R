@@ -1893,30 +1893,53 @@ run_sb_backtest_internal <- function(
         }
 
         ####Select and correct signals and backtests
-        selected_signals_and_backtest_list <- select_and_correct_signals(
-          signals_m_df = features_m_df, #Extract eligible signals from features_m_df and then correct them (multiply short signal by -1)
-          chosen_signals_and_positions = elected_signals_and_positions, #Get instruction on what to change features
-          backtest_returns_m_xts = backtest_returns_m_xts #Backtest returns to be corrected
-        )
+          ##### Subset portfolio
+          selected_signals_and_backtest_list <- select_and_correct_signals(
+            signals_m_df = features_m_df, #Extract eligible signals from features_m_df and then correct them (multiply short signal by -1)
+            chosen_signals_and_positions = elected_signals_and_positions, #Get instruction on what to change features
+            backtest_returns_m_xts = backtest_returns_m_xts #Backtest returns to be corrected
+          )
+            ######Selected features_m_df with corrected positions
+            selected_features_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
+            ######Selected backtest_returns_corrected_positions_xts
+            selected_backtest_returns_corrected_positions_m_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_m_xts
+            ######Subset cov_matrix_benchmark
+            selected_cov_matrix_benchmark_m_xts <- benchmark_returns_m_xts[, cov_matrix_benchmark]
 
+            ###Check if both are contemplated in signal_themes
+            if(!is.null(signal_themes_m_df)){
+              if(any(!colnames(dplyr::select(selected_features_corrected_positions_m_df, -id, -tickers, -dates)) %in% unique(signal_themes_m_df %>% dplyr::pull(tickers)))){
+                stop("all selected signals (with corrected positions) should have a theme classification in signal_themes_m_df")
+              }
+              if(any(!colnames(selected_backtest_returns_corrected_positions_m_xts) %in% (signal_themes_m_df%>% dplyr::pull(tickers)))){
+                stop("all selected signals in backtests (with corrected positions) should have a theme classification in signal_themes_m_df")
+              }
+            }
+          ##### Benchmark
+          ##### When benchmark is theme_ss, we recreate chosen_signals_and_positions based on all factors and not only eligibles
+          ##### When benchmark is theme_sb, we restrict selection to eligibles
+          if (!is.null(concentration_constraint_policy$benchmark) && concentration_constraint_policy$benchmark == "theme_ss"){
 
-        ####Get results
-        ####Selected features_m_df with corrected positions
-        selected_features_corrected_positions_m_df <- selected_signals_and_backtest_list$selected_signals_corrected_positions_m_df
-        ####Selected backtest_returns_corrected_positions_xts
-        selected_backtest_returns_corrected_positions_m_xts <- selected_signals_and_backtest_list$selected_backtest_returns_corrected_positions_m_xts
-        ####Subset cov_matrix_benchmark
-        selected_cov_matrix_benchmark_m_xts <- benchmark_returns_m_xts[, cov_matrix_benchmark]
+            ##### Elect theme_ss as benchmark
+            selected_benchmark <- "theme_ss"
 
-        ###Check if both are contemplated in signal_themes
-        if(!is.null(signal_themes_m_df)){
-          if(any(!colnames(dplyr::select(selected_features_corrected_positions_m_df, -id, -tickers, -dates)) %in% unique(signal_themes_m_df %>% dplyr::pull(tickers)))){
-            stop("all selected signals (with corrected positions) should have a theme classification in signal_themes_m_df")
+            ##### Create bench_signals_and_positions
+            current_bench_signals <- most_recent_signal_universe_m_d_ref %>% dplyr::pull(tickers)
+            bench_signals_and_positions <- ifelse(stringr::str_detect(current_bench_signals, pattern = "low_"), "short", "long")
+            names(bench_signals_and_positions) <- stringr::str_remove_all(current_bench_signals, pattern = "low_")
+
+            bench_assets_backtest_returns_corrected_positions_m_xts <- select_and_correct_signals(
+              signals_m_df = features_m_df,
+              chosen_signals_and_positions = bench_signals_and_positions,
+              backtest_returns_m_xts = backtest_returns_m_xts
+            )$selected_backtest_returns_corrected_positions_m_xts
+
+          } else {
+            ##### Elect theme_sb as benchmark
+            selected_benchmark <- "theme_sb"
+
+            bench_assets_backtest_returns_corrected_positions_m_xts <- selected_backtest_returns_corrected_positions_m_xts
           }
-          if(any(!colnames(selected_backtest_returns_corrected_positions_m_xts) %in% (signal_themes_m_df%>% dplyr::pull(tickers)))){
-            stop("all selected signals in backtests (with corrected positions) should have a theme classification in signal_themes_m_df")
-          }
-        }
 
         ###Print message
         if(verbose){
@@ -1952,9 +1975,11 @@ run_sb_backtest_internal <- function(
 
         ###backtest and selected market factor proxy split (get up to date references)
         selected_backtest_returns_corrected_positions_m_xts_upd_ref <- selected_backtest_returns_corrected_positions_m_xts[which(zoo::index(selected_backtest_returns_corrected_positions_m_xts) <= current_date), ] #Get backtest returns until current date
+        bench_assets_backtest_returns_corrected_positions_m_xts_upd_ref <- bench_assets_backtest_returns_corrected_positions_m_xts[which(zoo::index(bench_assets_backtest_returns_corrected_positions_m_xts) <= current_date), ] #Get backtest returns until current date
         selected_cov_matrix_benchmark_m_xts_upd_ref <- selected_cov_matrix_benchmark_m_xts[which(zoo::index(selected_cov_matrix_benchmark_m_xts) <= current_date), ]
         signal_themes_m_d_ref <- if(!is.null(signal_themes_m_df)) signal_themes_m_df %>% dplyr::filter(dates == current_date) else NULL #Not only selected because we need to compute groups for benchmark
         target_port_m_d_ref <- if(!is.null(target_port_m_df)) target_port_m_df %>% dplyr::filter(dates == current_date) else NULL
+
 
         ##################
 
@@ -2078,6 +2103,7 @@ run_sb_backtest_internal <- function(
           most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref, most_recent_custom_signal_weights_m_d_ref = most_recent_custom_signal_weights_m_d_ref,
           selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref, selected_cov_matrix_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
           cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, groups_m_d_ref = signal_themes_m_d_ref,
+          bench_assets_backtest_returns_corrected_positions_m_xts_upd_ref = bench_assets_backtest_returns_corrected_positions_m_xts_upd_ref, selected_benchmark = selected_benchmark,
            ##RP/HRP
            rp_method = rp_method, exp_ret_score_tilt = exp_ret_score_tilt, exp_ret_score_tilt_eta = exp_ret_score_tilt_eta, linkage = linkage,
            ##MVO

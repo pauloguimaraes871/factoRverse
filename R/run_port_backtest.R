@@ -1704,6 +1704,11 @@ run_port_backtest_internal <- function(
 
         #####Subset Daily Stock Returns
         selected_daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts_upd_ref[, stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)]
+        if (!is.null(selected_benchmark) && !is.null(selected_benchmark_weights_m_d_ref)){
+          bench_assets_daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts_upd_ref[, selected_benchmark_weights_m_d_ref %>% dplyr::filter(!!rlang::sym(selected_benchmark) > 0) %>% dplyr::pull(tickers)]
+        } else {
+          bench_assets_daily_stock_returns_m_xts_upd_ref <- NULL
+        }
 
 
         ##############################
@@ -1754,7 +1759,7 @@ run_port_backtest_internal <- function(
           #Custom Weights
           custom_weights_m_d_ref = custom_stock_weights_m_d_ref,
           #Selected benchmark for benchmark port obj
-          selected_benchmark = selected_benchmark,
+          selected_benchmark = selected_benchmark, bench_assets_returns_m_xts_upd_ref = bench_assets_daily_stock_returns_m_xts_upd_ref,
           #Winsorization
           lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization, #Quantiles for winsorization
           parallel = parallel
