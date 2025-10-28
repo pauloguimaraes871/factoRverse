@@ -27,6 +27,8 @@
 #' @param cov_estimation_method A \code{character} specifying the method for covariance estimation (e.g., \code{"sample"}).
 #' @param active_returns A logical value indicating whether to use active returns (default: \code{TRUE}).
 #' @param groups_m_d_ref A meta-dataframe containing group information for the assets.
+#' @param bench_assets_backtest_returns_corrected_positions_m_xts_upd_ref A 'xts' object containg returns data for selected_benchmark. Only used in heuristics methods
+#' @param selected_benchmark A character vector indicating the selected benchmark tickers. Only used in heuristics methods
 #' @param rp_method A \code{character} specifying the method for Risk Parity optimization.
 #' @param exp_ret_score_tilt Character argument specififying whether tilt must be applied during of after risk-parity weights
 #' @param exp_ret_score_tilt_eta Numeric. The intensity of the tilt effect when using `exp_ret_score_tilt`. Higher values increase the tilt effect.
@@ -75,6 +77,7 @@ fit_sb_model <- function(sb_algorithm, #SB Algorithm
                          optimal_hyper = NULL, chosen_eval_metric_translated, #Validation Parameters
                          most_recent_signal_universe_m_d_ref, most_recent_custom_signal_weights_m_d_ref = NULL, selected_backtest_returns_corrected_positions_m_xts_upd_ref, #Signal Universe
                          cov_matrix_sample_size = 36, cov_estimation_method = "sample", active_returns = TRUE, selected_cov_matrix_benchmark_m_xts_upd_ref, groups_m_d_ref, #COV (for RP and MVO)
+                         bench_assets_backtest_returns_corrected_positions_m_xts_upd_ref = NULL, selected_benchmark = NULL,
                          rp_method = "cyclical-spinu", exp_ret_score_tilt = NULL, exp_ret_score_tilt_eta = NULL, linkage = "single", #RP/HRP
                          n_random_ports = 2000, random_ports_method = "sample", opt_objective = "sharpe", opt_method = "random", ridge_pen = NULL,
                          n_resamples = 0, exp_ret_score_jitter = 0, cov_eigval_jitter = 0, target_port_m_d_ref = NULL,#MVO Methods
@@ -219,20 +222,47 @@ fit_sb_model <- function(sb_algorithm, #SB Algorithm
                      ##Custom Weights
                      custom_weights = set_portfolio_weights(port_construction_method = "custom_weights",
                                                             universe_m_d_ref = most_recent_signal_universe_m_d_ref,
-                                                            custom_weights_m_d_ref = most_recent_custom_signal_weights_m_d_ref),
+                                                            custom_weights_m_d_ref = most_recent_custom_signal_weights_m_d_ref,
+                                                            eligible_returns_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+                                                            selected_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
+                                                            cov_matrix_sample_size = cov_matrix_sample_size,
+                                                            cov_estimation_method = cov_estimation_method,
+                                                            active_returns = active_returns,
+                                                            groups_m_d_ref = groups_m_d_ref,
+                                                            bench_assets_returns_m_xts_upd_ref = bench_assets_backtest_returns_corrected_positions_m_xts_upd_ref,
+                                                            selected_benchmark = selected_benchmark
+                                                            ),
 
                      ##Equal-Weighted Signals
                      ew = set_portfolio_weights(port_construction_method = "ew",
-                                                universe_m_d_ref = most_recent_signal_universe_m_d_ref), #Universe of signals
+                                                universe_m_d_ref = most_recent_signal_universe_m_d_ref,
+                                                eligible_returns_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+                                                selected_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
+                                                cov_matrix_sample_size = cov_matrix_sample_size,
+                                                cov_estimation_method = cov_estimation_method,
+                                                active_returns = active_returns,
+                                                groups_m_d_ref = groups_m_d_ref,
+                                                bench_assets_returns_m_xts_upd_ref = bench_assets_backtest_returns_corrected_positions_m_xts_upd_ref,
+                                                selected_benchmark = selected_benchmark
+                                                ),
 
                      ##Signal-Weighted Signals
                      sw = set_portfolio_weights(port_construction_method = "sw",
-                                                universe_m_d_ref = most_recent_signal_universe_m_d_ref), #Universe of signals
+                                                universe_m_d_ref = most_recent_signal_universe_m_d_ref,
+                                                eligible_returns_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+                                                selected_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
+                                                cov_matrix_sample_size = cov_matrix_sample_size,
+                                                cov_estimation_method = cov_estimation_method,
+                                                active_returns = active_returns,
+                                                groups_m_d_ref = groups_m_d_ref,
+                                                bench_assets_returns_m_xts_upd_ref = bench_assets_backtest_returns_corrected_positions_m_xts_upd_ref,
+                                                selected_benchmark = selected_benchmark
+                                                ),
 
                      ##Risk-Parity
                      rp = set_portfolio_weights(port_construction_method = "rp",
                                                 universe_m_d_ref = most_recent_signal_universe_m_d_ref,
-                                                returns_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+                                                eligible_returns_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
                                                 selected_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
                                                 cov_matrix_sample_size = cov_matrix_sample_size,
                                                 cov_estimation_method = cov_estimation_method,
@@ -241,12 +271,14 @@ fit_sb_model <- function(sb_algorithm, #SB Algorithm
                                                 active_returns = active_returns,
                                                 groups_m_d_ref = groups_m_d_ref,
                                                 rp_method = rp_method,
-                                                concentration_constraint_policy = concentration_constraint_policy
+                                                concentration_constraint_policy = concentration_constraint_policy,
+                                                bench_assets_returns_m_xts_upd_ref = bench_assets_backtest_returns_corrected_positions_m_xts_upd_ref,
+                                                selected_benchmark = selected_benchmark
                      ),
                      ## Hierarchical Risk Parity
                      hrp = set_portfolio_weights(port_construction_method = "hrp",
                                                  universe_m_d_ref = most_recent_signal_universe_m_d_ref,
-                                                 returns_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+                                                 eligible_returns_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
                                                  selected_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
                                                  cov_matrix_sample_size = cov_matrix_sample_size,
                                                  cov_estimation_method = cov_estimation_method,
@@ -254,12 +286,14 @@ fit_sb_model <- function(sb_algorithm, #SB Algorithm
                                                  exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
                                                  active_returns = active_returns,
                                                  groups_m_d_ref = groups_m_d_ref,
-                                                 linkage = linkage
+                                                 linkage = linkage,
+                                                 bench_assets_returns_m_xts_upd_ref = bench_assets_backtest_returns_corrected_positions_m_xts_upd_ref,
+                                                 selected_benchmark = selected_benchmark
                      ),
                      ##MVO
                      mvo = set_portfolio_weights(port_construction_method = "mvo",
                                                  universe_m_d_ref = most_recent_signal_universe_m_d_ref,
-                                                 returns_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+                                                 eligible_returns_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
                                                  selected_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
                                                  cov_matrix_sample_size = cov_matrix_sample_size,
                                                  cov_estimation_method = cov_estimation_method,
@@ -273,12 +307,14 @@ fit_sb_model <- function(sb_algorithm, #SB Algorithm
                                                  n_resamples = n_resamples,
                                                  exp_ret_score_jitter = exp_ret_score_jitter,
                                                  cov_eigval_jitter = cov_eigval_jitter,
-                                                 concentration_constraint_policy = concentration_constraint_policy
+                                                 concentration_constraint_policy = concentration_constraint_policy,
+                                                 bench_assets_returns_m_xts_upd_ref = bench_assets_backtest_returns_corrected_positions_m_xts_upd_ref,
+                                                 selected_benchmark = selected_benchmark
                      ),
                      ##MMAF
                      mmaf = set_portfolio_weights(port_construction_method = "mmaf",
                                                   universe_m_d_ref = most_recent_signal_universe_m_d_ref,
-                                                  returns_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+                                                  eligible_returns_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
                                                   selected_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
                                                   cov_matrix_sample_size = cov_matrix_sample_size,
                                                   cov_estimation_method = cov_estimation_method,
@@ -317,7 +353,9 @@ fit_sb_model <- function(sb_algorithm, #SB Algorithm
                                                   macro_rp_method = macro_rp_method,
                                                   macro_exp_ret_score_tilt = macro_exp_ret_score_tilt,
                                                   macro_exp_ret_score_tilt_eta = macro_exp_ret_score_tilt_eta,
-                                                  macro_linkage = macro_linkage
+                                                  macro_linkage = macro_linkage,
+                                                  bench_assets_returns_m_xts_upd_ref = bench_assets_backtest_returns_corrected_positions_m_xts_upd_ref,
+                                                  selected_benchmark = selected_benchmark
                      )
 
   )
@@ -347,6 +385,7 @@ fit_sb_model <- function(sb_algorithm, #SB Algorithm
       group_cov_matrix = sb_model@group_cov_matrix,
       micro = sb_model@micro,
       macro = sb_model@macro,
+      port_stats = sb_model@port_stats,
       port_name = sb_model@port_name,
       heuristic_sb_metric = if (needs_exp_ret_score) custom_objective_translated else NULL
     )
