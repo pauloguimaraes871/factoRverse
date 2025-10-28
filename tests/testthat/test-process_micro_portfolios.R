@@ -50,30 +50,26 @@ test_that("set top down micro weights works without group weights for simple RP 
   )
 
   # Create covariance matrix
-  daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),]
-  eligible_tickers <- stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
-
-  covariance_matrix <- estimate_covariance_matrix(tickers = eligible_tickers,
-                                                  returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
-                                                  cov_matrix_sample_size = 60, cov_estimation_method = "cc",
-                                                  active_returns = FALSE,
-                                                  groups_m_d_ref = stock_groups_m_d_ref
-  )
+    ## Get eligible stock universe
+    eligible_universe_m_d_ref <- stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1)
+    eligible_tickers <- stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+    selected_daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[
+      which(zoo::index(daily_stock_returns_m_xts) <= current_date), eligible_tickers]
+    bench_assets_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[
+      which(zoo::index(daily_stock_returns_m_xts) <= current_date),
+      benchmark_weights_m_d_ref %>% dplyr::filter(ibov > 0) %>% dplyr::pull(tickers)
+      ]
 
   #Set top down micro weights
 
-    ## Get eligible stock universe
-    eligible_universe_m_d_ref <- stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1)
-
     ## Get groups
-    groups <- eligible_universe_m_d_ref$macro_sector %>% unique()
+    groups <- stock_universe_m_d_ref$macro_sector %>% unique()
     group_members <- lapply(groups, function(g) {
-      eligible_universe_m_d_ref %>%
+      stock_universe_m_d_ref %>%
         dplyr::filter(macro_sector == g) %>%
         dplyr::pull(tickers)
     })
     names(group_members) <- groups
-
 
 
     ## For each group
@@ -83,18 +79,19 @@ test_that("set top down micro weights works without group weights for simple RP 
       group <- groups[g]
 
       ## Get members
-      group_tickers <- eligible_universe_m_d_ref %>%
+      group_tickers <- stock_universe_m_d_ref %>%
         dplyr::filter(macro_sector == group) %>%
         dplyr::pull(tickers)
-      sub_universe_m_d_ref <- eligible_universe_m_d_ref %>%
+      sub_universe_m_d_ref <- stock_universe_m_d_ref %>%
         dplyr::filter(tickers %in% group_tickers)
-
-      ## Get covariance matrix
-      sub_cov_matrix <- covariance_matrix[group_tickers, group_tickers, drop = FALSE]
 
       ## Get liquidity m_df
       sub_liquidity_m_d_ref <- liquidity_m_d_ref %>%
         dplyr::filter(tickers %in% group_tickers)
+
+      sub_selected_daily_stock_returns_m_xts_upd_ref <- selected_daily_stock_returns_m_xts_upd_ref[
+        ,sub_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+      ]
 
       ## Defensively remove weight cols
       sub_universe_m_d_ref$ibov_bench_weights <- NULL
@@ -106,10 +103,14 @@ test_that("set top down micro weights works without group weights for simple RP 
         port_construction_method = "rp",
         liquidity_constraint_policy = NULL,
         liquidity_m_d_ref = sub_liquidity_m_d_ref,
+        eligible_returns_m_xts_upd_ref = sub_selected_daily_stock_returns_m_xts_upd_ref,
+        cov_matrix_sample_size = 60,
+        cov_estimation_method = "cc",
+        active_returns = FALSE,
         concentration_constraint_policy = NULL,
         turnover_constraint_policy = NULL,
-        groups_m_d_ref = NULL,
-        covariance_matrix = sub_cov_matrix
+        groups_m_d_ref = stock_groups_m_d_ref,
+        level = "sub_port"
       )
 
     }
@@ -124,8 +125,12 @@ test_that("set top down micro weights works without group weights for simple RP 
       group_members = group_members,
       group_weights = NULL,
       micro_port_construction_method = "rp",
-      universe_m_d_ref = eligible_universe_m_d_ref,
-      covariance_matrix = covariance_matrix,
+      universe_m_d_ref = stock_universe_m_d_ref,
+      eligible_returns_m_xts_upd_ref = selected_daily_stock_returns_m_xts_upd_ref,
+      cov_matrix_sample_size = 60,
+      cov_estimation_method = "cc",
+      active_returns = FALSE,
+      groups_m_d_ref = stock_groups_m_d_ref,
       liquidity_m_d_ref = liquidity_m_d_ref
     )
 
@@ -146,10 +151,34 @@ test_that("set top down micro weights works without group weights for simple RP 
       all(results[[g]]@universe_m_d_ref@data$tickers %in% group_members[[g]])
     })))
 
-    # Test that tickers in each micro portfolio are part of the eligible universe
+    # Test that tickers in each micro portfolio obey eligibility
     testthat::expect_true(all(sapply(names(results), function(g) {
-      all(results[[g]]@universe_m_d_ref@data$tickers %in% eligible_universe_m_d_ref$tickers)
+      all(
+        all(results[[g]]@universe_m_d_ref@data %>% dplyr::filter(is_eligible == 0) %>% dplyr::pull(weights) == 0)
+        )
     })))
+
+    # Test that port stats follow expected structure
+    testthat::expect_true(
+      all(
+        purrr::map_lgl(
+          names(results), function(g){
+            results[[g]]@port_stats %>% dplyr::select(dplyr::contains("act_")) %>% ncol() == 0
+          }
+        )
+      )
+    )
+    testthat::expect_equal(
+      results$`Doméstico Cíclico`@port_stats,
+      calculate_port_stats(
+        universe_m_d_ref = results$`Doméstico Cíclico`@universe_m_d_ref@data,
+        all_returns_m_xts_upd_ref = sub_selected_daily_stock_returns_m_xts_upd_ref,
+        cov_matrix_sample_size = 60,
+        cov_estimation_method = "cc",
+        groups_m_d_ref = stock_groups_m_d_ref
+      )$port_stats
+    )
+
 
     # Test that results and expected results match
     testthat::expect_equal(results, expected_results)
@@ -210,14 +239,12 @@ test_that("set top down micro weights works without group weights for simple HRP
 
   # Create covariance matrix
   daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),]
+  selected_daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[
+    which(zoo::index(daily_stock_returns_m_xts) <= current_date),
+    stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+    ]
   eligible_tickers <- stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
 
-  covariance_matrix <- estimate_covariance_matrix(tickers = eligible_tickers,
-                                                  returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
-                                                  cov_matrix_sample_size = 60, cov_estimation_method = "cc",
-                                                  active_returns = FALSE,
-                                                  groups_m_d_ref = stock_groups_m_d_ref
-  )
 
   #Set top down micro weights
 
@@ -225,14 +252,13 @@ test_that("set top down micro weights works without group weights for simple HRP
   eligible_universe_m_d_ref <- stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1)
 
   ## Get groups
-  groups <- eligible_universe_m_d_ref$macro_sector %>% unique()
+  groups <- stock_universe_m_d_ref$macro_sector %>% unique()
   group_members <- lapply(groups, function(g) {
-    eligible_universe_m_d_ref %>%
+    stock_universe_m_d_ref %>%
       dplyr::filter(macro_sector == g) %>%
       dplyr::pull(tickers)
   })
   names(group_members) <- groups
-
 
 
   ## For each group
@@ -242,14 +268,11 @@ test_that("set top down micro weights works without group weights for simple HRP
     group <- groups[g]
 
     ## Get members
-    group_tickers <- eligible_universe_m_d_ref %>%
+    group_tickers <- stock_universe_m_d_ref %>%
       dplyr::filter(macro_sector == group) %>%
       dplyr::pull(tickers)
-    sub_universe_m_d_ref <- eligible_universe_m_d_ref %>%
+    sub_universe_m_d_ref <- stock_universe_m_d_ref %>%
       dplyr::filter(tickers %in% group_tickers)
-
-    ## Get covariance matrix
-    sub_cov_matrix <- covariance_matrix[group_tickers, group_tickers, drop = FALSE]
 
     ## Get liquidity m_df
     sub_liquidity_m_d_ref <- liquidity_m_d_ref %>%
@@ -268,8 +291,14 @@ test_that("set top down micro weights works without group weights for simple HRP
       liquidity_m_d_ref = sub_liquidity_m_d_ref,
       concentration_constraint_policy = NULL,
       turnover_constraint_policy = NULL,
-      groups_m_d_ref = NULL,
-      covariance_matrix = sub_cov_matrix
+      eligible_returns_m_xts_upd_ref = selected_daily_stock_returns_m_xts_upd_ref[
+        ,sub_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+      ],
+      cov_matrix_sample_size = 60,
+      cov_estimation_method = "cc",
+      active_returns = FALSE,
+      groups_m_d_ref = stock_groups_m_d_ref,
+      level = "sub_port"
     )
 
   }
@@ -285,8 +314,12 @@ test_that("set top down micro weights works without group weights for simple HRP
     group_weights = NULL,
     micro_port_construction_method = "hrp",
     linkage = "single",
-    universe_m_d_ref = eligible_universe_m_d_ref,
-    covariance_matrix = covariance_matrix,
+    universe_m_d_ref = stock_universe_m_d_ref,
+    eligible_returns_m_xts_upd_ref = selected_daily_stock_returns_m_xts_upd_ref,
+    cov_matrix_sample_size = 60,
+    cov_estimation_method = "cc",
+    active_returns = FALSE,
+    groups_m_d_ref = stock_groups_m_d_ref,
     liquidity_m_d_ref = liquidity_m_d_ref
   )
 
@@ -307,10 +340,45 @@ test_that("set top down micro weights works without group weights for simple HRP
     all(results[[g]]@universe_m_d_ref@data$tickers %in% group_members[[g]])
   })))
 
-  # Test that tickers in each micro portfolio are part of the eligible universe
+  # Test that both ineligible and eligible tickers exist, but only eligible have weights
   testthat::expect_true(all(sapply(names(results), function(g) {
-    all(results[[g]]@universe_m_d_ref@data$tickers %in% eligible_universe_m_d_ref$tickers)
+    all(results[[g]]@universe_m_d_ref@data %>% dplyr::filter(is_eligible == 0) %>% dplyr::pull(weights) == 0)
   })))
+  testthat::expect_true(all(sapply(names(results), function(g) {
+    all(results[[g]]@universe_m_d_ref@data %>% dplyr::pull(is_eligible) %>% unique() %in% c(0,1))
+  })))
+
+  # Test that port stats follow expected structure
+  testthat::expect_true(
+    all(
+      purrr::map_lgl(
+        names(results), function(g){
+          results[[g]]@port_stats %>% dplyr::select(dplyr::contains("act_")) %>% ncol() == 0
+        }
+      )
+    )
+  )
+  testthat::expect_true(
+    all(
+      purrr::map_lgl(
+        names(results), function(g){
+          results[[g]]@port_stats %>% dplyr::select(dplyr::contains("group_")) %>% ncol() == 0
+        }
+      )
+    )
+  )
+  testthat::expect_equal(
+    results$`Doméstico Cíclico`@port_stats,
+    calculate_port_stats(
+      universe_m_d_ref = results$`Doméstico Cíclico`@universe_m_d_ref@data,
+      all_returns_m_xts_upd_ref =  selected_daily_stock_returns_m_xts_upd_ref[
+        ,sub_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+      ],
+      cov_matrix_sample_size = 60,
+      cov_estimation_method = "cc",
+      groups_m_d_ref = stock_groups_m_d_ref
+    )$port_stats
+  )
 
   # Test that results and expected results match
   testthat::expect_equal(results, expected_results)
@@ -371,14 +439,11 @@ test_that("set top down micro weights works without group weights for simple CS 
 
   # Create covariance matrix
   daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),]
+  selected_daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[
+    which(zoo::index(daily_stock_returns_m_xts) <= current_date),
+    stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+    ]
   eligible_tickers <- stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
-
-  covariance_matrix <- estimate_covariance_matrix(tickers = eligible_tickers,
-                                                  returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
-                                                  cov_matrix_sample_size = 60, cov_estimation_method = "cc",
-                                                  active_returns = FALSE,
-                                                  groups_m_d_ref = stock_groups_m_d_ref
-  )
 
   #Set top down micro weights
 
@@ -388,7 +453,7 @@ test_that("set top down micro weights works without group weights for simple CS 
   ## Get groups
   groups <- eligible_universe_m_d_ref$macro_sector %>% unique()
   group_members <- lapply(groups, function(g) {
-    eligible_universe_m_d_ref %>%
+    stock_universe_m_d_ref %>%
       dplyr::filter(macro_sector == g) %>%
       dplyr::pull(tickers)
   })
@@ -401,14 +466,12 @@ test_that("set top down micro weights works without group weights for simple CS 
     group <- groups[g]
 
     ## Get members
-    group_tickers <- eligible_universe_m_d_ref %>%
+    group_tickers <- stock_universe_m_d_ref %>%
       dplyr::filter(macro_sector == group) %>%
       dplyr::pull(tickers)
-    sub_universe_m_d_ref <- eligible_universe_m_d_ref %>%
+    sub_universe_m_d_ref <- stock_universe_m_d_ref %>%
       dplyr::filter(tickers %in% group_tickers)
 
-    ## Get covariance matrix
-    sub_cov_matrix <- covariance_matrix[group_tickers, group_tickers, drop = FALSE]
 
     ## Get liquidity m_df
     sub_liquidity_m_d_ref <- liquidity_m_d_ref %>%
@@ -426,8 +489,14 @@ test_that("set top down micro weights works without group weights for simple CS 
       liquidity_m_d_ref = sub_liquidity_m_d_ref,
       concentration_constraint_policy = NULL,
       turnover_constraint_policy = NULL,
-      groups_m_d_ref = NULL,
-      covariance_matrix = sub_cov_matrix,
+      eligible_returns_m_xts_upd_ref = selected_daily_stock_returns_m_xts_upd_ref[
+        ,sub_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+      ],
+      cov_matrix_sample_size = 60,
+      cov_estimation_method = "cc",
+      active_returns = FALSE,
+      groups_m_d_ref = stock_groups_m_d_ref,
+      level = "sub_port",
       cap_weighting_metric = "mean_volfin_3m"
     )
 
@@ -444,8 +513,12 @@ test_that("set top down micro weights works without group weights for simple CS 
     group_weights = NULL,
     micro_port_construction_method = "cs",
     cap_weighting_metric = "mean_volfin_3m",
-    universe_m_d_ref = eligible_universe_m_d_ref,
-    covariance_matrix = covariance_matrix,
+    universe_m_d_ref = stock_universe_m_d_ref,
+    eligible_returns_m_xts_upd_ref = selected_daily_stock_returns_m_xts_upd_ref,
+    cov_matrix_sample_size = 60,
+    cov_estimation_method = "cc",
+    active_returns = FALSE,
+    groups_m_d_ref = stock_groups_m_d_ref,
     liquidity_m_d_ref = liquidity_m_d_ref
   )
 
@@ -466,13 +539,49 @@ test_that("set top down micro weights works without group weights for simple CS 
     all(results[[g]]@universe_m_d_ref@data$tickers %in% group_members[[g]])
   })))
 
-  # Test that tickers in each micro portfolio are part of the eligible universe
+  # Test that both ineligible and eligible tickers exist, but only eligible have weights
   testthat::expect_true(all(sapply(names(results), function(g) {
-    all(results[[g]]@universe_m_d_ref@data$tickers %in% eligible_universe_m_d_ref$tickers)
+    all(results[[g]]@universe_m_d_ref@data %>% dplyr::filter(is_eligible == 0) %>% dplyr::pull(weights) == 0)
   })))
+  testthat::expect_true(all(sapply(names(results), function(g) {
+    all(results[[g]]@universe_m_d_ref@data %>% dplyr::pull(is_eligible) %>% unique() %in% c(0,1))
+  })))
+
+  # Test that port stats follow expected structure
+  testthat::expect_true(
+    all(
+      purrr::map_lgl(
+        names(results), function(g){
+          results[[g]]@port_stats %>% dplyr::select(dplyr::contains("act_")) %>% ncol() == 0
+        }
+      )
+    )
+  )
+  testthat::expect_true(
+    all(
+      purrr::map_lgl(
+        names(results), function(g){
+          results[[g]]@port_stats %>% dplyr::select(dplyr::contains("group_")) %>% ncol() == 0
+        }
+      )
+    )
+  )
+  testthat::expect_equal(
+    results$`Indústria`@port_stats,
+    calculate_port_stats(
+      universe_m_d_ref = results$`Indústria`@universe_m_d_ref@data,
+      all_returns_m_xts_upd_ref =  selected_daily_stock_returns_m_xts_upd_ref[
+        ,sub_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+      ],
+      cov_matrix_sample_size = 60,
+      cov_estimation_method = "cc",
+      groups_m_d_ref = stock_groups_m_d_ref
+    )$port_stats
+  )
 
   # Test that results and expected results match
   testthat::expect_equal(results, expected_results)
+
 
 
 })
@@ -533,25 +642,24 @@ test_that("set top down micro weights work with group weights for a MVO + constr
   )
 
   # Create covariance matrix
-  daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),]
   elig_tickers <- stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
 
-  covariance_matrix <- estimate_covariance_matrix(tickers = elig_tickers,
-                                                  returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
-                                                  cov_matrix_sample_size = 60, cov_estimation_method = "cc",
-                                                  active_returns = FALSE,
-                                                  groups_m_d_ref = stock_groups_m_d_ref
-  )
+  daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),]
+  selected_daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[
+    which(zoo::index(daily_stock_returns_m_xts) <= current_date),
+    stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+    ]
+  bench_assets_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[
+    which(zoo::index(daily_stock_returns_m_xts) <= current_date),
+    benchmark_weights_m_d_ref %>% dplyr::filter(ibov > 0) %>% dplyr::pull(tickers)
+    ]
 
   #Set top down micro weights
 
-  ## Get eligible stock universe
-  elig_universe_m_d_ref <- stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1)
-
   ## Get groups
-  groups <- elig_universe_m_d_ref$macro_sector %>% unique()
+  groups <- stock_universe_m_d_ref$macro_sector %>% unique()
   group_members <- lapply(groups, function(g) {
-    elig_universe_m_d_ref %>%
+    stock_universe_m_d_ref %>%
       dplyr::filter(macro_sector == g) %>%
       dplyr::pull(tickers)
   })
@@ -561,7 +669,6 @@ test_that("set top down micro weights work with group weights for a MVO + constr
   group_weights <- c(0.5, 0.2, 0.2, 0.1)
   names(group_weights) <- groups
 
-
   ## For each group
   micro_port_list <- list()
   set.seed(123)
@@ -570,14 +677,11 @@ test_that("set top down micro weights work with group weights for a MVO + constr
     group <- groups[g]
 
     ## Get members
-    group_tickers <- elig_universe_m_d_ref %>%
+    group_tickers <- stock_universe_m_d_ref %>%
       dplyr::filter(macro_sector == group) %>%
       dplyr::pull(tickers)
-    sub_univ_m_d_ref <- elig_universe_m_d_ref %>%
+    sub_univ_m_d_ref <- stock_universe_m_d_ref %>%
       dplyr::filter(tickers %in% group_tickers)
-
-    ## Get covariance matrix
-    sub_cov_matrix <- covariance_matrix[group_tickers, group_tickers, drop = FALSE]
 
     ## Get liquidity m_df
     sub_liquidity_m_d_ref <- liquidity_m_d_ref %>%
@@ -615,9 +719,17 @@ test_that("set top down micro weights work with group weights for a MVO + constr
       liquidity_m_d_ref = sub_liquidity_m_d_ref,
       concentration_constraint_policy = sub_concentration_constraint_pol,
       turnover_constraint_policy = NULL,
-      groups_m_d_ref = NULL,
-      covariance_matrix = sub_cov_matrix,
+      groups_m_d_ref = stock_groups_m_d_ref,
       cap_weighting_metric = "mean_volfin_3m",
+      eligible_returns_m_xts_upd_ref = selected_daily_stock_returns_m_xts_upd_ref[
+        ,sub_univ_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+      ],
+      bench_assets_returns_m_xts_upd_ref = bench_assets_returns_m_xts_upd_ref,
+      selected_benchmark = "ibov",
+      cov_matrix_sample_size = 60,
+      cov_estimation_method = "cc",
+      active_returns = FALSE,
+      level = "sub_port",
       ridge_pen = 0.5,
       n_resamples = 3,
       exp_ret_score_jitter = 0.2,
@@ -635,6 +747,8 @@ test_that("set top down micro weights work with group weights for a MVO + constr
   set.seed(123)
   testthat::expect_warning(
   testthat::expect_warning(
+  testthat::expect_warning(
+  testthat::expect_warning(
   results <- process_micro_portfolios(
     parallel = FALSE,
     groups = groups,
@@ -642,8 +756,14 @@ test_that("set top down micro weights work with group weights for a MVO + constr
     group_weights = group_weights,
     micro_port_construction_method = "mvo",
     cap_weighting_metric = "mean_volfin_3m",
-    universe_m_d_ref = elig_universe_m_d_ref,
-    covariance_matrix = covariance_matrix,
+    universe_m_d_ref = stock_universe_m_d_ref,
+    eligible_returns_m_xts_upd_ref = selected_daily_stock_returns_m_xts_upd_ref,
+    bench_assets_returns_m_xts_upd_ref = bench_assets_returns_m_xts_upd_ref,
+    selected_benchmark = "ibov",
+    cov_matrix_sample_size = 60,
+    cov_estimation_method = "cc",
+    active_returns = FALSE,
+    groups_m_d_ref = stock_groups_m_d_ref,
     liquidity_m_d_ref = liquidity_m_d_ref,
     concentration_constraint_policy = concentration_constraint_policy,
     liquidity_constraint_policy = liquidity_constraint_policy,
@@ -657,17 +777,20 @@ test_that("set top down micro weights work with group weights for a MVO + constr
   "For concentration constraint: after scaling, ibov_bench_weights in group Exportador sums to more than 1. Normalizing to sum to 1.This might indicate that overall constraints do not hold because of this group."
   ),
  "For target weights: after scaling, target_weights in group Exportador sums to more than 1. Normalizing to sum to 1.This might indicate that overall constraints do not hold because of this group."
+  ),
+ "For concentration constraint: after scaling, ibov_bench_weights in group Doméstico Cíclico sums to more than 1. Normalizing to sum to 1.This might indicate that overall constraints do not hold because of this group."
+  ),
+ "For target weights: after scaling, target_weights in group Doméstico Cíclico sums to more than 1. Normalizing to sum to 1.This might indicate that overall constraints do not hold because of this group."
   )
-
 
   ## Test that constraints are satisfied at the final portfolio-level
   for (group in groups){
     group_port <- results[[group]]@universe_m_d_ref@data
     ## Concentration constraints
-    max_weights <- elig_universe_m_d_ref %>%
+    max_weights <- stock_universe_m_d_ref %>%
       dplyr::filter(tickers %in% group_port$tickers) %>%
       dplyr::pull(ibov_bench_weights) + concentration_constraint_policy$max_abs_active_individual_weight
-    min_weights <- pmax(elig_universe_m_d_ref %>%
+    min_weights <- pmax(stock_universe_m_d_ref %>%
       dplyr::filter(tickers %in% group_port$tickers) %>%
       dplyr::pull(ibov_bench_weights) - concentration_constraint_policy$max_abs_active_individual_weight,
       0)
@@ -704,19 +827,79 @@ test_that("set top down micro weights work with group weights for a MVO + constr
     all(results[[g]]@universe_m_d_ref@data$tickers %in% group_members[[g]])
   })))
 
-  # Test that tickers in each micro portfolio are part of the eligible universe
+  # Test that both ineligible and eligible tickers exist, but only eligible have weights
   testthat::expect_true(all(sapply(names(results), function(g) {
-    all(results[[g]]@universe_m_d_ref@data$tickers %in% elig_universe_m_d_ref$tickers)
+    all(results[[g]]@universe_m_d_ref@data %>% dplyr::filter(is_eligible == 0) %>% dplyr::pull(weights) == 0)
   })))
+  testthat::expect_true(all(sapply(names(results), function(g) {
+    all(results[[g]]@universe_m_d_ref@data %>% dplyr::pull(is_eligible) %>% unique() %in% c(0,1))
+  })))
+
+
+  # Test that port stats follow expected structure
+  testthat::expect_true(
+    all(
+      purrr::map_lgl(
+        names(results), function(g){
+          results[[g]]@port_stats %>% dplyr::select(dplyr::contains("act_")) %>% ncol() > 0
+        }
+      )
+    )
+  )
+  testthat::expect_true(
+    all(
+      purrr::map_lgl(
+        names(results), function(g){
+          results[[g]]@port_stats %>% dplyr::select(dplyr::contains("group_")) %>% ncol() == 0
+        }
+      )
+    )
+  )
+
+  # Test that benchmark portfolio was correctly produced
+  bench_weights_m_d_ref <- sub_univ_m_d_ref %>%
+    dplyr::select(id, tickers, dates, ibov_bench_weights) %>%
+    dplyr::rename(weights = ibov_bench_weights)
+
+  bench_universe_m_d_ref <- sub_univ_m_d_ref %>%
+    dplyr::left_join(bench_weights_m_d_ref %>% dplyr::select(id, weights), by = "id") %>%
+    dplyr::mutate(is_eligible = ifelse(weights > 0, 1, 0))
+
+
+  all_tickers <- results$`Doméstico Cíclico`@universe_m_d_ref@data %>%
+    dplyr::filter(is_eligible == 1) %>%
+    dplyr::pull(tickers)
+  all_tickers <- dplyr::union(all_tickers,
+                              bench_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers))
+
+  expected_port_stats <- calculate_port_stats(
+    universe_m_d_ref = results$`Doméstico Cíclico`@universe_m_d_ref@data,
+    all_returns_m_xts_upd_ref =  daily_stock_returns_m_xts_upd_ref[,all_tickers],
+    bench_universe_m_d_ref = bench_universe_m_d_ref,
+    selected_benchmark = "ibov",
+    cov_matrix_sample_size = 60,
+    cov_estimation_method = "cc",
+    groups_m_d_ref = stock_groups_m_d_ref
+  )
+
+  testthat::expect_equal(
+    results$`Doméstico Cíclico`@port_stats,
+    expected_port_stats$port_stats
+  )
+
+  expect_equal(
+    expected_port_stats$assets_stats$weights,
+    results$`Doméstico Cíclico`@universe_m_d_ref@data %>%
+      dplyr::filter(tickers %in% expected_port_stats$assets_stats$tickers) %>%
+      dplyr::pull(act_weights)
+  )
 
   # Test that results and expected results match
   testthat::expect_equal(results, expected_results)
 
 
-
-
-  # Define group weights ad hoc (Indústria with zero weight)
-  group_weights <- c(0.5, 0.2, 0.3, 0)
+  # Define group weights ad hoc (Indústria  with zero weight)
+  group_weights <- c(0.5, 0, 0.3, 0.2)
   names(group_weights) <- groups
 
 
@@ -730,14 +913,11 @@ test_that("set top down micro weights work with group weights for a MVO + constr
     if (group == "Indústria") next
 
     ## Get members
-    group_tickers <- elig_universe_m_d_ref %>%
+    group_tickers <- stock_universe_m_d_ref %>%
       dplyr::filter(macro_sector == group) %>%
       dplyr::pull(tickers)
-    sub_univ_m_d_ref <- elig_universe_m_d_ref %>%
+    sub_univ_m_d_ref <- stock_universe_m_d_ref %>%
       dplyr::filter(tickers %in% group_tickers)
-
-    ## Get covariance matrix
-    sub_cov_matrix <- covariance_matrix[group_tickers, group_tickers, drop = FALSE]
 
     ## Get liquidity m_df
     sub_liquidity_m_d_ref <- liquidity_m_d_ref %>%
@@ -775,9 +955,17 @@ test_that("set top down micro weights work with group weights for a MVO + constr
       liquidity_m_d_ref = sub_liquidity_m_d_ref,
       concentration_constraint_policy = sub_concentration_constraint_pol,
       turnover_constraint_policy = NULL,
-      groups_m_d_ref = NULL,
-      covariance_matrix = sub_cov_matrix,
       cap_weighting_metric = "mean_volfin_3m",
+      eligible_returns_m_xts_upd_ref = selected_daily_stock_returns_m_xts_upd_ref[
+        ,sub_univ_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+      ],
+      bench_assets_returns_m_xts_upd_ref = bench_assets_returns_m_xts_upd_ref,
+      selected_benchmark = "ibov",
+      cov_matrix_sample_size = 60,
+      cov_estimation_method = "cc",
+      active_returns = FALSE,
+      level = "sub_port",
+      groups_m_d_ref = stock_groups_m_d_ref,
       ridge_pen = 0.5,
       n_resamples = 3,
       exp_ret_score_jitter = 0.2,
@@ -789,12 +977,13 @@ test_that("set top down micro weights work with group weights for a MVO + constr
   }
 
   # Add a 'NULL' element for the group with zero weight
-  micro_port_list <- c(micro_port_list, list(Indústria = NULL))
   names(micro_port_list) <- groups
   expected_results <- micro_port_list
 
   ## Do the same with the function
   set.seed(123)
+  testthat::expect_warning(
+  testthat::expect_warning(
   testthat::expect_warning(
   testthat::expect_warning(
     results <- process_micro_portfolios(
@@ -804,8 +993,14 @@ test_that("set top down micro weights work with group weights for a MVO + constr
       group_weights = group_weights,
       micro_port_construction_method = "mvo",
       cap_weighting_metric = "mean_volfin_3m",
-      universe_m_d_ref = elig_universe_m_d_ref,
-      covariance_matrix = covariance_matrix,
+      universe_m_d_ref = stock_universe_m_d_ref,
+      eligible_returns_m_xts_upd_ref = selected_daily_stock_returns_m_xts_upd_ref,
+      bench_assets_returns_m_xts_upd_ref = bench_assets_returns_m_xts_upd_ref,
+      selected_benchmark = "ibov",
+      cov_matrix_sample_size = 60,
+      cov_estimation_method = "cc",
+      active_returns = FALSE,
+      groups_m_d_ref = stock_groups_m_d_ref,
       liquidity_m_d_ref = liquidity_m_d_ref,
       concentration_constraint_policy = concentration_constraint_policy,
       liquidity_constraint_policy = liquidity_constraint_policy,
@@ -815,10 +1010,14 @@ test_that("set top down micro weights work with group weights for a MVO + constr
       cov_eigval_jitter = 0.01,
       opt_objective = "risk",
       n_random_ports = 500
-    ),
+  ),
     "For concentration constraint: after scaling, ibov_bench_weights in group Exportador sums to more than 1. Normalizing to sum to 1.This might indicate that overall constraints do not hold because of this group."
   ),
   "For target weights: after scaling, target_weights in group Exportador sums to more than 1. Normalizing to sum to 1.This might indicate that overall constraints do not hold because of this group."
+  ),
+  "For concentration constraint: after scaling, ibov_bench_weights in group Doméstico Cíclico sums to more than 1. Normalizing to sum to 1.This might indicate that overall constraints do not hold because of this group."
+  ),
+  "For target weights: after scaling, target_weights in group Doméstico Cíclico sums to more than 1. Normalizing to sum to 1.This might indicate that overall constraints do not hold because of this group."
   )
 
 
@@ -832,10 +1031,10 @@ test_that("set top down micro weights work with group weights for a MVO + constr
 
     group_port <- results[[group]]@universe_m_d_ref@data
     ## Concentration constraints
-    max_weights <- elig_universe_m_d_ref %>%
+    max_weights <- stock_universe_m_d_ref %>%
       dplyr::filter(tickers %in% group_port$tickers) %>%
       dplyr::pull(ibov_bench_weights) + concentration_constraint_policy$max_abs_active_individual_weight
-    min_weights <- pmax(elig_universe_m_d_ref %>%
+    min_weights <- pmax(stock_universe_m_d_ref %>%
                           dplyr::filter(tickers %in% group_port$tickers) %>%
                           dplyr::pull(ibov_bench_weights) - concentration_constraint_policy$max_abs_active_individual_weight,
                         0)
@@ -862,30 +1061,88 @@ test_that("set top down micro weights work with group weights for a MVO + constr
   testthat::expect_true(all(groups %in% names(results)))
 
   # Test that each micro portfolio is of S4 class "port", except the last one
-  testthat::expect_true(all(sapply(results[-4], function(x) inherits(x, "port"))))
+  testthat::expect_true(all(sapply(results[-2], function(x) inherits(x, "port"))))
 
   # Test that weights sum to 1 in each micro portfolio
-  testthat::expect_true(all(sapply(results[-4], function(x) abs(sum(x@universe_m_d_ref@data$weights) - 1) < 1e-6)))
+  testthat::expect_true(all(sapply(results[-2], function(x) abs(sum(x@universe_m_d_ref@data$weights) - 1) < 1e-6)))
 
   # Test that all tickers in each micro portfolio belong to the correct group
-  testthat::expect_true(all(sapply(names(results)[-4], function(g) {
+  testthat::expect_true(all(sapply(names(results)[-2], function(g) {
     all(results[[g]]@universe_m_d_ref@data$tickers %in% group_members[[g]])
   })))
 
-  # Test that tickers in each micro portfolio are part of the eligible universe
-  testthat::expect_true(all(sapply(names(results)[-4], function(g) {
-    all(results[[g]]@universe_m_d_ref@data$tickers %in% elig_universe_m_d_ref$tickers)
+  # Test that both ineligible and eligible tickers exist, but only eligible have weights
+  testthat::expect_true(all(sapply(names(results)[-2], function(g) {
+    all(results[[g]]@universe_m_d_ref@data %>% dplyr::filter(is_eligible == 0) %>% dplyr::pull(weights) == 0)
   })))
+  testthat::expect_true(all(sapply(names(results)[-2], function(g) {
+    all(results[[g]]@universe_m_d_ref@data %>% dplyr::pull(is_eligible) %>% unique() %in% c(0,1))
+  })))
+
+  # Test that port stats follow expected structure
+  testthat::expect_true(
+    all(
+      purrr::map_lgl(
+        names(results)[-2], function(g){
+          results[[g]]@port_stats %>% dplyr::select(dplyr::contains("act_")) %>% ncol() > 0
+        }
+      )
+    )
+  )
+  testthat::expect_true(
+    all(
+      purrr::map_lgl(
+        names(results)[-2], function(g){
+          results[[g]]@port_stats %>% dplyr::select(dplyr::contains("group_")) %>% ncol() == 0
+        }
+      )
+    )
+  )
+
+  # Test that benchmark portfolio was correctly produced
+  bench_weights_m_d_ref <- sub_univ_m_d_ref %>%
+    dplyr::select(id, tickers, dates, ibov_bench_weights) %>%
+    dplyr::rename(weights = ibov_bench_weights)
+
+  bench_universe_m_d_ref <- sub_univ_m_d_ref %>%
+    dplyr::left_join(bench_weights_m_d_ref %>% dplyr::select(id, weights), by = "id") %>%
+    dplyr::mutate(is_eligible = ifelse(weights > 0, 1, 0))
+
+
+  all_tickers <- results$`Doméstico Cíclico`@universe_m_d_ref@data %>%
+    dplyr::filter(is_eligible == 1) %>%
+    dplyr::pull(tickers)
+  all_tickers <- dplyr::union(all_tickers,
+                              bench_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers))
+
+  expected_port_stats <- calculate_port_stats(
+    universe_m_d_ref = results$`Doméstico Cíclico`@universe_m_d_ref@data,
+    all_returns_m_xts_upd_ref =  daily_stock_returns_m_xts_upd_ref[,all_tickers],
+    bench_universe_m_d_ref = bench_universe_m_d_ref,
+    selected_benchmark = "ibov",
+    cov_matrix_sample_size = 60,
+    cov_estimation_method = "cc",
+    groups_m_d_ref = stock_groups_m_d_ref
+  )
+
+  testthat::expect_equal(
+    results$`Doméstico Cíclico`@port_stats,
+    expected_port_stats$port_stats
+  )
+
+  expect_equal(
+    expected_port_stats$assets_stats$weights,
+    results$`Doméstico Cíclico`@universe_m_d_ref@data %>%
+      dplyr::filter(tickers %in% expected_port_stats$assets_stats$tickers) %>%
+      dplyr::pull(act_weights)
+  )
 
   # Test that results and expected results match
   testthat::expect_equal(results, expected_results)
 
 
-
-
-
   # Define group weights ad hoc (Exportador 100% weight)
-  group_weights <- c(0, 1, 0, 0)
+  group_weights <- c(0, 0, 1, 0)
   names(group_weights) <- groups
 
 
@@ -899,14 +1156,11 @@ test_that("set top down micro weights work with group weights for a MVO + constr
     if (group != "Exportador") next
 
     ## Get members
-    group_tickers <- elig_universe_m_d_ref %>%
+    group_tickers <- stock_universe_m_d_ref %>%
       dplyr::filter(macro_sector == group) %>%
       dplyr::pull(tickers)
-    sub_univ_m_d_ref <- elig_universe_m_d_ref %>%
+    sub_univ_m_d_ref <- stock_universe_m_d_ref %>%
       dplyr::filter(tickers %in% group_tickers)
-
-    ## Get covariance matrix
-    sub_cov_matrix <- covariance_matrix[group_tickers, group_tickers, drop = FALSE]
 
     ## Get liquidity m_df
     sub_liquidity_m_d_ref <- liquidity_m_d_ref %>%
@@ -944,9 +1198,17 @@ test_that("set top down micro weights work with group weights for a MVO + constr
       liquidity_m_d_ref = sub_liquidity_m_d_ref,
       concentration_constraint_policy = sub_concentration_constraint_pol,
       turnover_constraint_policy = NULL,
-      groups_m_d_ref = NULL,
-      covariance_matrix = sub_cov_matrix,
       cap_weighting_metric = "mean_volfin_3m",
+      eligible_returns_m_xts_upd_ref = selected_daily_stock_returns_m_xts_upd_ref[
+        ,sub_univ_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+      ],
+      bench_assets_returns_m_xts_upd_ref = bench_assets_returns_m_xts_upd_ref,
+      selected_benchmark = "ibov",
+      cov_matrix_sample_size = 60,
+      cov_estimation_method = "cc",
+      active_returns = FALSE,
+      level = "sub_port",
+      groups_m_d_ref = stock_groups_m_d_ref,
       ridge_pen = 0.5,
       n_resamples = 3,
       exp_ret_score_jitter = 0.2,
@@ -960,9 +1222,9 @@ test_that("set top down micro weights work with group weights for a MVO + constr
   # Add a 'NULL' element for all groups with zero weight
   expected_results <- list(
     `Doméstico Defensivo` = NULL,
-    Exportador = micro_port_list[[2]],
-    `Doméstico Cíclico` = NULL,
-    Indústria = NULL
+    Indústria = NULL,
+    Exportador = micro_port_list[[3]],
+    `Doméstico Cíclico` = NULL
   )
 
   ## Do the same with the function
@@ -974,11 +1236,17 @@ test_that("set top down micro weights work with group weights for a MVO + constr
     group_weights = group_weights,
     micro_port_construction_method = "mvo",
     cap_weighting_metric = "mean_volfin_3m",
-    universe_m_d_ref = elig_universe_m_d_ref,
-    covariance_matrix = covariance_matrix,
+    universe_m_d_ref = stock_universe_m_d_ref,
     liquidity_m_d_ref = liquidity_m_d_ref,
     concentration_constraint_policy = concentration_constraint_policy,
     liquidity_constraint_policy = liquidity_constraint_policy,
+    eligible_returns_m_xts_upd_ref = selected_daily_stock_returns_m_xts_upd_ref,
+    bench_assets_returns_m_xts_upd_ref = bench_assets_returns_m_xts_upd_ref,
+    selected_benchmark = "ibov",
+    cov_matrix_sample_size = 60,
+    cov_estimation_method = "cc",
+    active_returns = FALSE,
+    groups_m_d_ref = stock_groups_m_d_ref,
     ridge_pen = 0.5,
     n_resamples = 3,
     exp_ret_score_jitter = 0.2,
@@ -997,10 +1265,10 @@ test_that("set top down micro weights work with group weights for a MVO + constr
 
     group_port <- results[[group]]@universe_m_d_ref@data
     ## Concentration constraints
-    max_weights <- elig_universe_m_d_ref %>%
+    max_weights <- stock_universe_m_d_ref %>%
       dplyr::filter(tickers %in% group_port$tickers) %>%
       dplyr::pull(ibov_bench_weights) + concentration_constraint_policy$max_abs_active_individual_weight
-    min_weights <- pmax(elig_universe_m_d_ref %>%
+    min_weights <- pmax(stock_universe_m_d_ref %>%
                           dplyr::filter(tickers %in% group_port$tickers) %>%
                           dplyr::pull(ibov_bench_weights) - concentration_constraint_policy$max_abs_active_individual_weight,
                         0)
@@ -1027,19 +1295,14 @@ test_that("set top down micro weights work with group weights for a MVO + constr
   testthat::expect_true(all(groups %in% names(results)))
 
   # Test that each micro portfolio is of S4 class "port", except the last one
-  testthat::expect_true(all(sapply(results[2], function(x) inherits(x, "port"))))
+  testthat::expect_true(all(sapply(results[3], function(x) inherits(x, "port"))))
 
   # Test that weights sum to 1 in each micro portfolio
-  testthat::expect_true(all(sapply(results[2], function(x) abs(sum(x@universe_m_d_ref@data$weights) - 1) < 1e-6)))
+  testthat::expect_true(all(sapply(results[3], function(x) abs(sum(x@universe_m_d_ref@data$weights) - 1) < 1e-6)))
 
   # Test that all tickers in each micro portfolio belong to the correct group
-  testthat::expect_true(all(sapply(names(results)[2], function(g) {
+  testthat::expect_true(all(sapply(names(results)[3], function(g) {
     all(results[[g]]@universe_m_d_ref@data$tickers %in% group_members[[g]])
-  })))
-
-  # Test that tickers in each micro portfolio are part of the eligible universe
-  testthat::expect_true(all(sapply(names(results)[2], function(g) {
-    all(results[[g]]@universe_m_d_ref@data$tickers %in% elig_universe_m_d_ref$tickers)
   })))
 
   # Test that results and expected results match
@@ -1049,7 +1312,7 @@ test_that("set top down micro weights work with group weights for a MVO + constr
   # Define group weights ad hoc (Exportador 99% weight, Domestico Defensivo 1%,
   # Indústria < Machine$douple.eps )
   # This causes one single stock to be > 100%
-  group_weights <- c(0.01, 0.99, 0, .Machine$double.eps / 10)
+  group_weights <- c(0.01, .Machine$double.eps / 10, 0.99, 0)
   names(group_weights) <- groups
 
 
@@ -1060,17 +1323,14 @@ test_that("set top down micro weights work with group weights for a MVO + constr
 
     group <- groups[g]
 
-    if (g %in% c(3,4)) next
+    if (g %in% c(2,4)) next
 
     ## Get members
-    group_tickers <- elig_universe_m_d_ref %>%
+    group_tickers <- stock_universe_m_d_ref %>%
       dplyr::filter(macro_sector == group) %>%
       dplyr::pull(tickers)
-    sub_univ_m_d_ref <- elig_universe_m_d_ref %>%
+    sub_univ_m_d_ref <- stock_universe_m_d_ref %>%
       dplyr::filter(tickers %in% group_tickers)
-
-    ## Get covariance matrix
-    sub_cov_matrix <- covariance_matrix[group_tickers, group_tickers, drop = FALSE]
 
     ## Get liquidity m_df
     sub_liquidity_m_d_ref <- liquidity_m_d_ref %>%
@@ -1108,9 +1368,17 @@ test_that("set top down micro weights work with group weights for a MVO + constr
       liquidity_m_d_ref = sub_liquidity_m_d_ref,
       concentration_constraint_policy = sub_concentration_constraint_pol,
       turnover_constraint_policy = NULL,
-      groups_m_d_ref = NULL,
-      covariance_matrix = sub_cov_matrix,
       cap_weighting_metric = "mean_volfin_3m",
+      eligible_returns_m_xts_upd_ref = selected_daily_stock_returns_m_xts_upd_ref[
+        ,sub_univ_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+      ],
+      bench_assets_returns_m_xts_upd_ref = bench_assets_returns_m_xts_upd_ref,
+      selected_benchmark = "ibov",
+      cov_matrix_sample_size = 60,
+      cov_estimation_method = "cc",
+      active_returns = FALSE,
+      level = "sub_port",
+      groups_m_d_ref = stock_groups_m_d_ref,
       ridge_pen = 0.5,
       n_resamples = 3,
       exp_ret_score_jitter = 0.2,
@@ -1124,9 +1392,9 @@ test_that("set top down micro weights work with group weights for a MVO + constr
   # Add a 'NULL' element for all groups with zero weight
   expected_results <- list(
     `Doméstico Defensivo` = micro_port_list[[1]],
-    Exportador = micro_port_list[[2]],
-    `Doméstico Cíclico` = NULL,
-    Indústria = NULL
+    Indústria = NULL,
+    Exportador = micro_port_list[[3]],
+    `Doméstico Cíclico` = NULL
   )
 
   ## Do the same with the function
@@ -1140,11 +1408,17 @@ test_that("set top down micro weights work with group weights for a MVO + constr
       group_weights = group_weights,
       micro_port_construction_method = "mvo",
       cap_weighting_metric = "mean_volfin_3m",
-      universe_m_d_ref = elig_universe_m_d_ref,
-      covariance_matrix = covariance_matrix,
+      universe_m_d_ref = stock_universe_m_d_ref,
       liquidity_m_d_ref = liquidity_m_d_ref,
       concentration_constraint_policy = concentration_constraint_policy,
       liquidity_constraint_policy = liquidity_constraint_policy,
+      eligible_returns_m_xts_upd_ref = selected_daily_stock_returns_m_xts_upd_ref,
+      bench_assets_returns_m_xts_upd_ref = bench_assets_returns_m_xts_upd_ref,
+      selected_benchmark = "ibov",
+      cov_matrix_sample_size = 60,
+      cov_estimation_method = "cc",
+      active_returns = FALSE,
+      groups_m_d_ref = stock_groups_m_d_ref,
       ridge_pen = 0.5,
       n_resamples = 3,
       exp_ret_score_jitter = 0.2,
@@ -1194,19 +1468,14 @@ test_that("set top down micro weights work with group weights for a MVO + constr
   testthat::expect_true(all(groups %in% names(results)))
 
   # Test that each micro portfolio is of S4 class "port", except the last one
-  testthat::expect_true(all(sapply(results[c(1,2)], function(x) inherits(x, "port"))))
+  testthat::expect_true(all(sapply(results[c(1,3)], function(x) inherits(x, "port"))))
 
   # Test that weights sum to 1 in each micro portfolio
-  testthat::expect_true(all(sapply(results[c(1,2)], function(x) abs(sum(x@universe_m_d_ref@data$weights) - 1) < 1e-6)))
+  testthat::expect_true(all(sapply(results[c(1,3)], function(x) abs(sum(x@universe_m_d_ref@data$weights) - 1) < 1e-6)))
 
   # Test that all tickers in each micro portfolio belong to the correct group
-  testthat::expect_true(all(sapply(names(results)[c(1,2)], function(g) {
+  testthat::expect_true(all(sapply(names(results)[c(1,3)], function(g) {
     all(results[[g]]@universe_m_d_ref@data$tickers %in% group_members[[g]])
-  })))
-
-  # Test that tickers in each micro portfolio are part of the eligible universe
-  testthat::expect_true(all(sapply(names(results)[c(1,2)], function(g) {
-    all(results[[g]]@universe_m_d_ref@data$tickers %in% elig_universe_m_d_ref$tickers)
   })))
 
   # Test that results and expected results match
@@ -1268,13 +1537,8 @@ testthat::test_that("group_members order does not affect results", {
   # Create covariance matrix
   daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),]
   elig_tickers <- stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+  selected_daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts_upd_ref[, elig_tickers]
 
-  covariance_matrix <- estimate_covariance_matrix(tickers = elig_tickers,
-                                                  returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
-                                                  cov_matrix_sample_size = 60, cov_estimation_method = "cc",
-                                                  active_returns = FALSE,
-                                                  groups_m_d_ref = stock_groups_m_d_ref
-  )
 
   #Set top down micro weights
 
@@ -1302,15 +1566,17 @@ testthat::test_that("group_members order does not affect results", {
   res1 <- process_micro_portfolios(
     parallel = FALSE, groups = groups, group_members = group_members,
     group_weights = NULL, micro_port_construction_method = "rp",
-    universe_m_d_ref = elig_universe_m_d_ref,
-    covariance_matrix = covariance_matrix,
+    universe_m_d_ref = stock_universe_m_d_ref,
+    groups_m_d_ref = stock_groups_m_d_ref,
+    eligible_returns_m_xts_upd_ref = selected_daily_stock_returns_m_xts_upd_ref,
     liquidity_m_d_ref = liquidity_m_d_ref
   )
   res2 <- process_micro_portfolios(
     parallel = FALSE, groups = groups, group_members = shuffled,
     group_weights = NULL, micro_port_construction_method = "rp",
-    universe_m_d_ref = elig_universe_m_d_ref,
-    covariance_matrix = covariance_matrix,
+    universe_m_d_ref = stock_universe_m_d_ref,
+    groups_m_d_ref = stock_groups_m_d_ref,
+    eligible_returns_m_xts_upd_ref = selected_daily_stock_returns_m_xts_upd_ref,
     liquidity_m_d_ref = liquidity_m_d_ref
   )
 
@@ -1369,15 +1635,10 @@ testthat::test_that("single-asset group yields weight 1", {
   )
 
   # Create covariance matrix
-  daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),]
   eligible_tickers <- stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+  selected_daily_stock_returns_m_xts_upd_ref <-
+    daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),eligible_tickers]
 
-  covariance_matrix <- estimate_covariance_matrix(tickers = eligible_tickers,
-                                                  returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
-                                                  cov_matrix_sample_size = 60, cov_estimation_method = "cc",
-                                                  active_returns = FALSE,
-                                                  groups_m_d_ref = stock_groups_m_d_ref
-  )
 
   #Set top down micro weights
 
@@ -1385,9 +1646,9 @@ testthat::test_that("single-asset group yields weight 1", {
   eligible_universe_m_d_ref <- stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1)
 
   ## Get groups
-  groups <- eligible_universe_m_d_ref$macro_sector %>% unique()
+  groups <- stock_universe_m_d_ref$macro_sector %>% unique()
   group_members <- lapply(groups, function(g) {
-    eligible_universe_m_d_ref %>%
+    stock_universe_m_d_ref %>%
       dplyr::filter(macro_sector == g) %>%
       dplyr::pull(tickers)
   })
@@ -1396,13 +1657,14 @@ testthat::test_that("single-asset group yields weight 1", {
     # Clone and force a single-asset group by trimming its member list
   single_member <- group_members
   first_g <- groups[1]
-  single_member[[first_g]] <- group_members[[first_g]][1]
+  single_member[[first_g]] <- "ABEV3"
 
   res <- process_micro_portfolios(
     parallel = FALSE, groups = groups, group_members = single_member,
     group_weights = NULL, micro_port_construction_method = "rp",
-    universe_m_d_ref = eligible_universe_m_d_ref,
-    covariance_matrix = covariance_matrix,
+    universe_m_d_ref = stock_universe_m_d_ref,
+    groups_m_d_ref = stock_groups_m_d_ref,
+    eligible_returns_m_xts_upd_ref = selected_daily_stock_returns_m_xts_upd_ref,
     liquidity_m_d_ref = liquidity_m_d_ref
   )
 
@@ -1463,25 +1725,16 @@ testthat::test_that("process_micro_portfolios errors when constraints require gr
   )
 
   # Create covariance matrix
-  daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),]
   elig_tickers <- stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
-
-  covariance_matrix <- estimate_covariance_matrix(tickers = elig_tickers,
-                                                  returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
-                                                  cov_matrix_sample_size = 60, cov_estimation_method = "cc",
-                                                  active_returns = FALSE,
-                                                  groups_m_d_ref = stock_groups_m_d_ref
-  )
+  selected_daily_stock_returns_m_xts_upd_ref <-
+    daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date), elig_tickers]
 
   #Set top down micro weights
 
-  ## Get eligible stock universe
-  elig_universe_m_d_ref <- stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1)
-
   ## Get groups
-  groups <- elig_universe_m_d_ref$macro_sector %>% unique()
+  groups <- stock_universe_m_d_ref$macro_sector %>% unique()
   group_members <- lapply(groups, function(g) {
-    elig_universe_m_d_ref %>%
+    stock_universe_m_d_ref %>%
       dplyr::filter(macro_sector == g) %>%
       dplyr::pull(tickers)
   })
@@ -1502,8 +1755,8 @@ testthat::test_that("process_micro_portfolios errors when constraints require gr
       group_members = group_members,
       group_weights = NULL,
       micro_port_construction_method = "rp",
-      universe_m_d_ref = elig_universe_m_d_ref,
-      covariance_matrix = covariance_matrix,
+      universe_m_d_ref = stock_universe_m_d_ref,
+      eligible_returns_m_xts_upd_ref = selected_daily_stock_returns_m_xts_upd_ref,
       liquidity_m_d_ref = liquidity_m_d_ref,
       concentration_constraint_policy = conc_pol
     ),
@@ -1563,25 +1816,16 @@ testthat::test_that("process_micro_portfolios errors when covariance matrix our 
   )
 
   # Create covariance matrix
-  daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),]
   elig_tickers <- stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+  selected_daily_stock_returns_m_xts_upd_ref <-
+    daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date), elig_tickers]
 
-  covariance_matrix <- estimate_covariance_matrix(tickers = elig_tickers,
-                                                  returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
-                                                  cov_matrix_sample_size = 60, cov_estimation_method = "cc",
-                                                  active_returns = FALSE,
-                                                  groups_m_d_ref = stock_groups_m_d_ref
-  )
 
   #Set top down micro weights
-
-  ## Get eligible stock universe
-  elig_universe_m_d_ref <- stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1)
-
   ## Get groups
-  groups <- elig_universe_m_d_ref$macro_sector %>% unique()
+  groups <- stock_universe_m_d_ref$macro_sector %>% unique()
   group_members <- lapply(groups, function(g) {
-    elig_universe_m_d_ref %>%
+    stock_universe_m_d_ref %>%
       dplyr::filter(macro_sector == g) %>%
       dplyr::pull(tickers)
   })
@@ -1591,8 +1835,8 @@ testthat::test_that("process_micro_portfolios errors when covariance matrix our 
   group_weights <- c(0.5, 0.2, 0.2, 0.1)
   names(group_weights) <- groups
 
-  #Covariance matrix missing some tickers
-  wrong_covariance_matrix <- covariance_matrix[-1,-1]
+  #Eligible returns missing tickers
+  wrong_selected_daily_stock_returns_m_xts_upd_ref <- selected_daily_stock_returns_m_xts_upd_ref[, -1]
 
   testthat::expect_error(
     process_micro_portfolios(
@@ -1601,8 +1845,8 @@ testthat::test_that("process_micro_portfolios errors when covariance matrix our 
       group_members = group_members,
       group_weights = NULL,
       micro_port_construction_method = "rp",
-      universe_m_d_ref = elig_universe_m_d_ref,
-      covariance_matrix = wrong_covariance_matrix,
+      universe_m_d_ref = stock_universe_m_d_ref,
+      eligible_returns_m_xts_upd_ref = wrong_selected_daily_stock_returns_m_xts_upd_ref,
       liquidity_m_d_ref = liquidity_m_d_ref
     ),
     "Some tickers in group Doméstico Defensivo are not in covariance matrix."
@@ -1619,8 +1863,8 @@ testthat::test_that("process_micro_portfolios errors when covariance matrix our 
       group_members = wrong_group_members,
       group_weights = NULL,
       micro_port_construction_method = "rp",
-      universe_m_d_ref = elig_universe_m_d_ref,
-      covariance_matrix = covariance_matrix,
+      universe_m_d_ref = stock_universe_m_d_ref,
+      eligible_returns_m_xts_upd_ref = selected_daily_stock_returns_m_xts_upd_ref,
       liquidity_m_d_ref = liquidity_m_d_ref
     ),
     "Group Doméstico Defensivo has no eligible tickers."
@@ -1637,8 +1881,8 @@ testthat::test_that("process_micro_portfolios errors when covariance matrix our 
       group_members = wrong_group_members,
       group_weights = NULL,
       micro_port_construction_method = "rp",
-      universe_m_d_ref = elig_universe_m_d_ref,
-      covariance_matrix = covariance_matrix,
+      universe_m_d_ref = stock_universe_m_d_ref,
+      eligible_returns_m_xts_upd_ref = selected_daily_stock_returns_m_xts_upd_ref,
       liquidity_m_d_ref = liquidity_m_d_ref
     ),
     "Group Doméstico Defensivo has no eligible tickers."
@@ -1655,8 +1899,8 @@ testthat::test_that("process_micro_portfolios errors when covariance matrix our 
       group_members = wrong_group_members,
       group_weights = NULL,
       micro_port_construction_method = "rp",
-      universe_m_d_ref = elig_universe_m_d_ref,
-      covariance_matrix = covariance_matrix,
+      universe_m_d_ref = stock_universe_m_d_ref,
+      eligible_returns_m_xts_upd_ref = selected_daily_stock_returns_m_xts_upd_ref,
       liquidity_m_d_ref = liquidity_m_d_ref
     ),
     "Group Doméstico Defensivo has duplicated tickers."

@@ -137,7 +137,13 @@
 #'
 #' @export
 create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
-                                  covariance_matrix, groups_m_d_ref, mmaf_group_col,
+                                  eligible_returns_m_xts_upd_ref = NULL,
+                                  covariance_matrix = NULL,
+                                  selected_benchmark_m_xts_upd_ref = NULL,
+                                  active_returns = if(is.null(selected_benchmark_m_xts_upd_ref)) FALSE else TRUE,  #Returns to estimate cov matrix
+                                  cov_estimation_method = "sample",
+                                  cov_matrix_sample_size = if(is.null(eligible_returns_m_xts_upd_ref)) NULL else nrow(eligible_returns_m_xts_upd_ref), #How to estimate covariance matrix?
+                                  groups_m_d_ref, mmaf_group_col,
                                   liquidity_m_d_ref, top_down_proxy_port_method = "rp",
                                   # Micro Level
                                   micro_port_construction_method, linkage = "single",
@@ -159,6 +165,9 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
                                   macro_n_resamples = 0, macro_exp_ret_score_jitter = 0, macro_cov_eigval_jitter = 0, #MVO
                                   macro_rp_method = "cyclical-spinu", macro_exp_ret_score_tilt = NULL, #Risk Parity
                                   macro_exp_ret_score_tilt_eta = NULL, macro_linkage = "single",
+                                  ## Benchmark Port Obj
+                                  selected_benchmark = NULL, bench_assets_returns_m_xts_upd_ref = NULL,
+                                  #Misc
                                   lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975,
                                   parallel = FALSE, verbose = TRUE
 ){
@@ -174,14 +183,20 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
       cat("\n")
     }
 
-    ## Eligible tickers
-    eligible_universe_m_d_ref <- universe_m_d_ref %>% dplyr::filter(is_eligible == 1)
-    eligible_tickers <- eligible_universe_m_d_ref %>% dplyr::pull(tickers)
-
       ### Defensive checks
+      eligible_universe_m_d_ref <- universe_m_d_ref %>%
+        dplyr::filter(is_eligible == 1)
+      eligible_tickers <-  eligible_universe_m_d_ref %>%
+        dplyr::pull(tickers)
+
       if (!all(rownames(covariance_matrix) == colnames(covariance_matrix) &
                rownames(covariance_matrix) == eligible_tickers)) {
         stop("Covariance matrix rownames/colnames do not match eligible tickers.")
+      }
+      if (!is.null(eligible_returns_m_xts_upd_ref)) {
+        if (!all(eligible_tickers %in% colnames(eligible_returns_m_xts_upd_ref))) {
+          stop("eligible_returns_m_xts_upd_ref columns do not match eligible tickers.")
+        }
       }
       if (mmaf_method == "bottom_up" && !is.null(concentration_constraint_policy)){
         warning("For bottom_up, micro-level concentration constraints might not hold globally.")
@@ -193,36 +208,41 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
           !top_down_proxy_port_method %in% c("ew", "rp", "hrp", "cs", "sw")){
         stop("top_down_proxy_port_method must be one of 'ew', 'rp', 'hrp', 'cs', 'sw'.")
       }
-      if (!mmaf_group_col %in% names(eligible_universe_m_d_ref)){
-        stop("mmaf_group_col not found in eligible_universe_m_d_ref.")
+      ### If mmaf_group_col is NULL, assign the first after id, tickers and dates as mmaf_group_col
+      if (is.null(mmaf_group_col)){
+        mmaf_group_col <- names(groups_m_d_ref)[4]
+        message(paste0("mmaf_group_col not specified. Using ", mmaf_group_col, " as mmaf_group_col."))
+      }
+      if (!mmaf_group_col %in% names(universe_m_d_ref)){
+        stop("mmaf_group_col not found in universe_m_d_ref.")
       }
       if (!mmaf_group_col %in% names(groups_m_d_ref)){
         stop("mmaf_group_col not found in groups_m_d_ref")
       }
 
     ## Get groups
-      ### If mmaf_group_col is NULL, assign the first after id, tickers and dates as mmaf_group_col
-      if (is.null(mmaf_group_col)){
-        mmaf_group_col <- names(groups_m_d_ref)[4]
-        message(paste0("mmaf_group_col not specified. Using ", mmaf_group_col, " as mmaf_group_col."))
-      }
-
       ### Get unique groups
-      groups <- unique(eligible_universe_m_d_ref[[mmaf_group_col]])
+      groups <- unique(universe_m_d_ref[[mmaf_group_col]])
 
         ### Re-order groups alphabetically
         groups <- sort(groups)
 
         #### Define members
         group_members <- lapply(groups, function(g) {
-          eligible_universe_m_d_ref %>%
+          universe_m_d_ref %>%
             dplyr::filter(!!rlang::sym(mmaf_group_col) == g) %>%
             dplyr::pull(tickers)
         })
         names(group_members) <- groups
+        eligible_group_members <- lapply(groups, function(g) {
+          eligible_universe_m_d_ref %>%
+            dplyr::filter(!!rlang::sym(mmaf_group_col) == g) %>%
+            dplyr::pull(tickers)
+        })
+        names(eligible_group_members) <- groups
 
         #### If any group does not contain any eligible ticker, throw error
-        empty_groups <- sapply(group_members, length) == 0
+        empty_groups <- sapply(eligible_group_members, length) == 0
         if (any(empty_groups)) {
           stop(paste0("Some groups have no eligible tickers: ",
                        paste(groups[empty_groups], collapse = ", ")))
@@ -275,7 +295,7 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
       ### Apply set_portfolio_weights to entire universe
       micro_port <- set_portfolio_weights(
         # Stock Universe object
-        universe_m_d_ref = eligible_universe_m_d_ref, #To match process_micro logic
+        universe_m_d_ref = universe_m_d_ref, #To match process_micro logic
         # Intra Group Port Construction Method
         port_construction_method = micro_port_construction_method,
         linkage = linkage,
@@ -290,7 +310,12 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
         # Groups
         groups_m_d_ref = groups_m_d_ref,
         # Covariance Matrix
-        covariance_matrix = covariance_matrix,
+        eligible_returns_m_xts_upd_ref = eligible_returns_m_xts_upd_ref,
+        selected_benchmark_m_xts_upd_ref = selected_benchmark_m_xts_upd_ref,
+        active_returns = active_returns,
+        cov_estimation_method = cov_estimation_method,
+        cov_matrix_sample_size = cov_matrix_sample_size,
+        groups_m_d_ref = groups_m_d_ref,
         # Intra-portfolio parameters
         ## Risk Parity
         rp_method = rp_method,
@@ -303,10 +328,14 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
         cov_eigval_jitter = cov_eigval_jitter,
         ## Custom Weights
         custom_weights_m_d_ref = custom_weights_m_d_ref,
-        # Winsorization
+        ## Benchmark
+        selected_benchmark = selected_benchmark,
+        bench_assets_returns_m_xts_upd_ref = bench_assets_returns_m_xts_upd_ref,
+        ## Winsorization
         lower_quantile_winsorization = lower_quantile_winsorization,
         upper_quantile_winsorization = upper_quantile_winsorization,
-        parallel = parallel
+        parallel = parallel,
+        level = "sub_port"
       )
 
       ### Break up into micro_universe_m_d_ref_list
@@ -353,7 +382,7 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
 
       ### For each group, apply micro portfolio method
       micro_port_list <- process_micro_portfolios(
-        universe_m_d_ref = eligible_universe_m_d_ref,
+        universe_m_d_ref = universe_m_d_ref,
         parallel = parallel, groups = groups,
         group_members = group_members,
         group_weights = NULL, # No group weights at this stage
@@ -362,7 +391,14 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
         rp_method = rp_method,
         cap_weighting_metric = cap_weighting_metric,
         liquidity_m_d_ref = liquidity_m_d_ref,
-        covariance_matrix = covariance_matrix,
+        eligible_returns_m_xts_upd_ref = eligible_returns_m_xts_upd_ref,
+        selected_benchmark_m_xts_upd_ref = selected_benchmark_m_xts_upd_ref,
+        active_returns = active_returns,
+        cov_estimation_method = cov_estimation_method,
+        cov_matrix_sample_size = cov_matrix_sample_size,
+        groups_m_d_ref = groups_m_d_ref,
+        selected_benchmark = NULL,
+        bench_assets_returns_m_xts_upd_ref = NULL,
         ## In the context of top_down_proxy, we want to enforce
         ## a portfolio that is well diversified in order to get \
         ## a valid proxy for the group. This makes mvo a bit tricky
@@ -448,7 +484,10 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
       # Winsorization
       lower_quantile_winsorization = lower_quantile_winsorization,
       upper_quantile_winsorization = upper_quantile_winsorization,
-      parallel = FALSE # Macro level is small, no need for parallel
+      parallel = FALSE, # Macro level is small, no need for parallel
+      groups_m_d_ref = NULL,
+      selected_benchmark = NULL,
+      level = "group"
     )
 
     group_weights <- macro_port@universe_m_d_ref@data %>%
@@ -473,7 +512,7 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
 
       ### For each group, apply micro portfolio method
       micro_port_list <- process_micro_portfolios(
-        universe_m_d_ref = eligible_universe_m_d_ref,
+        universe_m_d_ref = universe_m_d_ref,
         parallel = parallel, groups = groups,
         group_members = group_members,
         group_weights = group_weights,
@@ -482,7 +521,14 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
         rp_method = rp_method,
         cap_weighting_metric = cap_weighting_metric,
         liquidity_m_d_ref = liquidity_m_d_ref,
-        covariance_matrix = covariance_matrix,
+        eligible_returns_m_xts_upd_ref = eligible_returns_m_xts_upd_ref,
+        selected_benchmark_m_xts_upd_ref = selected_benchmark_m_xts_upd_ref,
+        active_returns = active_returns,
+        cov_estimation_method = cov_estimation_method,
+        cov_matrix_sample_size = cov_matrix_sample_size,
+        groups_m_d_ref = groups_m_d_ref,
+        selected_benchmark = NULL,
+        bench_assets_returns_m_xts_upd_ref = NULL,
         liquidity_constraint_policy = liquidity_constraint_policy,
         turnover_constraint_policy = turnover_constraint_policy,
         concentration_constraint_policy = concentration_constraint_policy,
@@ -639,7 +685,15 @@ set_top_down_micro_weights <- function(group_name, group_weights = NULL,
 
                                        # Core data
                                        group_members, universe_m_d_ref,
-                                       covariance_matrix, liquidity_m_d_ref = NULL,
+                                       liquidity_m_d_ref = NULL,
+                                       eligible_returns_m_xts_upd_ref = NULL,
+                                       selected_benchmark_m_xts_upd_ref = NULL,
+                                       active_returns = if(is.null(selected_benchmark_m_xts_upd_ref)) FALSE else TRUE,
+                                       cov_estimation_method = "sample",
+                                       cov_matrix_sample_size = if(is.null(eligible_returns_m_xts_upd_ref)) NULL else nrow(eligible_returns_m_xts_upd_ref),
+                                       groups_m_d_ref = NULL,
+                                       selected_benchmark = NULL,
+                                       bench_assets_returns_m_xts_upd_ref = NULL,
 
                                        # Constraint policies
                                        concentration_constraint_policy = NULL,
@@ -689,21 +743,26 @@ set_top_down_micro_weights <- function(group_name, group_weights = NULL,
   idx <- group_members[[group_name]]
   sub_universe_m_d_ref <- universe_m_d_ref %>%
     dplyr::filter(tickers %in% idx)
-  sub_tickers <- sub_universe_m_d_ref %>% dplyr::pull(tickers)
+  sub_tickers <- sub_universe_m_d_ref %>%
+    dplyr::pull(tickers)
+  eligible_sub_tickers <- sub_universe_m_d_ref %>%
+    dplyr::filter(is_eligible == 1) %>%
+    dplyr::pull(tickers)
 
     #### Check if subtickers is empty or duplicated
-    if (length(sub_tickers) == 0){
+    if (length(eligible_sub_tickers) == 0){
       stop(paste0("Group ", group_name, " has no eligible tickers."))
     }
     if (any(duplicated(idx))){
       stop(paste0("Group ", group_name, " has duplicated tickers."))
     }
 
-  ### Get subcovariance
-  if (!all(sub_tickers %in% rownames(covariance_matrix))){
+  ### Get subcovariance data
+  if (!all(eligible_sub_tickers %in% colnames(eligible_returns_m_xts_upd_ref))){
     stop(paste0("Some tickers in group ", group_name, " are not in covariance matrix."))
   }
-  sub_covariance_matrix <- covariance_matrix[sub_tickers, sub_tickers, drop = FALSE]
+
+  sub_eligible_returns_m_xts_upd_ref <- eligible_returns_m_xts_upd_ref[, eligible_sub_tickers]
 
   ### Subset liquidity_m_d_ref
   if (is.null(liquidity_m_d_ref)){
@@ -722,7 +781,8 @@ set_top_down_micro_weights <- function(group_name, group_weights = NULL,
   if (!is.null(concentration_constraint_policy) ||
       !is.null(turnover_constraint_policy) ||
       !is.null(liquidity_constraint_policy) ||
-      !is.null(ridge_pen)
+      !is.null(ridge_pen) ||
+      !is.null(selected_benchmark)
   ){
     needs_group_weights <- TRUE
   } else {
@@ -734,6 +794,7 @@ set_top_down_micro_weights <- function(group_name, group_weights = NULL,
     stop("group_weights must be provided if any constraint or ridge pen are defined.")
   }
 
+  ### For mvo, scale weight columns and constraints
   if (isTRUE(needs_group_weights) && micro_port_construction_method == "mvo"){
     #### columns that contain 'bench_weights'
     if(ncol(sub_universe_m_d_ref %>% dplyr::select(dplyr::contains("bench_weights"))) > 0){
@@ -851,15 +912,33 @@ set_top_down_micro_weights <- function(group_name, group_weights = NULL,
       }
     }
 
-  } else {
+  }
 
-    ## Defensively remove weight columns from subuniverse_m_df
+  ### For selected_benchmark, scale 'selected_benchmark_bench_weights' column if it exists
+  if (isTRUE(needs_group_weights) && !is.null(selected_benchmark) && micro_port_construction_method != "mvo"){
+    selected_benchmark_col <- paste0(selected_benchmark, "_bench_weights")
+    if (ncol(sub_universe_m_d_ref %>% dplyr::select(dplyr::contains(selected_benchmark_col))) > 0){
+      sub_universe_m_d_ref <- sub_universe_m_d_ref %>%
+        dplyr::mutate(dplyr::across(dplyr::all_of(selected_benchmark_col), ~ .x / group_weights[group_name]))
+      ##### If weights sum >= 1, normalize weights so that they sum 1
+      if (sum(sub_universe_m_d_ref[[selected_benchmark_col]], na.rm = TRUE) >= 1){
+        ###### Warn that weights are being normalized, which might indicate constraints not holding
+        warning(paste0("For selected_benchmark: after scaling, ", selected_benchmark_col, " in group ", group_name,
+                       " sums to more than 1. Normalizing to sum to 1."))
+        ##### Normalize weights
+        sub_universe_m_d_ref <- sub_universe_m_d_ref %>%
+          dplyr::mutate(!!rlang::sym(selected_benchmark_col) := !!rlang::sym(selected_benchmark_col) / sum(!!rlang::sym(selected_benchmark_col), na.rm = TRUE))
+      }
+    }
+  }
+
+  ### If needs_group_weights is FALSE, remove any weight columns from sub_universe_m_d_ref
+  if (!isTRUE(needs_group_weights)){
     weight_cols <- colnames(sub_universe_m_d_ref)[grepl("weights", colnames(sub_universe_m_d_ref))]
     if (length(weight_cols) > 0){
       sub_universe_m_d_ref <- sub_universe_m_d_ref %>%
         dplyr::select(-dplyr::all_of(weight_cols))
     }
-
   }
 
   ### Call set_portfolio_weights
@@ -885,10 +964,16 @@ set_top_down_micro_weights <- function(group_name, group_weights = NULL,
               concentration_constraint_policy = sub_concentration_constraint_policy,
               # Turnover Constraint Policy for stocks
               turnover_constraint_policy = sub_turnover_constraint_policy,
-              # Groups
-              groups_m_d_ref = NULL, #Not needed inside a group
               # Covariance Matrix
-              covariance_matrix = sub_covariance_matrix,
+              eligible_returns_m_xts_upd_ref = sub_eligible_returns_m_xts_upd_ref,
+              selected_benchmark_m_xts_upd_ref = selected_benchmark_m_xts_upd_ref,
+              active_returns = active_returns,
+              cov_estimation_method = cov_estimation_method,
+              cov_matrix_sample_size = cov_matrix_sample_size,
+              groups_m_d_ref = groups_m_d_ref,
+              selected_benchmark = selected_benchmark,
+              bench_assets_returns_m_xts_upd_ref = bench_assets_returns_m_xts_upd_ref,
+
               # Intra-portfolio parameters
               ## Risk Parity
               rp_method = rp_method, exp_ret_score_tilt = exp_ret_score_tilt,
@@ -904,7 +989,8 @@ set_top_down_micro_weights <- function(group_name, group_weights = NULL,
               custom_weights_m_d_ref = NULL, #Custom Weights
               # Winsorization
               lower_quantile_winsorization = lower_quantile_winsorization,
-              upper_quantile_winsorization = upper_quantile_winsorization
+              upper_quantile_winsorization = upper_quantile_winsorization,
+              level = "sub_port"
             )
           },
           error = function(e) {
@@ -975,7 +1061,14 @@ process_micro_portfolios <- function(parallel, groups, group_weights,
                                      # Core data
                                      group_members,
                                      universe_m_d_ref,
-                                     covariance_matrix,
+                                     eligible_returns_m_xts_upd_ref = NULL,
+                                     selected_benchmark_m_xts_upd_ref = NULL,
+                                     active_returns = if(is.null(selected_benchmark_m_xts_upd_ref)) FALSE else TRUE,
+                                     cov_estimation_method = "sample",
+                                     cov_matrix_sample_size = if(is.null(eligible_returns_m_xts_upd_ref)) NULL else nrow(eligible_returns_m_xts_upd_ref),
+                                     groups_m_d_ref = NULL,
+                                     selected_benchmark = NULL,
+                                     bench_assets_returns_m_xts_upd_ref = NULL,
                                      liquidity_m_d_ref = NULL,
 
                                      # Constraint policies
@@ -1023,8 +1116,15 @@ process_micro_portfolios <- function(parallel, groups, group_weights,
           # Core data
           group_members = group_members,
           universe_m_d_ref = universe_m_d_ref,
-          covariance_matrix = covariance_matrix,
           liquidity_m_d_ref = liquidity_m_d_ref,
+          eligible_returns_m_xts_upd_ref = eligible_returns_m_xts_upd_ref,
+          selected_benchmark_m_xts_upd_ref = selected_benchmark_m_xts_upd_ref,
+          active_returns = active_returns,
+          cov_estimation_method = cov_estimation_method,
+          cov_matrix_sample_size = cov_matrix_sample_size,
+          groups_m_d_ref = groups_m_d_ref,
+          selected_benchmark = selected_benchmark,
+          bench_assets_returns_m_xts_upd_ref = bench_assets_returns_m_xts_upd_ref,
 
           # Constraint policies
           concentration_constraint_policy = concentration_constraint_policy,
@@ -1067,8 +1167,15 @@ process_micro_portfolios <- function(parallel, groups, group_weights,
           # Core data
           group_members = group_members,
           universe_m_d_ref = universe_m_d_ref,
-          covariance_matrix = covariance_matrix,
           liquidity_m_d_ref = liquidity_m_d_ref,
+          eligible_returns_m_xts_upd_ref = eligible_returns_m_xts_upd_ref,
+          selected_benchmark_m_xts_upd_ref = selected_benchmark_m_xts_upd_ref,
+          active_returns = active_returns,
+          cov_estimation_method = cov_estimation_method,
+          cov_matrix_sample_size = cov_matrix_sample_size,
+          groups_m_d_ref = groups_m_d_ref,
+          selected_benchmark = selected_benchmark,
+          bench_assets_returns_m_xts_upd_ref = bench_assets_returns_m_xts_upd_ref,
 
           # Constraint policies
           concentration_constraint_policy = concentration_constraint_policy,
