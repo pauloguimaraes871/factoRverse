@@ -12,10 +12,9 @@
 #'   \code{weights} (numeric), and optionally \code{exp_ret_score} (numeric),
 #'   \code{rel_risk_contr} (numeric).
 #'   Only rows with \code{is_eligible == 1} are used for the **portfolio**.
-#' @param returns_m_xts_upd_ref An optional `xts` object containing return data for the eligible tickers, used in covariance matrix estimation for Risk-Parity and MVO methods.
-#' @param selected_benchmark_m_xts_upd_ref An optional `xts` object containing benchmark returns used to compute active returns (only if `active_returns = TRUE`).
-#' @param active_returns Logical. If `TRUE`, covariance estimation will use active returns (asset returns minus benchmark). Defaults to `FALSE` if `selected_benchmark_m_xts_upd_ref` is `NULL`, otherwise `TRUE`.
-#' @param cov_matrix_sample_size Integer. Number of time periods (rows in `returns_m_xts_upd_ref`) used to estimate the covariance matrix. If `NULL`, uses all available observations.
+#' @param covariance_matrix Optional covariance matrix for the eligible tickers when benchmark is not provided
+#' @param all_returns_m_xts_upd_ref An optional `xts` object containing return data for all tickers, used in covariance matrix estimation for Risk-Parity and MVO methods.
+#' @param cov_matrix_sample_size Integer. Number of time periods (rows in `all_returns_m_xts_upd_ref`) used to estimate the covariance matrix. If `NULL`, uses all available observations.
 #' @param selected_benchmark Character indicating the benchmark to use
 #' @param bench_universe_m_d_ref Optional \code{data.frame} in the same format as
 #'   \code{universe_m_d_ref} for the **benchmark**; if provided, active weights are used
@@ -30,15 +29,14 @@
 #' @return A one-row \code{data.frame} with portfolio metrics (and group metrics if provided).
 #' @rdname calculate_port_stats
 calculate_port_stats <-  function(universe_m_d_ref,
+                                  covariance_matrix = NULL,
                                   group_universe_m_d_ref = NULL,
                                   group_cov_matrix = NULL,
                                   selected_benchmark = NULL,
                                   bench_universe_m_d_ref = NULL,
-                                  returns_m_xts_upd_ref = NULL,
-                                  selected_benchmark_m_xts_upd_ref = NULL,
-                                  active_returns = if(is.null(selected_benchmark_m_xts_upd_ref)) FALSE else TRUE,  #Returns to estimate cov matrix
+                                  all_returns_m_xts_upd_ref = NULL,
                                   cov_estimation_method = "sample",
-                                  cov_matrix_sample_size = if(is.null(returns_m_xts_upd_ref)) NULL else nrow(returns_m_xts_upd_ref),
+                                  cov_matrix_sample_size = if(is.null(all_returns_m_xts_upd_ref)) NULL else nrow(all_returns_m_xts_upd_ref),
                                   groups_m_d_ref = NULL
                                   ) {
 
@@ -53,11 +51,11 @@ calculate_port_stats <-  function(universe_m_d_ref,
     }
     ## Expected Return Score
     if (!is.null(universe_m_d_ref$exp_ret_score) && any(is.na(universe_m_d_ref$exp_ret_score))) {
-      stop("NA values found in portfolio weights.")
+      stop("NA values found in exp ret scores.")
     }
     if (!is.null(bench_universe_m_d_ref) && !is.null(bench_universe_m_d_ref$exp_ret_score) &&
         any(is.na(bench_universe_m_d_ref$exp_ret_score))) {
-      stop("NA values found in bench weights.")
+      stop("NA values found in bench exp ret scores.")
     }
     ## RRC
     if (!is.null(universe_m_d_ref$rel_risk_contr) && any(is.na(universe_m_d_ref$rel_risk_contr))) {
@@ -72,24 +70,37 @@ calculate_port_stats <-  function(universe_m_d_ref,
       stop("Both selected_benchmark and bench_universe_m_d_ref must be provided together.")
     }
   ## Covariance matrix
-  if (!is.null(returns_m_xts_upd_ref)){
+  if (!is.null(all_returns_m_xts_upd_ref)){
 
-    ### All eligible tickers must be present in returns_m_xts_upd_ref
+    ### All eligible tickers must be present in all_returns_m_xts_upd_ref
     eligible_tickers <- universe_m_d_ref %>%
       dplyr::filter(is_eligible == 1) %>%
       dplyr::pull(tickers)
-    if (!all(eligible_tickers %in% colnames(returns_m_xts_upd_ref))) {
-      stop("Row/column names of returns_m_xts_upd_ref must match eligible tickers in portfolio.")
+    if (!all(eligible_tickers %in% colnames(all_returns_m_xts_upd_ref))) {
+      stop("Row/column names of all_returns_m_xts_upd_ref must match eligible tickers in portfolio.")
+    }
+  }
+  if (!is.null(covariance_matrix)){
+    ### Row/column names of covariance_matrix must match eligible tickers
+    eligible_tickers <- universe_m_d_ref %>%
+      dplyr::filter(is_eligible == 1) %>%
+      dplyr::pull(tickers)
+    if (!identical(eligible_tickers, rownames(covariance_matrix))) {
+      stop("Row/column names of covariance_matrix must match eligible tickers in portfolio.")
+    }
+    ### If a benchmark is being provided, covariance_matrix should be NULL
+    if (!is.null(bench_universe_m_d_ref)){
+      stop("When a benchmark is provided, covariance_matrix must be NULL.")
     }
   }
   ## Bench covariance matrix
-  if (!is.null(bench_universe_m_d_ref) && !is.null(returns_m_xts_upd_ref)){
-    ### All eligible tickers must be present in returns_m_xts_upd_ref
+  if (!is.null(bench_universe_m_d_ref) && !is.null(all_returns_m_xts_upd_ref)){
+    ### All eligible tickers must be present in all_returns_m_xts_upd_ref
     bench_eligible_tickers <- bench_universe_m_d_ref %>%
       dplyr::filter(weights > 0) %>%
       dplyr::pull(tickers)
-    if (!all(bench_eligible_tickers %in% colnames(returns_m_xts_upd_ref))) {
-      stop("Row/column names of returns_m_xts_upd_ref must match eligible tickers in benchmark.")
+    if (!all(bench_eligible_tickers %in% colnames(all_returns_m_xts_upd_ref))) {
+      stop("Row/column names of all_returns_m_xts_upd_ref must match eligible tickers in benchmark.")
     }
   }
   ## Group
@@ -123,7 +134,7 @@ calculate_port_stats <-  function(universe_m_d_ref,
     ## Extract weights, exp_ret_score and rrc
     df_use <- universe_m_d_ref %>%
       dplyr::select(dplyr::any_of(c("id", "tickers", "is_eligible", "weights",
-                                    "exp_ret_score", "rel_risk_contr")))
+                                    "exp_ret_score")))
     ## Join Portfolio + Benchmark
     if (!is.null(bench_universe_m_d_ref)) {
       ### Check that, for benchmark, is_eligible matches weights > 0 stocks
@@ -194,14 +205,6 @@ calculate_port_stats <-  function(universe_m_d_ref,
       } else {
         exp_ret_score_use <- NULL
       }
-      ### RRC to use
-      if (!is.null(df_use$rel_risk_contr)){
-        rrc_use <- df_use %>%
-          dplyr::pull(rel_risk_contr)
-        names(rrc_use) <- tickers_use
-      } else {
-        rrc_use <- NULL
-      }
 
     ## Group Weights
     if (!is.null(group_universe_m_d_ref)){
@@ -237,38 +240,64 @@ calculate_port_stats <-  function(universe_m_d_ref,
           names(group_exp_ret_score_use) <- group_tickers_use
         } else {
           group_exp_ret_score_use <- NULL
-          }
-      ### Extract group_rrc
-      if (!is.null(df_group_use$rel_risk_contr)){
-        group_rrc_use <- df_group_use %>%
-          dplyr::pull(rel_risk_contr)
-        names(group_rrc_use) <- group_tickers_use
-      }
-      else {
-        group_rrc_use <- NULL
-      }
+        }
     }
 
   # Subset covariance matrix----------------------------------------------------
 
       ### Covariance / correlation_matrix
-      if (!is.null(returns_m_xts_upd_ref)){
-        ####Run estimation function
+      if (!is.null(all_returns_m_xts_upd_ref) && is.null(covariance_matrix)){
+        #### Run estimation function
         cov_matrix_use <- estimate_covariance_matrix(
           tickers = tickers_use, #Eligible universe
-          returns_m_xts_upd_ref = returns_m_xts_upd_ref, #Return sample
-          cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method, active_returns = active_returns, #Cov estimation
-          selected_benchmark_m_xts_upd_ref = selected_benchmark_m_xts_upd_ref, #Benchmark for calculating active returns
+          returns_m_xts_upd_ref = all_returns_m_xts_upd_ref, #Return sample
+          cov_matrix_sample_size = cov_matrix_sample_size,
+          cov_estimation_method = cov_estimation_method,
+          active_returns = FALSE, #This avoids double counting for benchmark
           groups_m_d_ref = groups_m_d_ref #Groups for correcting NAs
         )
+        cor_matrix_use <- stats::cov2cor(cov_matrix_use)
+      } else if (!is.null(covariance_matrix)){
+        #### Use provided covariance matrix
+        cov_matrix_use <- covariance_matrix[tickers_use, tickers_use, drop = FALSE]
         cor_matrix_use <- stats::cov2cor(cov_matrix_use)
       } else {
         cov_matrix_use <- NULL
         cor_matrix_use <- NULL
       }
 
-      group_cov_matrix_use <- group_cov_matrix
-      group_cor_matrix_use <- if (!is.null(group_cov_matrix)) stats::cov2cor(group_cov_matrix) else NULL
+      ### Compute RRC if a cov_matrix_use exists
+      if (!is.null(cov_matrix_use)){
+        #### Compute RRC
+        rrc <- relative_risk_contribution(
+          weights = w_use,
+          covariance_matrix = cov_matrix_use
+        )
+        rrc_use <- rrc$rel_risk_contr
+        names(rrc_use) <- rrc$tickers
+      } else {
+        rrc_use <- NULL
+      }
+
+      if (!is.null(group_cov_matrix)){
+
+        #### Use provided group covariance matrix
+        group_cov_matrix_use <- group_cov_matrix
+        group_cor_matrix_use <-  stats::cov2cor(group_cov_matrix)
+
+        #### Compute RRC
+        group_rrc <- relative_risk_contribution(
+          weights = group_w_use,
+          covariance_matrix = group_cov_matrix_use
+        )
+        group_rrc_use <- group_rrc$rel_risk_contr
+        names(group_rrc_use) <- group_rrc$tickers
+      } else {
+        group_cov_matrix_use <- NULL
+        group_cor_matrix_use <- NULL
+        group_rrc_use <- NULL
+
+      }
 
   # Compute Port Stats----------------------------------------------------------
 
@@ -290,7 +319,7 @@ calculate_port_stats <-  function(universe_m_d_ref,
             dplyr::rename(info_ratio = act_sharpe)
         }
 
-      res <- port_stats
+      final_stats <- port_stats
 
       ### Groups Universe (if exists)
       if (!is.null(group_universe_m_d_ref)){
@@ -325,15 +354,33 @@ calculate_port_stats <-  function(universe_m_d_ref,
                              .fn = ~ paste0("act_", .x))
         #### For 'act_sharp', rename with info_ratio
         group_stats <- group_stats %>%
-          dplyr::rename(group_info_ratio = act_group_sharpe)
+          dplyr::rename(group_info_ratio = act_group_sharpe,
+                        n_groups = act_n_groups)
       }
 
       #### Combine and return
-      res <- cbind(port_stats, group_stats)
+      final_stats <- cbind(final_stats, group_stats)
 
       }
 
-    res
+  # Return----------------------------------------------------------------------
+      ### Deliver w_use, covariance and final_stats
+      if (nrow(df_use) == 0L){
+        assets_stats <- data.frame()
+      } else {
+        assets_stats <- data.frame(
+          tickers = tickers_use,
+          weights = w_use,
+          rel_risk_contr = if (!is.null(rrc_use)) rrc_use else NA_real_,
+          stringsAsFactors = FALSE
+        )
+      }
+
+      return(list(
+        port_stats = final_stats,
+        assets_stats = assets_stats,
+        covariance_matrix = cov_matrix_use
+      ))
 
 }
 
@@ -371,7 +418,7 @@ calculate_port_stats_internal <- function(w,
     n <- length(w)
 
     ## Portfolio exp. return, risk, Sharpe (rf = 0)
-    port_exp_ret <- if (!is.null(exp_ret_score)) sum(w * exp_ret_score) else NA_real_
+    port_exp_ret <- if (!is.null(exp_ret_score) && any(w > 0)) sum(w * exp_ret_score) else NA_real_
     port_var     <- if (!is.null(covariance_matrix)) as.numeric(t(w) %*% covariance_matrix %*% w) else NA_real_
     port_risk    <- if (!is.na(port_var)) sqrt(port_var) else NA_real_
     port_sharpe  <- if (!is.na(port_exp_ret) && !is.na(port_risk) && !isTRUE(all.equal(port_risk, 0))) {
@@ -479,8 +526,11 @@ gini_weights <- function(w){
     if (isTRUE(all.equal(s, 0))) return(NA_real_)
     w <- w / s                  # long-only case: ensure sum=1
   }
-  w <- sort(w)
+  w <- w[w > 0]
   n <- length(w)
+  if (n <= 1L) return(0)
+
+  w <- sort(w)
   2 * sum(w * seq_len(n)) / n - (n + 1) / n
 }
 
@@ -501,13 +551,42 @@ diversification_ratio <- function(w, covmat){
   if (isTRUE(all.equal(bot, 0))) NA_real_ else top / bot
 }
 
-weighted_avg_pairwise_corr <- function(w, corr){
-  n <- length(w); if (is.null(corr) || n <= 1) return(NA_real_)
+weighted_avg_pairwise_corr <- function(w, corr, tol = 1e-12){
+  n <- length(w)
+  if (is.null(corr) || n <= 1) return(NA_real_)
+
+  #align by names if available
+  if (!is.null(names(w)) && !is.null(rownames(corr)) && !is.null(colnames(corr))) {
+    common <- intersect(names(w), rownames(corr))
+    common <- intersect(common, colnames(corr))
+    if (length(common) < 2L) return(NA_real_)
+    w    <- w[common]
+    corr <- corr[common, common, drop = FALSE]
+    n    <- length(w)
+  } else {
+    # Fallback: basic shape checks
+    if (!is.matrix(corr) || any(dim(corr) != n)) return(NA_real_)
+  }
+
+  # Drop zero-weight names entirely (treat them as non-participants)
+  keep <- which(abs(w) > tol)
+  if (length(keep) < 2L) return(NA_real_)  # no pair to average
+  w    <- w[keep]
+  corr <- corr[keep, keep, drop = FALSE]
+
+  # Compute weighted average over positive-weight pairs
   idx <- which(upper.tri(corr), arr.ind = TRUE)
   if (nrow(idx) == 0) return(NA_real_)
   wpair <- abs(w[idx[,1]] * w[idx[,2]])   # exposure weights
-  num <- sum(wpair * corr[idx])
-  den <- sum(wpair)
+  cvals <- corr[idx]
+
+  # Handle NA correlations robustly
+  ok    <- !is.na(cvals) & (wpair > 0)
+  if (!any(ok)) return(NA_real_)
+
+  num <- sum(wpair[ok] * cvals[ok])
+  den <- sum(wpair[ok])
+
   if (isTRUE(all.equal(den, 0))) NA_real_ else num / den
 }
 rrc_distance_to_erc <- function(rrc){
