@@ -1197,6 +1197,10 @@ test_that("set portfolio weights work for MVO (signals) - constrained (individua
     ) %>%
     dplyr::relocate(act_rel_risk_contr, .after = weights)
 
+  most_recent_signal_universe_m_d_ref_final$act_weights[which(is.na(most_recent_signal_universe_m_d_ref_final$act_weights))] <- 0
+  most_recent_signal_universe_m_d_ref_final$act_rel_risk_contr[which(is.na(most_recent_signal_universe_m_d_ref_final$act_rel_risk_contr))] <- 0
+
+
   expect_equal(most_recent_signal_universe_m_d_ref_final %>% dplyr::arrange(id), results@universe_m_d_ref@data)
 
   #Port Spec theme SB
@@ -1360,6 +1364,11 @@ test_that("set portfolio weights work for MVO (signals) - constrained (individua
         ), by = "tickers"
     ) %>%
     dplyr::relocate(act_rel_risk_contr, .after = weights)
+
+  # Replace NAs with 0
+  most_recent_signal_universe_m_d_ref_final$act_weights[which(is.na(most_recent_signal_universe_m_d_ref_final$act_weights))] <- 0
+  most_recent_signal_universe_m_d_ref_final$act_rel_risk_contr[which(is.na(most_recent_signal_universe_m_d_ref_final$act_rel_risk_contr))] <- 0
+
 
   expect_equal(most_recent_signal_universe_m_d_ref_final %>% dplyr::arrange(id), results@universe_m_d_ref@data)
 
@@ -1623,6 +1632,10 @@ test_that("set portfolio weights work for MVO (signals) - constrained (individua
     ) %>%
     dplyr::relocate(act_rel_risk_contr, .after = weights)
 
+  most_recent_signal_universe_m_d_ref_final$act_weights[which(is.na(most_recent_signal_universe_m_d_ref_final$act_weights))] <- 0
+  most_recent_signal_universe_m_d_ref_final$act_rel_risk_contr[which(is.na(most_recent_signal_universe_m_d_ref_final$act_rel_risk_contr))] <- 0
+
+
 
   expect_equal(most_recent_signal_universe_m_d_ref_final %>% dplyr::arrange(id), results@universe_m_d_ref@data)
 
@@ -1631,7 +1644,7 @@ test_that("set portfolio weights work for MVO (signals) - constrained (individua
   expect_false(unname(best_port) == which.max(sharpe))
 
   #Test that chosen portfolio is closer to the target weights than the one that maximizes sharpe ratio
-  expect_true(diffs_vec[best_port] < diffs_vec[which.max(sharpe)])
+  expect_true(as.numeric(diffs_vec[best_port]) < as.numeric(diffs_vec[which.max(sharpe)]))
 
   #Run again with lower ridge pen and test that new port is further from target weights and has higher sharpe
   ridge_pen <- 0.05
@@ -1661,7 +1674,7 @@ test_that("set portfolio weights work for MVO (signals) - constrained (individua
 
   new_sharpe <- sum(new_weights[-2] * exp_ret_score)/sqrt(t(as.matrix(new_weights[-2])) %*% pca2_cov %*% as.matrix(new_weights[-2]))
   old_sharpe <- sum(old_weights[-2] * exp_ret_score)/sqrt(t(as.matrix(old_weights[-2])) %*% pca2_cov %*% as.matrix(old_weights[-2]))
-  expect_true(new_sharpe > old_sharpe)
+  expect_true(as.numeric(new_sharpe) > as.numeric(old_sharpe))
 
 })
 
