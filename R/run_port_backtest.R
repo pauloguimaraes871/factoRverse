@@ -1376,6 +1376,13 @@ run_port_backtest_internal <- function(
       turnover = rep(NA, length(dates_port_returns)) #Turnover
     ), order.by = dates_backtest + 1) #These are most up-to-date portfolio costs (one day-ahead in time of dates backtest)
 
+    ###Create object to store portfolio statistics
+    port_stats_m_xts <- xts::xts(data.frame(
+      volatility = rep(NA, length(dates_backtest)), #Volatility
+      sharpe = rep(NA, length(dates_backtest)), #Sharpe Ratio
+      max_drawdown = rep(NA, length(dates_backtest)) #Max Drawdown
+    ), order.by = dates_backtest) #These are most up-to-date portfolio statistics (matching current date)
+
     ###Create object to store portfolio metrics
     if (!is.null(custom_stock_metrics_m_df)){
       ##Get most up-to-date portfolio metrics (matching current date)
@@ -1398,10 +1405,12 @@ run_port_backtest_internal <- function(
                                   ), order.by = dates_port_returns))
 
       ####Select benchmark_m_xts
-      selected_benchmark_returns_m_xts <- benchmark_returns_m_xts[ ,selected_benchmark]
+      selected_benchmark_returns_m_xts <-
+        benchmark_returns_m_xts[, col_match(benchmark_returns_m_xts, selected_benchmark), drop = FALSE]
 
       ####Select daily benchmark_m_xts
-      selected_daily_cov_matrix_bench_m_xts <- daily_bench_returns_m_xts[ ,cov_matrix_benchmark]
+      selected_daily_cov_matrix_bench_m_xts <-
+        daily_bench_returns_m_xts[, col_match(daily_bench_returns_m_xts, cov_matrix_benchmark), drop = FALSE]
 
       ####Select benchmark_weights_m_df
       if (!is.null(benchmark_weights_m_df)){
@@ -1705,7 +1714,9 @@ run_port_backtest_internal <- function(
         #####Subset Daily Stock Returns
         selected_daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts_upd_ref[, stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)]
         if (!is.null(selected_benchmark) && !is.null(selected_benchmark_weights_m_d_ref)){
-          bench_assets_daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts_upd_ref[, selected_benchmark_weights_m_d_ref %>% dplyr::filter(!!rlang::sym(selected_benchmark) > 0) %>% dplyr::pull(tickers)]
+          bench_tickers <- selected_benchmark_weights_m_d_ref %>% dplyr::filter(!!rlang::sym(selected_benchmark) > 0) %>% dplyr::pull(tickers)
+          bench_assets_daily_stock_returns_m_xts_upd_ref <-
+            daily_stock_returns_m_xts_upd_ref[, col_match(daily_stock_returns_m_xts_upd_ref, bench_tickers), drop = FALSE]
         } else {
           bench_assets_daily_stock_returns_m_xts_upd_ref <- NULL
         }
@@ -1739,7 +1750,7 @@ run_port_backtest_internal <- function(
           cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, #Sample size to estimate cov matrix (NULL => full period)
           active_returns = active_returns,
           #Returns sample for covariance estimation
-          returns_m_xts_upd_ref = selected_daily_stock_returns_m_xts_upd_ref, selected_benchmark_m_xts_upd_ref = selected_daily_cov_matrix_bench_m_xts_upd_ref,
+          eligible_returns_m_xts_upd_ref = selected_daily_stock_returns_m_xts_upd_ref, selected_benchmark_m_xts_upd_ref = selected_daily_cov_matrix_bench_m_xts_upd_ref,
           #Risk-Parity and Hierarhical Risk Parity methods
           rp_method = rp_method, exp_ret_score_tilt = exp_ret_score_tilt, exp_ret_score_tilt_eta = exp_ret_score_tilt_eta, linkage = linkage,
           #MVO Optimization
@@ -1784,11 +1795,13 @@ run_port_backtest_internal <- function(
             ind_min_weights = stock_port@ind_min_weights,
             groups = stock_port@groups,
             mmaf_method = stock_port@mmaf_method,
-            mmaf_group_col = stock_port@mmaf_group_col,
+            group_col = stock_port@group_col,
             group_cov_matrix = stock_port@group_cov_matrix,
             micro = stock_port@micro,
             macro = stock_port@macro,
+            port_stats = stock_port@port_stats,
             port_name = stock_port@port_name,
+            selected_benchmark_port = stock_port@selected_benchmark_port,
             type = if (port_construction_method == "custom_weights") "custom_weights" else if (!is.null(oos_predictions_m_df)) "signal_blend" else "single_signal",
             main_liquidity_metric = main_liquidity_metric
           )
