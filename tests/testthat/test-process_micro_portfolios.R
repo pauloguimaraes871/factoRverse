@@ -1849,7 +1849,7 @@ testthat::test_that("process_micro_portfolios errors when covariance matrix our 
       eligible_returns_m_xts_upd_ref = wrong_selected_daily_stock_returns_m_xts_upd_ref,
       liquidity_m_d_ref = liquidity_m_d_ref
     ),
-    "Some tickers in group Doméstico Defensivo are not in covariance matrix."
+    "Some tickers in group Doméstico Defensivo are not in eligible_returns_m_xts_upd_ref."
   )
 
   #Groups with no members
