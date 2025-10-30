@@ -108,11 +108,16 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
   if (port_construction_method == "custom_weights"){
     ### For custom_weights, eligible tickers are those with weights > 0 in custom_weights_m_d_ref
     ### Thus positive weights dominates eligibility from classify_investment_universe
-    eligible_tickers <- universe_m_d_ref %>%
-      dplyr::left_join(custom_weights_m_d_ref %>%
-                         dplyr::select(id, weights), by = "id") %>%
-      dplyr::filter(weights > 0) %>%
-      dplyr::pull(tickers)
+    ### For sub level == "group", all should be considered eligible, though
+    if (level == "group") {
+      eligible_tickers <- universe_m_d_ref %>% dplyr::pull(tickers)
+    } else {
+      eligible_tickers <- universe_m_d_ref %>%
+        dplyr::left_join(custom_weights_m_d_ref %>%
+                           dplyr::select(id, weights), by = "id") %>%
+        dplyr::filter(weights > 0) %>%
+        dplyr::pull(tickers)
+    }
   } else {
     eligible_tickers <-  universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
   }
@@ -236,6 +241,11 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
       universe_m_d_ref = universe_m_d_ref, #Signal Universe
       mmaf_method = mmaf_method, top_down_proxy_port_method = top_down_proxy_port_method, #MMAF method
       covariance_matrix = covariance_matrix,
+      eligible_returns_m_xts_upd_ref = eligible_returns_m_xts_upd_ref,
+      selected_benchmark_m_xts_upd_ref = selected_benchmark_m_xts_upd_ref,
+      active_returns = active_returns,  #Returns to estimate cov matrix
+      cov_estimation_method = cov_estimation_method,
+      cov_matrix_sample_size = cov_matrix_sample_size, #How to estimate covariance matrix?
       groups_m_d_ref = groups_m_d_ref, mmaf_group_col = mmaf_group_col, #Sectors
       liquidity_m_d_ref = liquidity_m_d_ref,
       micro_port_construction_method = micro_port_construction_method, #Micro portfolio construction method
@@ -256,6 +266,7 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
       macro_rp_method = macro_rp_method, macro_exp_ret_score_tilt = macro_exp_ret_score_tilt, macro_exp_ret_score_tilt_eta = macro_exp_ret_score_tilt_eta,
       macro_linkage = macro_linkage, #Macro Risk Parity
       lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization, #Winsorize cap scores
+      selected_benchmark = selected_benchmark, bench_assets_returns_m_xts_upd_ref = bench_assets_returns_m_xts_upd_ref,
       parallel = parallel #Parallelization
     )
 
@@ -274,7 +285,12 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
     eligible_universe_m_d_ref <- universe_m_d_ref %>% dplyr::filter(is_eligible == 1)
   } else {
     #In case of custom weights, it is possible that non-eligible assets have weights (eg. theme_ss_bench_weights)
-    eligible_universe_m_d_ref <- universe_m_d_ref %>% dplyr::filter(weights != 0)
+    #For level == "group", just consider all as eligible
+    if (level == "group") {
+      eligible_universe_m_d_ref <- universe_m_d_ref
+    } else {
+      eligible_universe_m_d_ref <- universe_m_d_ref %>% dplyr::filter(weights != 0)
+    }
   }
 
   ##Calculate relative risk contribution
@@ -376,7 +392,7 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
 
         ### Compute macro objects
         macro_objects_list <- compute_agg_macro_objects(
-          eligible_universe_m_d_ref = eligible_universe_m_d_ref,
+          universe_m_d_ref = universe_m_d_ref,
           covariance_matrix = covariance_matrix,
           group_col = group_col,
           liquidity_m_d_ref = liquidity_m_d_ref,
@@ -437,24 +453,58 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
       all_returns_m_xts_upd_ref <- eligible_returns_m_xts_upd_ref
     }
     if (level %in% c("port", "sub_port")) {
+
       #### Grab all tickers from eligible and bench universes
-      if (is.null(bench_universe_m_d_ref)){
-        tickers_use <- eligible_universe_m_d_ref %>% dplyr::filter(is_eligible == 1L) %>% dplyr::pull(tickers)
+      if (is.null(bench_universe_m_d_ref)) {
+        tickers_use <- eligible_universe_m_d_ref %>%
+          dplyr::filter(is_eligible == 1L) %>%
+          dplyr::pull(tickers)
       } else {
         tickers_use <- dplyr::union(
-          eligible_universe_m_d_ref %>% dplyr::filter(is_eligible == 1L) %>% dplyr::pull(tickers),
-          bench_universe_m_d_ref %>% dplyr::filter(is_eligible == 1L) %>% dplyr::pull(tickers)
+          eligible_universe_m_d_ref %>%
+            dplyr::filter(is_eligible == 1L) %>%
+            dplyr::pull(tickers),
+          bench_universe_m_d_ref %>%
+            dplyr::filter(is_eligible == 1L) %>%
+            dplyr::pull(tickers)
         )
       }
 
       #### Bind eligible and bench returns and subset with tickers_use
-      all_returns_m_xts_upd_ref <- cbind(eligible_returns_m_xts_upd_ref,
-                                         bench_assets_returns_m_xts_upd_ref)[, tickers_use]
+
+
+
+        ##### Get combined returns
+        all_returns_m_xts_upd_ref <- if (is.null(eligible_returns_m_xts_upd_ref) &&
+                                         is.null(bench_assets_returns_m_xts_upd_ref)) {
+          NULL
+
+        } else if (is.null(eligible_returns_m_xts_upd_ref)) {
+          bench_assets_returns_m_xts_upd_ref[, col_match(bench_assets_returns_m_xts_upd_ref, tickers_use), drop = FALSE]
+
+        } else if (is.null(bench_assets_returns_m_xts_upd_ref)) {
+          eligible_returns_m_xts_upd_ref[, col_match(eligible_returns_m_xts_upd_ref, tickers_use), drop = FALSE]
+
+        } else {
+          # Both exist - combine them
+          bench_only_tickers <- setdiff(
+            colnames(bench_assets_returns_m_xts_upd_ref),
+            colnames(eligible_returns_m_xts_upd_ref)
+          )
+
+          combined <- if (length(bench_only_tickers) > 0) {
+            cbind(eligible_returns_m_xts_upd_ref,
+                  bench_assets_returns_m_xts_upd_ref[, bench_only_tickers, drop = FALSE])
+          } else {
+            eligible_returns_m_xts_upd_ref
+          }
+
+          combined[, col_match(combined, tickers_use), drop = FALSE]
+      }
     }
     if (level == "group"){
       all_returns_m_xts_upd_ref <- NULL
     }
-
 
     stats_res <- calculate_port_stats(
       universe_m_d_ref = universe_m_d_ref,
@@ -496,6 +546,7 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
         universe_m_d_ref$act_rel_risk_contr[which(is.na(universe_m_d_ref$act_rel_risk_contr))] <- 0
       }
     }
+
 
   ##Create the s4 obj
   eligible_assets <- eligible_universe_m_d_ref %>% dplyr::pull(tickers)
