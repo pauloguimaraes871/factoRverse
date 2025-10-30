@@ -3168,7 +3168,8 @@ setClass(
       ## and as NA otherwise
       if (!is.null(object@covariance_matrix)){
         rrc_cols <- object@port_stats[, setdiff(names(object@port_stats %>% dplyr::select(dplyr::contains("rrc"))), "group_hhi_rrc")]
-        if (any(sapply(rrc_cols, function(x) all(is.na(x))))){
+        if ((!is.null(object@selected_benchmark_port) && "act_weights" %in% names(object@universe_m_d_ref@data) && any(object@universe_m_d_ref@data$act_weights > 0)) &&
+             any(sapply(rrc_cols, function(x) all(is.na(x))))){
           stop("When covariance_matrix is not NULL, port_stats must have relative risk contribution (rrc) columns as not NA.")
         }
       } else {
