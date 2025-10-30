@@ -7,7 +7,13 @@
 create_mmaf_portfolio(
   universe_m_d_ref,
   mmaf_method = "bottom_up",
-  covariance_matrix,
+  eligible_returns_m_xts_upd_ref = NULL,
+  covariance_matrix = NULL,
+  selected_benchmark_m_xts_upd_ref = NULL,
+  active_returns = if (is.null(selected_benchmark_m_xts_upd_ref)) FALSE else TRUE,
+  cov_estimation_method = "sample",
+  cov_matrix_sample_size = if (is.null(eligible_returns_m_xts_upd_ref)) NULL else
+    nrow(eligible_returns_m_xts_upd_ref),
   groups_m_d_ref,
   mmaf_group_col,
   liquidity_m_d_ref,
@@ -44,6 +50,8 @@ create_mmaf_portfolio(
   macro_exp_ret_score_tilt = NULL,
   macro_exp_ret_score_tilt_eta = NULL,
   macro_linkage = "single",
+  selected_benchmark = NULL,
+  bench_assets_returns_m_xts_upd_ref = NULL,
   lower_quantile_winsorization = 0.025,
   upper_quantile_winsorization = 0.975,
   parallel = FALSE,

@@ -10,8 +10,16 @@ set_top_down_micro_weights(
   micro_port_construction_method,
   group_members,
   universe_m_d_ref,
-  covariance_matrix,
   liquidity_m_d_ref = NULL,
+  eligible_returns_m_xts_upd_ref = NULL,
+  selected_benchmark_m_xts_upd_ref = NULL,
+  active_returns = if (is.null(selected_benchmark_m_xts_upd_ref)) FALSE else TRUE,
+  cov_estimation_method = "sample",
+  cov_matrix_sample_size = if (is.null(eligible_returns_m_xts_upd_ref)) NULL else
+    nrow(eligible_returns_m_xts_upd_ref),
+  groups_m_d_ref = NULL,
+  selected_benchmark = NULL,
+  bench_assets_returns_m_xts_upd_ref = NULL,
   concentration_constraint_policy = NULL,
   turnover_constraint_policy = NULL,
   liquidity_constraint_policy = NULL,
@@ -45,8 +53,6 @@ construction within the group (e.g., \code{"mvo"}, \code{"risk_parity"}).}
 
 \item{universe_m_d_ref}{Data frame with stock-level reference data, including
 tickers and optional benchmark/target weights.}
-
-\item{covariance_matrix}{Numeric covariance matrix covering all tickers.}
 
 \item{liquidity_m_d_ref}{(Optional) Data frame with liquidity metrics for
 the full universe.}
@@ -90,6 +96,8 @@ cap-weighted allocations.}
 \item{lower_quantile_winsorization}{(Optional) Lower quantile cutoff.}
 
 \item{upper_quantile_winsorization}{(Optional) Upper quantile cutoff.}
+
+\item{covariance_matrix}{Numeric covariance matrix covering all tickers.}
 }
 \value{
 A portfolio object returned by \code{set_portfolio_weights()} with weights

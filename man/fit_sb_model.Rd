@@ -25,6 +25,8 @@ fit_sb_model(
   active_returns = TRUE,
   selected_cov_matrix_benchmark_m_xts_upd_ref,
   groups_m_d_ref,
+  bench_assets_backtest_returns_corrected_positions_m_xts_upd_ref = NULL,
+  selected_benchmark = NULL,
   rp_method = "cyclical-spinu",
   exp_ret_score_tilt = NULL,
   exp_ret_score_tilt_eta = NULL,
@@ -103,6 +105,10 @@ fit_sb_model(
 \item{selected_cov_matrix_benchmark_m_xts_upd_ref}{An \code{xts} object representing the selected market factor proxy.}
 
 \item{groups_m_d_ref}{A meta-dataframe containing group information for the assets.}
+
+\item{bench_assets_backtest_returns_corrected_positions_m_xts_upd_ref}{A 'xts' object containg returns data for selected_benchmark. Only used in heuristics methods}
+
+\item{selected_benchmark}{A character vector indicating the selected benchmark tickers. Only used in heuristics methods}
 
 \item{rp_method}{A \code{character} specifying the method for Risk Parity optimization.}
 

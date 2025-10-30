@@ -11,12 +11,12 @@ set_portfolio_weights(
   cap_weighting_metric = NULL,
   groups_m_d_ref = NULL,
   covariance_matrix = NULL,
-  returns_m_xts_upd_ref = NULL,
+  eligible_returns_m_xts_upd_ref = NULL,
   selected_benchmark_m_xts_upd_ref = NULL,
   active_returns = if (is.null(selected_benchmark_m_xts_upd_ref)) FALSE else TRUE,
   cov_estimation_method = "sample",
-  cov_matrix_sample_size = if (is.null(returns_m_xts_upd_ref)) NULL else
-    nrow(returns_m_xts_upd_ref),
+  cov_matrix_sample_size = if (is.null(eligible_returns_m_xts_upd_ref)) NULL else
+    nrow(eligible_returns_m_xts_upd_ref),
   liquidity_constraint_policy = NULL,
   turnover_constraint_policy = NULL,
   concentration_constraint_policy = NULL,
@@ -53,9 +53,12 @@ set_portfolio_weights(
   macro_exp_ret_score_tilt_eta = NULL,
   macro_linkage = "single",
   selected_benchmark = NULL,
+  bench_assets_returns_m_xts_upd_ref = NULL,
+  level = "port",
   lower_quantile_winsorization = 0.025,
   upper_quantile_winsorization = 0.975,
-  parallel = FALSE
+  parallel = FALSE,
+  verbose = TRUE
 )
 }
 \arguments{
@@ -79,7 +82,7 @@ set_portfolio_weights(
 
 \item{covariance_matrix}{An optional covariance matrix for the eligible tickers. If \code{NULL}, the function will estimate the covariance matrix using the provided return data. Defaults to \code{NULL}.}
 
-\item{returns_m_xts_upd_ref}{An optional \code{xts} object containing return data for the eligible tickers, used in covariance matrix estimation for Risk-Parity and MVO methods.}
+\item{eligible_returns_m_xts_upd_ref}{An optional \code{xts} object containing return data for the eligible tickers, used in covariance matrix estimation for Risk-Parity and MVO methods.}
 
 \item{selected_benchmark_m_xts_upd_ref}{An optional \code{xts} object containing benchmark returns used to compute active returns (only if \code{active_returns = TRUE}).}
 
@@ -87,7 +90,7 @@ set_portfolio_weights(
 
 \item{cov_estimation_method}{An optional character string specifying the method for estimating the covariance matrix. Defaults to \code{NULL}.}
 
-\item{cov_matrix_sample_size}{Integer. Number of time periods (rows in \code{returns_m_xts_upd_ref}) used to estimate the covariance matrix. If \code{NULL}, uses all available observations.}
+\item{cov_matrix_sample_size}{Integer. Number of time periods (rows in \code{eligible_returns_m_xts_upd_ref}) used to estimate the covariance matrix. If \code{NULL}, uses all available observations.}
 
 \item{liquidity_constraint_policy}{An optional list specifying the policy for liquidity constraints. Defaults to \code{NULL}.}
 
@@ -164,6 +167,11 @@ sector allocation, prefer \code{"ew"}, \code{"rp"} or \code{"hrp"} and keep \cod
 \item{macro_linkage}{Character, passed to macro hierarchical methods when applicable.}
 
 \item{selected_benchmark}{It controls whether a 'port' object for the benchmark should be created and added to portolio results.}
+
+\item{bench_assets_returns_m_xts_upd_ref}{Optional. A 'xts' object containing returns for all stocks. Needed for computing benchmark and port stats.}
+
+\item{level}{Character. Level of the portfolio object. Options are \code{"port"}, \code{"benchmark"}, or \code{"group"}. Defaults to \code{"port"}.
+Helps in assessing which type of portfolio is being created.}
 
 \item{lower_quantile_winsorization}{An optional numeric value for lower quantile winsorization when handling cap weighting and scaling. Defaults to \code{NULL}.}
 

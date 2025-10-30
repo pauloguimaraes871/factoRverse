@@ -9,8 +9,13 @@ calculate_port_stats(
   covariance_matrix = NULL,
   group_universe_m_d_ref = NULL,
   group_cov_matrix = NULL,
+  selected_benchmark = NULL,
   bench_universe_m_d_ref = NULL,
-  bench_cov_matrix = NULL
+  all_returns_m_xts_upd_ref = NULL,
+  cov_estimation_method = "sample",
+  cov_matrix_sample_size = if (is.null(all_returns_m_xts_upd_ref)) NULL else
+    nrow(all_returns_m_xts_upd_ref),
+  groups_m_d_ref = NULL
 )
 }
 \arguments{
@@ -20,6 +25,8 @@ calculate_port_stats(
 \code{rel_risk_contr} (numeric).
 Only rows with \code{is_eligible == 1} are used for the \strong{portfolio}.}
 
+\item{covariance_matrix}{Optional covariance matrix for the eligible tickers when benchmark is not provided}
+
 \item{group_universe_m_d_ref}{Optional \code{data.frame} in the same format but
 representing a \strong{group portfolio} (e.g., pre-aggregated sector/sleeve weights).
 Only rows with \code{is_eligible == 1} are used. A separate metrics block is returned,
@@ -28,12 +35,17 @@ prefixed with \code{group_}.}
 \item{group_cov_matrix}{Optional covariance matrix for the \strong{group} universe
 (row/column names must match \code{group} tickers provided).}
 
+\item{selected_benchmark}{Character indicating the benchmark to use}
+
 \item{bench_universe_m_d_ref}{Optional \code{data.frame} in the same format as
 \code{universe_m_d_ref} for the \strong{benchmark}; if provided, active weights are used
 (\code{w_port - w_bench}) on the union of tickers (missing side = 0).}
 
-\item{all_cov_matrix}{Optional numeric covariance matrix covering the \strong{union}
-of tickers present in the portfolio and benchmark. Row/column names must be tickers.}
+\item{all_returns_m_xts_upd_ref}{An optional \code{xts} object containing return data for all tickers, used in covariance matrix estimation for Risk-Parity and MVO methods.}
+
+\item{cov_matrix_sample_size}{Integer. Number of time periods (rows in \code{all_returns_m_xts_upd_ref}) used to estimate the covariance matrix. If \code{NULL}, uses all available observations.}
+
+\item{groups_m_d_ref}{An optional data frame used for group constraints and covariance matrix estimation. Should include group information if used. Defaults to \code{NULL}.}
 }
 \value{
 A one-row \code{data.frame} with portfolio metrics (and group metrics if provided).
