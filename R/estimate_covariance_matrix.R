@@ -28,7 +28,7 @@ estimate_covariance_matrix <- function(tickers, returns_m_xts_upd_ref,
       cat("\n")
     }
     #Get returns for the ticker
-    returns_vector <- returns_m_xts_upd_ref[, tickers]
+    returns_vector <- returns_m_xts_upd_ref[, col_match(returns_m_xts_upd_ref, tickers), drop = FALSE]
     #Calculate variance
     variance_value <- stats::var(returns_vector, na.rm = TRUE)
     #Return as a 1x1 matrix
@@ -39,7 +39,8 @@ estimate_covariance_matrix <- function(tickers, returns_m_xts_upd_ref,
   }
 
   #Checks
-  if(!all(tickers %in% colnames(returns_m_xts_upd_ref))){
+  if (!all(base::make.names(tickers, FALSE) %in%
+           base::make.names(base::colnames(returns_m_xts_upd_ref), FALSE))) {
     stop("Tickers without correspondence in returns_m_xts_upd_ref")
   }
 
@@ -72,8 +73,11 @@ estimate_covariance_matrix <- function(tickers, returns_m_xts_upd_ref,
   }
 
   #Get all rows that comprehend current_date - cov_matrix_sample_size
-  returns_m_xts_sample <- returns_m_xts_upd_ref[which(returns_m_xts_upd_ref_dates %in% dates_to_sample), #Get all dates in dates_to_sample
-                                                tickers] #Get all tickers
+  returns_m_xts_sample <- returns_m_xts_upd_ref[
+    returns_m_xts_upd_ref_dates %in% dates_to_sample, #Get all dates in dates_to_sample
+    col_match(returns_m_xts_upd_ref, tickers), #Get all tickers
+    drop = FALSE
+  ]
 
   ###############################
 
