@@ -76,7 +76,9 @@ calculate_port_stats <-  function(universe_m_d_ref,
     eligible_tickers <- universe_m_d_ref %>%
       dplyr::filter(is_eligible == 1) %>%
       dplyr::pull(tickers)
-    if (!all(eligible_tickers %in% colnames(all_returns_m_xts_upd_ref))) {
+
+    if (!all(base::make.names(eligible_tickers, FALSE) %in%
+             base::make.names(base::colnames(all_returns_m_xts_upd_ref), FALSE))) {
       stop("Row/column names of all_returns_m_xts_upd_ref must match eligible tickers in portfolio.")
     }
   }
@@ -99,8 +101,15 @@ calculate_port_stats <-  function(universe_m_d_ref,
     bench_eligible_tickers <- bench_universe_m_d_ref %>%
       dplyr::filter(weights > 0) %>%
       dplyr::pull(tickers)
-    if (!all(bench_eligible_tickers %in% colnames(all_returns_m_xts_upd_ref))) {
+
+    if (!all(base::make.names(bench_eligible_tickers, FALSE) %in%
+             base::make.names(base::colnames(all_returns_m_xts_upd_ref), FALSE))) {
       stop("Row/column names of all_returns_m_xts_upd_ref must match eligible tickers in benchmark.")
+    }
+
+    ### Weights should sum to 1
+    if (abs(sum(bench_universe_m_d_ref$weights) - 1) > 0.02){
+      stop("Weights in bench_universe_m_d_ref should sum to 1.")
     }
   }
   ## Group
@@ -135,6 +144,12 @@ calculate_port_stats <-  function(universe_m_d_ref,
     df_use <- universe_m_d_ref %>%
       dplyr::select(dplyr::any_of(c("id", "tickers", "is_eligible", "weights",
                                     "exp_ret_score")))
+
+    ## Weights should sum to 1
+    if (abs(sum(df_use$weights) - 1) > 0.02){
+      stop("Weights in universe_m_d_ref should sum to 1.")
+    }
+
     ## Join Portfolio + Benchmark
     if (!is.null(bench_universe_m_d_ref)) {
       ### Check that, for benchmark, is_eligible matches weights > 0 stocks
@@ -247,6 +262,7 @@ calculate_port_stats <-  function(universe_m_d_ref,
 
       ### Covariance / correlation_matrix
       if (!is.null(all_returns_m_xts_upd_ref) && is.null(covariance_matrix)){
+
         #### Run estimation function
         cov_matrix_use <- estimate_covariance_matrix(
           tickers = tickers_use, #Eligible universe
@@ -394,12 +410,15 @@ calculate_port_stats_internal <- function(w,
 
     ## Check if names of w, covariance, correltion, exp_ret_score and rrc are all alligned
     if (!is.null(covariance_matrix)) {
-      if (!identical(names(w), rownames(covariance_matrix))) {
+      if (!base::identical(base::make.names(names(w), FALSE),
+                           base::make.names(base::rownames(covariance_matrix), FALSE))) {
         stop("Names of weights must match row/column names of covariance_matrix.")
       }
     }
+
     if (!is.null(correlation_matrix)) {
-      if (!identical(names(w), rownames(correlation_matrix))) {
+      if (!base::identical(base::make.names(names(w), FALSE),
+                           base::make.names(base::rownames(correlation_matrix), FALSE))) {
         stop("Names of weights must match row/column names of correlation_matrix.")
       }
     }
@@ -409,7 +428,10 @@ calculate_port_stats_internal <- function(w,
       }
     }
     if (!is.null(rrc)) {
-      if (!identical(names(w), names(rrc))) {
+      if (!base::identical(
+        base::make.names(base::names(w),   FALSE),
+        base::make.names(base::names(rrc), FALSE)
+      )) {
         stop("Names of weights must match names of rrc.")
       }
     }
