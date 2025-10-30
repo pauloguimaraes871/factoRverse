@@ -380,12 +380,13 @@ fit_sb_model <- function(sb_algorithm, #SB Algorithm
       ind_max_weights = sb_model@ind_max_weights,
       ind_min_weights = sb_model@ind_min_weights,
       groups = sb_model@groups,
+      group_col = sb_model@group_col,
       mmaf_method = sb_model@mmaf_method,
-      mmaf_group_col = sb_model@mmaf_group_col,
       group_cov_matrix = sb_model@group_cov_matrix,
       micro = sb_model@micro,
       macro = sb_model@macro,
       port_stats = sb_model@port_stats,
+      selected_benchmark_port = sb_model@selected_benchmark_port,
       port_name = sb_model@port_name,
       heuristic_sb_metric = if (needs_exp_ret_score) custom_objective_translated else NULL
     )
