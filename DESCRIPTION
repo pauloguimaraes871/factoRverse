@@ -80,6 +80,7 @@ Collate:
     'constructors.R'
     'estimate_covariance_matrix.R'
     'get_best_lambda.R'
+    'helper-col_match.R'
     'instructions.R'
     'map_recipe_timewise.R'
     'plot_methods.R'
