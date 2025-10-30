@@ -157,7 +157,7 @@ test_that("compute_agg_magro_object works for happy path with cov matrix and liq
 
   results <- compute_agg_macro_objects(
     covariance_matrix = covariance_matrix,
-    eligible_universe_m_d_ref = stock_universe_m_d_ref,
+    universe_m_d_ref = stock_universe_m_d_ref,
     group_col = "Sector",
     liquidity_m_d_ref = liquidity_m_d_ref
   )
@@ -255,7 +255,7 @@ test_that("compute_agg_magro_object works for happy path without cov matrix and 
     dplyr::arrange(tickers)
 
   results <- compute_agg_macro_objects(
-    eligible_universe_m_d_ref = stock_universe_m_d_ref %>% dplyr::select(-ibov_bench_weights, -mean_volfin_3m, -presence),
+    universe_m_d_ref = stock_universe_m_d_ref %>% dplyr::select(-ibov_bench_weights, -mean_volfin_3m, -presence),
     group_col = "Sector"
   )
 
@@ -427,7 +427,7 @@ test_that("compute_agg_magro_object works when micro_universe is provided (mmaf 
   expect_warning(
     results <- compute_agg_macro_objects(
       covariance_matrix = covariance_matrix,
-      eligible_universe_m_d_ref = stock_universe_m_d_ref %>% dplyr::select(-weights),
+      universe_m_d_ref = stock_universe_m_d_ref %>% dplyr::select(-weights),
       group_col = "Sector",
       liquidity_m_d_ref = liquidity_m_d_ref,
       micro_universe_m_d_ref_list = list(
@@ -578,7 +578,7 @@ test_that("compute_agg_magro_object works when a given group has no eligible tic
 
   results <- compute_agg_macro_objects(
     covariance_matrix = covariance_matrix,
-    eligible_universe_m_d_ref = stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1),
+    universe_m_d_ref = stock_universe_m_d_ref,
     group_col = "Sector",
     liquidity_m_d_ref = liquidity_m_d_ref
   )
@@ -597,7 +597,7 @@ test_that("compute_agg_magro_object works when a given group has no eligible tic
   expect_error(
     compute_agg_macro_objects(
       covariance_matrix = covariance_matrix,
-      eligible_universe_m_d_ref = stock_universe_m_d_ref,
+      universe_m_d_ref = stock_universe_m_d_ref %>% dplyr::mutate(is_eligible = 0),
       group_col = "Sector",
       liquidity_m_d_ref = liquidity_m_d_ref
     ), "Row names of covariance_matrix must match eligible tickers."
@@ -613,10 +613,10 @@ test_that("compute_agg_magro_object works when a given group has no eligible tic
   expect_error(
     compute_agg_macro_objects(
       covariance_matrix = covariance_matrix,
-      eligible_universe_m_d_ref = stock_universe_m_d_ref,
+      universe_m_d_ref = stock_universe_m_d_ref,
       group_col = "Sector",
       liquidity_m_d_ref = liquidity_m_d_ref
-      ),"eligible_universe_m_d_ref must only contain eligible tickers."
+      ),"Row names of covariance_matrix must match eligible tickers."
   )
 
 
@@ -788,7 +788,7 @@ test_that("compute_agg_magro_object works for group with weights equal to 0", {
   expect_warning(
   results <- compute_agg_macro_objects(
     covariance_matrix = covariance_matrix,
-    eligible_universe_m_d_ref = stock_universe_m_d_ref,
+    universe_m_d_ref = stock_universe_m_d_ref,
     group_col = "Sector",
     liquidity_m_d_ref = liquidity_m_d_ref
   ),
@@ -816,6 +816,7 @@ test_that("errors if covariance_matrix is not a numeric matrix", {
     tickers = c("s1","s2"),
     Sector  = c("A","B"),
     weights = c(0.6, 0.4),
+    is_eligible = c(1,1),
     stringsAsFactors = FALSE
   )
   bad_Sigma <- as.data.frame(matrix(1, 2, 2))
@@ -823,7 +824,7 @@ test_that("errors if covariance_matrix is not a numeric matrix", {
 
   testthat::expect_error(
     compute_agg_macro_objects(
-      eligible_universe_m_d_ref = eligible,
+      universe_m_d_ref = eligible,
       covariance_matrix = bad_Sigma,   # not a matrix
       group_col = "Sector"
     ),
@@ -837,13 +838,14 @@ test_that("errors if covariance_matrix has no row/col names", {
     tickers = c("s1","s2"),
     Sector  = c("A","B"),
     weights = c(0.6, 0.4),
+    is_eligible = c(1,1),
     stringsAsFactors = FALSE
   )
   Sigma <- matrix(c(0.01,0.002,0.002,0.02), 2, 2)  # no dimnames
 
   expect_error(
     compute_agg_macro_objects(
-      eligible_universe_m_d_ref = eligible,
+      universe_m_d_ref = eligible,
       covariance_matrix = Sigma,
       group_col = "Sector"
     ),
@@ -857,6 +859,7 @@ test_that("errors if covariance_matrix rownames != eligible tickers", {
     tickers = c("s1","s2"),
     Sector  = c("A","B"),
     weights = c(0.6, 0.4),
+    is_eligible = c(1,1),
     stringsAsFactors = FALSE
   )
   Sigma <- matrix(c(0.01,0.002,0.002,0.02), 2, 2)
@@ -864,7 +867,7 @@ test_that("errors if covariance_matrix rownames != eligible tickers", {
 
   expect_error(
     compute_agg_macro_objects(
-      eligible_universe_m_d_ref = eligible,
+      universe_m_d_ref = eligible,
       covariance_matrix = Sigma,
       group_col = "Sector"
     ),
@@ -878,6 +881,7 @@ test_that("errors if group_col missing in groups_m_d_ref or eligible", {
     tickers = c("s1","s2"),
     SectorX = c("A","B"),   # wrong column name on purpose
     weights = c(0.6, 0.4),
+    is_eligible = c(1,1),
     stringsAsFactors = FALSE
   )
   groups_map <- data.frame(
@@ -891,7 +895,7 @@ test_that("errors if group_col missing in groups_m_d_ref or eligible", {
   # group_col not found in eligible_universe_m_d_ref
   expect_error(
     compute_agg_macro_objects(
-      eligible_universe_m_d_ref = eligible,
+      universe_m_d_ref = eligible,
       covariance_matrix = Sigma,
       group_col = "Sector"
     ),

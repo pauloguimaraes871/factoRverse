@@ -112,10 +112,13 @@
 #' `stats::weighted.mean()`, `purrr::map()` / `purrr::map_dfr()`.
 #'
 #' @examples NULL
-compute_agg_macro_objects <- function(eligible_universe_m_d_ref, covariance_matrix = NULL,
+compute_agg_macro_objects <- function(universe_m_d_ref, covariance_matrix = NULL,
                                       group_col, micro_universe_m_d_ref_list = NULL,
                                       liquidity_m_d_ref = NULL
                                       ){
+  ## Get eligible universe---------------------------------------------------
+  eligible_universe_m_d_ref <- universe_m_d_ref %>%
+    dplyr::filter(is_eligible == 1)
 
   ## Define groups--------------------------------------------------------------
   if (!group_col %in% names(eligible_universe_m_d_ref)){
@@ -292,9 +295,9 @@ compute_agg_macro_objects <- function(eligible_universe_m_d_ref, covariance_matr
         stringr::str_detect(names(eligible_universe_m_d_ref), "target_weights")
     ]
     if (length(group_weight_colnames) > 0){
-      #### Build total weights per sector, considering all stocks (eligible_universe_m_d_ref)
+      #### Build total weights per sector, considering all stocks (universe_m_d_ref)
       #### and sum them by sector
-      group_weights_m_d_ref <- eligible_universe_m_d_ref %>%
+      group_weights_m_d_ref <- universe_m_d_ref %>% #Here we need all stocks so that weights sum to 1
         dplyr::group_by(!!rlang::sym(group_col)) %>%
         dplyr::summarise(dplyr::across(
           dplyr::all_of(group_weight_colnames),
@@ -303,6 +306,15 @@ compute_agg_macro_objects <- function(eligible_universe_m_d_ref, covariance_matr
         .groups = "drop"
         ) %>%
         dplyr::rename(sector = !!rlang::sym(group_col))
+
+        ##### Defensively check that weight columns sum to 1
+        for (col in group_weight_colnames){
+          total_weight_sum <- sum(universe_m_d_ref[[col]], na.rm = TRUE)
+          if (abs(total_weight_sum - 1) > 0.02){
+            warning(paste0("Total sum of '", col, "' in universe_m_d_ref is ", total_weight_sum,
+                           ", which deviates from 1 by more than 0.02."))
+          }
+        }
 
       #### Join to group_universe_m_d_ref
       group_universe_m_d_ref <- group_universe_m_d_ref %>%
