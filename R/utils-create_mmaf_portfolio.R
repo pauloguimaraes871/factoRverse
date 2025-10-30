@@ -428,7 +428,7 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
 
     ## Compute aggregate objects
     agg_macro_objects <- compute_agg_macro_objects(
-      eligible_universe_m_d_ref = eligible_universe_m_d_ref,
+      universe_m_d_ref = universe_m_d_ref,
       covariance_matrix = covariance_matrix,
       group_col = mmaf_group_col,
       micro_universe_m_d_ref_list = micro_universe_m_d_ref_list,
@@ -485,7 +485,6 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
       lower_quantile_winsorization = lower_quantile_winsorization,
       upper_quantile_winsorization = upper_quantile_winsorization,
       parallel = FALSE, # Macro level is small, no need for parallel
-      groups_m_d_ref = NULL,
       selected_benchmark = NULL,
       level = "group"
     )
@@ -509,7 +508,6 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
         cat("\n")
       }
 
-
       ### For each group, apply micro portfolio method
       micro_port_list <- process_micro_portfolios(
         universe_m_d_ref = universe_m_d_ref,
@@ -527,8 +525,8 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
         cov_estimation_method = cov_estimation_method,
         cov_matrix_sample_size = cov_matrix_sample_size,
         groups_m_d_ref = groups_m_d_ref,
-        selected_benchmark = NULL,
-        bench_assets_returns_m_xts_upd_ref = NULL,
+        selected_benchmark = selected_benchmark,
+        bench_assets_returns_m_xts_upd_ref = bench_assets_returns_m_xts_upd_ref,
         liquidity_constraint_policy = liquidity_constraint_policy,
         turnover_constraint_policy = turnover_constraint_policy,
         concentration_constraint_policy = concentration_constraint_policy,
@@ -759,7 +757,7 @@ set_top_down_micro_weights <- function(group_name, group_weights = NULL,
 
   ### Get subcovariance data
   if (!all(eligible_sub_tickers %in% colnames(eligible_returns_m_xts_upd_ref))){
-    stop(paste0("Some tickers in group ", group_name, " are not in covariance matrix."))
+    stop(paste0("Some tickers in group ", group_name, " are not in eligible_returns_m_xts_upd_ref."))
   }
 
   sub_eligible_returns_m_xts_upd_ref <- eligible_returns_m_xts_upd_ref[, eligible_sub_tickers]
@@ -795,7 +793,7 @@ set_top_down_micro_weights <- function(group_name, group_weights = NULL,
   }
 
   ### For mvo, scale weight columns and constraints
-  if (isTRUE(needs_group_weights) && micro_port_construction_method == "mvo"){
+  if (isTRUE(needs_group_weights)){
     #### columns that contain 'bench_weights'
     if(ncol(sub_universe_m_d_ref %>% dplyr::select(dplyr::contains("bench_weights"))) > 0){
       weight_cols <- colnames(sub_universe_m_d_ref)[grepl("bench_weights", colnames(sub_universe_m_d_ref))]
@@ -805,7 +803,7 @@ set_top_down_micro_weights <- function(group_name, group_weights = NULL,
       for (col in weight_cols){
         if (sum(sub_universe_m_d_ref[[col]], na.rm = TRUE) >= 1){
           ###### Warn that weights are being normalized, which might indicate constraints not holding
-          warning(paste0("For concentration constraint: after scaling, ", col, " in group ", group_name,
+          warning(paste0("For concentration constraint/selected_benchmark: after scaling, ", col, " in group ", group_name,
                          " sums to more than 1. Normalizing to sum to 1.",
                          "This might indicate that overall constraints do not hold because of this group."))
           ##### Normalize weights
@@ -914,24 +912,6 @@ set_top_down_micro_weights <- function(group_name, group_weights = NULL,
 
   }
 
-  ### For selected_benchmark, scale 'selected_benchmark_bench_weights' column if it exists
-  if (isTRUE(needs_group_weights) && !is.null(selected_benchmark) && micro_port_construction_method != "mvo"){
-    selected_benchmark_col <- paste0(selected_benchmark, "_bench_weights")
-    if (ncol(sub_universe_m_d_ref %>% dplyr::select(dplyr::contains(selected_benchmark_col))) > 0){
-      sub_universe_m_d_ref <- sub_universe_m_d_ref %>%
-        dplyr::mutate(dplyr::across(dplyr::all_of(selected_benchmark_col), ~ .x / group_weights[group_name]))
-      ##### If weights sum >= 1, normalize weights so that they sum 1
-      if (sum(sub_universe_m_d_ref[[selected_benchmark_col]], na.rm = TRUE) >= 1){
-        ###### Warn that weights are being normalized, which might indicate constraints not holding
-        warning(paste0("For selected_benchmark: after scaling, ", selected_benchmark_col, " in group ", group_name,
-                       " sums to more than 1. Normalizing to sum to 1."))
-        ##### Normalize weights
-        sub_universe_m_d_ref <- sub_universe_m_d_ref %>%
-          dplyr::mutate(!!rlang::sym(selected_benchmark_col) := !!rlang::sym(selected_benchmark_col) / sum(!!rlang::sym(selected_benchmark_col), na.rm = TRUE))
-      }
-    }
-  }
-
   ### If needs_group_weights is FALSE, remove any weight columns from sub_universe_m_d_ref
   if (!isTRUE(needs_group_weights)){
     weight_cols <- colnames(sub_universe_m_d_ref)[grepl("weights", colnames(sub_universe_m_d_ref))]
@@ -1019,8 +999,6 @@ set_top_down_micro_weights <- function(group_name, group_weights = NULL,
       for (w in .warnings) warning(sprintf("[%s] %s", group_name, w),
                                    call. = FALSE, immediate. = TRUE)
     }
-
-
 
   port
 
