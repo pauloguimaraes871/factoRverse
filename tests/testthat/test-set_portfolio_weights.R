@@ -1148,7 +1148,7 @@ test_that("set portfolio weights work for MVO (signals) - constrained (individua
   #Macro
   ### Compute macro objects
   macro_objects_list <- compute_agg_macro_objects(
-    eligible_universe_m_d_ref = most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1),
+    universe_m_d_ref = most_recent_signal_universe_m_d_ref,
     covariance_matrix = pca2_cov,
     group_col = "theme",
     liquidity_m_d_ref = NULL,
@@ -1316,7 +1316,7 @@ test_that("set portfolio weights work for MVO (signals) - constrained (individua
   #Macro
   ### Compute macro objects
   macro_objects_list <- compute_agg_macro_objects(
-    eligible_universe_m_d_ref = most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1),
+    universe_m_d_ref = most_recent_signal_universe_m_d_ref,
     covariance_matrix = pca2_cov,
     group_col = "theme",
     liquidity_m_d_ref = NULL,
@@ -1583,7 +1583,7 @@ test_that("set portfolio weights work for MVO (signals) - constrained (individua
   #Macro
   ### Compute macro objects
   macro_objects_list <- compute_agg_macro_objects(
-    eligible_universe_m_d_ref = most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1),
+    universe_m_d_ref = most_recent_signal_universe_m_d_ref,
     covariance_matrix = pca2_cov,
     group_col = "theme",
     liquidity_m_d_ref = NULL,
@@ -1690,7 +1690,9 @@ test_that("set portfolio weights work for MMAF (signals) - top_down - proxy = RP
   #Select and correct signals
   signal_universe_m_df <- results@signal_universe_m_df@data
   most_recent_signal_universe_m_d_ref <- signal_universe_m_df %>% dplyr::filter(dates == "2023-06-15")
-  current_eligible_signals <- most_recent_signal_universe_m_d_ref$tickers
+  #Force ineligibility
+  most_recent_signal_universe_m_d_ref$is_eligible[1] <- 0
+  current_eligible_signals <- most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
   signals_positions <- ifelse(stringr::str_detect(current_eligible_signals, "low_"), "short", "long")
   chosen_signals_and_positions <- signals_positions
   names(chosen_signals_and_positions) <- stringr::str_remove(current_eligible_signals, "low_")
@@ -1708,6 +1710,8 @@ test_that("set portfolio weights work for MMAF (signals) - top_down - proxy = RP
 
   selected_backtest_returns_corrected_positions_m_xts_upd_ref <- selected_backtest_returns_corrected_positions_m_xts[c(1:9),]
   selected_cov_matrix_benchmark_m_xts_upd_ref <- selected_cov_matrix_benchmark_m_xts[c(1:9), ]
+  bench_assets_returns_m_xts_upd_ref <- mocked_backtest_returns_m_xts[c(1:9), most_recent_signal_universe_m_d_ref$tickers]
+
 
   #ts_splits
   features_m_refit <- signals_m_df@data %>% dplyr::filter(dates <= "2023-03-15") #this is to mimick ts_split behavior with a target_fwd of 3
@@ -1715,14 +1719,6 @@ test_that("set portfolio weights work for MMAF (signals) - top_down - proxy = RP
   #custom_obj
   custom_objective <- "min_act_dd_dev"
 
-
-  #Calculate an ewma cov active matrix
-  selected_backtest_returns_corrected_positions_m_xts_upd_ref_active <-
-    apply(selected_backtest_returns_corrected_positions_m_xts_upd_ref, 2, function(x){
-      ((1+x/100)/(1+as.numeric(selected_cov_matrix_benchmark_m_xts_upd_ref)/100) - 1)*100
-    })
-
-  covariance_matrix <- PerformanceAnalytics::M2.ewma(selected_backtest_returns_corrected_positions_m_xts_upd_ref_active)
 
   #exp_ret_score
   exp_ret_score <- most_recent_signal_universe_m_d_ref$act_dd_dev*-1
@@ -1741,26 +1737,43 @@ test_that("set portfolio weights work for MMAF (signals) - top_down - proxy = RP
 
   theme_port_list <- process_micro_portfolios(
     parallel = TRUE,
-    universe_m_d_ref = eligible_universe_m_d_ref,
-    covariance_matrix = covariance_matrix,
+    universe_m_d_ref = most_recent_signal_universe_m_d_ref,
+    selected_benchmark = NULL,
+    bench_assets_returns_m_xts_upd_ref = NULL,
+    eligible_returns_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+    selected_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
+    active_returns = TRUE,
+    cov_estimation_method = "ewma",
     groups = themes,
     group_members = themes_members,
     group_weights = NULL,
+    groups_m_d_ref = signal_themes_m_d_ref,
     micro_port_construction_method = "rp"
   )
 
+  #Estimate cov matrix
+  covariance_matrix <- estimate_covariance_matrix(
+    tickers = eligible_universe_m_d_ref$tickers,
+    returns_m_xts = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+    cov_estimation_method = "ewma",
+    active_returns = TRUE,
+    selected_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
+    cov_matrix_sample_size = nrow(selected_backtest_returns_corrected_positions_m_xts_upd_ref)
+  )
 
   #Generate macro portfolios
   groups_exp_ret_score <- purrr::map_vec(theme_port_list, function(x) {
-    sum(dplyr::pull(x@universe_m_d_ref@data, exp_ret_score) *
-          dplyr::pull(x@universe_m_d_ref@data, weights))
+    sum(dplyr::pull(x@universe_m_d_ref@data %>% dplyr::filter(is_eligible == 1), exp_ret_score) *
+          dplyr::pull(x@universe_m_d_ref@data %>% dplyr::filter(is_eligible == 1), weights))
   })
 
   groups_theme_ss_bench_weights <- most_recent_signal_universe_m_d_ref %>%
+    dplyr::filter(is_eligible == 1) %>%
     dplyr::group_by(theme) %>%
     dplyr::summarise(theme_ss_bench_weights = sum(theme_ss_bench_weights))
 
   groups_theme_sb_bench_weights <- most_recent_signal_universe_m_d_ref %>%
+    dplyr::filter(is_eligible == 1) %>%
     dplyr::group_by(theme) %>%
     dplyr::summarise(theme_sb_bench_weights = sum(theme_sb_bench_weights))
 
@@ -1773,12 +1786,12 @@ test_that("set portfolio weights work for MMAF (signals) - top_down - proxy = RP
   )
   row.names(group_universe_m_d_ref) <- NULL
 
-  g1_w <- theme_port_list[[1]]@universe_m_d_ref@data %>% dplyr::pull(weights)
-  g1_tickers <- theme_port_list[[1]]@universe_m_d_ref@data %>% dplyr::pull(tickers)
-  g2_w <- theme_port_list[[2]]@universe_m_d_ref@data %>% dplyr::pull(weights)
-  g2_tickers <- theme_port_list[[2]]@universe_m_d_ref@data %>% dplyr::pull(tickers)
-  g3_w <- theme_port_list[[3]]@universe_m_d_ref@data %>% dplyr::pull(weights)
-  g3_tickers <- theme_port_list[[3]]@universe_m_d_ref@data %>% dplyr::pull(tickers)
+  g1_w <- theme_port_list[[1]]@universe_m_d_ref@data %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(weights)
+  g1_tickers <- theme_port_list[[1]]@universe_m_d_ref@data %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+  g2_w <- theme_port_list[[2]]@universe_m_d_ref@data %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(weights)
+  g2_tickers <- theme_port_list[[2]]@universe_m_d_ref@data %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+  g3_w <- theme_port_list[[3]]@universe_m_d_ref@data %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(weights)
+  g3_tickers <- theme_port_list[[3]]@universe_m_d_ref@data %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
 
   ### Calculate each cov matrix element
   groups <- list(
@@ -1844,12 +1857,18 @@ test_that("set portfolio weights work for MMAF (signals) - top_down - proxy = RP
   micro_port_list <- capture_warnings_and_value(
     process_micro_portfolios(
       parallel = FALSE,
-      universe_m_d_ref = eligible_universe_m_d_ref,
-      covariance_matrix = covariance_matrix,
+      universe_m_d_ref = most_recent_signal_universe_m_d_ref,
+      selected_benchmark = "theme_ss",
+      bench_assets_returns_m_xts_upd_ref = bench_assets_returns_m_xts_upd_ref,
+      eligible_returns_m_xts_upd_ref = selected_backtest_returns_corrected_positions_m_xts_upd_ref,
+      selected_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
+      active_returns = TRUE,
+      cov_estimation_method = "ewma",
       groups = themes,
       group_members = themes_members,
       group_weights = group_weights,
       micro_port_construction_method = "rp",
+      groups_m_d_ref = signal_themes_m_d_ref,
       exp_ret_score_tilt = "inner",
       exp_ret_score_tilt_eta = 0.05
     )
@@ -1877,9 +1896,70 @@ test_that("set portfolio weights work for MMAF (signals) - top_down - proxy = RP
     dplyr::relocate(rel_risk_contr, .before = weights)
   universe_m_d_ref_result$rel_risk_contr[which(is.na(universe_m_d_ref_result$rel_risk_contr))] <- 0
 
+  # Compute port stats
+    ## For momentum
+    momentum_stats <- calculate_port_stats(
+      universe_m_d_ref = micro_result_list$momentum@universe_m_d_ref@data %>%
+        dplyr::select(-act_rel_risk_contr, -act_weights),
+      group_universe_m_d_ref = NULL,
+      group_cov_matrix = NULL,
+      selected_benchmark = "theme_ss",
+      bench_universe_m_d_ref = micro_result_list$momentum@universe_m_d_ref@data %>%
+        dplyr::select(-act_rel_risk_contr, -act_weights) %>%
+        dplyr::mutate(weights = theme_ss_bench_weights),
+      all_returns_m_xts_upd_ref = bench_assets_returns_m_xts_upd_ref,
+      cov_matrix_sample_size = 9,
+      cov_estimation_method = "ewma",
+      groups_m_d_ref = signal_themes_m_d_ref
+    )
+
+    ## For value
+    value_stats <- calculate_port_stats(
+      universe_m_d_ref = micro_result_list$value@universe_m_d_ref@data %>%
+        dplyr::select(-act_rel_risk_contr, -act_weights),
+      group_universe_m_d_ref = NULL,
+      group_cov_matrix = NULL,
+      selected_benchmark = "theme_ss",
+      bench_universe_m_d_ref = micro_result_list$value@universe_m_d_ref@data %>%
+        dplyr::select(-act_rel_risk_contr, -act_weights) %>%
+        dplyr::mutate(weights = theme_ss_bench_weights/sum(theme_ss_bench_weights),
+                      is_eligible = 1),
+      all_returns_m_xts_upd_ref = bench_assets_returns_m_xts_upd_ref,
+      cov_matrix_sample_size = 9,
+      cov_estimation_method = "ewma",
+      groups_m_d_ref = signal_themes_m_d_ref
+    )
+
+    ## For port
+    universe_m_d_ref_result_stats <- calculate_port_stats(
+      universe_m_d_ref = universe_m_d_ref_result,
+      group_universe_m_d_ref = group_port@universe_m_d_ref@data,
+      group_cov_matrix = group_cov,
+      selected_benchmark = "theme_ss",
+      bench_universe_m_d_ref = most_recent_signal_universe_m_d_ref %>%
+        dplyr::mutate(weights = theme_ss_bench_weights/sum(theme_ss_bench_weights),
+                      is_eligible = ifelse(weights > 0, 1, 0)),
+      all_returns_m_xts_upd_ref = bench_assets_returns_m_xts_upd_ref,
+      cov_matrix_sample_size = 9,
+      cov_estimation_method = "ewma",
+      groups_m_d_ref = signal_themes_m_d_ref
+    )
+
+    ## Join active statistics
+    universe_m_d_ref_result <- universe_m_d_ref_result %>%
+      dplyr::left_join(
+        universe_m_d_ref_result_stats$assets_stats %>%
+          dplyr::rename(
+            act_rel_risk_contr = rel_risk_contr,
+            act_weights = weights
+          ), by = "tickers"
+      ) %>%
+      dplyr::relocate(act_rel_risk_contr, .after = weights)
+
 
   #Run and compare results
   set.seed(123)
+  suppressWarnings(
   results <-
     set_portfolio_weights(
       universe_m_d_ref = most_recent_signal_universe_m_d_ref,
@@ -1900,8 +1980,11 @@ test_that("set portfolio weights work for MMAF (signals) - top_down - proxy = RP
       cov_estimation_method = "ewma",
       active_returns = TRUE,
       selected_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
-      groups_m_d_ref = signal_themes_m_d_ref
+      groups_m_d_ref = signal_themes_m_d_ref,
+      selected_benchmark = "theme_ss",
+      bench_assets_returns_m_xts_upd_ref = bench_assets_returns_m_xts_upd_ref
     )
+  )
 
 
   #Check that portfolios match
@@ -1912,7 +1995,12 @@ test_that("set portfolio weights work for MMAF (signals) - top_down - proxy = RP
     group_port@port_stats, results@macro@port_stats
   )
   testthat::expect_equal(
-    group_port@port_stats, results@port_stats %>% dplyr::select(dplyr::contains("group_"))
+    results@micro$value@port_stats,
+    value_stats$port_stats
+  )
+  testthat::expect_equal(
+    results@micro$momentum@port_stats,
+    momentum_stats$port_stats
   )
   testthat::expect_equal(
     micro_result_list, results@micro
@@ -1923,16 +2011,11 @@ test_that("set portfolio weights work for MMAF (signals) - top_down - proxy = RP
   )
     ## Momentum has only one asset
     testthat::expect_equal(
-      micro_result_list$momentum@port_stats$hhi_weights, 1
-    )
-    ## Others are RP (tilted)
-    testthat::expect_equal(
-      micro_result_list$defensive@port_stats$hhi_rrc, 1/2, tolerance = 0.1 #Tilt
+      results@micro$momentum@port_stats$act_hhi_weights, NA_real_
     )
     testthat::expect_equal(
-      micro_result_list$value@port_stats$hhi_rrc, 1/2, tolerance = 0.1 #Tilt
+      results@micro$momentum@port_stats$act_risk, 0
     )
-
 
   testthat::expect_equal(
     #Unclear where names in this vector of df come frm, but they are useless
@@ -2038,7 +2121,8 @@ test_that("mmaf works when one of groups has zero weights", {
   ##MMAF Config
   mmaf_config <- create_sb_backtest_config(sb_algorithm = "mmaf", rebalancing_months = 4, custom_objective = "max_info_ratio",
                                            training_sample_size = 5, target_fwd_name = "fwd_premium_3m") %>%
-    add_cov_est_method(cov_estimation_method = "ewma", cov_matrix_sample_size = 2, active_returns = TRUE, cov_matrix_benchmark = "ibov") %>%
+    add_cov_est_method(cov_estimation_method = "ewma", cov_matrix_sample_size = 2,
+                       active_returns = TRUE, cov_matrix_benchmark = "ibov") %>%
     add_mmaf_parameters(mmaf_group_col = "theme", mmaf_method = "top_down", top_down_proxy_port_method = "hrp",
                         macro_port_construction_method = "rp", micro_port_construction_method = "mvo") %>%
     add_rp_parameters(rp_method = "cyclical-spinu", level = "macro", exp_ret_score_tilt = "inner", exp_ret_score_tilt_eta = 1) %>%
@@ -2069,9 +2153,9 @@ test_that("mmaf works when one of groups has zero weights", {
 
   most_recent_signal_universe_m_d_ref <- ss_results@signal_universe_m_df@data %>% dplyr::filter(dates == "2023-04-15")
   target_port_m_d_ref <- target_port_m_df@data %>% dplyr::filter(dates == "2023-04-15")
-  selected_backtest_returns_m_xts_upd_ref <- backtest_returns_m_xts@data["2022-12-15/2023-04-15",
-                                                                         most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)]
+  selected_backtest_returns_m_xts_upd_ref <- backtest_returns_m_xts@data["2022-12-15/2023-04-15", most_recent_signal_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)]
   selected_cov_matrix_benchmark_m_xts_upd_ref <- benchmark_returns_m_xts@data["2022-12-15/2023-04-15", "ibov"]
+  bench_assets_returns_m_xts_upd_ref <- backtest_returns_m_xts@data["2022-12-15/2023-04-15", most_recent_signal_universe_m_d_ref$tickers]
 
   #Features Objects
   selected_signals_m_df <- signals_m_df@data %>% dplyr::mutate(low_vol_36m = vol_36m*-1) %>% dplyr::select(-vol_36m) %>%
@@ -2104,7 +2188,9 @@ test_that("mmaf works when one of groups has zero weights", {
                  mmaf_group_col = "theme", top_down_proxy_port_method = "hrp",
                  micro_port_construction_method = "mvo", macro_port_construction_method = "rp",
                  macro_concentration_constraint_policy = list(benchmark = "theme_sb",
-                                                              max_abs_active_individual_weight = 0.2)
+                                                              max_abs_active_individual_weight = 0.2),
+                 selected_benchmark = "theme_sb",
+                 bench_assets_backtest_returns_corrected_positions_m_xts_upd_ref = bench_assets_returns_m_xts_upd_ref
     ))
 
   #Test for presence of group with zero weight
@@ -2127,7 +2213,23 @@ test_that("mmaf works when one of groups has zero weights", {
     0
   )
 
-
+  #Test for port stats
+  expect_equal(
+    sb_port@model@port_stats,
+    calculate_port_stats(
+      universe_m_d_ref = sb_port@model@universe_m_d_ref@data %>% dplyr::select(-act_weights, -act_rel_risk_contr),
+      group_universe_m_d_ref = sb_port@model@macro@universe_m_d_ref@data,
+      group_cov_matrix = sb_port@model@group_cov_matrix,
+      selected_benchmark = "theme_sb",
+      bench_universe_m_d_ref = sb_port@model@universe_m_d_ref@data %>%
+        dplyr::mutate(weights = theme_sb_bench_weights/sum(theme_sb_bench_weights),
+                      is_eligible = ifelse(weights > 0, 1, 0)),
+      all_returns_m_xts_upd_ref = bench_assets_returns_m_xts_upd_ref,
+      cov_matrix_sample_size = 2,
+      cov_estimation_method = "ewma",
+      groups_m_d_ref = signal_themes_m_df@data %>% dplyr::filter(dates == as.Date("2023-04-15"))
+    )$port_stats
+  )
 
 
 })
@@ -2177,6 +2279,9 @@ test_that("set portfolio weights works for stocks (ew) - artificial_port_obj ", 
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "ew")
 
   expect_equal(results@universe_m_d_ref@data, expected_results)
+
+  expect_equal(results@port_stats$hhi_weights, 0.25)
+
 
 })
 
@@ -2390,13 +2495,15 @@ test_that("set portfolio weights works for stocks (rp) - artificial_port_obj ", 
   expected_results$weights <- rp_results$w
 
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "rp",
-                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                    cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method
   )
 
 
   expect_equal(results@universe_m_d_ref@data, expected_results)
   expect_equal(results@universe_m_d_ref@data$weights %>% sum(), 1)
+  expect_equal(results@port_stats$hhi_rrc, 0.25)
+
 
 })
 
@@ -2457,7 +2564,7 @@ test_that("set_portfolio weights works for stocks (rp + exp_ret_score_tilt = 'in
   expected_results$weights <- rp_results$w
 
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "rp",
-                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                    cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
                                    exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
                                    exp_ret_score_tilt = "inner"
@@ -2471,8 +2578,6 @@ test_that("set_portfolio weights works for stocks (rp + exp_ret_score_tilt = 'in
   stock_with_highest_exp_ret <- expected_results %>% dplyr::filter(exp_ret_score == max(exp_ret_score)) %>% dplyr::pull(tickers)
   stock_with_highest_rrc <- results@universe_m_d_ref@data %>% dplyr::filter(rel_risk_contr == max(rel_risk_contr)) %>% dplyr::pull(tickers)
   expect_equal(stock_with_highest_exp_ret, stock_with_highest_rrc)
-
-
 
 
 
@@ -2534,6 +2639,10 @@ test_that("set portfolio weights work for stocks (rp constrained + exp_ret_score
                                               turnover_constraint_policy = turnover_constraint_policy,
                                               concentration_constraint_policy = concentration_constraint_policy)
 
+  selected_daily_stock_returns_m_xts_upd_ref <-
+    daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date), eligible_stock_universe_m_d_ref$tickers]
+
+
   #Run RP with constraints
   rp_results <- riskParityPortfolio::riskParityPortfolio(
     Sigma = covariance_matrix,
@@ -2554,17 +2663,52 @@ test_that("set portfolio weights work for stocks (rp constrained + exp_ret_score
   expected_results <- expected_results %>% dplyr::left_join(rrc, by = "tickers") %>%
     dplyr::relocate(rel_risk_contr, .before = weights)
 
+  #Do active calculation for groups and benchmark
+  macro_objs <- compute_agg_macro_objects(
+    universe_m_d_ref = expected_results,
+    covariance_matrix = covariance_matrix,
+    group_col = "Sector",
+    liquidity_m_d_ref = liquidity_m_d_ref,
+    micro_universe_m_d_ref_list = NULL
+  )
+
+  port_stats <- calculate_port_stats(
+    universe_m_d_ref = expected_results,
+    group_universe_m_d_ref = macro_objs$group_universe_m_d_ref,
+    group_cov_matrix = macro_objs$group_covariance_matrix,
+    selected_benchmark = "ibov",
+    bench_universe_m_d_ref = benchmark_weights_m_d_ref %>%
+      dplyr::mutate(weights = ibov,
+                    is_eligible = ifelse(weights > 0, 1, 0)),
+    all_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    cov_matrix_sample_size = 252,
+    cov_estimation_method = covariance_estimation_method,
+    groups_m_d_ref = stock_groups_m_d_ref
+  )
+
+  ## Add actives
+  expected_results <- expected_results %>%
+    dplyr::left_join(port_stats$assets_stats %>%
+                       dplyr::rename(
+                         act_weights = weights,
+                         act_rel_risk_contr = rel_risk_contr
+                       ), by = "tickers"
+                     ) %>%
+    dplyr::relocate(act_rel_risk_contr, .before = act_weights)
+
 
   # Run function
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "rp",
-                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+                                   groups_m_d_ref = stock_groups_m_d_ref,
                                    cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
                                    exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
                                    exp_ret_score_tilt = "inner",
                                    liquidity_m_d_ref = liquidity_m_d_ref,
                                    liquidity_constraint_policy = liquidity_constraint_policy,
                                    turnover_constraint_policy = turnover_constraint_policy,
-                                   concentration_constraint_policy = concentration_constraint_policy
+                                   concentration_constraint_policy = concentration_constraint_policy,
+                                   selected_benchmark = "ibov", bench_assets_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref
   )
 
 
@@ -2719,15 +2863,46 @@ test_that("set_portfolio weights works for stocks (hrp + exp_ret_score_tilt = 'i
   expected_results$rel_risk_contr <- c(0, rrc$rel_risk_contr)
   expected_results$weights <- c(0, w[rownames(covariance_matrix)])
 
-  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "hrp",
-                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
-                                   cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
-                                   active_returns = FALSE,
-                                   exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
-                                   exp_ret_score_tilt = "inner"
+  expect_warning(
+    results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "hrp",
+                                     eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+                                     groups_m_d_ref = stock_groups_m_d_ref,
+                                     cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
+                                     active_returns = FALSE,
+                                     exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
+                                     exp_ret_score_tilt = "inner",
+                                     selected_benchmark = "ibov", bench_assets_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref
+    ), "The following groups are missing in macro eligible_assets: Oil"
   )
 
-  expect_equal(results@universe_m_d_ref@data, expected_results)
+  ## Add active statistics
+  port_stats <- calculate_port_stats(
+    universe_m_d_ref = expected_results,
+    group_universe_m_d_ref = results@macro@universe_m_d_ref@data,
+    group_cov_matrix = results@group_cov_matrix,
+    selected_benchmark = "ibov",
+    bench_universe_m_d_ref = benchmark_weights_m_d_ref %>%
+      dplyr::mutate(weights = ibov,
+                    is_eligible = ifelse(weights > 0, 1, 0)),
+    all_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    cov_matrix_sample_size = 252,
+    cov_estimation_method = covariance_estimation_method,
+    groups_m_d_ref = stock_groups_m_d_ref
+  )
+  expect_equal(results@port_stats, port_stats$port_stats)
+
+
+  expect_equal(results@universe_m_d_ref@data,
+               expected_results %>%
+                 dplyr::left_join(port_stats$assets_stats %>%
+                                    dplyr::rename(
+                                      act_weights = weights,
+                                      act_rel_risk_contr = rel_risk_contr
+                                    ), by = "tickers") %>%
+                 dplyr::relocate(
+                   act_rel_risk_contr, .before = act_weights
+                 )
+               )
   expect_equal(results@universe_m_d_ref@data$weights %>% sum(), 1)
 
   # Test that relative risk contribution is biased towards the stock with highest expected return
@@ -2741,8 +2916,6 @@ test_that("set_portfolio weights works for stocks (hrp + exp_ret_score_tilt = 'i
     dplyr::pull(tickers)
 
   expect_true(stock_with_highest_rrc %in% stock_with_highest_exp_ret)
-
-
 
 
 
@@ -2821,7 +2994,7 @@ test_that("set portfolio weights works for stocks (mvo_unc) - artificial_port_ob
 
   set.seed(123)
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
-                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                    cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method
   )
 
@@ -2837,7 +3010,7 @@ test_that("set portfolio weights works for stocks (mvo_unc) - artificial_port_ob
 
   set.seed(123)
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
-                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                    cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
                                    opt_objective = "return"
   )
@@ -2848,7 +3021,7 @@ test_that("set portfolio weights works for stocks (mvo_unc) - artificial_port_ob
 
   set.seed(123)
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
-                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                    cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
                                    opt_objective = "risk"
   )
@@ -2894,6 +3067,7 @@ test_that("set portfolio weights works for stocks (mvo_con) - artificial_port_ob
     liquidity_constraint_policy = liquidity_constraint_policy,
     liquidity_floor_cutoffs = liquidity_floor_cutoffs_df,
     benchmark_weights_m_d_ref = benchmark_weights_m_d_ref,
+    selected_benchmark = "ibov",
     groups_m_d_ref = stock_groups_m_d_ref,
     concentration_constraint_policy = concentration_constraint_policy,
     updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
@@ -2956,7 +3130,9 @@ test_that("set portfolio weights works for stocks (mvo_con) - artificial_port_ob
 
   set.seed(123)
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
-                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+                                   selected_benchmark = "ibov", bench_assets_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+                                   groups_m_d_ref = stock_groups_m_d_ref,
                                    cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
                                    liquidity_constraint_policy = liquidity_constraint_policy,
                                    turnover_constraint_policy = turnover_constraint_policy,
@@ -2975,7 +3151,9 @@ test_that("set portfolio weights works for stocks (mvo_con) - artificial_port_ob
 
   set.seed(123)
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
-                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+                                   groups_m_d_ref = stock_groups_m_d_ref,
+                                   selected_benchmark = "ibov", bench_assets_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
                                    cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
                                    opt_objective = "return", liquidity_constraint_policy = liquidity_constraint_policy,
                                    turnover_constraint_policy = turnover_constraint_policy,
@@ -2988,8 +3166,9 @@ test_that("set portfolio weights works for stocks (mvo_con) - artificial_port_ob
 
   set.seed(123)
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
-                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                    cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
+                                   selected_benchmark = "ibov", bench_assets_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
                                    opt_objective = "risk", liquidity_constraint_policy = liquidity_constraint_policy,
                                    turnover_constraint_policy = turnover_constraint_policy,
                                    concentration_constraint_policy = concentration_constraint_policy
@@ -2998,7 +3177,29 @@ test_that("set portfolio weights works for stocks (mvo_con) - artificial_port_ob
   expected_results$rel_risk_contr <- relative_risk_contribution(optimal_risk_weights %>% unname(), covariance_matrix)$rel_risk_contr
   expected_results$weights <- optimal_risk_weights
 
-  expect_equal(results@universe_m_d_ref@data, expected_results)
+  port_stats <- calculate_port_stats(
+    universe_m_d_ref = expected_results,
+    group_universe_m_d_ref = results@macro@universe_m_d_ref@data,
+    group_cov_matrix = results@group_cov_matrix,
+    selected_benchmark = "ibov",
+    bench_universe_m_d_ref = benchmark_weights_m_d_ref %>%
+      dplyr::mutate(weights = ibov,
+                    is_eligible = ifelse(weights > 0, 1, 0)),
+    all_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    cov_matrix_sample_size = 252,
+    cov_estimation_method = covariance_estimation_method,
+    groups_m_d_ref = stock_groups_m_d_ref
+  )
+
+
+  expect_equal(results@universe_m_d_ref@data,
+               expected_results %>% dplyr::left_join(
+                 port_stats$assets_stats %>%
+                   dplyr::rename(act_weights = weights, act_rel_risk_contr = rel_risk_contr),
+                 by = "tickers") %>%
+                 dplyr::relocate(act_rel_risk_contr, .before = act_weights)
+               )
+
   expect_equal(results@universe_m_d_ref@data$weights %>% sum(), 1)
 
 
@@ -3086,6 +3287,7 @@ test_that("set portfolio weights works for stocks (mmaf = top_down, top_down_pro
     liquidity_floor_cutoffs = liquidity_floor_cutoffs_df,
     benchmark_weights_m_d_ref = benchmark_weights_m_d_ref,
     groups_m_d_ref = stock_groups_m_d_ref,
+    selected_benchmark = "ibov",
     concentration_constraint_policy = concentration_constraint_policy,
     updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
     turnover_constraint_policy = turnover_constraint_policy
@@ -3108,11 +3310,14 @@ test_that("set portfolio weights works for stocks (mmaf = top_down, top_down_pro
   eligible_universe_m_d_ref <- stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1)
 
   sector_port_list <- process_micro_portfolios(
-    parallel = TRUE,
-    universe_m_d_ref = eligible_universe_m_d_ref,
-    covariance_matrix = cov_matrix,
+    parallel = FALSE,
+    universe_m_d_ref = stock_universe_m_d_ref,
     groups = sectors,
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref[,-2],
+    cov_matrix_sample_size = 252,
+    cov_estimation_method = covariance_estimation_method,
     group_members = sectors_members,
+    groups_m_d_ref = stock_groups_m_d_ref,
     group_weights = NULL,
     micro_port_construction_method = "hrp"
   )
@@ -3207,13 +3412,18 @@ test_that("set portfolio weights works for stocks (mmaf = top_down, top_down_pro
   set.seed(123)
   micro_port_list <- suppressWarnings(process_micro_portfolios(
       parallel = FALSE,
-      universe_m_d_ref = eligible_universe_m_d_ref,
-      covariance_matrix = cov_matrix,
+      universe_m_d_ref = stock_universe_m_d_ref,
+      eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref[,-2],
+      cov_matrix_sample_size = 252,
+      cov_estimation_method = covariance_estimation_method,
       groups = sectors,
       group_members = sectors_members,
       group_weights = group_weights,
       micro_port_construction_method = "mvo",
+      selected_benchmark = "ibov",
+      groups_m_d_ref = stock_groups_m_d_ref,
       concentration_constraint_policy = concentration_constraint_policy,
+      bench_assets_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
       liquidity_constraint_policy = liquidity_constraint_policy,
       turnover_constraint_policy = turnover_constraint_policy
     ))
@@ -3248,6 +3458,28 @@ test_that("set portfolio weights works for stocks (mmaf = top_down, top_down_pro
     dplyr::relocate(rel_risk_contr, .before = weights)
   universe_m_d_ref_result$rel_risk_contr[which(is.na(universe_m_d_ref_result$rel_risk_contr))] <- 0
 
+  # Add relative metrics
+  port_stats <- calculate_port_stats(
+    universe_m_d_ref = universe_m_d_ref_result,
+    group_universe_m_d_ref = group_port@universe_m_d_ref@data,
+    group_cov_matrix = group_cov,
+    selected_benchmark = "ibov",
+    bench_universe_m_d_ref = benchmark_weights_m_d_ref %>%
+      dplyr::mutate(weights = ibov,
+                    is_eligible = ifelse(weights > 0, 1, 0)),
+    all_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    cov_matrix_sample_size = 252,
+    cov_estimation_method = covariance_estimation_method,
+    groups_m_d_ref = stock_groups_m_d_ref
+  )
+
+  expected_results <- universe_m_d_ref_result %>%
+    dplyr::left_join(
+      port_stats$assets_stats %>%
+        dplyr::rename(act_weights = weights, act_rel_risk_contr = rel_risk_contr),
+      by = "tickers") %>%
+    dplyr::relocate(act_rel_risk_contr, .before = act_weights)
+
   #Run and compare results
   set.seed(123)
   results <- suppressWarnings(
@@ -3260,7 +3492,9 @@ test_that("set portfolio weights works for stocks (mmaf = top_down, top_down_pro
       macro_port_construction_method = "sw",
       liquidity_m_d_ref = liquidity_m_d_ref,
       micro_port_construction_method = "mvo",
-      returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+      eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref[, c(1,3,4,5)],
+      selected_benchmark = "ibov",
+      bench_assets_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref[, c(1,3,4,5)],
       liquidity_constraint_policy = liquidity_constraint_policy,
       concentration_constraint_policy = concentration_constraint_policy,
       turnover_constraint_policy = turnover_constraint_policy,
@@ -3273,7 +3507,7 @@ test_that("set portfolio weights works for stocks (mmaf = top_down, top_down_pro
 
   expect_equal(
     results@universe_m_d_ref@data,
-    universe_m_d_ref_result
+    expected_results
   )
 
   #Test that weights column is between max and min ibov
@@ -3363,6 +3597,10 @@ test_that("set portfolio weights works for stocks (ew) - toy_preprocessed", {
 
   expect_equal(results@universe_m_d_ref@data, expected_results)
   expect_equal(results@universe_m_d_ref@data$weights %>% sum(), 1)
+
+  #Test EW stats
+  expect_equal(results@port_stats$hhi_weights, 1/(expected_results %>% dplyr::filter(is_eligible == 1) %>% nrow()))
+  expect_equal(results@port_stats$n_eff_weights, expected_results %>% dplyr::filter(is_eligible == 1) %>% nrow())
 
 })
 
@@ -3654,7 +3892,7 @@ test_that("set portfolio weights works for stocks (rp) - toy_preprocessed", {
 
 
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "rp",
-                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                    cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method,
                                    active_returns = FALSE
   )
@@ -3751,20 +3989,22 @@ test_that("set portfolio weights works for stocks (rp + exp_ret_score_tilt = 'in
   expected_results$rel_risk_contr[which(is.na(expected_results$rel_risk_contr))] <- 0
   expected_results$weights[which(is.na(expected_results$weights))] <- 0
 
-
-  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "rp",
-                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
-                                   cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method,
-                                   exp_ret_score_tilt = exp_ret_score_tilt, exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
-                                   active_returns = FALSE
+  expect_warning(
+    results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "rp",
+                                     eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                     cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method,
+                                     exp_ret_score_tilt = exp_ret_score_tilt, exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
+                                     active_returns = FALSE
+    ),"Weights for group 'Petróleo gás e biocombustíveis' sum to zero. Fallback to equal weights."
   )
+
 
 
   expect_equal(results@universe_m_d_ref@data, expected_results)
 
   #Test that tilt worked (weights should not be equal to pure RP)
   vanilla_rp <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "rp",
-                                      returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                      eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                       cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method,
                                       active_returns = FALSE)@universe_m_d_ref@data
   expect_false(
@@ -3905,7 +4145,7 @@ test_that("set portfolio weights works for stocks (rp + exp_ret_score_tilt = 'fi
 
 
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "rp",
-                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                    cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method,
                                    exp_ret_score_tilt = exp_ret_score_tilt, exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
                                    active_returns = FALSE
@@ -3916,7 +4156,7 @@ test_that("set portfolio weights works for stocks (rp + exp_ret_score_tilt = 'fi
 
   #Test that tilt worked (weights should not be equal to pure RP)
   vanilla_rp <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "rp",
-                                      returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                      eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                       cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method,
                                       active_returns = FALSE)@universe_m_d_ref@data
   expect_false(
@@ -4104,7 +4344,7 @@ test_that("set portfolio weights works for stocks (hrp and hrp + exp_ret_score_t
 
 
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "hrp",
-                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                    cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method,
                                    exp_ret_score_tilt = "final", exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
                                    active_returns = FALSE
@@ -4113,7 +4353,7 @@ test_that("set portfolio weights works for stocks (hrp and hrp + exp_ret_score_t
 
   #Test that tilt worked (weights should not be equal to pure HRP)
   vanilla_hrp <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "hrp",
-                                      returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                      eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                       cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method,
                                       active_returns = FALSE)@universe_m_d_ref@data
   expect_false(
@@ -4325,7 +4565,7 @@ test_that("set portfolio weights works for stocks (hrp + exp_ret_score_tilt = 'i
 
 
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "hrp",
-                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                    cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method,
                                    exp_ret_score_tilt = "inner", exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
                                    linkage = "complete",
@@ -4335,7 +4575,7 @@ test_that("set portfolio weights works for stocks (hrp + exp_ret_score_tilt = 'i
 
   #Test that tilt worked (weights should not be equal to pure HRP)
   vanilla_hrp <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "hrp",
-                                       returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                       eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                        cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method,
                                        active_returns = FALSE)@universe_m_d_ref@data
   expect_false(
@@ -4476,7 +4716,7 @@ test_that("set portfolio weights works for stocks (mvo_unc) - toy_preprocessed",
 
   set.seed(123)
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
-                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                    cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method
   )
 
@@ -4491,11 +4731,16 @@ test_that("set portfolio weights works for stocks (mvo_unc) - toy_preprocessed",
   optimal_ret_weights <-  rp_weights[which.max(portfolio_return),]
 
   set.seed(123)
-  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
-                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
-                                   cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method,
-                                   opt_objective = "return"
+  expect_warning(
+    results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
+                                     eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+                                     groups_m_d_ref = stock_groups_m_d_ref,
+                                     cov_matrix_sample_size = cov_matrix_sample_size,
+                                     cov_estimation_method = cov_estimation_method,
+                                     opt_objective = "return"
+    ),"Weights for group 'Consumo Não-Cíclico' sum to zero. Fallback to equal weights."
   )
+
   expect_equal(results@weights, optimal_ret_weights %>% unname())
 
   #Best Portfolio for Risk
@@ -4503,7 +4748,7 @@ test_that("set portfolio weights works for stocks (mvo_unc) - toy_preprocessed",
 
   set.seed(123)
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
-                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                    cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method,
                                    opt_objective = "risk"
   )
@@ -4619,7 +4864,7 @@ test_that("set portfolio weights works for stocks (mvo_con) - toy_preprocessed",
 
   set.seed(123)
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
-                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                    cov_matrix_sample_size = 60, cov_estimation_method = "cc",
                                    liquidity_constraint_policy = liquidity_constraint_policy,
                                    concentration_constraint_policy = concentration_constraint_policy
@@ -4637,7 +4882,7 @@ test_that("set portfolio weights works for stocks (mvo_con) - toy_preprocessed",
 
   set.seed(123)
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
-                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                    cov_matrix_sample_size = 60, cov_estimation_method = "cc",
                                    opt_objective = "return",
                                    liquidity_constraint_policy = liquidity_constraint_policy,
@@ -4651,7 +4896,7 @@ test_that("set portfolio weights works for stocks (mvo_con) - toy_preprocessed",
 
   set.seed(123)
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
-                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                    cov_matrix_sample_size = 60, cov_estimation_method = "cc",
                                    opt_objective = "risk",
                                    liquidity_constraint_policy = liquidity_constraint_policy,
@@ -4893,7 +5138,7 @@ test_that("set portfolio weights works for stocks (mvo_con + resampling + ridge_
 
   set.seed(123)
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
-                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                    cov_matrix_sample_size = 60, cov_estimation_method = "cc",
                                    opt_objective = "risk", ridge_pen = ridge_pen,
                                    n_resamples = n_resamples,
@@ -5013,6 +5258,7 @@ test_that("set portfolio weights work for stocks (mmaf = top_down, top_down_prox
   ## First let's apply the model to each group
   #Create signals_m_d_ref
   load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
+  concentration_constraint_policy$max_abs_active_group_weight <- NULL
 
   #Quantile Range and other preps
   eligibility_quantile_range <- c(0.67, 1)
@@ -5067,11 +5313,14 @@ test_that("set portfolio weights work for stocks (mmaf = top_down, top_down_prox
 
   sector_port_list <- process_micro_portfolios(
     parallel = TRUE,
-    universe_m_d_ref = eligible_universe_m_d_ref,
-    covariance_matrix = cov_matrix,
+    universe_m_d_ref = stock_universe_m_d_ref,
     groups = sectors,
     group_members = sectors_members,
     group_weights = NULL,
+    groups_m_d_ref = stock_groups_m_d_ref,
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),],
+    cov_matrix_sample_size = 60,
+    cov_estimation_method = "cc",
     micro_port_construction_method = "hrp",
     rp_method = "ward.D"
   )
@@ -5113,22 +5362,22 @@ test_that("set portfolio weights work for stocks (mmaf = top_down, top_down_prox
   )
   row.names(group_universe_m_d_ref) <- NULL
 
-  g1_w <- sector_port_list[[1]]@universe_m_d_ref@data %>% dplyr::pull(weights)
-  g1_tickers <- sector_port_list[[1]]@universe_m_d_ref@data %>% dplyr::pull(tickers)
-  g2_w <- sector_port_list[[2]]@universe_m_d_ref@data %>% dplyr::pull(weights)
-  g2_tickers <- sector_port_list[[2]]@universe_m_d_ref@data %>% dplyr::pull(tickers)
-  g3_w <- sector_port_list[[3]]@universe_m_d_ref@data %>% dplyr::pull(weights)
-  g3_tickers <- sector_port_list[[3]]@universe_m_d_ref@data %>% dplyr::pull(tickers)
-  g4_w <- sector_port_list[[4]]@universe_m_d_ref@data %>% dplyr::pull(weights)
-  g4_tickers <- sector_port_list[[4]]@universe_m_d_ref@data %>% dplyr::pull(tickers)
-  g5_w <- sector_port_list[[5]]@universe_m_d_ref@data %>% dplyr::pull(weights)
-  g5_tickers <- sector_port_list[[5]]@universe_m_d_ref@data %>% dplyr::pull(tickers)
-  g6_w <- sector_port_list[[6]]@universe_m_d_ref@data %>% dplyr::pull(weights)
-  g6_tickers <- sector_port_list[[6]]@universe_m_d_ref@data %>% dplyr::pull(tickers)
-  g7_w <- sector_port_list[[7]]@universe_m_d_ref@data %>% dplyr::pull(weights)
-  g7_tickers <- sector_port_list[[7]]@universe_m_d_ref@data %>% dplyr::pull(tickers)
-  g8_w <- sector_port_list[[8]]@universe_m_d_ref@data %>% dplyr::pull(weights)
-  g8_tickers <- sector_port_list[[8]]@universe_m_d_ref@data %>% dplyr::pull(tickers)
+  g1_w <- sector_port_list[[1]]@universe_m_d_ref@data %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(weights)
+  g1_tickers <- sector_port_list[[1]]@universe_m_d_ref@data %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+  g2_w <- sector_port_list[[2]]@universe_m_d_ref@data %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(weights)
+  g2_tickers <- sector_port_list[[2]]@universe_m_d_ref@data %>% dplyr::filter(is_eligible == 1) %>%dplyr::pull(tickers)
+  g3_w <- sector_port_list[[3]]@universe_m_d_ref@data %>% dplyr::filter(is_eligible == 1) %>%dplyr::pull(weights)
+  g3_tickers <- sector_port_list[[3]]@universe_m_d_ref@data %>% dplyr::filter(is_eligible == 1) %>%dplyr::pull(tickers)
+  g4_w <- sector_port_list[[4]]@universe_m_d_ref@data %>% dplyr::filter(is_eligible == 1) %>%dplyr::pull(weights)
+  g4_tickers <- sector_port_list[[4]]@universe_m_d_ref@data %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+  g5_w <- sector_port_list[[5]]@universe_m_d_ref@data %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(weights)
+  g5_tickers <- sector_port_list[[5]]@universe_m_d_ref@data %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+  g6_w <- sector_port_list[[6]]@universe_m_d_ref@data %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(weights)
+  g6_tickers <- sector_port_list[[6]]@universe_m_d_ref@data %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+  g7_w <- sector_port_list[[7]]@universe_m_d_ref@data %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(weights)
+  g7_tickers <- sector_port_list[[7]]@universe_m_d_ref@data %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+  g8_w <- sector_port_list[[8]]@universe_m_d_ref@data %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(weights)
+  g8_tickers <- sector_port_list[[8]]@universe_m_d_ref@data %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
 
   ### Calculate each cov matrix element
   groups <- list(
@@ -5171,7 +5420,8 @@ test_that("set portfolio weights work for stocks (mmaf = top_down, top_down_prox
     liquidity_m_d_ref = groups_liquidity_m_df,
     covariance_matrix = group_cov,
     exp_ret_score_tilt = "inner",
-    exp_ret_score_tilt_eta = 0.05
+    exp_ret_score_tilt_eta = 0.05,
+    level = "group"
   )
 
   group_weights <- group_port@universe_m_d_ref@data %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(weights)
@@ -5193,13 +5443,25 @@ test_that("set portfolio weights work for stocks (mmaf = top_down, top_down_prox
 
   micro_port_list <- capture_warnings_and_value(
     process_micro_portfolios(
+    selected_benchmark = "ibov",
+    bench_assets_returns_m_xts_upd_ref = daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),
+                                                              stock_universe_m_d_ref %>% dplyr::filter(ibov_bench_weights > 0) %>% dplyr::pull(tickers)
+    ],
     parallel = FALSE,
-    universe_m_d_ref = eligible_universe_m_d_ref,
-    covariance_matrix = cov_matrix,
+    universe_m_d_ref = stock_universe_m_d_ref,
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),
+                                                               stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+    ],
+    cov_matrix_sample_size = 60,
+    cov_estimation_method = "cc",
+    active_returns = FALSE,
+    groups_m_d_ref = stock_groups_m_d_ref,
     groups = sectors,
     group_members = sectors_members,
     group_weights = group_weights,
-    micro_port_construction_method = "rp"
+    micro_port_construction_method = "rp",
+    liquidity_constraint_policy = liquidity_constraint_policy,
+    concentration_constraint_policy = concentration_constraint_policy
     )
   )
 
@@ -5225,42 +5487,84 @@ test_that("set portfolio weights work for stocks (mmaf = top_down, top_down_prox
     dplyr::relocate(rel_risk_contr, .before = weights)
   universe_m_d_ref_result$rel_risk_contr[which(is.na(universe_m_d_ref_result$rel_risk_contr))] <- 0
 
+  ## Generate active columns
+  port_stats <- calculate_port_stats(
+    universe_m_d_ref = universe_m_d_ref_result,
+    group_universe_m_d_ref = group_port@universe_m_d_ref@data,
+    group_cov_matrix = group_cov,
+    selected_benchmark = "ibov",
+    bench_universe_m_d_ref = stock_universe_m_d_ref %>%
+      dplyr::mutate(is_eligible = ifelse(ibov_bench_weights > 0, 1, 0)) %>%
+      dplyr::rename(weights = ibov_bench_weights),
+    all_returns_m_xts_upd_ref = daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),],
+    cov_matrix_sample_size = 60,
+    groups_m_d_ref = stock_groups_m_d_ref,
+    cov_estimation_method = "cc"
+  )
+
+  #Join to universe_m_d_ref
+  expected_results <- universe_m_d_ref_result %>%
+    dplyr::left_join(port_stats$assets_stats %>%
+                       dplyr::rename(
+                         act_weights = weights,
+                         act_rel_risk_contr = rel_risk_contr
+                       ), by = "tickers") %>%
+    dplyr::relocate(act_rel_risk_contr, .before = act_weights)
+  #Replace NAs with 0
+  expected_results$act_weights[which(is.na(expected_results$act_weights))] <- 0
+  expected_results$act_rel_risk_contr[which(is.na(expected_results$act_rel_risk_contr))] <- 0
 
   #Run and compare results
   set.seed(123)
-  results <-
+  suppressWarnings(
+    results <-
       set_portfolio_weights(
-      universe_m_d_ref = stock_universe_m_d_ref,
-      port_construction_method = "mmaf",
-      top_down_proxy_port_method = "hrp",
-      mmaf_method = "top_down",
-      mmaf_group_col = "sectors",
-      macro_port_construction_method = "hrp",
-      macro_linkage = "complete",
-      linkage = "ward.D",
-      liquidity_m_d_ref = liquidity_m_d_ref,
-      macro_exp_ret_score_tilt = "inner",
-      macro_exp_ret_score_tilt_eta = 0.05,
-      micro_port_construction_method = "rp",
-      returns_m_xts_upd_ref = daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),],
-      liquidity_constraint_policy = liquidity_constraint_policy,
-      concentration_constraint_policy = concentration_constraint_policy,
-      cov_matrix_sample_size = 60,
-      cov_estimation_method = "cc",
-      active_returns = FALSE,
-      groups_m_d_ref = stock_groups_m_d_ref
-    )
+        universe_m_d_ref = stock_universe_m_d_ref,
+        port_construction_method = "mmaf",
+        top_down_proxy_port_method = "hrp",
+        mmaf_method = "top_down",
+        mmaf_group_col = "sectors",
+        macro_port_construction_method = "hrp",
+        macro_linkage = "complete",
+        linkage = "ward.D",
+        liquidity_m_d_ref = liquidity_m_d_ref,
+        selected_benchmark = "ibov",
+        bench_assets_returns_m_xts_upd_ref =
+          daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),
+                                    stock_universe_m_d_ref %>% dplyr::filter(ibov_bench_weights > 0) %>% dplyr::pull(tickers)
+          ],
+        macro_exp_ret_score_tilt = "inner",
+        macro_exp_ret_score_tilt_eta = 0.05,
+        micro_port_construction_method = "rp",
+        eligible_returns_m_xts_upd_ref =
+          daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),
+                                    stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+          ],
+        liquidity_constraint_policy = liquidity_constraint_policy,
+        concentration_constraint_policy = concentration_constraint_policy,
+        cov_matrix_sample_size = 60,
+        cov_estimation_method = "cc",
+        active_returns = FALSE,
+        groups_m_d_ref = stock_groups_m_d_ref
+      )
+  )
 
   #Check that portfolios match
   testthat::expect_equal(
     group_port, results@macro
   )
   testthat::expect_equal(
-    micro_result_list, results@micro
+    results@macro@port_stats %>% dplyr::select(dplyr::contains("act")) %>% ncol(),
+    0
+  )
+
+  testthat::expect_equal(
+    micro_result_list,
+    results@micro
   )
   testthat::expect_equal(
     results@universe_m_d_ref@data,
-    universe_m_d_ref_result
+    expected_results
   )
 
 
@@ -5478,7 +5782,7 @@ test_that("set portfolio weights work for stocks (mmaf = bottom_up, macro_port =
       micro_port_construction_method = "cs",
       cap_weighting_metric = "mean_volfin_3m",
       groups_m_d_ref = stock_groups_m_d_ref,
-      returns_m_xts_upd_ref = daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),],
+      eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),],
       cov_estimation_method = "cc",
       cov_matrix_sample_size = 60,
       liquidity_m_d_ref = liquidity_m_d_ref,
@@ -5570,27 +5874,37 @@ test_that("set portfolio weights work for only one eligible stock - artificial_p
   expect_equal(results@universe_m_d_ref@data$weights, c(1,0,0,0))
 
   #RP
-  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "rp",
-                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
-                                   cov_matrix_sample_size = 252, cov_estimation_method = "sample",
-                                   active_returns = FALSE
+  expect_warning(
+    results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "rp",
+                                     eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+                                     groups_m_d_ref = stock_groups_m_d_ref,
+                                     cov_matrix_sample_size = 252, cov_estimation_method = "sample",
+                                     active_returns = FALSE
+    ),"The following groups are missing in macro eligible_assets: Financials, Cyclical"
   )
+
   expect_equal(results@universe_m_d_ref@data$weights, c(1,0,0,0))
   #HRP
-  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "hrp",
-                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
-                                   cov_matrix_sample_size = 252, cov_estimation_method = "sample",
-                                   active_returns = FALSE
+  expect_warning(
+    results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "hrp",
+                                     eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                     cov_matrix_sample_size = 252, cov_estimation_method = "sample",
+                                     active_returns = FALSE
+    ),"The following groups are missing in macro eligible_assets: Financials, Cyclical"
   )
+
   expect_equal(results@universe_m_d_ref@data$weights, c(1,0,0,0))
   #MVO
+  expect_warning(
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
-                                   returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                    cov_matrix_sample_size = 252, cov_estimation_method = "sample",
                                    opt_objective = "risk", liquidity_constraint_policy = liquidity_constraint_policy,
                                    turnover_constraint_policy = turnover_constraint_policy,
                                    concentration_constraint_policy = concentration_constraint_policy
+    ), "The following groups are missing in macro eligible_assets: Financials, Cyclical"
   )
+
   expect_equal(results@universe_m_d_ref@data$weights, c(1,0,0,0))
 
 
