@@ -294,6 +294,7 @@ compute_agg_macro_objects <- function(universe_m_d_ref, covariance_matrix = NULL
       stringr::str_detect(names(eligible_universe_m_d_ref), "_bench_weights") |
         stringr::str_detect(names(eligible_universe_m_d_ref), "target_weights")
     ]
+
     if (length(group_weight_colnames) > 0){
       #### Build total weights per sector, considering all stocks (universe_m_d_ref)
       #### and sum them by sector
@@ -311,7 +312,7 @@ compute_agg_macro_objects <- function(universe_m_d_ref, covariance_matrix = NULL
         for (col in group_weight_colnames){
           total_weight_sum <- sum(universe_m_d_ref[[col]], na.rm = TRUE)
           if (abs(total_weight_sum - 1) > 0.02){
-            warning(paste0("Total sum of '", col, "' in universe_m_d_ref is ", total_weight_sum,
+            stop(paste0("Total sum of '", col, "' in universe_m_d_ref is ", round(total_weight_sum, 2),
                            ", which deviates from 1 by more than 0.02."))
           }
         }
