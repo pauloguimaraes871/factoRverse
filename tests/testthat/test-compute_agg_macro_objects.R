@@ -810,6 +810,150 @@ test_that("compute_agg_magro_object works for group with weights equal to 0", {
 
 })
 
+test_that("compute_agg_macro_objects works when is_eligible < number of total assets when computing group weights", {
+
+  #Create signals_m_d_ref
+  load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
+
+  #Quantile Range
+  eligibility_quantile_range <- c(0.67, 1)
+
+  #Current date
+  current_date <- "2001-06-15"
+
+  #Initial Preps
+  signals_m_d_ref <- signals_m_df %>% dplyr::filter(dates == current_date)
+  liquidity_m_d_ref <- liquidity_m_df %>% dplyr::filter(dates == current_date)
+  benchmark_weights_m_d_ref <- benchmark_weights_m_df %>% dplyr::filter(dates == current_date)
+  stock_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
+  updated_port_weights_m_lstd_ref <- signals_m_df[which(signals_m_df$dates == "2001-05-15"), c(1:3)]
+  updated_port_weights_m_lstd_ref$bop_port_weights <- c(0.20, 0.20, 0.20, 0.20, 0.20)
+
+  #Derive Stock Universe
+  stock_universe_m_d_ref <- derive_stock_universe_m_d_ref(signals_m_d_ref = signals_m_d_ref, chosen_score_metric_and_position = c(Gamma = "long"),
+                                                          upper_quantile_winsorization = upper_quantile_winsorization,
+                                                          lower_quantile_winsorization = lower_quantile_winsorization)
+
+  #Classify stock universe
+  stock_universe_m_d_ref <- classify_investment_universe(
+    universe_m_d_ref = stock_universe_m_d_ref,
+    eligibility_quantile_range = eligibility_quantile_range,
+    liquidity_m_d_ref = liquidity_m_d_ref,
+    liquidity_constraint_policy = liquidity_constraint_policy,
+    liquidity_floor_cutoffs = liquidity_floor_cutoffs_df,
+    benchmark_weights_m_d_ref = benchmark_weights_m_d_ref,
+    groups_m_d_ref = stock_groups_m_d_ref,
+    concentration_constraint_policy = concentration_constraint_policy,
+    updated_port_weights_m_lstd_ref = updated_port_weights_m_lstd_ref,
+    turnover_constraint_policy = turnover_constraint_policy
+  )
+
+  #Force inelegibility
+  stock_universe_m_d_ref$is_eligible[c(2,4)] <- 0
+
+
+  #Covariance and returns
+  daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),]
+
+  covariance_matrix <- estimate_covariance_matrix(tickers = c("Stock A", "Stock D"), returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+                                                  cov_matrix_sample_size = 252, cov_estimation_method = covariance_estimation_method,
+                                                  active_returns = FALSE,
+                                                  groups_m_d_ref = stock_groups_m_d_ref
+  )
+
+  #Set RP
+  rp_results <- riskParityPortfolio::riskParityPortfolio(Sigma = covariance_matrix)
+  stock_universe_m_d_ref$rel_risk_contr <- rp_results$relative_risk_contribution
+  stock_universe_m_d_ref$weights <- rp_results$w
+
+  #Calculate group covariance matrix
+  oil_universe_m_d_ref <- stock_universe_m_d_ref[1,]
+  cyclical_universe_m_d_ref <- stock_universe_m_d_ref[c(3),]
+
+  #Normalize
+  oil_universe_m_d_ref$weights <- oil_universe_m_d_ref$weights/sum(oil_universe_m_d_ref$weights)
+  cyclical_universe_m_d_ref$weights <- cyclical_universe_m_d_ref$weights/sum(cyclical_universe_m_d_ref$weights)
+
+  #Compute group covariance matrix
+  expect_group_cov <- matrix(NA_real_, nrow = 2, ncol = 2)
+  rownames(expect_group_cov) <- c("Oil", "Cyclical")
+  colnames(expect_group_cov) <- c("Oil", "Cyclical")
+
+  #Oil x Oil
+  expect_group_cov["Oil", "Oil"] <-
+    t(oil_universe_m_d_ref$weights) %*%
+    covariance_matrix[rownames(covariance_matrix) %in% oil_universe_m_d_ref$tickers, colnames(covariance_matrix) %in% oil_universe_m_d_ref$tickers] %*%
+    oil_universe_m_d_ref$weights
+
+  #Oil x Cyclicals
+  expect_group_cov["Oil", "Cyclical"] <-
+    t(oil_universe_m_d_ref$weights) %*%
+    covariance_matrix[rownames(covariance_matrix) %in% oil_universe_m_d_ref$tickers, colnames(covariance_matrix) %in% cyclical_universe_m_d_ref$tickers] %*%
+    cyclical_universe_m_d_ref$weights
+
+  #Cyclicals x Oil
+  expect_group_cov["Cyclical", "Oil"] <-
+    t(cyclical_universe_m_d_ref$weights) %*%
+    covariance_matrix[rownames(covariance_matrix) %in% cyclical_universe_m_d_ref$tickers, colnames(covariance_matrix) %in% oil_universe_m_d_ref$tickers] %*%
+    oil_universe_m_d_ref$weights
+
+  #Cyclicals x Cyclicals
+  expect_group_cov["Cyclical", "Cyclical"] <-
+    t(cyclical_universe_m_d_ref$weights) %*%
+    covariance_matrix[rownames(covariance_matrix) %in% cyclical_universe_m_d_ref$tickers, colnames(covariance_matrix) %in% cyclical_universe_m_d_ref$tickers] %*%
+    cyclical_universe_m_d_ref$weights
+
+  #Re-order alphabetically
+  expect_group_cov <- expect_group_cov[sort(rownames(expect_group_cov)), sort(colnames(expect_group_cov))]
+
+  #Compute group universe
+  group_universe_m_d_ref <- data.frame(
+    id = paste0(c("Oil", "Cyclical"), "-", current_date),
+    tickers = c("Oil", "Cyclical"),
+    dates = as.Date(current_date),
+    mean_volfin_3m = c(oil_universe_m_d_ref$mean_volfin_3m,
+                       cyclical_universe_m_d_ref$mean_volfin_3m),
+    presence = c(oil_universe_m_d_ref$presence,
+                 cyclical_universe_m_d_ref$presence
+    ),
+    ibov_bench_weights = c(oil_universe_m_d_ref$ibov_bench_weights,
+                           stock_universe_m_d_ref$ibov_bench_weights[3] + stock_universe_m_d_ref$ibov_bench_weights[4]
+    ),
+    exp_ret_score = c(oil_universe_m_d_ref$exp_ret_score,
+                      cyclical_universe_m_d_ref$exp_ret_score
+    ),
+    is_eligible = 1,
+    weights = c(stock_universe_m_d_ref$weights[1],
+                stock_universe_m_d_ref$weights[3])
+  ) %>%
+    dplyr::arrange(tickers)
+
+  group_liquidity_m_d_ref <- group_universe_m_d_ref %>% dplyr::select(id, tickers, dates, mean_volfin_3m, presence)
+
+    results <- compute_agg_macro_objects(
+      covariance_matrix = covariance_matrix,
+      universe_m_d_ref = stock_universe_m_d_ref,
+      group_col = "Sector",
+      liquidity_m_d_ref = liquidity_m_d_ref
+    )
+
+  expect_equal(results$group_universe_m_d_ref, group_universe_m_d_ref, ignore_attr = TRUE)
+  expect_equal(results$group_liquidity_m_d_ref, group_liquidity_m_d_ref, ignore_attr = TRUE)
+  expect_equal(results$group_covariance_matrix, expect_group_cov, ignore_attr = TRUE)
+  expect_equal(results$micro_universe_m_d_ref_list$Oil, oil_universe_m_d_ref, ignore_attr = TRUE)
+  expect_equal(results$micro_universe_m_d_ref_list$Cyclical, cyclical_universe_m_d_ref, ignore_attr = TRUE)
+
+  #Test that covariance matrix is ordered alphabetically
+  expect_equal(rownames(results$group_covariance_matrix), sort(rownames(results$group_covariance_matrix)))
+  expect_equal(colnames(results$group_covariance_matrix), sort(colnames(results$group_covariance_matrix)))
+
+
+
+
+
+
+})
+
 test_that("errors if covariance_matrix is not a numeric matrix", {
   groups <- c("A","B")
   eligible <- data.frame(
