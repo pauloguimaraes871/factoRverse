@@ -453,7 +453,6 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
       all_returns_m_xts_upd_ref <- eligible_returns_m_xts_upd_ref
     }
     if (level %in% c("port", "sub_port")) {
-
       #### Grab all tickers from eligible and bench universes
       if (is.null(bench_universe_m_d_ref)) {
         tickers_use <- eligible_universe_m_d_ref %>%
@@ -471,12 +470,8 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
       }
 
       #### Bind eligible and bench returns and subset with tickers_use
-
-
-
-        ##### Get combined returns
-        all_returns_m_xts_upd_ref <- if (is.null(eligible_returns_m_xts_upd_ref) &&
-                                         is.null(bench_assets_returns_m_xts_upd_ref)) {
+      all_returns_m_xts_upd_ref <- if (is.null(eligible_returns_m_xts_upd_ref) &&
+                                       is.null(bench_assets_returns_m_xts_upd_ref)) {
           NULL
 
         } else if (is.null(eligible_returns_m_xts_upd_ref)) {
