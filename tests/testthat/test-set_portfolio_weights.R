@@ -1678,8 +1678,7 @@ test_that("set portfolio weights work for MVO (signals) - constrained (individua
 
 })
 
-test_that("set portfolio weights work for MMAF (signals) - top_down - proxy = RP,
-          micro_port = RP + tilts, macro_port = MVO constrained ", {
+test_that("set portfolio weights work for MMAF (signals) - top_down - proxy = RP, micro_port = RP + tilts, macro_port = MVO constrained ", {
 
   #Load
   load(paste(test_path(),"/testdata/","toy_preprocessed_signal_selection_obj.RData", sep =""))
@@ -1768,12 +1767,10 @@ test_that("set portfolio weights work for MMAF (signals) - top_down - proxy = RP
   })
 
   groups_theme_ss_bench_weights <- most_recent_signal_universe_m_d_ref %>%
-    dplyr::filter(is_eligible == 1) %>%
     dplyr::group_by(theme) %>%
     dplyr::summarise(theme_ss_bench_weights = sum(theme_ss_bench_weights))
 
   groups_theme_sb_bench_weights <- most_recent_signal_universe_m_d_ref %>%
-    dplyr::filter(is_eligible == 1) %>%
     dplyr::group_by(theme) %>%
     dplyr::summarise(theme_sb_bench_weights = sum(theme_sb_bench_weights))
 
@@ -3252,8 +3249,7 @@ test_that("set portfolio weights works for stocks (mvo_con) - artificial_port_ob
 
 })
 
-test_that("set portfolio weights works for stocks (mmaf = top_down, top_down_proxy = hrp, macro_port = sw,
-          micro level = mvo constrained) - artificial_port_obj ", {
+test_that("set portfolio weights works for stocks (mmaf = top_down, top_down_proxy = hrp, macro_port = sw, micro level = mvo constrained) - artificial_port_obj ", {
 
   #Create signals_m_d_ref
   load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
@@ -5251,8 +5247,7 @@ test_that("set portfolio weights works for stocks (custom_weights) - toy_preproc
 
 })
 
-test_that("set portfolio weights work for stocks (mmaf = top_down, top_down_proxy = rp, macro_port = hrp,
-          micro level = rp) - toy_preprocessed", {
+test_that("set portfolio weights work for stocks (mmaf = top_down, top_down_proxy = rp, macro_port = hrp, micro level = rp) - toy_preprocessed", {
 
 
   ## First let's apply the model to each group
@@ -5570,8 +5565,7 @@ test_that("set portfolio weights work for stocks (mmaf = top_down, top_down_prox
 
 })
 
-test_that("set portfolio weights work for stocks (mmaf = bottom_up, macro_port = sw,
-          micro level = cs - toy_preprocessed", {
+test_that("set portfolio weights work for stocks (mmaf = bottom_up, macro_port = sw, micro level = cs - toy_preprocessed", {
 
   ## First let's apply the model to each group
   #Create signals_m_d_ref
@@ -5623,7 +5617,7 @@ test_that("set portfolio weights work for stocks (mmaf = bottom_up, macro_port =
   eligible_universe_m_d_ref <- stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1)
 
   bottom_up_port <- set_portfolio_weights(
-    universe_m_d_ref = eligible_universe_m_d_ref,
+    universe_m_d_ref = stock_universe_m_d_ref,
     cap_weighting_metric = "mean_volfin_3m",
     liquidity_m_d_ref = liquidity_m_d_ref,
     port_construction_method = "cs"
@@ -5686,14 +5680,14 @@ test_that("set portfolio weights work for stocks (mmaf = bottom_up, macro_port =
   )
   row.names(group_universe_m_d_ref) <- NULL
 
-  g1_w <- sectors_universe_m_d_ref_list[[1]] %>% dplyr::pull(weights)
-  g1_tickers <- sectors_universe_m_d_ref_list[[1]] %>% dplyr::pull(tickers)
-  g2_w <- sectors_universe_m_d_ref_list[[2]] %>% dplyr::pull(weights)
-  g2_tickers <- sectors_universe_m_d_ref_list[[2]] %>% dplyr::pull(tickers)
-  g3_w <- sectors_universe_m_d_ref_list[[3]] %>% dplyr::pull(weights)
-  g3_tickers <- sectors_universe_m_d_ref_list[[3]] %>% dplyr::pull(tickers)
-  g4_w <- sectors_universe_m_d_ref_list[[4]] %>% dplyr::pull(weights)
-  g4_tickers <- sectors_universe_m_d_ref_list[[4]] %>% dplyr::pull(tickers)
+  g1_w <- sectors_universe_m_d_ref_list[[1]] %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(weights)
+  g1_tickers <- sectors_universe_m_d_ref_list[[1]] %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+  g2_w <- sectors_universe_m_d_ref_list[[2]] %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(weights)
+  g2_tickers <- sectors_universe_m_d_ref_list[[2]] %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+  g3_w <- sectors_universe_m_d_ref_list[[3]] %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(weights)
+  g3_tickers <- sectors_universe_m_d_ref_list[[3]] %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
+  g4_w <- sectors_universe_m_d_ref_list[[4]] %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(weights)
+  g4_tickers <- sectors_universe_m_d_ref_list[[4]] %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
 
   ### Calculate each cov matrix element
   groups <- list(
