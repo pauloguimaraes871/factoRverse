@@ -62,6 +62,7 @@
 #'  All tickers in the current universe must have a unique correspondence in this data frame.
 #' @param groups_m_d_ref A data frame containing columns for id, tickers, dates, and group classification columns following a given classification method.
 #' All tickers in the current universe must have a unique correspondence in the data frame.
+#' @param enable_group_representativeness Logical. If TRUE, ensures that at least one asset from each group classification is included in the eligible universe.
 #' @param concentration_constraint_policy A named list containing up to four elements:
 #' - `benchmark`: A character vector describing the benchmark to be used to apply constraint.
 #' Must have a correspondence in `benchmark_weights_m_d_ref`
@@ -94,7 +95,9 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
                                          liquidity_floor_cutoffs = NULL, liquidity_m_d_ref = NULL, liquidity_constraint_policy= NULL, #Liquidity policy
                                          updated_port_weights_m_lstd_ref = NULL, turnover_constraint_policy = NULL, #Turnover policy
                                          selected_benchmark = NULL,
-                                         benchmark_weights_m_d_ref = NULL, groups_m_d_ref = NULL, concentration_constraint_policy = NULL, is_mmaf = FALSE, #Concentration policy
+                                         benchmark_weights_m_d_ref = NULL, groups_m_d_ref = NULL, concentration_constraint_policy = NULL,
+                                         enable_group_representativeness = if (!is.null(groups_m_d_ref) && !is.null(concentration_constraint_policy$max_abs_active_group_weight)) TRUE else FALSE,
+                                         is_mmaf = FALSE, #Concentration policy
                                          target_port_m_d_ref = NULL, ridge_pen = NULL, #Shrinkage
                                          user_defined_AND_rules_m_d_ref = NULL, user_defined_OR_rules_m_d_ref = NULL, #User defined rules
                                          asset_object = "stocks", use_raw_for_eligibility = FALSE, verbose = TRUE
@@ -441,8 +444,8 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
   }
 
   ##Group Representativeness Eligibility
-  if((!is.null(concentration_constraint_policy$max_abs_active_group_weight) && !is.null(groups_m_d_ref)) ||
-     (is_mmaf && !is.null(concentration_constraint_policy$max_abs_active_individual_weight) && !is.null(groups_m_d_ref))){
+  if (isTRUE(enable_group_representativeness)){
+
     groups <- groups_m_d_ref %>% dplyr::select(-id, -tickers, -dates) %>% colnames()
     #For each group classification
     for(i in seq_along(groups)){

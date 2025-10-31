@@ -96,14 +96,14 @@ setMethod(
       # Store metadata and column names
       return(
         methods::new("meta_dataframe",
-          data = data,
-          workflow = workflow,
-          signals = names(data)[-c(1:3)],
-          unique_dates = unique_dates_count,
-          unique_tickers = unique_tickers_count,
-          n_obs = total_observations_count,
-          meta_dataframe_name = meta_dataframe_name,
-          current_date = current_date
+                     data = data,
+                     workflow = workflow,
+                     signals = names(data)[-c(1:3)],
+                     unique_dates = unique_dates_count,
+                     unique_tickers = unique_tickers_count,
+                     n_obs = total_observations_count,
+                     meta_dataframe_name = meta_dataframe_name,
+                     current_date = current_date
         )
       )
     }
@@ -111,14 +111,14 @@ setMethod(
     if (type %in% c("signals", "features")) {
       return(
         methods::new("signals_m_df",
-          data = data,
-          workflow = workflow,
-          signals = names(data)[-c(1:3)],
-          unique_dates = unique_dates_count,
-          unique_tickers = unique_tickers_count,
-          n_obs = total_observations_count,
-          meta_dataframe_name = meta_dataframe_name,
-          current_date = current_date
+                     data = data,
+                     workflow = workflow,
+                     signals = names(data)[-c(1:3)],
+                     unique_dates = unique_dates_count,
+                     unique_tickers = unique_tickers_count,
+                     n_obs = total_observations_count,
+                     meta_dataframe_name = meta_dataframe_name,
+                     current_date = current_date
         )
       )
     }
@@ -131,15 +131,15 @@ setMethod(
       # Store metadata and column names
       return(
         methods::new("signal_universe_m_df",
-          data = data,
-          workflow = NULL,
-          signals = names(data)[-c(1:3)],
-          unique_dates = unique_dates_count,
-          unique_tickers = unique_tickers_count,
-          n_obs = total_observations_count,
-          meta_dataframe_name = meta_dataframe_name,
-          ss_backtest_workflow = ss_backtest_workflow,
-          current_date = current_date
+                     data = data,
+                     workflow = NULL,
+                     signals = names(data)[-c(1:3)],
+                     unique_dates = unique_dates_count,
+                     unique_tickers = unique_tickers_count,
+                     n_obs = total_observations_count,
+                     meta_dataframe_name = meta_dataframe_name,
+                     ss_backtest_workflow = ss_backtest_workflow,
+                     current_date = current_date
         )
       )
     }
@@ -151,15 +151,15 @@ setMethod(
 
       return(
         methods::new("oos_sb_outputs_m_df",
-          data = data,
-          workflow = NULL,
-          signals = names(data)[-c(1:3)],
-          unique_dates = unique_dates_count,
-          unique_tickers = unique_tickers_count,
-          n_obs = total_observations_count,
-          meta_dataframe_name = meta_dataframe_name,
-          sb_backtest_workflow = sb_backtest_workflow,
-          current_date = current_date
+                     data = data,
+                     workflow = NULL,
+                     signals = names(data)[-c(1:3)],
+                     unique_dates = unique_dates_count,
+                     unique_tickers = unique_tickers_count,
+                     n_obs = total_observations_count,
+                     meta_dataframe_name = meta_dataframe_name,
+                     sb_backtest_workflow = sb_backtest_workflow,
+                     current_date = current_date
         )
       )
     }
@@ -173,104 +173,104 @@ setMethod(
       # Store metadata and column names
       return(
         methods::new("stock_universe_m_df",
-          data = data,
-          workflow = NULL,
-          signals = names(data)[-c(1:3)],
-          unique_dates = unique_dates_count,
-          unique_tickers = unique_tickers_count,
-          n_obs = total_observations_count,
-          meta_dataframe_name = meta_dataframe_name,
-          port_backtest_workflow = port_backtest_workflow,
-          current_date = current_date
+                     data = data,
+                     workflow = NULL,
+                     signals = names(data)[-c(1:3)],
+                     unique_dates = unique_dates_count,
+                     unique_tickers = unique_tickers_count,
+                     n_obs = total_observations_count,
+                     meta_dataframe_name = meta_dataframe_name,
+                     port_backtest_workflow = port_backtest_workflow,
+                     current_date = current_date
         )
       )
     }
     if (type == "groups") {
       return(
-         methods::new("groups_m_df",
-          data = data,
-          workflow = workflow,
-          signals = names(data)[-c(1:3)],
-          unique_dates = unique_dates_count,
-          unique_tickers = unique_tickers_count,
-          n_obs = total_observations_count,
-          meta_dataframe_name = meta_dataframe_name,
-          current_date = current_date
+        methods::new("groups_m_df",
+                     data = data,
+                     workflow = workflow,
+                     signals = names(data)[-c(1:3)],
+                     unique_dates = unique_dates_count,
+                     unique_tickers = unique_tickers_count,
+                     n_obs = total_observations_count,
+                     meta_dataframe_name = meta_dataframe_name,
+                     current_date = current_date
         )
       )
     }
 
     if (type == "priors") {
       return(
-         methods::new("priors_m_df",
-          data = data,
-          workflow = workflow,
-          signals = names(data)[-c(1:3)],
-          unique_dates = unique_dates_count,
-          unique_tickers = unique_tickers_count,
-          n_obs = total_observations_count,
-          meta_dataframe_name = meta_dataframe_name,
-          current_date = current_date
+        methods::new("priors_m_df",
+                     data = data,
+                     workflow = workflow,
+                     signals = names(data)[-c(1:3)],
+                     unique_dates = unique_dates_count,
+                     unique_tickers = unique_tickers_count,
+                     n_obs = total_observations_count,
+                     meta_dataframe_name = meta_dataframe_name,
+                     current_date = current_date
         )
       )
     }
 
     if (type == "target") {
       return(
-         methods::new("target_m_df",
-          data = data,
-          workflow = workflow,
-          signals = names(data)[-c(1:3)],
-          unique_dates = unique_dates_count,
-          unique_tickers = unique_tickers_count,
-          n_obs = total_observations_count,
-          meta_dataframe_name = meta_dataframe_name,
-          current_date = current_date
+        methods::new("target_m_df",
+                     data = data,
+                     workflow = workflow,
+                     signals = names(data)[-c(1:3)],
+                     unique_dates = unique_dates_count,
+                     unique_tickers = unique_tickers_count,
+                     n_obs = total_observations_count,
+                     meta_dataframe_name = meta_dataframe_name,
+                     current_date = current_date
         )
       )
     }
 
     if (type == "weights") {
       return(
-         methods::new("weights_m_df",
-          data = data,
-          workflow = workflow,
-          signals = names(data)[-c(1:3)],
-          unique_dates = unique_dates_count,
-          unique_tickers = unique_tickers_count,
-          n_obs = total_observations_count,
-          meta_dataframe_name = meta_dataframe_name,
-          current_date = current_date
+        methods::new("weights_m_df",
+                     data = data,
+                     workflow = workflow,
+                     signals = names(data)[-c(1:3)],
+                     unique_dates = unique_dates_count,
+                     unique_tickers = unique_tickers_count,
+                     n_obs = total_observations_count,
+                     meta_dataframe_name = meta_dataframe_name,
+                     current_date = current_date
         )
       )
     }
 
     if (type == "feature_importance") {
       return(
-         methods::new("feature_importance_m_df",
-            data = data,
-            workflow = workflow,
-            signals = names(data)[-c(1:3)],
-            unique_dates = unique_dates_count,
-            unique_tickers = unique_tickers_count,
-            n_obs = total_observations_count,
-            meta_dataframe_name = meta_dataframe_name,
-            current_date = current_date
+        methods::new("feature_importance_m_df",
+                     data = data,
+                     workflow = workflow,
+                     signals = names(data)[-c(1:3)],
+                     unique_dates = unique_dates_count,
+                     unique_tickers = unique_tickers_count,
+                     n_obs = total_observations_count,
+                     meta_dataframe_name = meta_dataframe_name,
+                     current_date = current_date
         )
       )
     }
 
     if (type == "raw") {
       return(
-         methods::new("raw_features_m_df",
-            data = data,
-            workflow = NULL,
-            signals = names(data)[-c(1:3)],
-            unique_dates = unique_dates_count,
-            unique_tickers = unique_tickers_count,
-            n_obs = total_observations_count,
-            meta_dataframe_name = meta_dataframe_name,
-            current_date = current_date
+        methods::new("raw_features_m_df",
+                     data = data,
+                     workflow = NULL,
+                     signals = names(data)[-c(1:3)],
+                     unique_dates = unique_dates_count,
+                     unique_tickers = unique_tickers_count,
+                     n_obs = total_observations_count,
+                     meta_dataframe_name = meta_dataframe_name,
+                     current_date = current_date
         )
       )
     }
@@ -511,123 +511,123 @@ setMethod("create_target_m_df",
             #Calculate
             ##############
 
-              ##Get selected dates and ids
-              selected_ids <- features_m_df@data %>% dplyr::pull(id)
-              selected_daily_returns_m_df <- daily_returns_m_df@data %>% dplyr::filter(id %in% selected_ids)
-              selected_dates <- selected_daily_returns_m_df %>% dplyr::pull(dates) %>% unique() %>% sort()
+            ##Get selected dates and ids
+            selected_ids <- features_m_df@data %>% dplyr::pull(id)
+            selected_daily_returns_m_df <- daily_returns_m_df@data %>% dplyr::filter(id %in% selected_ids)
+            selected_dates <- selected_daily_returns_m_df %>% dplyr::pull(dates) %>% unique() %>% sort()
 
 
-              ##Build fwd_date_process fun
-              fwd_date_process <- function(i){
+            ##Build fwd_date_process fun
+            fwd_date_process <- function(i){
 
-                ###Select bench
-                selected_daily_bench_returns_m_xts <- daily_bench_returns_m_xts@data[, selected_bench]
+              ###Select bench
+              selected_daily_bench_returns_m_xts <- daily_bench_returns_m_xts@data[, selected_bench]
 
-                ###Subset current row and date
-                current_date <- selected_dates[i]
-                selected_daily_returns_m_d_ref <- selected_daily_returns_m_df %>% dplyr::filter(dates %in% current_date)
-                current_tickers <- selected_daily_returns_m_d_ref %>% dplyr::pull(tickers)
+              ###Subset current row and date
+              current_date <- selected_dates[i]
+              selected_daily_returns_m_d_ref <- selected_daily_returns_m_df %>% dplyr::filter(dates %in% current_date)
+              current_tickers <- selected_daily_returns_m_d_ref %>% dplyr::pull(tickers)
 
-                ####Print
-                cat(crayon::cyan(paste0("Processing date ", format(as.Date(current_date), "%Y-%m-%d"))))
-                cat("\n")
+              ####Print
+              cat(crayon::cyan(paste0("Processing date ", format(as.Date(current_date), "%Y-%m-%d"))))
+              cat("\n")
 
-                ####Ensure current row is correctly assigned
-                if (nrow(selected_daily_returns_m_d_ref) == 0) {
-                  stop("No data found for selected date: ", current_date)
-                }
-
-                ###Compute forward dates
-                fwd_dates <- lubridate::add_with_rollback(current_date, months(0:fwd_horizon))
-                seq_fwd_dates <- seq.Date(from = fwd_dates[1] + 1, to = fwd_dates[length(fwd_dates)], by = "days")
-
-                ###If any of the dates in exceed current_date, return NA
-                if (any(seq_fwd_dates > daily_returns_m_df@current_date)){
-                  return(selected_daily_returns_m_d_ref %>% dplyr::select(id, tickers, dates))
-                }
-
-                ###Retrieve all forward returns from selected_daily_returns_m_df and replace NAs with 0
-                selected_daily_returns_m_d_fwd <- daily_returns_m_df@data %>% #Get from complete database
-                  dplyr::filter(tickers %in% current_tickers, dates %in% seq_fwd_dates) %>% #Subset ticker_i and only fwd dates
-                  dplyr::mutate(dplyr::across(dplyr::all_of(past_ret_column), ~ tidyr::replace_na(.x, 0))) #Replace NAs with 0
-
-                ###Do the same with benchmark
-                selected_daily_bench_returns_m_xts_fwd <- selected_daily_bench_returns_m_xts[
-                  which(zoo::index(selected_daily_bench_returns_m_xts) %in% seq_fwd_dates), #Only fwd dates
-                  ]
-
-                ###Check if there are any NAs in selected_daily_returns_m_d_fwd or selected_daily_bench_returns_m_xts_fwd and stop
-                if (any(is.na(selected_daily_returns_m_d_fwd)) | any(is.na(selected_daily_bench_returns_m_xts_fwd))) {
-                  stop("There are NAs in selected_daily_returns_m_d_fwd or selected_daily_bench_returns_m_xts_fwd.")
-                }
-
-                ###Convert to meta_xts
-                selected_daily_returns_m_xts_fwd <- create_meta_xts(selected_daily_returns_m_d_fwd, type = "returns",
-                                                                    data_format = "long", asset_type = "stocks")
-
-                ###Replace NAs at this point with bench_returns
-                ###NAs at this point come up because of binding the distinct sized return series
-                ###If a series has a smaller size, it will be filled with NAs for dates in which the original series had no information
-                ###This is inherent to a delisted stock
-
-                    ####Get NAs
-                    na_idx <- is.na(selected_daily_returns_m_xts_fwd@data)
-
-                      #####Conservatively check if NAs occur in a trailing block
-                      is_trailing_na <- function(col_na) {
-                        first_na <- which(col_na)[1]
-                        if (is.na(first_na)) return(TRUE)  # No NA in column
-                        all(col_na[first_na:length(col_na)])
-                      }
-
-                      ####Check each column of the logical matrix
-                      na_pattern_ok <- apply(na_idx, 2, is_trailing_na)
-
-                      ####Stop if any column violates the rule
-                      if (!all(na_pattern_ok)) {
-                        bad_tickers <- colnames(na_idx)[!na_pattern_ok]
-                        stop("Invalid NA pattern in the following tickers: ",
-                             paste(bad_tickers, collapse = ", "),
-                             ". NAs must form a trailing block (e.g., due to delisting).")
-                      }
-
-                    ####Ensure alignment of rows
-                    stopifnot(identical(zoo::index(selected_daily_returns_m_xts_fwd@data), zoo::index(selected_daily_bench_returns_m_xts_fwd)))
-
-                    ####Replace NAs row-wise
-                    selected_daily_returns_m_xts_fwd@data[na_idx] <-
-                      as.numeric(selected_daily_bench_returns_m_xts_fwd)[row(selected_daily_returns_m_xts_fwd@data)][na_idx] #Replace NAs with bench_returns
-
-                ###Pass to summarize
-                target_m_d_ref <- summarize_performance(
-                  selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_daily_returns_m_xts_fwd@data,
-                  selected_market_factor_proxy_m_xts_upd_ref = selected_daily_bench_returns_m_xts_fwd,
-                  model_structure = "no_pooled",
-                  model_spec_theme_level = NULL,
-                  lmer_control = NULL,
-                  selected_signal_themes_m_d_ref = NULL,
-                  active_returns = active_returns
-                )$signal_universe_m_d_ref
-
-                cat(crayon::cyan(paste0("Finished processing date ", format(as.Date(current_date), "%Y-%m-%d"))))
-                cat("\n\n--------------------------------\n\n")
-
-                ###Replace dates of target_m_d_ref with current_date
-                target_m_d_ref$dates <- current_date
-
-                return(target_m_d_ref)
-
+              ####Ensure current row is correctly assigned
+              if (nrow(selected_daily_returns_m_d_ref) == 0) {
+                stop("No data found for selected date: ", current_date)
               }
 
-              ##Compute forward returns using purrr::map or future::future_map
-              if (parallel){
-                selected_target_m_df_list <- furrr::future_map(seq_len(length(selected_dates)),
-                                                                .f = fwd_date_process,
-                                                                .options = furrr::furrr_options(seed = TRUE)
-                                                                )
-              } else {
-                selected_target_m_df_list <- purrr::map(seq_len(length(selected_dates)), .f = fwd_date_process)
+              ###Compute forward dates
+              fwd_dates <- lubridate::add_with_rollback(current_date, months(0:fwd_horizon))
+              seq_fwd_dates <- seq.Date(from = fwd_dates[1] + 1, to = fwd_dates[length(fwd_dates)], by = "days")
+
+              ###If any of the dates in exceed current_date, return NA
+              if (any(seq_fwd_dates > daily_returns_m_df@current_date)){
+                return(selected_daily_returns_m_d_ref %>% dplyr::select(id, tickers, dates))
               }
+
+              ###Retrieve all forward returns from selected_daily_returns_m_df and replace NAs with 0
+              selected_daily_returns_m_d_fwd <- daily_returns_m_df@data %>% #Get from complete database
+                dplyr::filter(tickers %in% current_tickers, dates %in% seq_fwd_dates) %>% #Subset ticker_i and only fwd dates
+                dplyr::mutate(dplyr::across(dplyr::all_of(past_ret_column), ~ tidyr::replace_na(.x, 0))) #Replace NAs with 0
+
+              ###Do the same with benchmark
+              selected_daily_bench_returns_m_xts_fwd <- selected_daily_bench_returns_m_xts[
+                which(zoo::index(selected_daily_bench_returns_m_xts) %in% seq_fwd_dates), #Only fwd dates
+              ]
+
+              ###Check if there are any NAs in selected_daily_returns_m_d_fwd or selected_daily_bench_returns_m_xts_fwd and stop
+              if (any(is.na(selected_daily_returns_m_d_fwd)) | any(is.na(selected_daily_bench_returns_m_xts_fwd))) {
+                stop("There are NAs in selected_daily_returns_m_d_fwd or selected_daily_bench_returns_m_xts_fwd.")
+              }
+
+              ###Convert to meta_xts
+              selected_daily_returns_m_xts_fwd <- create_meta_xts(selected_daily_returns_m_d_fwd, type = "returns",
+                                                                  data_format = "long", asset_type = "stocks")
+
+              ###Replace NAs at this point with bench_returns
+              ###NAs at this point come up because of binding the distinct sized return series
+              ###If a series has a smaller size, it will be filled with NAs for dates in which the original series had no information
+              ###This is inherent to a delisted stock
+
+              ####Get NAs
+              na_idx <- is.na(selected_daily_returns_m_xts_fwd@data)
+
+              #####Conservatively check if NAs occur in a trailing block
+              is_trailing_na <- function(col_na) {
+                first_na <- which(col_na)[1]
+                if (is.na(first_na)) return(TRUE)  # No NA in column
+                all(col_na[first_na:length(col_na)])
+              }
+
+              ####Check each column of the logical matrix
+              na_pattern_ok <- apply(na_idx, 2, is_trailing_na)
+
+              ####Stop if any column violates the rule
+              if (!all(na_pattern_ok)) {
+                bad_tickers <- colnames(na_idx)[!na_pattern_ok]
+                stop("Invalid NA pattern in the following tickers: ",
+                     paste(bad_tickers, collapse = ", "),
+                     ". NAs must form a trailing block (e.g., due to delisting).")
+              }
+
+              ####Ensure alignment of rows
+              stopifnot(identical(zoo::index(selected_daily_returns_m_xts_fwd@data), zoo::index(selected_daily_bench_returns_m_xts_fwd)))
+
+              ####Replace NAs row-wise
+              selected_daily_returns_m_xts_fwd@data[na_idx] <-
+                as.numeric(selected_daily_bench_returns_m_xts_fwd)[row(selected_daily_returns_m_xts_fwd@data)][na_idx] #Replace NAs with bench_returns
+
+              ###Pass to summarize
+              target_m_d_ref <- summarize_performance(
+                selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_daily_returns_m_xts_fwd@data,
+                selected_market_factor_proxy_m_xts_upd_ref = selected_daily_bench_returns_m_xts_fwd,
+                model_structure = "no_pooled",
+                model_spec_theme_level = NULL,
+                lmer_control = NULL,
+                selected_signal_themes_m_d_ref = NULL,
+                active_returns = active_returns
+              )$signal_universe_m_d_ref
+
+              cat(crayon::cyan(paste0("Finished processing date ", format(as.Date(current_date), "%Y-%m-%d"))))
+              cat("\n\n--------------------------------\n\n")
+
+              ###Replace dates of target_m_d_ref with current_date
+              target_m_d_ref$dates <- current_date
+
+              return(target_m_d_ref)
+
+            }
+
+            ##Compute forward returns using purrr::map or future::future_map
+            if (parallel){
+              selected_target_m_df_list <- furrr::future_map(seq_len(length(selected_dates)),
+                                                             .f = fwd_date_process,
+                                                             .options = furrr::furrr_options(seed = TRUE)
+              )
+            } else {
+              selected_target_m_df_list <- purrr::map(seq_len(length(selected_dates)), .f = fwd_date_process)
+            }
 
             ##############
 
@@ -643,25 +643,25 @@ setMethod("create_target_m_df",
             target_m_df <- target_m_df %>% dplyr::rename_with(~ paste0("fwd_", ., "_", fwd_horizon, "m"), .cols = -c(1:3))
 
             ##Create target_m_df object
-              ###New enty to workflow
-              new_entry <- list(
-                list(current_date = daily_returns_m_df@current_date,  # Current date
-                     timestamp = Sys.time(),        # Timestamp
-                     selected_bench = selected_bench, # Selected benchmark
-                     bench_returns_m_xts_name = daily_bench_returns_m_xts@meta_xts_name, # Benchmark name
-                     past_ret_column = past_ret_column, # Past return column
-                     fwd_horizon = fwd_horizon, # Forward horizon
-                     selected_dates = selected_dates, # Selected dates
-                     active_returns = active_returns, # Active returns
-                     parallel = parallel,
-                     call = match.call() # Call
-                )
+            ###New enty to workflow
+            new_entry <- list(
+              list(current_date = daily_returns_m_df@current_date,  # Current date
+                   timestamp = Sys.time(),        # Timestamp
+                   selected_bench = selected_bench, # Selected benchmark
+                   bench_returns_m_xts_name = daily_bench_returns_m_xts@meta_xts_name, # Benchmark name
+                   past_ret_column = past_ret_column, # Past return column
+                   fwd_horizon = fwd_horizon, # Forward horizon
+                   selected_dates = selected_dates, # Selected dates
+                   active_returns = active_returns, # Active returns
+                   parallel = parallel,
+                   call = match.call() # Call
               )
+            )
 
             target_m_df <- create_meta_dataframe(target_m_df, type = "target",
                                                  meta_dataframe_name = daily_returns_m_df@meta_dataframe_name,
                                                  workflow = c(daily_returns_m_df@workflow, new_entry)
-                                                 )
+            )
 
             names(target_m_df@workflow)[length(target_m_df@workflow)] <- paste0("create_target_m_df_", daily_returns_m_df@current_date)
 
@@ -692,79 +692,79 @@ setMethod(
 
     #Initial prep
     ###############
-      ##meta_dataframe_name
-      old_features_m_df_name <- old_features_m_df@meta_dataframe_name
-      new_features_m_df_name <- new_features_m_df@meta_dataframe_name
+    ##meta_dataframe_name
+    old_features_m_df_name <- old_features_m_df@meta_dataframe_name
+    new_features_m_df_name <- new_features_m_df@meta_dataframe_name
 
-      ##workflow
-      old_workflow <- old_features_m_df@workflow
-      new_workflow <- new_features_m_df@workflow
+    ##workflow
+    old_workflow <- old_features_m_df@workflow
+    new_workflow <- new_features_m_df@workflow
 
-      ##current dates
-      old_current_date <- old_features_m_df@current_date
-      new_current_date <- new_features_m_df@current_date
+    ##current dates
+    old_current_date <- old_features_m_df@current_date
+    new_current_date <- new_features_m_df@current_date
 
-      ##object class
-      old_class <- class(old_features_m_df)
-      new_class <- class(new_features_m_df)
+    ##object class
+    old_class <- class(old_features_m_df)
+    new_class <- class(new_features_m_df)
 
     ###############
 
     #Check if both meta_dataframes are compatible
     ###############
-      ##Check colnames match
-      if (ncol(old_features_m_df@data) != ncol(new_features_m_df@data) ||
-          any(colnames(old_features_m_df@data) != colnames(new_features_m_df@data))){
-        stop("Column names between old_features_m_df and new_features_m_df do not match.")
+    ##Check colnames match
+    if (ncol(old_features_m_df@data) != ncol(new_features_m_df@data) ||
+        any(colnames(old_features_m_df@data) != colnames(new_features_m_df@data))){
+      stop("Column names between old_features_m_df and new_features_m_df do not match.")
+    }
+    ##Check that there is NO id intersection between old_features_m_df and new_features_m_df
+    if (length(dplyr::intersect(old_features_m_df@data$id, new_features_m_df@data$id)) > 0){
+      stop("There are common ids between old_features_m_df and new_features_m_df.")
+    }
+    ##Check that there is NO date intersection between old_features_m_df and new_features_m_df
+    if (length(dplyr::intersect(old_features_m_df@data$dates, new_features_m_df@data$dates)) > 0){
+      stop("There are common dates between old_features_m_df and new_features_m_df.")
+    }
+    ##Check that number of unique dates in new_features_m_df is equal to expectations
+    if (batch_type == "monthly"){
+      if (length(unique(new_features_m_df@data$dates)) != 1){
+        stop("Number of unique dates in new_features_m_df is not equal to 1.")
       }
-      ##Check that there is NO id intersection between old_features_m_df and new_features_m_df
-      if (length(dplyr::intersect(old_features_m_df@data$id, new_features_m_df@data$id)) > 0){
-        stop("There are common ids between old_features_m_df and new_features_m_df.")
+    }
+    if (batch_type == "daily"){
+      if (length(unique(new_features_m_df@data$dates)) %in% c(15, 40)){
+        stop("Number of unique dates in new_features_m_df is not in a reasonable range for daily data.")
       }
-      ##Check that there is NO date intersection between old_features_m_df and new_features_m_df
-      if (length(dplyr::intersect(old_features_m_df@data$dates, new_features_m_df@data$dates)) > 0){
-        stop("There are common dates between old_features_m_df and new_features_m_df.")
-      }
-      ##Check that number of unique dates in new_features_m_df is equal to expectations
-      if (batch_type == "monthly"){
-        if (length(unique(new_features_m_df@data$dates)) != 1){
-          stop("Number of unique dates in new_features_m_df is not equal to 1.")
-        }
-      }
-      if (batch_type == "daily"){
-        if (length(unique(new_features_m_df@data$dates)) %in% c(15, 40)){
-          stop("Number of unique dates in new_features_m_df is not in a reasonable range for daily data.")
-        }
-      }
-        ##Check that current_date in new_features_m_df is 1 months ahead of current_date in old_features_m_df
-        if (new_current_date != lubridate::add_with_rollback(old_current_date, months(1))){
-          stop("Current date in new_features_m_df should be 1 months ahead of current_date in old_features_m_df.")
-        }
-      ##Check that each column class match between old_features_m_df and new_features_m_df
-      if (!all(sapply(
-        colnames(old_features_m_df@data),
-        function(col) identical(class(old_features_m_df@data[[col]]), class(new_features_m_df@data[[col]]))
-      ))) {
-        stop("Column classes between old_features_m_df and new_features_m_df do not match.")
-      }
+    }
+    ##Check that current_date in new_features_m_df is 1 months ahead of current_date in old_features_m_df
+    if (new_current_date != lubridate::add_with_rollback(old_current_date, months(1))){
+      stop("Current date in new_features_m_df should be 1 months ahead of current_date in old_features_m_df.")
+    }
+    ##Check that each column class match between old_features_m_df and new_features_m_df
+    if (!all(sapply(
+      colnames(old_features_m_df@data),
+      function(col) identical(class(old_features_m_df@data[[col]]), class(new_features_m_df@data[[col]]))
+    ))) {
+      stop("Column classes between old_features_m_df and new_features_m_df do not match.")
+    }
 
-      ##Check that old_features_m_df name is contained in new_features_m_df name
-      if (!grepl(old_features_m_df_name, new_features_m_df_name)){
-        stop("old_features_m_df name is not contained in new_features_m_df name.")
-      }
+    ##Check that old_features_m_df name is contained in new_features_m_df name
+    if (!grepl(old_features_m_df_name, new_features_m_df_name)){
+      stop("old_features_m_df name is not contained in new_features_m_df name.")
+    }
 
-      ##Check if any object is of class raw_features_m_df
-      if (old_class == "raw_features_m_df" || new_class == "raw_features_m_df"){
-        stop("old_features_m_df and new_features_m_df should not be of class raw_features_m_df.")
-      }
+    ##Check if any object is of class raw_features_m_df
+    if (old_class == "raw_features_m_df" || new_class == "raw_features_m_df"){
+      stop("old_features_m_df and new_features_m_df should not be of class raw_features_m_df.")
+    }
 
-      ##Check if they contain a read_tickers_catalog workflow
-      if (!any(stringr::str_detect(names(old_workflow), "read_tickers_catalog"))){
-        stop("old_features_m_df should contain a read_tickers_catalog workflow.")
-      }
-      if (!any(stringr::str_detect(names(new_workflow), "read_tickers_catalog"))){
-        stop("new_features_m_df should contain a read_tickers_catalog workflow.")
-      }
+    ##Check if they contain a read_tickers_catalog workflow
+    if (!any(stringr::str_detect(names(old_workflow), "read_tickers_catalog"))){
+      stop("old_features_m_df should contain a read_tickers_catalog workflow.")
+    }
+    if (!any(stringr::str_detect(names(new_workflow), "read_tickers_catalog"))){
+      stop("new_features_m_df should contain a read_tickers_catalog workflow.")
+    }
 
     ###############
 
@@ -781,14 +781,14 @@ setMethod(
     #Update Workflow
     ###############
     batch_workflow <-
+      list(
         list(
-          list(
-            new_date = new_current_date, #Add new date
-            batch_features_m_df_name = new_features_m_df_name, #Name of batch
-            timestamp = Sys.time(),
-            batch_workflow = new_workflow #Specific workflow
-           )
-          )
+          new_date = new_current_date, #Add new date
+          batch_features_m_df_name = new_features_m_df_name, #Name of batch
+          timestamp = Sys.time(),
+          batch_workflow = new_workflow #Specific workflow
+        )
+      )
 
     update_workflow <- c(old_workflow, batch_workflow) #Add to the old workflow
     names(update_workflow)[length(update_workflow)] <- paste0("update_", new_current_date)
@@ -854,8 +854,8 @@ setMethod("create_tickers_catalog",
           ),
           function(raw_features_m_df, date_first_quote, date_last_quote, n_days_tolerance = 10) {
 
-          #Initial checks
-          #############
+            #Initial checks
+            #############
 
             ##Check dfs constraints
             if (!all(c("tickers", "date_first_quote") %in% colnames(date_first_quote)) ||
@@ -864,25 +864,25 @@ setMethod("create_tickers_catalog",
             }
 
             ##Check tickers
-              ###Convert date columns to Date type
-              date_first_quote$date_first_quote <- as.Date(date_first_quote$date_first_quote)
-              date_last_quote$date_last_quote <- as.Date(date_last_quote$date_last_quote)
+            ###Convert date columns to Date type
+            date_first_quote$date_first_quote <- as.Date(date_first_quote$date_first_quote)
+            date_last_quote$date_last_quote <- as.Date(date_last_quote$date_last_quote)
 
-              ###Check that there are no duplicate tickers in date_first_quote or date_last_quote
-              if (nrow(date_first_quote) != nrow(unique(date_first_quote)) || nrow(date_last_quote) != nrow(unique(date_last_quote))) {
-                stop("Duplicate tickers found in date_first_quote or date_last_quote.")
-              }
+            ###Check that there are no duplicate tickers in date_first_quote or date_last_quote
+            if (nrow(date_first_quote) != nrow(unique(date_first_quote)) || nrow(date_last_quote) != nrow(unique(date_last_quote))) {
+              stop("Duplicate tickers found in date_first_quote or date_last_quote.")
+            }
 
-              ###Check if all are untraded (date_first_quote and date_last_quote are all NAs)
-              if (all(is.na(date_first_quote$date_first_quote)) || all(is.na(date_last_quote$date_last_quote))) {
-                stop("No tradable stocks identified")
-              }
+            ###Check if all are untraded (date_first_quote and date_last_quote are all NAs)
+            if (all(is.na(date_first_quote$date_first_quote)) || all(is.na(date_last_quote$date_last_quote))) {
+              stop("No tradable stocks identified")
+            }
 
-              ###Ensure tickers match exactly across all data sources
-              common_tickers <- intersect(intersect(raw_features_m_df@data$tickers %>% unique(), date_first_quote$tickers), date_last_quote$tickers)
-              if (length(common_tickers) != length(raw_features_m_df@data$tickers %>% unique())) {
-                stop("Mismatch in tickers between raw_features_m_df, date_first_quote, and date_last_quote.")
-              }
+            ###Ensure tickers match exactly across all data sources
+            common_tickers <- intersect(intersect(raw_features_m_df@data$tickers %>% unique(), date_first_quote$tickers), date_last_quote$tickers)
+            if (length(common_tickers) != length(raw_features_m_df@data$tickers %>% unique())) {
+              stop("Mismatch in tickers between raw_features_m_df, date_first_quote, and date_last_quote.")
+            }
 
             ##Check that either both dates are NA or neither is
             if (any(is.na(date_first_quote[order(date_first_quote$tickers), "date_first_quote"]) !=
@@ -891,10 +891,10 @@ setMethod("create_tickers_catalog",
             }
 
             ##Check that a warning is thrown when last_date most common date is not the last date
-              if (names(table(date_last_quote$date_last_quote) %>% which.max()) <= #Most common date (mode)
-                  max(unique(raw_features_m_df@data$dates), na.rm = TRUE) - lubridate::days(n_days_tolerance)) { #Current date
-                warning("Most common date in date_last_quote is not the last date in raw_features_m_df - n_days_tolerance. Consider increasing n_days_tolerance")
-              }
+            if (names(table(date_last_quote$date_last_quote) %>% which.max()) <= #Most common date (mode)
+                max(unique(raw_features_m_df@data$dates), na.rm = TRUE) - lubridate::days(n_days_tolerance)) { #Current date
+              warning("Most common date in date_last_quote is not the last date in raw_features_m_df - n_days_tolerance. Consider increasing n_days_tolerance")
+            }
 
             ##Check that date_last_quote > date_first_quote (allowing NAs)
             invalid_dates <- date_first_quote %>%
@@ -912,8 +912,8 @@ setMethod("create_tickers_catalog",
 
             #############
 
-          #Create object
-          ###############
+            #Create object
+            ###############
             ## Extract tickers and initialize object
             tickers_catalog <- raw_features_m_df@data %>%
               dplyr::select(tickers) %>% #Select only tickers
@@ -925,23 +925,23 @@ setMethod("create_tickers_catalog",
 
 
             ##Generate perm_id
-              ###Define function to generate perm_id
-              generate_perm_id <- function(ticker, tickers_first_quote) {
-                date_str <- ifelse(is.na(tickers_first_quote), "NA", format(tickers_first_quote, "%Y%m%d"))
-                short_hash <- paste0("h", substr(digest::digest(paste0(ticker, "_", date_str), algo = "md5"), 1, 9))
-                return(short_hash)
-              }
+            ###Define function to generate perm_id
+            generate_perm_id <- function(ticker, tickers_first_quote) {
+              date_str <- ifelse(is.na(tickers_first_quote), "NA", format(tickers_first_quote, "%Y%m%d"))
+              short_hash <- paste0("h", substr(digest::digest(paste0(ticker, "_", date_str), algo = "md5"), 1, 9))
+              return(short_hash)
+            }
 
-              ###Generate perm_id
-              tickers_catalog <- tickers_catalog %>%
-                dplyr::mutate(perm_id = mapply(generate_perm_id, tickers, tickers_first_quote)) %>%
-                dplyr::mutate(perm_id = unname(perm_id)) %>%
-                dplyr::arrange(perm_id) #Arrange by perm_id
+            ###Generate perm_id
+            tickers_catalog <- tickers_catalog %>%
+              dplyr::mutate(perm_id = mapply(generate_perm_id, tickers, tickers_first_quote)) %>%
+              dplyr::mutate(perm_id = unname(perm_id)) %>%
+              dplyr::arrange(perm_id) #Arrange by perm_id
 
-          ###############
+            ###############
 
-          #Classify stocks
-          ################
+            #Classify stocks
+            ################
             ##Get current_date (max of unique dates in raw_features_m_df)
             current_date <- max(unique(raw_features_m_df@data$dates), na.rm = TRUE)
 
@@ -1100,318 +1100,318 @@ setMethod(
 
     #Extract relevant slots
     ####################
-      ##ticker_change-history
-      old_ticker_change_history <- old_tickers_catalog@ticker_change_history
+    ##ticker_change-history
+    old_ticker_change_history <- old_tickers_catalog@ticker_change_history
 
-      ##metadata
-        ###Get new listed
-        new_listed <- new_tickers_catalog@listed
-        old_listed <- old_tickers_catalog@listed
-        ###Get new and old delisted
-        new_delisted <- new_tickers_catalog@delisted
-        old_delisted <- old_tickers_catalog@delisted
-        ###Get new and old untraded
-        new_untraded <- new_tickers_catalog@untraded
-        old_untraded <- old_tickers_catalog@untraded
-        ###Get new and old current_date
-        new_current_date <- new_tickers_catalog@current_date
-        old_current_date <- old_tickers_catalog@current_date
-        ###Get new and old meta_dataframe_name
-        new_meta_dataframe_name <- new_tickers_catalog@meta_dataframe_name
-        old_meta_dataframe_name <- old_tickers_catalog@meta_dataframe_name
-        ###Get new and old n_days_tolerance
-        new_n_days_tolerance <- new_tickers_catalog@n_days_tolerance
-        old_n_days_tolerance <- old_tickers_catalog@n_days_tolerance
+    ##metadata
+    ###Get new listed
+    new_listed <- new_tickers_catalog@listed
+    old_listed <- old_tickers_catalog@listed
+    ###Get new and old delisted
+    new_delisted <- new_tickers_catalog@delisted
+    old_delisted <- old_tickers_catalog@delisted
+    ###Get new and old untraded
+    new_untraded <- new_tickers_catalog@untraded
+    old_untraded <- old_tickers_catalog@untraded
+    ###Get new and old current_date
+    new_current_date <- new_tickers_catalog@current_date
+    old_current_date <- old_tickers_catalog@current_date
+    ###Get new and old meta_dataframe_name
+    new_meta_dataframe_name <- new_tickers_catalog@meta_dataframe_name
+    old_meta_dataframe_name <- old_tickers_catalog@meta_dataframe_name
+    ###Get new and old n_days_tolerance
+    new_n_days_tolerance <- new_tickers_catalog@n_days_tolerance
+    old_n_days_tolerance <- old_tickers_catalog@n_days_tolerance
 
-      ##catalog
-        ###Get new and old catalogs
-        new_tickers_catalog <- new_tickers_catalog@catalog
-        old_tickers_catalog <- old_tickers_catalog@catalog
-        ###Extract tickers from new and old catalogs
-        new_tickers <- new_tickers_catalog$tickers
-        old_tickers <- old_tickers_catalog$tickers
+    ##catalog
+    ###Get new and old catalogs
+    new_tickers_catalog <- new_tickers_catalog@catalog
+    old_tickers_catalog <- old_tickers_catalog@catalog
+    ###Extract tickers from new and old catalogs
+    new_tickers <- new_tickers_catalog$tickers
+    old_tickers <- old_tickers_catalog$tickers
 
-        ###Identify new and missing tickers
-        newly_added_tickers <- setdiff(new_tickers, old_tickers) #New tickers (whether IPOs or ticker change)
-          ####New tickers that are IPOs (not ticker changes)
-          ipos_tickers <- setdiff(newly_added_tickers, ticker_changes$new_tickers)
-          ####Old tickers that are not in new tickers and are not old ticker changes
-          missing_old_tickers <- setdiff(old_tickers, c(new_tickers, #Tickers that changed names from last period to current (old_tickers_catalog that are missing)
-                                                        old_ticker_change_history$old_tickers)) #This allow one to not consider older ticker changes
-          ####newly_delisted_tickers
-          newly_delisted_tickers <- setdiff(new_delisted, old_delisted) #Delisted tickers
+    ###Identify new and missing tickers
+    newly_added_tickers <- setdiff(new_tickers, old_tickers) #New tickers (whether IPOs or ticker change)
+    ####New tickers that are IPOs (not ticker changes)
+    ipos_tickers <- setdiff(newly_added_tickers, ticker_changes$new_tickers)
+    ####Old tickers that are not in new tickers and are not old ticker changes
+    missing_old_tickers <- setdiff(old_tickers, c(new_tickers, #Tickers that changed names from last period to current (old_tickers_catalog that are missing)
+                                                  old_ticker_change_history$old_tickers)) #This allow one to not consider older ticker changes
+    ####newly_delisted_tickers
+    newly_delisted_tickers <- setdiff(new_delisted, old_delisted) #Delisted tickers
 
 
-         ####Message
-         if (length(newly_added_tickers) > 0){
-           crayon::green(message(paste0("Newly added tickers: ", paste(newly_added_tickers, collapse = ", "))))
-         }
-         if (length(ipos_tickers) > 0){
-           crayon::green(message(paste0("Newly added IPOs: ", paste(ipos_tickers, collapse = ", "))))
-         }
-          if (length(newly_delisted_tickers) > 0){
-            crayon::red(message(paste0("Newly delisted tickers: ", paste(newly_delisted_tickers, collapse = ", "))))
-          }
-         if (length(missing_old_tickers) > 0){
-           crayon::yellow(message(paste0("Missing old tickers: ", paste(missing_old_tickers, collapse = ", "))))
-         }
+    ####Message
+    if (length(newly_added_tickers) > 0){
+      crayon::green(message(paste0("Newly added tickers: ", paste(newly_added_tickers, collapse = ", "))))
+    }
+    if (length(ipos_tickers) > 0){
+      crayon::green(message(paste0("Newly added IPOs: ", paste(ipos_tickers, collapse = ", "))))
+    }
+    if (length(newly_delisted_tickers) > 0){
+      crayon::red(message(paste0("Newly delisted tickers: ", paste(newly_delisted_tickers, collapse = ", "))))
+    }
+    if (length(missing_old_tickers) > 0){
+      crayon::yellow(message(paste0("Missing old tickers: ", paste(missing_old_tickers, collapse = ", "))))
+    }
 
 
     ####################
 
     #Validate Inputs
     ####################
-      ##ticker_changes
-        ###structure
-        if (!all(c("new_tickers", "old_tickers", "change_date") %in% colnames(ticker_changes))) {
-          stop("ticker_changes must contain columns: 'new_tickers', 'old_tickers', and 'change_date'.")
-        }
-        ###new_ticker and old_ticker columns are character type
-        if (!all(sapply(ticker_changes[, c("new_tickers", "old_tickers")], is.character))) {
-          stop("Columns 'new_tickers' and 'old_tickers' in ticker_changes must be character type.")
-        }
-        ###change_date column is Date type
-        if (!lubridate::is.Date(ticker_changes$change_date)) {
-          stop("Column 'change_date' in ticker_changes must be of Date type.")
-        }
-        ###can't have NAs
-        if (any(is.na(ticker_changes))) {
-          stop("ticker_changes can't have NAs.")
-        }
-        ###can't have duplicate columns
-        if (any(duplicated(ticker_changes$new_tickers)) || any(duplicated(ticker_changes$old_tickers))) {
-          stop("ticker_changes can't have duplicate columns.")
-        }
+    ##ticker_changes
+    ###structure
+    if (!all(c("new_tickers", "old_tickers", "change_date") %in% colnames(ticker_changes))) {
+      stop("ticker_changes must contain columns: 'new_tickers', 'old_tickers', and 'change_date'.")
+    }
+    ###new_ticker and old_ticker columns are character type
+    if (!all(sapply(ticker_changes[, c("new_tickers", "old_tickers")], is.character))) {
+      stop("Columns 'new_tickers' and 'old_tickers' in ticker_changes must be character type.")
+    }
+    ###change_date column is Date type
+    if (!lubridate::is.Date(ticker_changes$change_date)) {
+      stop("Column 'change_date' in ticker_changes must be of Date type.")
+    }
+    ###can't have NAs
+    if (any(is.na(ticker_changes))) {
+      stop("ticker_changes can't have NAs.")
+    }
+    ###can't have duplicate columns
+    if (any(duplicated(ticker_changes$new_tickers)) || any(duplicated(ticker_changes$old_tickers))) {
+      stop("ticker_changes can't have duplicate columns.")
+    }
 
 
-      ##tickers intersection
-        ####Check if newly_added_tickers can't be decomposed into ipos_tickers and missing_old_tickers
-        if (!identical(sort(newly_added_tickers), sort(c(ipos_tickers, #completely new
-                                                         ticker_changes %>% #ticker changes
-                                                         dplyr::filter(old_tickers %in% missing_old_tickers) %>% #old tickers that are missing
-                                                         dplyr::pull(new_tickers))))){ #new tickers
-          stop("Newly added tickers can't be decomposed into IPOs and missing old tickers")
-        }
+    ##tickers intersection
+    ####Check if newly_added_tickers can't be decomposed into ipos_tickers and missing_old_tickers
+    if (!identical(sort(newly_added_tickers), sort(c(ipos_tickers, #completely new
+                                                     ticker_changes %>% #ticker changes
+                                                     dplyr::filter(old_tickers %in% missing_old_tickers) %>% #old tickers that are missing
+                                                     dplyr::pull(new_tickers))))){ #new tickers
+      stop("Newly added tickers can't be decomposed into IPOs and missing old tickers")
+    }
 
-        ###Validate that all `new_tickers` tickers are accounted for in `ticker_changes`
-        if (!all(ticker_changes$new_tickers %in% newly_added_tickers)) {
-          stop("All new_tickers in ticker_changes must be present in raw_features_m_df")
-        }
-        ###Check that the number of rows of ticker_changes is equal to missing_old_tickers length
-        if (length(ticker_changes$old_tickers) != length(missing_old_tickers)) {
-          stop("Mismatch between new_tickers and missing old tickers in ticker_changes")
-        }
-        ###Check that delisted tickers are changing ticker
-        if (any(ticker_changes$old_tickers %in% old_delisted)) {
-          stop("Delisted tickers are changing ticker in ticker_changes. For relistings, treat it as a completely new ticker")
-        }
-        ###Validate that all `missing_old_tickers` tickers are accounted for in `ticker_changes`
-        if (!all(missing_old_tickers %in% ticker_changes$old_tickers) || !all(ticker_changes$old_tickers %in% missing_old_tickers)) {
-          stop("Mismatch between missing old tickers in ticker_changes and old tickers present in old_tickers_catalog")
-        }
-        ###Check that all new tickers are classified as listed
-        if (!all(newly_added_tickers %in% new_listed)) {
-          warning("New tickers are not classified as 'listed' in new_tickers_catalog.")
-        }
-        ###Check that delisted tickers from history are not listed
-        if (any(old_delisted %in% new_listed)) {
-          stop("Delisted tickers from old_tickers_catalog are now listed in new_tickers_catalog.")
-        }
-        ###Check that delisted tickers from history are not untraded
-        if (any(old_delisted %in% new_untraded)) {
-          stop("Delisted tickers from old_tickers_catalog are now untraded in new_tickers_catalog.")
-        }
-        ###Check that untraded tickers from history are not listed
-        if (any(old_untraded %in% new_listed)) {
-          stop("Untraded tickers from old_tickers_catalog are now listed in new_tickers_catalog.")
-        }
-        ###Check that untrade tickers from history are now delisted
-        if (any(old_untraded %in% new_delisted)) {
-          stop("Untraded tickers from old_tickers_catalog are now delisted in new_tickers_catalog.")
-        }
-        ###Check that old_listed tickers from history are now untraded
-        if (any(old_listed %in% new_untraded)) {
-          stop("Listed tickers from old_tickers_catalog are now untraded in new_tickers_catalog.")
-        }
+    ###Validate that all `new_tickers` tickers are accounted for in `ticker_changes`
+    if (!all(ticker_changes$new_tickers %in% newly_added_tickers)) {
+      stop("All new_tickers in ticker_changes must be present in raw_features_m_df")
+    }
+    ###Check that the number of rows of ticker_changes is equal to missing_old_tickers length
+    if (length(ticker_changes$old_tickers) != length(missing_old_tickers)) {
+      stop("Mismatch between new_tickers and missing old tickers in ticker_changes")
+    }
+    ###Check that delisted tickers are changing ticker
+    if (any(ticker_changes$old_tickers %in% old_delisted)) {
+      stop("Delisted tickers are changing ticker in ticker_changes. For relistings, treat it as a completely new ticker")
+    }
+    ###Validate that all `missing_old_tickers` tickers are accounted for in `ticker_changes`
+    if (!all(missing_old_tickers %in% ticker_changes$old_tickers) || !all(ticker_changes$old_tickers %in% missing_old_tickers)) {
+      stop("Mismatch between missing old tickers in ticker_changes and old tickers present in old_tickers_catalog")
+    }
+    ###Check that all new tickers are classified as listed
+    if (!all(newly_added_tickers %in% new_listed)) {
+      warning("New tickers are not classified as 'listed' in new_tickers_catalog.")
+    }
+    ###Check that delisted tickers from history are not listed
+    if (any(old_delisted %in% new_listed)) {
+      stop("Delisted tickers from old_tickers_catalog are now listed in new_tickers_catalog.")
+    }
+    ###Check that delisted tickers from history are not untraded
+    if (any(old_delisted %in% new_untraded)) {
+      stop("Delisted tickers from old_tickers_catalog are now untraded in new_tickers_catalog.")
+    }
+    ###Check that untraded tickers from history are not listed
+    if (any(old_untraded %in% new_listed)) {
+      stop("Untraded tickers from old_tickers_catalog are now listed in new_tickers_catalog.")
+    }
+    ###Check that untrade tickers from history are now delisted
+    if (any(old_untraded %in% new_delisted)) {
+      stop("Untraded tickers from old_tickers_catalog are now delisted in new_tickers_catalog.")
+    }
+    ###Check that old_listed tickers from history are now untraded
+    if (any(old_listed %in% new_untraded)) {
+      stop("Listed tickers from old_tickers_catalog are now untraded in new_tickers_catalog.")
+    }
 
-      ##dates
-        ###tickers_first_quote (it should not change, as each tickers_first_quote will keep delisted tickers)
-        common_tickers_first_quote <- dplyr::inner_join(
-          old_tickers_catalog %>% dplyr::select(tickers, tickers_first_quote),
-          new_tickers_catalog %>% dplyr::select(tickers, tickers_first_quote),
-          by = "tickers"
-        ) %>%
-          dplyr::filter(!tickers %in% old_ticker_change_history$new_tickers) #Do not consider ticker changes
+    ##dates
+    ###tickers_first_quote (it should not change, as each tickers_first_quote will keep delisted tickers)
+    common_tickers_first_quote <- dplyr::inner_join(
+      old_tickers_catalog %>% dplyr::select(tickers, tickers_first_quote),
+      new_tickers_catalog %>% dplyr::select(tickers, tickers_first_quote),
+      by = "tickers"
+    ) %>%
+      dplyr::filter(!tickers %in% old_ticker_change_history$new_tickers) #Do not consider ticker changes
 
-          ####Check equality considering NAs
-          date_mismatch <- !(
-            (is.na(common_tickers_first_quote$tickers_first_quote.x) & is.na(common_tickers_first_quote$tickers_first_quote.y)) |
-              (common_tickers_first_quote$tickers_first_quote.x == common_tickers_first_quote$tickers_first_quote.y)
-          )
-          if (any(date_mismatch, na.rm = TRUE)) {
-            stop("Mismatch in tickers_first_quote between common tickers in old and new catalogs.",
-                 "For relistings, use 'old_ticker'_n, where n is relisting_number")
-          }
-        ###ticker_last_quote should not change for delisted tickers
-        delisted_tickers_last_quote <- dplyr::inner_join(
-          old_tickers_catalog %>% dplyr::filter(tickers %in% old_delisted) %>% dplyr::select(tickers, tickers_last_quote),
-          new_tickers_catalog %>% dplyr::filter(tickers %in% old_delisted) %>% dplyr::select(tickers, tickers_last_quote),
-          by = "tickers"
-        )
-          ####Check equality
-          date_mismatch <- !(
-              (delisted_tickers_last_quote$tickers_last_quote.x == delisted_tickers_last_quote$tickers_last_quote.y)
-          )
-          if (any(date_mismatch, na.rm = TRUE)) {
-            stop("Mismatch in tickers_last_quote between delisted tickers in old and new catalogs.",
-                 "For relistings, use 'old_ticker'_n, where n is relisting_number")
-          }
+    ####Check equality considering NAs
+    date_mismatch <- !(
+      (is.na(common_tickers_first_quote$tickers_first_quote.x) & is.na(common_tickers_first_quote$tickers_first_quote.y)) |
+        (common_tickers_first_quote$tickers_first_quote.x == common_tickers_first_quote$tickers_first_quote.y)
+    )
+    if (any(date_mismatch, na.rm = TRUE)) {
+      stop("Mismatch in tickers_first_quote between common tickers in old and new catalogs.",
+           "For relistings, use 'old_ticker'_n, where n is relisting_number")
+    }
+    ###ticker_last_quote should not change for delisted tickers
+    delisted_tickers_last_quote <- dplyr::inner_join(
+      old_tickers_catalog %>% dplyr::filter(tickers %in% old_delisted) %>% dplyr::select(tickers, tickers_last_quote),
+      new_tickers_catalog %>% dplyr::filter(tickers %in% old_delisted) %>% dplyr::select(tickers, tickers_last_quote),
+      by = "tickers"
+    )
+    ####Check equality
+    date_mismatch <- !(
+      (delisted_tickers_last_quote$tickers_last_quote.x == delisted_tickers_last_quote$tickers_last_quote.y)
+    )
+    if (any(date_mismatch, na.rm = TRUE)) {
+      stop("Mismatch in tickers_last_quote between delisted tickers in old and new catalogs.",
+           "For relistings, use 'old_ticker'_n, where n is relisting_number")
+    }
 
 
-        ###tickers_first_quote of new tickers should be higher than old_current_date
-        if (length(ipos_tickers) > 0){
-          ####Get tickers_first_quote of new tickers
-          ipos_tickers_tickers_first_quote <- new_tickers_catalog %>%
-            dplyr::filter(tickers %in% ipos_tickers) %>%
-            dplyr::pull(tickers_first_quote)
+    ###tickers_first_quote of new tickers should be higher than old_current_date
+    if (length(ipos_tickers) > 0){
+      ####Get tickers_first_quote of new tickers
+      ipos_tickers_tickers_first_quote <- new_tickers_catalog %>%
+        dplyr::filter(tickers %in% ipos_tickers) %>%
+        dplyr::pull(tickers_first_quote)
 
-          ####Check if tickers_first_quote of ipo tickers is either >= old_current_date or NA
-          if (!all(is.na(ipos_tickers_tickers_first_quote) |
-                   ipos_tickers_tickers_first_quote >= (old_current_date - new_n_days_tolerance))) {
-            stop("tickers_first_quote of IPOs in new_tickers_catalog should be either >= old_current_date or NA.")
-          }
-        }
+      ####Check if tickers_first_quote of ipo tickers is either >= old_current_date or NA
+      if (!all(is.na(ipos_tickers_tickers_first_quote) |
+               ipos_tickers_tickers_first_quote >= (old_current_date - new_n_days_tolerance))) {
+        stop("tickers_first_quote of IPOs in new_tickers_catalog should be either >= old_current_date or NA.")
+      }
+    }
 
-        ###max tickers_last_quote in new_tickers_catalog should be higher than in old_catalog
-        if (max(new_tickers_catalog$tickers_last_quote, na.rm = TRUE) <= max(old_tickers_catalog$tickers_last_quote, na.rm = TRUE)) {
-          stop("tickers_last_quote in new_tickers_catalog should be higher than in old_tickers_catalog.")
-        }
-        ###current_date in new_tickers_catalog = current_date in old_tickers_catalog + 1
-          if (new_current_date != lubridate::add_with_rollback(old_current_date, months(1))) {
-          stop("current_date in new_tickers_catalog should be equal to current_date in old_tickers_catalog plus 1")
-        }
-      ##object name
-        ###check that meta_dataframe_name in new_tickers_catalog is contained in meta_dataframe_name of oold_tickers_catalog
-        if (!grepl(old_meta_dataframe_name, new_meta_dataframe_name)) {
-          stop("meta_dataframe_name in new_tickers_catalog should contain meta_dataframe_name in old_tickers_catalog.")
-        }
-      ##n_days_tolerance
-        ###n_days_tolerance should be the same in old_tickers_catalog and new_tickers_catalog
-        if (old_n_days_tolerance != new_n_days_tolerance) {
-          warning("n_days_tolerance has changed from old_tickers_catalog and new_tickers_catalog.")
-        }
+    ###max tickers_last_quote in new_tickers_catalog should be higher than in old_catalog
+    if (max(new_tickers_catalog$tickers_last_quote, na.rm = TRUE) <= max(old_tickers_catalog$tickers_last_quote, na.rm = TRUE)) {
+      stop("tickers_last_quote in new_tickers_catalog should be higher than in old_tickers_catalog.")
+    }
+    ###current_date in new_tickers_catalog = current_date in old_tickers_catalog + 1
+    if (new_current_date != lubridate::add_with_rollback(old_current_date, months(1))) {
+      stop("current_date in new_tickers_catalog should be equal to current_date in old_tickers_catalog plus 1")
+    }
+    ##object name
+    ###check that meta_dataframe_name in new_tickers_catalog is contained in meta_dataframe_name of oold_tickers_catalog
+    if (!grepl(old_meta_dataframe_name, new_meta_dataframe_name)) {
+      stop("meta_dataframe_name in new_tickers_catalog should contain meta_dataframe_name in old_tickers_catalog.")
+    }
+    ##n_days_tolerance
+    ###n_days_tolerance should be the same in old_tickers_catalog and new_tickers_catalog
+    if (old_n_days_tolerance != new_n_days_tolerance) {
+      warning("n_days_tolerance has changed from old_tickers_catalog and new_tickers_catalog.")
+    }
 
-      ##Checks involving ticker_changes
-        if (nrow(ticker_changes) >= 0) {
-          ###ticker_first_quote < change_date
-          only_newly_changed_tickers_catalog <- new_tickers_catalog %>%
-            dplyr::filter(tickers %in% ticker_changes$new_tickers) %>% #Filter only new tickers
-            dplyr::select(tickers, tickers_first_quote, tickers_last_quote) %>% #Get their date first quote
-            dplyr::left_join(ticker_changes, by = c("tickers" = "new_tickers")) #Join with ticker_changes to get change_date
+    ##Checks involving ticker_changes
+    if (nrow(ticker_changes) >= 0) {
+      ###ticker_first_quote < change_date
+      only_newly_changed_tickers_catalog <- new_tickers_catalog %>%
+        dplyr::filter(tickers %in% ticker_changes$new_tickers) %>% #Filter only new tickers
+        dplyr::select(tickers, tickers_first_quote, tickers_last_quote) %>% #Get their date first quote
+        dplyr::left_join(ticker_changes, by = c("tickers" = "new_tickers")) #Join with ticker_changes to get change_date
 
-            ####Check if tickers_first_quote is different to change_date
-            if (!all(is.na(only_newly_changed_tickers_catalog$tickers_first_quote) |
-                     only_newly_changed_tickers_catalog$tickers_first_quote <= only_newly_changed_tickers_catalog$change_date)) {
-              stop("tickers_first_quote in new_tickers_catalog should be <= than change_date in ticker_changes for new tickers.")
-            }
+      ####Check if tickers_first_quote is different to change_date
+      if (!all(is.na(only_newly_changed_tickers_catalog$tickers_first_quote) |
+               only_newly_changed_tickers_catalog$tickers_first_quote <= only_newly_changed_tickers_catalog$change_date)) {
+        stop("tickers_first_quote in new_tickers_catalog should be <= than change_date in ticker_changes for new tickers.")
+      }
 
-          ###ticker_first_quote <= old_first_quote (< when there has been more than one change in history)
-          ###tickers_last_quote >= old_tickers_last_quote
-          only_newly_changed_tickers_catalog <- only_newly_changed_tickers_catalog %>%
-            dplyr::right_join(old_tickers_catalog %>%  #Right join with old catalog to get original first dates
-                                dplyr::right_join(ticker_changes, by = c("tickers" = "old_tickers")) %>%
-                                dplyr::rename(old_tickers_first_quote = tickers_first_quote,
-                                              old_tickers_last_quote = tickers_last_quote) %>%
-                                dplyr::select(tickers, old_tickers_first_quote, old_tickers_last_quote), #Rename to facilitate comparison
-                              by = c("old_tickers" = "tickers"))
+      ###ticker_first_quote <= old_first_quote (< when there has been more than one change in history)
+      ###tickers_last_quote >= old_tickers_last_quote
+      only_newly_changed_tickers_catalog <- only_newly_changed_tickers_catalog %>%
+        dplyr::right_join(old_tickers_catalog %>%  #Right join with old catalog to get original first dates
+                            dplyr::right_join(ticker_changes, by = c("tickers" = "old_tickers")) %>%
+                            dplyr::rename(old_tickers_first_quote = tickers_first_quote,
+                                          old_tickers_last_quote = tickers_last_quote) %>%
+                            dplyr::select(tickers, old_tickers_first_quote, old_tickers_last_quote), #Rename to facilitate comparison
+                          by = c("old_tickers" = "tickers"))
 
-            ####Check if tickers_first_quote is <= to tickers_first_quote of old_tickers_catalog (remember: first_quote <- change_date)
-            if (any(
-                !is.na(only_newly_changed_tickers_catalog$tickers_first_quote) &
-                !is.na(only_newly_changed_tickers_catalog$old_tickers_first_quote) &
-                only_newly_changed_tickers_catalog$tickers_first_quote > only_newly_changed_tickers_catalog$old_tickers_first_quote)){
-              stop("tickers_first_quote in new_tickers_catalog should be <= tickers_first_quote in old_tickers_catalog for new tickers.")
-            }
-            ####Check if tickers_last_quote is >= to tickers_old_quote of old_tickers_catalog
-            if (any(
-                !is.na(only_newly_changed_tickers_catalog$tickers_last_quote) &
-                !is.na(only_newly_changed_tickers_catalog$old_tickers_last_quote) &
-                only_newly_changed_tickers_catalog$tickers_last_quote < only_newly_changed_tickers_catalog$old_tickers_last_quote)){
-              stop("tickers_last_quote in new_tickers_catalog should be >= tickers_last_quote in old_tickers_catalog for new tickers.")
-            }
+      ####Check if tickers_first_quote is <= to tickers_first_quote of old_tickers_catalog (remember: first_quote <- change_date)
+      if (any(
+        !is.na(only_newly_changed_tickers_catalog$tickers_first_quote) &
+        !is.na(only_newly_changed_tickers_catalog$old_tickers_first_quote) &
+        only_newly_changed_tickers_catalog$tickers_first_quote > only_newly_changed_tickers_catalog$old_tickers_first_quote)){
+        stop("tickers_first_quote in new_tickers_catalog should be <= tickers_first_quote in old_tickers_catalog for new tickers.")
+      }
+      ####Check if tickers_last_quote is >= to tickers_old_quote of old_tickers_catalog
+      if (any(
+        !is.na(only_newly_changed_tickers_catalog$tickers_last_quote) &
+        !is.na(only_newly_changed_tickers_catalog$old_tickers_last_quote) &
+        only_newly_changed_tickers_catalog$tickers_last_quote < only_newly_changed_tickers_catalog$old_tickers_last_quote)){
+        stop("tickers_last_quote in new_tickers_catalog should be >= tickers_last_quote in old_tickers_catalog for new tickers.")
+      }
 
-          ###old_listed changing to NA
-          old_listed_changed_tickers_catalog <- only_newly_changed_tickers_catalog %>% dplyr::filter(old_tickers %in% old_listed)
-            ####Check that tickers_first_quote and tickers_last_quote are not NA for tickers that were listed in old_tickers_catalog
-            if (nrow(old_listed_changed_tickers_catalog) > 0 &&
-                any(is.na(old_listed_changed_tickers_catalog %>% dplyr::pull(tickers_first_quote)) |
-                    is.na(old_listed_changed_tickers_catalog %>% dplyr::pull(tickers_last_quote)))
-                ){
-              stop("tickers_first_quote and tickers_last_quote should not be NA for tickers that were listed in old_tickers_catalog.")
-              }
-          ###untraded changing from NA
-          old_untraded_changed_tickers_catalog <- only_newly_changed_tickers_catalog %>% dplyr::filter(old_tickers %in% old_untraded)
-            ####Check that tickers_first_quote and tickers_last_quote are NA for tickers that were untraded in old_tickers_catalog
-            if (nrow(old_untraded_changed_tickers_catalog) > 0 &&
-                any(!is.na(old_untraded_changed_tickers_catalog %>% dplyr::pull(tickers_first_quote)) |
-                    !is.na(old_untraded_changed_tickers_catalog %>% dplyr::pull(tickers_last_quote)))
-                ){
-              stop("tickers_first_quote and tickers_last_quote should be NA for tickers that were untraded in old_tickers_catalog.")
-              }
-          ###delisted having any change
-          if (length(only_newly_changed_tickers_catalog %>% dplyr::filter(tickers %in% old_delisted) %>% dplyr::pull(tickers)) > 0){
-            stop("tickers that were delisted in old_tickers_catalog should not change tickers.")
-          }
-        }
+      ###old_listed changing to NA
+      old_listed_changed_tickers_catalog <- only_newly_changed_tickers_catalog %>% dplyr::filter(old_tickers %in% old_listed)
+      ####Check that tickers_first_quote and tickers_last_quote are not NA for tickers that were listed in old_tickers_catalog
+      if (nrow(old_listed_changed_tickers_catalog) > 0 &&
+          any(is.na(old_listed_changed_tickers_catalog %>% dplyr::pull(tickers_first_quote)) |
+              is.na(old_listed_changed_tickers_catalog %>% dplyr::pull(tickers_last_quote)))
+      ){
+        stop("tickers_first_quote and tickers_last_quote should not be NA for tickers that were listed in old_tickers_catalog.")
+      }
+      ###untraded changing from NA
+      old_untraded_changed_tickers_catalog <- only_newly_changed_tickers_catalog %>% dplyr::filter(old_tickers %in% old_untraded)
+      ####Check that tickers_first_quote and tickers_last_quote are NA for tickers that were untraded in old_tickers_catalog
+      if (nrow(old_untraded_changed_tickers_catalog) > 0 &&
+          any(!is.na(old_untraded_changed_tickers_catalog %>% dplyr::pull(tickers_first_quote)) |
+              !is.na(old_untraded_changed_tickers_catalog %>% dplyr::pull(tickers_last_quote)))
+      ){
+        stop("tickers_first_quote and tickers_last_quote should be NA for tickers that were untraded in old_tickers_catalog.")
+      }
+      ###delisted having any change
+      if (length(only_newly_changed_tickers_catalog %>% dplyr::filter(tickers %in% old_delisted) %>% dplyr::pull(tickers)) > 0){
+        stop("tickers that were delisted in old_tickers_catalog should not change tickers.")
+      }
+    }
 
     ####################
 
     #Assign the same perm_id for ticker changes and untraded that got listed
     ####################
-      ##Bind tickers_changes to history, so as to keep perm_id for tickers that once changed
-      ticker_changes_full_history <- dplyr::bind_rows(old_ticker_change_history, ticker_changes)
+    ##Bind tickers_changes to history, so as to keep perm_id for tickers that once changed
+    ticker_changes_full_history <- dplyr::bind_rows(old_ticker_change_history, ticker_changes)
 
-      ##Map old tickers to perm_id
-      perm_id_map <- old_tickers_catalog %>%
-        dplyr::select(tickers, perm_id) %>%
-        dplyr::right_join(ticker_changes_full_history, by = c("tickers" = "old_tickers"))
+    ##Map old tickers to perm_id
+    perm_id_map <- old_tickers_catalog %>%
+      dplyr::select(tickers, perm_id) %>%
+      dplyr::right_join(ticker_changes_full_history, by = c("tickers" = "old_tickers"))
 
-      ##Change perm_id for renamed tickers
-      new_tickers_catalog <- new_tickers_catalog %>%
-        dplyr::left_join( #Join with perm_id_map
-          perm_id_map %>%
-            dplyr::select(new_tickers, perm_id, change_date) %>% #Select only new_ticker and perm_id
-            dplyr::rename(old_perm_id = perm_id), #Rename old_perm_id to perm_id
-          by = c("tickers" = "new_tickers")) %>%
-        dplyr::mutate(perm_id = dplyr::coalesce(old_perm_id, perm_id)) %>% #Get perm_id from old_perm_id if it exists, otherwise, get perm_id from perm_id
-        dplyr::mutate(tickers_first_quote = dplyr::coalesce(change_date, tickers_first_quote)) %>% #Get change_date if it exists, otherwise, get tickers_first_quote
-        dplyr::select(-old_perm_id, -change_date) #Remove old_perm_id and change_date
+    ##Change perm_id for renamed tickers
+    new_tickers_catalog <- new_tickers_catalog %>%
+      dplyr::left_join( #Join with perm_id_map
+        perm_id_map %>%
+          dplyr::select(new_tickers, perm_id, change_date) %>% #Select only new_ticker and perm_id
+          dplyr::rename(old_perm_id = perm_id), #Rename old_perm_id to perm_id
+        by = c("tickers" = "new_tickers")) %>%
+      dplyr::mutate(perm_id = dplyr::coalesce(old_perm_id, perm_id)) %>% #Get perm_id from old_perm_id if it exists, otherwise, get perm_id from perm_id
+      dplyr::mutate(tickers_first_quote = dplyr::coalesce(change_date, tickers_first_quote)) %>% #Get change_date if it exists, otherwise, get tickers_first_quote
+      dplyr::select(-old_perm_id, -change_date) #Remove old_perm_id and change_date
 
     ####################
 
     #Bind old tickers in new catalog
     ####################
-      ##Get old entries, set them as either delisted or untraded
-      old_tickers_entries <- old_tickers_catalog %>%
-        dplyr::select(-dplyr::any_of("change_date")) %>% #Remove change_date columns if it exists
-        dplyr::left_join(ticker_changes_full_history, by = c("tickers" = "old_tickers")) %>% #Join with ticker_changes
-        ###Consider only entries that have changed names
-        dplyr::filter(!is.na(new_tickers)) %>%
-        dplyr::mutate(tickers_last_quote = change_date) %>% #Set tickers_last_quote to change_date
-        dplyr::left_join(new_tickers_catalog %>%
-                           dplyr::right_join(ticker_changes_full_history, by = c("tickers" = "new_tickers")) %>% #Join with ticker_changes
-                           dplyr::rename(new_tickers_last_quote = tickers_last_quote) %>%
-                           dplyr::select(tickers, new_tickers_last_quote), #Select perm_id, tickers, and new_date_last_quote
-                         by = c("new_tickers" = "tickers")) %>%
-        dplyr::mutate(
-          listed = FALSE, #Set listed to FALSE
-          delisted = FALSE, #Set delisted to FALSE
-          untraded = FALSE, #Set untraded to FALSE
-          old = TRUE #Set old to TRUE
-        ) %>%
-        dplyr::select(-new_tickers, -new_tickers_last_quote, -change_date)
-      ##Bind
-      new_tickers_catalog <- dplyr::bind_rows(new_tickers_catalog, old_tickers_entries) %>% dplyr::arrange(perm_id)
+    ##Get old entries, set them as either delisted or untraded
+    old_tickers_entries <- old_tickers_catalog %>%
+      dplyr::select(-dplyr::any_of("change_date")) %>% #Remove change_date columns if it exists
+      dplyr::left_join(ticker_changes_full_history, by = c("tickers" = "old_tickers")) %>% #Join with ticker_changes
+      ###Consider only entries that have changed names
+      dplyr::filter(!is.na(new_tickers)) %>%
+      dplyr::mutate(tickers_last_quote = change_date) %>% #Set tickers_last_quote to change_date
+      dplyr::left_join(new_tickers_catalog %>%
+                         dplyr::right_join(ticker_changes_full_history, by = c("tickers" = "new_tickers")) %>% #Join with ticker_changes
+                         dplyr::rename(new_tickers_last_quote = tickers_last_quote) %>%
+                         dplyr::select(tickers, new_tickers_last_quote), #Select perm_id, tickers, and new_date_last_quote
+                       by = c("new_tickers" = "tickers")) %>%
+      dplyr::mutate(
+        listed = FALSE, #Set listed to FALSE
+        delisted = FALSE, #Set delisted to FALSE
+        untraded = FALSE, #Set untraded to FALSE
+        old = TRUE #Set old to TRUE
+      ) %>%
+      dplyr::select(-new_tickers, -new_tickers_last_quote, -change_date)
+    ##Bind
+    new_tickers_catalog <- dplyr::bind_rows(new_tickers_catalog, old_tickers_entries) %>% dplyr::arrange(perm_id)
     ####################
 
     #Merge ticker change history
@@ -1430,19 +1430,19 @@ setMethod(
     tickers_catalog_slots <- prepare_tickers_catalog_slots(new_tickers_catalog)
 
     updated_catalog <-  methods::new("tickers_catalog",
-                           catalog = tickers_catalog_slots$tickers_catalog,
-                           tickers = tickers_catalog_slots$tickers,
-                           perm_id = tickers_catalog_slots$perm_id,
-                           tickers_first_quote = tickers_catalog_slots$tickers_first_quote,
-                           tickers_last_quote = tickers_catalog_slots$tickers_last_quote,
-                           untraded = tickers_catalog_slots$untraded,
-                           delisted = tickers_catalog_slots$delisted,
-                           listed = tickers_catalog_slots$listed,
-                           old = tickers_catalog_slots$old,
-                           current_date = new_current_date,
-                           meta_dataframe_name = old_meta_dataframe_name,
-                           n_days_tolerance = old_n_days_tolerance,
-                           ticker_change_history = updated_ticker_changes)
+                                     catalog = tickers_catalog_slots$tickers_catalog,
+                                     tickers = tickers_catalog_slots$tickers,
+                                     perm_id = tickers_catalog_slots$perm_id,
+                                     tickers_first_quote = tickers_catalog_slots$tickers_first_quote,
+                                     tickers_last_quote = tickers_catalog_slots$tickers_last_quote,
+                                     untraded = tickers_catalog_slots$untraded,
+                                     delisted = tickers_catalog_slots$delisted,
+                                     listed = tickers_catalog_slots$listed,
+                                     old = tickers_catalog_slots$old,
+                                     current_date = new_current_date,
+                                     meta_dataframe_name = old_meta_dataframe_name,
+                                     n_days_tolerance = old_n_days_tolerance,
+                                     ticker_change_history = updated_ticker_changes)
 
     return(updated_catalog)
   }
@@ -1501,72 +1501,72 @@ setMethod(
            workflow = NULL,
            source = NULL) {
 
-  # Match 'type' argument
-  type <- match.arg(type)
+    # Match 'type' argument
+    type <- match.arg(type)
 
-  # If source is NULL, default to a vector of "not_identified"
-  # repeated for each column in 'data'.
-  if (is.null(source)) {
-    source <- rep("not_identified", ncol(data))
-  }
+    # If source is NULL, default to a vector of "not_identified"
+    # repeated for each column in 'data'.
+    if (is.null(source)) {
+      source <- rep("not_identified", ncol(data))
+    }
 
-  # Detect frequency automatically
-  freq_info <- suppressWarnings(xts::periodicity(data))
-  discovered_scale <- if (nrow(data) == 1) "not_available" else freq_info$scale
+    # Detect frequency automatically
+    freq_info <- suppressWarnings(xts::periodicity(data))
+    discovered_scale <- if (nrow(data) == 1) "not_available" else freq_info$scale
 
-  #Current date
-  current_date <- zoo::index(data)[length(zoo::index(data))]
+    #Current date
+    current_date <- zoo::index(data)[length(zoo::index(data))]
 
-  # Common slots for the parent class
-  common_slots <- list(
-    data          = data,
-    meta_xts_name = meta_xts_name,
-    workflow      = workflow,
-    n_dates       = nrow(data),
-    source        = source,
-    frequency     = discovered_scale,
-    current_date  = current_date
-  )
-
-  # 5) Depending on 'type', build the appropriate subclass
-  if (type == "returns") {
-    # For assets_meta_xts, we fill the specialized slots:
-    if (asset_type == "not_identified") message("Asset_type not identified for 'returns_meta_xts' subclass")
-
-    obj <- methods::new(
-      "returns_meta_xts",
-      data = common_slots$data,
-      asset_type = asset_type,
-      meta_xts_name = common_slots$meta_xts_name,
-      metric_name = if (is.null(metric_name)) "returns" else metric_name,
-      workflow = common_slots$workflow,
-      n_dates = common_slots$n_dates,
-      source = common_slots$source,
-      frequency = common_slots$frequency,
-      assets = colnames(data),
-      n_assets = ncol(data),
-      current_date = current_date
+    # Common slots for the parent class
+    common_slots <- list(
+      data          = data,
+      meta_xts_name = meta_xts_name,
+      workflow      = workflow,
+      n_dates       = nrow(data),
+      source        = source,
+      frequency     = discovered_scale,
+      current_date  = current_date
     )
-  } else { # type == "metrics"
-    # For metrics_meta_xts, we fill the specialized slots:
-    obj <- methods::new(
-      "metrics_meta_xts",
-      data = common_slots$data,
-      meta_xts_name = common_slots$meta_xts_name,
-      metric_name = if (is.null(metric_name)) "metrics" else metric_name,
-      workflow = common_slots$workflow,
-      n_dates = common_slots$n_dates,
-      source = common_slots$source,
-      frequency = common_slots$frequency,
-      series = colnames(data),
-      n_series = ncol(data),
-      current_date = current_date
-    )
-  }
 
-  # Return the newly created object
-  return(obj)
-})
+    # 5) Depending on 'type', build the appropriate subclass
+    if (type == "returns") {
+      # For assets_meta_xts, we fill the specialized slots:
+      if (asset_type == "not_identified") message("Asset_type not identified for 'returns_meta_xts' subclass")
+
+      obj <- methods::new(
+        "returns_meta_xts",
+        data = common_slots$data,
+        asset_type = asset_type,
+        meta_xts_name = common_slots$meta_xts_name,
+        metric_name = if (is.null(metric_name)) "returns" else metric_name,
+        workflow = common_slots$workflow,
+        n_dates = common_slots$n_dates,
+        source = common_slots$source,
+        frequency = common_slots$frequency,
+        assets = colnames(data),
+        n_assets = ncol(data),
+        current_date = current_date
+      )
+    } else { # type == "metrics"
+      # For metrics_meta_xts, we fill the specialized slots:
+      obj <- methods::new(
+        "metrics_meta_xts",
+        data = common_slots$data,
+        meta_xts_name = common_slots$meta_xts_name,
+        metric_name = if (is.null(metric_name)) "metrics" else metric_name,
+        workflow = common_slots$workflow,
+        n_dates = common_slots$n_dates,
+        source = common_slots$source,
+        frequency = common_slots$frequency,
+        series = colnames(data),
+        n_series = ncol(data),
+        current_date = current_date
+      )
+    }
+
+    # Return the newly created object
+    return(obj)
+  })
 
 #' @rdname create_meta_xts
 # Define the method for when 'data' is a data.frame
@@ -1629,10 +1629,10 @@ setMethod(
       # Identify feature columns (excluding 'id', tickers' and 'dates')
       feature_cols <- setdiff(colnames(data), c("id", "tickers", "dates"))
 
-        ##Check that metric_name legnth is equal to feature_cols length
-        if (!is.null(metric_name) && length(metric_name) != length(feature_cols)) {
-          stop("Error: When data_format is 'long' and metric_name is provided as a vector, its length must equal the number of feature columns.")
-        }
+      ##Check that metric_name legnth is equal to feature_cols length
+      if (!is.null(metric_name) && length(metric_name) != length(feature_cols)) {
+        stop("Error: When data_format is 'long' and metric_name is provided as a vector, its length must equal the number of feature columns.")
+      }
       result_list <- list()
 
       for (feat in feature_cols) {
@@ -1660,7 +1660,7 @@ setMethod(
           date_vec <- as.Date(wide_df$dates)
           wide_df <- wide_df[order(date_vec), , drop = FALSE]
           date_vec <- date_vec[order(date_vec)]
-          }
+        }
 
         # Error check for valid dates in the long branch
         if (length(date_vec) == 0 || all(is.na(date_vec))) {
@@ -1777,14 +1777,14 @@ create_ss_backtest_config <- function(
   }
 
   # Create and return the object
-   methods::new("ss_backtest_config",
-    chosen_signals_and_positions = chosen_signals_and_positions,
-    initial_sample_size = initial_sample_size,
-    rebalancing_months = rebalancing_months,
-    active_returns = active_returns,
-    split_method = split_method,
-    alpha_test_strategy = alpha_test_strategy,
-    config_name = config_name
+  methods::new("ss_backtest_config",
+               chosen_signals_and_positions = chosen_signals_and_positions,
+               initial_sample_size = initial_sample_size,
+               rebalancing_months = rebalancing_months,
+               active_returns = active_returns,
+               split_method = split_method,
+               alpha_test_strategy = alpha_test_strategy,
+               config_name = config_name
   )
 }
 
@@ -1916,36 +1916,36 @@ create_alpha_test_strategy <- function(
     if (is.null(bayesian_model_parameters)) {
       # If not create a generic one
       bayesian_model_parameters <-  methods::new("bayesian_model_parameters",
-        user_priors = NULL,
-        prior_derivation_control = NULL,
-        brms_control = NULL
+                                                 user_priors = NULL,
+                                                 prior_derivation_control = NULL,
+                                                 brms_control = NULL
       )
     }
 
     return( methods::new("bayesian_alpha_test_strategy",
-      signal_significance_threshold = signal_significance_threshold,
-      p_correction_method = p_correction_method,
-      model_structure = model_structure,
-      theme_level_intercept = theme_level_intercept,
-      theme_level_slope = theme_level_slope,
-      market_factor_proxy = market_factor_proxy, # For a new bayesian class, create an uniformative bayesian_model_parameters
-      enable_theme_representativeness = enable_theme_representativeness,
-      bayesian_model_parameters = bayesian_model_parameters,
-      lmer_control = lmer_control
+                         signal_significance_threshold = signal_significance_threshold,
+                         p_correction_method = p_correction_method,
+                         model_structure = model_structure,
+                         theme_level_intercept = theme_level_intercept,
+                         theme_level_slope = theme_level_slope,
+                         market_factor_proxy = market_factor_proxy, # For a new bayesian class, create an uniformative bayesian_model_parameters
+                         enable_theme_representativeness = enable_theme_representativeness,
+                         bayesian_model_parameters = bayesian_model_parameters,
+                         lmer_control = lmer_control
     ))
   }
 
   # Handle Frequentist subclass creation
   if (p_correction_method %in% c("none", "bonferroni", "holm", "hochberg", "hommel", "BH", "fdr", "BY")) {
     return(methods::new("frequentist_alpha_test_strategy",
-      signal_significance_threshold = signal_significance_threshold,
-      model_structure = model_structure,
-      theme_level_intercept = theme_level_intercept,
-      theme_level_slope = theme_level_slope,
-      p_correction_method = p_correction_method,
-      enable_theme_representativeness = enable_theme_representativeness,
-      market_factor_proxy = market_factor_proxy,
-      lmer_control = lmer_control
+                        signal_significance_threshold = signal_significance_threshold,
+                        model_structure = model_structure,
+                        theme_level_intercept = theme_level_intercept,
+                        theme_level_slope = theme_level_slope,
+                        p_correction_method = p_correction_method,
+                        enable_theme_representativeness = enable_theme_representativeness,
+                        market_factor_proxy = market_factor_proxy,
+                        lmer_control = lmer_control
     ))
   }
 
@@ -2120,9 +2120,9 @@ setMethod(
 
     # Create `bayesian_model_parameters` object
     bayesian_params <-  methods::new("bayesian_model_parameters",
-      user_priors = user_priors,
-      prior_derivation_control = prior_derivation_control,
-      brms_control = brms_control
+                                     user_priors = user_priors,
+                                     prior_derivation_control = prior_derivation_control,
+                                     brms_control = brms_control
     )
 
     # Add `bayesian_model_parameters` to `bayesian_alpha_test_strategy`
@@ -2321,11 +2321,11 @@ create_tuning_strategy <- function(tuning_method, validation_sample_size, chosen
   if (tuning_method == "grid_search") {
     # Create a grid_search_strategy object
     return( methods::new("grid_search_strategy",
-      tuning_method = "grid_search",
-      validation_sample_size = validation_sample_size,
-      chosen_eval_metric = chosen_eval_metric,
-      hyper_grid_domain = hyper_grid_domain,
-      early_stop = early_stop
+                         tuning_method = "grid_search",
+                         validation_sample_size = validation_sample_size,
+                         chosen_eval_metric = chosen_eval_metric,
+                         hyper_grid_domain = hyper_grid_domain,
+                         early_stop = early_stop
     ))
   } else if (tuning_method == "random_search") {
     # Create a random_search_strategy object
@@ -2333,12 +2333,12 @@ create_tuning_strategy <- function(tuning_method, validation_sample_size, chosen
       stop("n_iter must be provided for random_search.")
     }
     return( methods::new("random_search_strategy",
-      tuning_method = "random_search",
-      validation_sample_size = validation_sample_size,
-      chosen_eval_metric = chosen_eval_metric,
-      hyper_grid_domain = hyper_grid_domain,
-      early_stop = early_stop,
-      n_iter = n_iter
+                         tuning_method = "random_search",
+                         validation_sample_size = validation_sample_size,
+                         chosen_eval_metric = chosen_eval_metric,
+                         hyper_grid_domain = hyper_grid_domain,
+                         early_stop = early_stop,
+                         n_iter = n_iter
     ))
   } else if (tuning_method == "bayesian_opt") {
     # Create a bayesian_opt_strategy object
@@ -2346,15 +2346,15 @@ create_tuning_strategy <- function(tuning_method, validation_sample_size, chosen
       stop("n_iter, acq, init_points, and k_iter must be provided for bayesian_opt.")
     }
     return( methods::new("bayesian_opt_strategy",
-      tuning_method = "bayesian_opt",
-      validation_sample_size = validation_sample_size,
-      chosen_eval_metric = chosen_eval_metric,
-      hyper_grid_domain = hyper_grid_domain,
-      early_stop = early_stop,
-      n_iter = n_iter,
-      acq = acq,
-      init_points = init_points,
-      k_iter = k_iter
+                         tuning_method = "bayesian_opt",
+                         validation_sample_size = validation_sample_size,
+                         chosen_eval_metric = chosen_eval_metric,
+                         hyper_grid_domain = hyper_grid_domain,
+                         early_stop = early_stop,
+                         n_iter = n_iter,
+                         acq = acq,
+                         init_points = init_points,
+                         k_iter = k_iter
     ))
   } else {
     stop("Invalid tuning_method. Choose from 'grid_search', 'random_search', or 'bayesian_opt'.")
@@ -2436,10 +2436,10 @@ setMethod(
     # Custom fill of chosen eval metric in case of null
     if (is.null(chosen_eval_metric)) {
       chosen_eval_metric <- switch(object@custom_objective,
-        "pseudo_huber_error" = "mphe",
-        "quantile_error" = "quantile_loss",
-        "absolute_error" = "mae",
-        "rmse"
+                                   "pseudo_huber_error" = "mphe",
+                                   "quantile_error" = "quantile_loss",
+                                   "absolute_error" = "mae",
+                                   "rmse"
       )
       message(paste("chosen_eval_metric set to", chosen_eval_metric, "according to custom_objective.\n"))
     }
@@ -2654,7 +2654,7 @@ setMethod(
     # Extract the current object
     current_hyper_grid_domain <- object@hyper_grid_domain
     updated_hyper_grid_domain <- add_hyperparameter(current_hyper_grid_domain,
-      new_hyperparameter_list = new_hyperparameter_list
+                                                    new_hyperparameter_list = new_hyperparameter_list
     )
 
     # Update the object
@@ -2732,8 +2732,8 @@ setMethod(
 
     # Add hyperparamete
     updated_tuning_strategy <- add_hyperparameter(tuning_strategy,
-      hyperparameter = hyperparameter,
-      grid = grid, distribution_choice = distribution_choice, pars = pars, bounds = bounds
+                                                  hyperparameter = hyperparameter,
+                                                  grid = grid, distribution_choice = distribution_choice, pars = pars, bounds = bounds
     )
 
     # Update the object
@@ -2837,12 +2837,12 @@ create_keras_architecture <- function(nn_optimizer, units = NULL, activation = N
 
   # Create new_keras_architecture
   new_keras_architecture_parameters <-
-     methods::new("keras_architecture_parameters",
-      units = units,
-      n_layers = length(units),
-      activation = activation,
-      nn_optimizer = nn_optimizer,
-      batch_norm_option = batch_norm_option
+    methods::new("keras_architecture_parameters",
+                 units = units,
+                 n_layers = length(units),
+                 activation = activation,
+                 nn_optimizer = nn_optimizer,
+                 batch_norm_option = batch_norm_option
     )
 
 
@@ -3020,10 +3020,10 @@ setMethod(
 #' @export
 create_cov_est_method <- function(cov_estimation_method = "sample", cov_matrix_sample_size, active_returns = TRUE, cov_matrix_benchmark = NULL) {
   cov_est_method <-  methods::new("cov_est_method",
-    cov_estimation_method = cov_estimation_method,
-    cov_matrix_sample_size = cov_matrix_sample_size,
-    active_returns = active_returns,
-    cov_matrix_benchmark = cov_matrix_benchmark
+                                  cov_estimation_method = cov_estimation_method,
+                                  cov_matrix_sample_size = cov_matrix_sample_size,
+                                  active_returns = active_returns,
+                                  cov_matrix_benchmark = cov_matrix_benchmark
   )
 
   return(cov_est_method)
@@ -3191,17 +3191,17 @@ create_mvo_parameters <- function(opt_method = "random",
                                   n_resamples = 0,
                                   exp_ret_score_jitter = 0,
                                   cov_eigval_jitter = 0
-                                  ) {
+) {
 
   mvo_params <- methods::new("mvo_parameters",
-    opt_method = opt_method,
-    random_ports_method = random_ports_method,
-    n_random_ports = n_random_ports,
-    opt_objective = opt_objective,
-    ridge_pen = ridge_pen,
-    n_resamples = n_resamples,
-    exp_ret_score_jitter = exp_ret_score_jitter,
-    cov_eigval_jitter = cov_eigval_jitter
+                             opt_method = opt_method,
+                             random_ports_method = random_ports_method,
+                             n_random_ports = n_random_ports,
+                             opt_objective = opt_objective,
+                             ridge_pen = ridge_pen,
+                             n_resamples = n_resamples,
+                             exp_ret_score_jitter = exp_ret_score_jitter,
+                             cov_eigval_jitter = cov_eigval_jitter
   )
   return(mvo_params)
 }
@@ -3440,9 +3440,9 @@ create_rp_parameters <- function(rp_method = "cyclical-spinu",
                                  exp_ret_score_tilt = "none", exp_ret_score_tilt_eta = NULL) {
 
   rp_params <- methods::new("rp_parameters",
-    rp_method = rp_method,
-    exp_ret_score_tilt = exp_ret_score_tilt,
-    exp_ret_score_tilt_eta = exp_ret_score_tilt_eta
+                            rp_method = rp_method,
+                            exp_ret_score_tilt = exp_ret_score_tilt,
+                            exp_ret_score_tilt_eta = exp_ret_score_tilt_eta
   )
   return(rp_params)
 }
@@ -3568,19 +3568,19 @@ setMethod(
       }
       if (level == "macro") {
         message("Applying RP parameters to macro portfolio.")
-          ## Check if object@mmaf_parameters@macro_port_config@port_construction_method is rp
-          if (object@mmaf_parameters@macro_port_config@port_construction_method != "rp") {
-            stop("macro_port_config port_construction_method is not 'rp'.")
-          }
-          object@mmaf_parameters@macro_port_config@rp_parameters <- rp_params
+        ## Check if object@mmaf_parameters@macro_port_config@port_construction_method is rp
+        if (object@mmaf_parameters@macro_port_config@port_construction_method != "rp") {
+          stop("macro_port_config port_construction_method is not 'rp'.")
+        }
+        object@mmaf_parameters@macro_port_config@rp_parameters <- rp_params
 
       } else {
         message("Applying RP parameters to micro portfolios.")
-          ## Check if object@mmaf_parameters@micro_port_config@port_construction_method is rp
-          if (object@mmaf_parameters@micro_port_config@port_construction_method != "rp") {
-            stop("micro_port_config port_construction_method is not 'rp'.")
-          }
-          object@mmaf_parameters@micro_port_config@rp_parameters <- rp_params
+        ## Check if object@mmaf_parameters@micro_port_config@port_construction_method is rp
+        if (object@mmaf_parameters@micro_port_config@port_construction_method != "rp") {
+          stop("micro_port_config port_construction_method is not 'rp'.")
+        }
+        object@mmaf_parameters@micro_port_config@rp_parameters <- rp_params
       }
       return(object)
     }
@@ -4116,30 +4116,30 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tun
 
 
     signal_port_parameters <- methods::new("signal_port_parameters",
-      cov_est_method = cov_est_method,
-      mvo_parameters = mvo_parameters,
-      rp_parameters = rp_parameters,
-      hrp_parameters = hrp_parameters,
-      mmaf_parameters = mmaf_parameters,
-      concentration_constraint_policy = NULL
+                                           cov_est_method = cov_est_method,
+                                           mvo_parameters = mvo_parameters,
+                                           rp_parameters = rp_parameters,
+                                           hrp_parameters = hrp_parameters,
+                                           mmaf_parameters = mmaf_parameters,
+                                           concentration_constraint_policy = NULL
     )
   }
 
   # Create the sb_backtest_config object
   methods::new("sb_backtest_config",
-    sb_algorithm = sb_algorithm,
-    target_fwd_name = target_fwd_name,
-    training_sample_size = training_sample_size,
-    chosen_signals_and_positions = chosen_signals_and_positions,
-    rebalancing_months = rebalancing_months,
-    split_method = split_method,
-    tuning_strategy = tuning_strategy,
-    custom_objective = custom_objective,
-    keras_architecture_parameters = keras_architecture_parameters,
-    signal_port_parameters = signal_port_parameters,
-    quantile_tau = quantile_tau,
-    huber_delta = huber_delta,
-    config_name = config_name
+               sb_algorithm = sb_algorithm,
+               target_fwd_name = target_fwd_name,
+               training_sample_size = training_sample_size,
+               chosen_signals_and_positions = chosen_signals_and_positions,
+               rebalancing_months = rebalancing_months,
+               split_method = split_method,
+               tuning_strategy = tuning_strategy,
+               custom_objective = custom_objective,
+               keras_architecture_parameters = keras_architecture_parameters,
+               signal_port_parameters = signal_port_parameters,
+               quantile_tau = quantile_tau,
+               huber_delta = huber_delta,
+               config_name = config_name
   )
 }
 
@@ -4199,11 +4199,11 @@ setMethod(
 
     # Create the sb_metabacktest_config object
     meta_config <- methods::new("sb_metabacktest_config",
-      meta_sb_backtest_config = meta_sb_backtest_config,
-      features_passthrough = features_passthrough,
-      normalize_base_predictions = normalize_base_predictions,
-      winsorize_base_predictions = winsorize_base_predictions,
-      config_name = config_name
+                                meta_sb_backtest_config = meta_sb_backtest_config,
+                                features_passthrough = features_passthrough,
+                                normalize_base_predictions = normalize_base_predictions,
+                                winsorize_base_predictions = winsorize_base_predictions,
+                                config_name = config_name
     )
     return(meta_config)
   }
@@ -4296,6 +4296,7 @@ setMethod(
 #' @param chosen_scaler An object of class `scaler` specifying the scaling variable to be applied to the scores.
 #' @param scaler_shrinkage A numeric value between 0 and 1 indicating the shrinkage intensity for the scaler.
 #' @param use_raw_for_eligibility A logical value indicating whether to use raw scores for determining eligibility.
+#' @param enable_group_representativeness Logical; if TRUE, ensures at least one asset in all groups in groups_m_d_ref
 #' @param selected_benchmark A character string indicating the benchmark to use for benchmark-relative backtests.
 #' @param initial_buffer_period A numeric value indicating the number of initial dates to skip before starting the backtest.
 #' @param rebalancing_months A numeric vector (e.g., c(3,6,9,12)) indicating the months when the portfolio should be rebalanced.
@@ -4325,6 +4326,7 @@ create_port_backtest_config <- function(chosen_score_metric_and_position = NULL,
                                         chosen_scaler = NULL,
                                         scaler_shrinkage = NULL,
                                         use_raw_for_eligibility = NULL,
+                                        enable_group_representativeness = NULL,
                                         selected_benchmark = NULL,
                                         initial_buffer_period,
                                         rebalancing_months,
@@ -4402,17 +4404,25 @@ create_port_backtest_config <- function(chosen_score_metric_and_position = NULL,
       macro_port_construction_method = "ew"
     )
   }
+
+  # If method is mmaf and enable_group_representativeness is NULL, set it to TRUE and message
+  if (port_construction_method == "mmaf" && is.null(enable_group_representativeness)) {
+    enable_group_representativeness <- TRUE
+    message("enable_group_representativeness set to TRUE for mmaf port_construction_method.")
+  }
+
   # Create and return the new port_backtest_config object
   methods::new("port_backtest_config",
-    chosen_score_metric_and_position = chosen_score_metric_and_position,
-    min_eligible_assets_fallback = min_eligible_assets_fallback,
-    eligibility_quantile_range = eligibility_quantile_range,
-    selected_benchmark = selected_benchmark,
+               chosen_score_metric_and_position = chosen_score_metric_and_position,
+               min_eligible_assets_fallback = min_eligible_assets_fallback,
+               eligibility_quantile_range = eligibility_quantile_range,
+               selected_benchmark = selected_benchmark,
     initial_buffer_period = initial_buffer_period,
     rebalancing_months = rebalancing_months,
     chosen_scaler = chosen_scaler,
     scaler_shrinkage = scaler_shrinkage,
     use_raw_for_eligibility = use_raw_for_eligibility,
+    enable_group_representativeness = enable_group_representativeness,
     cov_est_method = cov_est_method,
     port_construction_method = port_construction_method,
     mvo_parameters = mvo_parameters,
@@ -4515,6 +4525,13 @@ setMethod(
       stop("Concentration constraint policy can only be added to 'mvo' or 'mmaf' port_construction_method.")
     }
 
+    # If group constraints are provided and enable_group_representativeness is NULL, set it to TRUE
+    if (length(policy@max_abs_active_group_weight) > 0 && is.null(object@enable_group_representativeness)) {
+      object@enable_group_representativeness <- TRUE
+      message("enable_group_representativeness set to TRUE due to presence of group constraints in concentration constraint policy.
+               Set it manually if different behavior is desired.")
+    }
+
     object@concentration_constraint_policy <- policy
     methods::validObject(object) # optional validity check
     return(object)
@@ -4552,6 +4569,14 @@ setMethod(
     )
 
     object@concentration_constraint_policy <- new_policy
+
+    # If group constraints are provided and enable_group_representativeness is NULL, set it to TRUE
+    if (length(max_abs_active_group_weight) > 0 && is.null(object@enable_group_representativeness)) {
+      object@enable_group_representativeness <- TRUE
+      message("enable_group_representativeness set to TRUE due to presence of group constraints in concentration constraint policy.
+               Set it manually if different behavior is desired.")
+    }
+
     methods::validObject(object)
     return(object)
   }

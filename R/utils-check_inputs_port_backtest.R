@@ -60,6 +60,7 @@
 #' @param liquidity_floor_cutoffs A data frame providing liquidity floor cutoff values. It is validated by \code{validate_liquidity_floor_cutoffs} and must include the \code{main_liquidity_metric}.
 #' @param main_liquidity_metric A character string specifying the primary liquidity metric. It must be present in \code{liquidity_m_df} and include the substring \code{"mean_volfin"}.
 #' @param stock_groups_m_df (Optional) A data frame containing stock group data, coercible to a meta_dataframe. All stocks in \code{signals_m_df} should be represented, and group columns must be of type character.
+#' @param enable_group_representativeness A logical value indicating whether to enable group representativeness constraints. If \code{TRUE}, \code{stock_groups_m_df} must be provided.
 #' @param benchmark_weights_m_df (Optional) A data frame with benchmark weights. It must be coercible to a meta_dataframe, have numeric columns with values between 0 and 1 (summing to 1 per date), and cover all stocks in \code{signals_m_df}.
 #' @param volatility_m_df A data frame containing volatility data, coercible to a meta_dataframe. Numeric columns must have no NAs, include a \code{"daily_vol"} column, and cover all stocks in \code{signals_m_df}.
 #' @param fwd_return_m_df A data frame containing forward returns, coercible to a meta_dataframe. It must contain a column named \code{"fwd_return_1m"}; the data should be numeric (with NAs allowed only at the final dates) and must match the structure of \code{signals_m_df} (IDs, tickers, dates).
@@ -106,7 +107,7 @@ check_inputs_port_backtest <- function(
   # Liquidity Information (Constraints and Active Returns Calculation)
   liquidity_m_df, liquidity_floor_cutoffs, main_liquidity_metric,
   # Group and benchmark constraints (stock groups also used to fill covariance data)
-  stock_groups_m_df, benchmark_weights_m_df,
+  enable_group_representativeness, stock_groups_m_df, benchmark_weights_m_df,
   # Return calculation (needs also liquidity and vol for net returns)
   volatility_m_df, fwd_return_m_df, transaction_costs_parameters,
   # Custom Stock Weights and Metrics
@@ -468,10 +469,22 @@ check_inputs_port_backtest <- function(
       stop("all ids from signals_m_df should be present in stock_groups_m_df")
     }
 
-    ###Check for NAs
+    ##Check for NAs
     if (any(is.na(stock_groups_m_df))){
       stop("stock_groups_m_df should not have NAs")
     }
+
+    ##Check for need of enable_group_representativeness
+    if (!is.null(concentration_constraint_policy) && !is.null(concentration_constraint_policy$max_abs_active_group_weight) ||
+        port_construction_method == "mmaf"){
+
+      if (!isTRUE(enable_group_representativeness)){
+        warning("Applying group constraints or mmaf method without enable_group_representativeness = TRUE may lead to empty groups in the portfolio construction.")
+      }
+
+    }
+
+
 
   }
 

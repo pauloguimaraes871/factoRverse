@@ -2581,6 +2581,7 @@ setClass(
 #' @slot chosen_scaler A character string representing the chosen scaler method.
 #' @slot scaler_shrinkage A numeric value representing the scaler shrinkage parameter.
 #' @slot use_raw_for_eligibility Logical; if TRUE, uses raw scores for eligibility instead of scaled scores.
+#' @slot enable_group_representativeness Logical; if TRUE, ensures at least one asset in all groups in groups_m_d_ref
 #' @slot selected_benchmark A character string representing the selected benchmark.
 #' @slot initial_buffer_period A numeric value representing the initial buffer period.
 #' @slot rebalancing_months A numeric value representing the number of months for rebalancing.
@@ -2640,6 +2641,7 @@ setClass(
     chosen_scaler = "ANY",
     scaler_shrinkage = "ANY",
     use_raw_for_eligibility = "ANY",
+    enable_group_representativeness = "ANY",
     selected_benchmark = "ANY",
     initial_buffer_period = "numeric",
     rebalancing_months = "numeric",
@@ -2687,6 +2689,13 @@ setClass(
       if (!is.numeric(object@min_eligible_assets_fallback) | length(object@min_eligible_assets_fallback) != 1 | !is.numeric(object@min_eligible_assets_fallback) |
           !(object@min_eligible_assets_fallback %% 1 == 0)){
         stop("min_eligible_assets_fallback must be a single integer numeric value.")
+      }
+    }
+
+    #Check if enable_group_representativeness is logical if not NULL
+    if (!is.null(object@enable_group_representativeness)){
+      if (!is.logical(object@enable_group_representativeness) | length(object@enable_group_representativeness) != 1){
+        stop("enable_group_representativeness must be a single logical value (TRUE or FALSE).")
       }
     }
 
