@@ -315,7 +315,6 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
         active_returns = active_returns,
         cov_estimation_method = cov_estimation_method,
         cov_matrix_sample_size = cov_matrix_sample_size,
-        groups_m_d_ref = groups_m_d_ref,
         # Intra-portfolio parameters
         ## Risk Parity
         rp_method = rp_method,
@@ -340,13 +339,6 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
 
       ### Break up into micro_universe_m_d_ref_list
       micro_universe_m_d_ref_list <- purrr::map(groups, function(g) {
-
-        #### Check that all assets are eligible
-        if (micro_port@universe_m_d_ref@data %>%
-              dplyr::filter(is_eligible == 0) %>%
-              nrow() > 0) {
-          stop("Micro portfolio contains ineligible assets.")
-        }
 
         #### Subset universe and normalize weights
           ##### If sum of weights is 0, return a vector of 0 weights
