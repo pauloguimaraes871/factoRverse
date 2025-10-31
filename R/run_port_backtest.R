@@ -176,6 +176,7 @@ setMethod("update_port_backtest",
             .old_backtest_covered_dates <- old_objects_dates_covered_list[["signals_m_df"]] %>% sort()
             .old_backtest_port_weights_m_d_ref <- old_results@port_weights_m_df@data %>%
               dplyr::filter(dates == sort(.old_backtest_covered_dates)[length(.old_backtest_covered_dates)])
+            .old_backtest_port_returns_m_xts <- old_results@port_returns_m_xts@data
             .old_backtest_port_costs_d_ref <- old_results@port_costs_m_xts@data %>% as.data.frame() %>% dplyr::slice_tail(n = 1)
 
             updated_port_backtest_results <- run_port_backtest(
@@ -198,7 +199,7 @@ setMethod("update_port_backtest",
               winsorization_probs = winsorization_probs,
               ###Other
               verbose = verbose, parallel = parallel, .test_seed = .test_seed,
-              .update = TRUE, .old_backtest_port_weights_m_d_ref = .old_backtest_port_weights_m_d_ref,
+              .update = TRUE, .old_backtest_port_weights_m_d_ref = .old_backtest_port_weights_m_d_ref, .old_backtest_port_returns_m_xts = .old_backtest_port_returns_m_xts,
               .old_backtest_port_costs_d_ref = .old_backtest_port_costs_d_ref, .old_backtest_covered_dates = .old_backtest_covered_dates
             )
 
@@ -211,6 +212,7 @@ setMethod("update_port_backtest",
             new_port_backtest_outputs_list <- list(
               port_weights_m_df = updated_port_backtest_results@port_weights_m_df,
               stock_universe_m_df = updated_port_backtest_results@stock_universe_m_df,
+              port_stats_m_df = updated_port_backtest_results@port_stats_m_df,
               port_returns_m_xts = updated_port_backtest_results@port_returns_m_xts,
               port_costs_m_xts = updated_port_backtest_results@port_costs_m_xts,
               port_metrics_m_xts = updated_port_backtest_results@port_metrics_m_xts
@@ -228,6 +230,7 @@ setMethod("update_port_backtest",
             ##Reassign the updated objects back into 'updated_port_backtest_results'
             updated_port_backtest_results@port_weights_m_df   <- updated_results_list[["port_weights_m_df"]]
             updated_port_backtest_results@stock_universe_m_df <- updated_results_list[["stock_universe_m_df"]]
+            updated_port_backtest_results@port_stats_m_df     <- updated_results_list[["port_stats_m_df"]]
             updated_port_backtest_results@port_returns_m_xts  <- updated_results_list[["port_returns_m_xts"]]
             updated_port_backtest_results@port_costs_m_xts    <- updated_results_list[["port_costs_m_xts"]]
             updated_port_backtest_results@port_metrics_m_xts  <- updated_results_list[["port_metrics_m_xts"]]
@@ -237,6 +240,8 @@ setMethod("update_port_backtest",
               updated_port_backtest_results@final_stock_port <- old_results@final_stock_port
               updated_port_backtest_results@stock_universe_m_df <- old_results@stock_universe_m_df
               updated_port_backtest_results@final_stock_universe_m_d_ref <- old_results@final_stock_universe_m_d_ref
+              updated_port_backtest_results@port_stats_m_df <- old_results@port_stats_m_df
+              updated_port_backtest_results@final_port_stats_m_d_ref <- old_results@final_port_stats_m_d_ref
             }
 
             ###Consolidate port_backtest_workflow
@@ -329,6 +334,7 @@ setGeneric("run_port_backtest", function(signals_m_df, fwd_return_m_df, liquidit
 #' @param .test_seed (Internal) Seed used during testing to ensure reproducibility. Default is `NULL`.
 #' @param .update (Internal) Logical; whether this is an update to an existing backtest. Default is `FALSE`.
 #' @param .old_backtest_port_weights_m_d_ref (Internal) Previously computed portfolio weights (used when `.update = TRUE`).
+#' @param .old_backtest_port_returns_m_xts (Internal) Previously computed return series (used when `.update = TRUE`).
 #' @param .old_backtest_port_costs_d_ref (Internal) Previously computed cost series (used when `.update = TRUE`).
 #' @param .old_backtest_covered_dates (Internal) Dates already covered in the previous backtest (used when `.update = TRUE`).
 #' @param ... Additional arguments passed to class-specific methods (e.g., cohort or single backtests).
@@ -357,7 +363,7 @@ setMethod("run_port_backtest",
                    custom_stock_weights_m_df = NULL, custom_stock_metrics_m_df = NULL, user_defined_OR_rules_m_df = NULL, user_defined_AND_rules_m_df = NULL, #Custom Objs
                    winsorization_probs = c(0.025, 0.975), #Winsorization
                    verbose = TRUE, parallel = TRUE, .test_seed = NULL,
-                   .update = FALSE, .old_backtest_port_weights_m_d_ref = NULL, .old_backtest_port_costs_d_ref = NULL, .old_backtest_covered_dates = NULL) {
+                   .update = FALSE, .old_backtest_port_weights_m_d_ref = NULL, .old_backtest_port_returns_m_xts = NULL, .old_backtest_port_costs_d_ref = NULL, .old_backtest_covered_dates = NULL) {
 
             ##Assign default values for internal function
             ###########################
@@ -985,7 +991,7 @@ setMethod("run_port_backtest",
               lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization,
               verbose = verbose, parallel = parallel, .test_seed = .test_seed,
               #Update
-              .update = .update, .old_backtest_port_weights_m_d_ref = .old_backtest_port_weights_m_d_ref,
+              .update = .update, .old_backtest_port_weights_m_d_ref = .old_backtest_port_weights_m_d_ref, .old_backtest_port_returns_m_xts = .old_backtest_port_returns_m_xts,
               .old_backtest_port_costs_d_ref = .old_backtest_port_costs_d_ref, .old_backtest_covered_dates = .old_backtest_covered_dates
             )
             ###########################
@@ -1203,6 +1209,7 @@ setMethod("run_port_backtest",
 #' @param .test_seed Optional integer. Used to fix the seed for reproducibility.
 #' @param .update Logical. If TRUE, activates update mode for extending existing backtests.
 #' @param .old_backtest_port_weights_m_d_ref Optional. Previous period's portfolio weights.
+#' @param .old_backtest_port_returns_m_xts Optional. Previous period's portfolio returns.
 #' @param .old_backtest_port_costs_d_ref Optional. Previous period's portfolio costs.
 #' @param .old_backtest_covered_dates Optional. Vector of dates already covered by a prior backtest.
 #'
@@ -1250,7 +1257,8 @@ run_port_backtest_internal <- function(
   lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975,
   verbose = TRUE, parallel = TRUE, .test_seed = NULL,
   #Update
-  .update = FALSE, .old_backtest_port_weights_m_d_ref = NULL, .old_backtest_port_costs_d_ref = NULL, .old_backtest_covered_dates = NULL){
+  .update = FALSE, .old_backtest_port_weights_m_d_ref = NULL, .old_backtest_port_returns_m_xts = NULL,
+  .old_backtest_port_costs_d_ref = NULL, .old_backtest_covered_dates = NULL){
 
 
   #Measure time to run and run gc
@@ -1361,6 +1369,8 @@ run_port_backtest_internal <- function(
     port_weights_m_d_ref_list <- list()
     ####Create transaction_list
     transactions_log_m_d_ref_list <- list()
+    ###Create object to store portfolio statistics -> port_stats + create_performance_m_df
+    port_stats_m_d_ref_list <- list()
 
     ####Create object to store portfolio returns
     port_returns_m_xts <- xts::xts(data.frame(
@@ -1376,12 +1386,6 @@ run_port_backtest_internal <- function(
       turnover = rep(NA, length(dates_port_returns)) #Turnover
     ), order.by = dates_backtest + 1) #These are most up-to-date portfolio costs (one day-ahead in time of dates backtest)
 
-    ###Create object to store portfolio statistics
-    port_stats_m_xts <- xts::xts(data.frame(
-      volatility = rep(NA, length(dates_backtest)), #Volatility
-      sharpe = rep(NA, length(dates_backtest)), #Sharpe Ratio
-      max_drawdown = rep(NA, length(dates_backtest)) #Max Drawdown
-    ), order.by = dates_backtest) #These are most up-to-date portfolio statistics (matching current date)
 
     ###Create object to store portfolio metrics
     if (!is.null(custom_stock_metrics_m_df)){
@@ -1776,7 +1780,6 @@ run_port_backtest_internal <- function(
           parallel = parallel
           )
 
-
           #####Transform port_obj into stock_port obj
           stock_port <- methods::new(
             "stock_port",
@@ -1809,6 +1812,55 @@ run_port_backtest_internal <- function(
           #####Get stock_universe_m_d_ref
           stock_universe_m_d_ref <- stock_port@universe_m_d_ref@data
           stock_universe_m_d_ref_list[[which(rebalance_dates %in% current_date)]] <- stock_universe_m_d_ref
+
+        ### Compute performance metrics
+         #### Check an old port_returns object exist from a prior run
+         if (.update){
+           ##### Make sure that .old_port_returns_m_xts and port_returns_m_xts names match
+           if (!identical(names(.old_port_returns_m_xts), names(port_returns_m_xts))){
+             stop (".old_port_returns_m_xts and port_returns_m_xts names should match")
+           }
+           ##### Horizontally port_returns_m_xts (current backtest) with prior returns (old dates) from .old_port_returns_m_xts
+           full_port_returns_m_xts_upd_ref <- rbind(
+             .old_port_returns_m_xts,
+             port_returns_m_xts[which(zoo::index(port_returns_m_xts) >= current_date), ],
+             fill = NA
+           )
+         } else {
+           full_port_returns_m_xts_upd_ref <- port_returns_m_xts[which(zoo::index(port_returns_m_xts) <= current_date), ]
+         }
+
+          #### Clear rows in which all columns are NAs from full_port_returns_m_xts_upd_ref
+          all_NAs_rows <- which(apply(full_port_returns_m_xts_upd_ref, 1, function(x) all(is.na(x)))) %>% as.numeric()
+          full_port_returns_m_xts_upd_ref <- full_port_returns_m_xts_upd_ref[-all_NAs_rows,]
+          #### Apply summarize_performance or create_performance_m_df
+          if (!is.null(selected_benchmark)){
+            #### Compute performance summary
+            port_stats_m_d_ref <- summarize_performance(
+              selected_backtest_returns_corrected_positions_m_xts_upd_ref = full_port_returns_m_xts_upd_ref[, c("raw_return", "net_return")],
+              selected_market_factor_proxy_m_xts_upd_ref = full_port_returns_m_xts_upd_ref[, c("selected_bench_return"), drop = FALSE],
+              model_structure = "no_pooled", model_spec_theme_level = NULL, lmer_control = FALSE,
+              selected_signal_themes_m_d_ref = NULL, active_returns = TRUE
+            )$signal_universe_m_d_ref
+          } else {
+            #### Compute base
+            port_stats_m_d_ref <- create_performance_m_df(
+              selected_backtest_returns_corrected_positions_m_xts_upd_ref = full_port_returns_m_xts_upd_ref[, c("raw_return", "net_return")],
+              selected_market_factor_proxy_m_xts_upd_ref = NULL,
+              active_returns = FALSE
+            )
+          }
+
+          #### Join port_stats information to both rows
+          #### port_stats_m_d_ref will be a data.frame with two rows: raw_return and net_return
+          port_stats_m_d_ref <- port_stats_m_d_ref %>%
+            dplyr::left_join(
+              data.frame(
+                tickers = c("raw_return", "net_return"),
+                stock_port@port_stats
+              ), by = "tickers"
+            )
+          port_stats_m_d_ref_list[[which(rebalance_dates %in% current_date)]] <- port_stats_m_d_ref
 
         ##############################
       }
@@ -2131,8 +2183,29 @@ run_port_backtest_internal <- function(
         final_stock_universe_m_d_ref <- stock_universe_m_d_ref %>% dplyr::arrange(id)
         rownames(final_stock_universe_m_d_ref) <- NULL
         final_stock_universe_m_d_ref <- create_meta_dataframe(final_stock_universe_m_d_ref, type = "stock_universe", port_backtest_workflow = port_backtest_workflow)
-
     }
+  ###Port Stats (turn into a signel meta_dataframe)
+  if (.update && length(port_stats_m_d_ref_list) == 0 && !exists("stock_port")){
+    #####This refers to an empty update, when there is no rebalancing month in the update
+    port_stats_m_df <- NULL
+    final_port_stats_m_d_ref <- NULL
+  } else {
+    if (.update){
+      ###If port_stats_m_d_ref_list is not empty, remove NULL elements
+      port_stats_m_d_ref_list <- port_stats_m_d_ref_list[sapply(port_stats_m_d_ref_list, function(x) !is.null(x))]
+    }
+    ####Get port_stats_m_df
+      #####Complete
+      port_stats_m_df <- do.call(rbind, port_stats_m_d_ref_list) %>% dplyr::arrange(id)
+      rownames(port_stats_m_df) <- NULL
+      port_stats_m_df <- create_meta_dataframe(port_stats_m_df, workflow = port_backtest_workflow)
+
+      #####Final
+      final_port_stats_m_d_ref <- port_stats_m_d_ref %>% dplyr::arrange(id)
+      rownames(final_port_stats_m_d_ref) <- NULL
+      final_port_stats_m_d_ref <- create_meta_dataframe(final_port_stats_m_d_ref, workflow = port_backtest_workflow)
+  }
+
 
   ###Get final object
     port_backtest_results <- methods::new(
@@ -2147,6 +2220,8 @@ run_port_backtest_internal <- function(
       port_backtest_config = NULL,
       stock_universe_m_df = stock_universe_m_df, #If an update is applied without rebalancing, this will be NULL
       final_stock_universe_m_d_ref = final_stock_universe_m_d_ref, #If an update is applied without rebalancing, this will be NULL
+      port_stats_m_df = port_stats_m_df, #If an update is applied without rebalancing, this will be NULL
+      final_port_stats_m_d_ref = final_port_stats_m_d_ref, #If an update is applied without rebalancing, this will be NULL
       port_backtest_workflow = port_backtest_workflow,
       backtest_identifier = port_backtest_workflow$backtest_identifier,
       update = .update

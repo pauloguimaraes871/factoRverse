@@ -3266,6 +3266,8 @@ setClass(
 #' @slot port_construction_method A character string indicating the portfolio construction method used (e.g., "ew", "sw", "rp", "mvo", "custom_weights").
 #' @slot stock_universe_m_df A meta dataframe containing the stock universe derived from the backtest.
 #' @slot final_stock_universe_m_d_ref A meta dataframe containing the last stock universe.
+#' @slot port_stats_m_df A meta dataframe containing portfolio statistics across different dates.
+#' @slot final_port_stats_m_d_ref A meta dataframe containing the final portfolio statistics.
 #' @slot port_backtest_workflow A list detailing the portfolio backtest workflow, including parameters, rebalancing dates, and other metadata.
 #' @slot backtest_identifier A character string representing the backtest identifier.
 #' @slot update A logical indicating whether the backtest results are an update or an original backtest.
@@ -3284,6 +3286,8 @@ setClass(
     port_construction_method = "character",
     stock_universe_m_df = "ANY", #In an update, this might be empty
     final_stock_universe_m_d_ref = "ANY", #In an update, this might be empty
+    port_stats_m_df = "ANY",
+    final_port_stats_m_d_ref = "ANY",
     port_backtest_workflow = "list",
     backtest_identifier = "character",
     update = "logical"
@@ -3292,7 +3296,7 @@ setClass(
 
     #Updated objects are temporarily allowed to have empty stock_universe_m_df and final_stock_universe_m_d_ref
     if (!object@update){
-      #Check classes of final-stock_port, stock_universe_m_df and final_stock_universe_m_d_ref
+      #Check classes of final-stock_port, stock_universe_m_df, final_stock_universe_m_d_ref, port_stats_m_df and final_port_stats_m_d_ref
       if (!inherits(object@final_stock_port, "stock_port")) {
         return("final_stock_port must be a 'stock_port' object")
       }
@@ -3302,6 +3306,13 @@ setClass(
       if (!inherits(object@final_stock_universe_m_d_ref, "stock_universe_m_df")) {
         return("final_stock_universe_m_d_ref must be a 'stock_universe_m_df' object")
       }
+      if (!inherits(object@port_stats_m_df, "meta_dataframe")) {
+        return("port_stats_m_df must be a 'meta_dataframe' object")
+      }
+      if (!inherits(object@final_port_stats_m_d_ref, "meta_dataframe")) {
+        return("final_port_stats_m_d_ref must be a 'meta_dataframe' object")
+      }
+
     }
 
     if (!is.null(object@port_backtest_config) && !inherits(object@port_backtest_config, "port_backtest_config")) {
