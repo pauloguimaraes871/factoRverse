@@ -39,6 +39,55 @@ test_that("clean_returns_sample works for a monthly series without needing to fi
 
 })
 
+test_that("clean_returns_sample works for a daily series WITH holidays and NAs with only one sector (useful for mmaf)", {
+
+  #Load
+  load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
+
+  current_date <- "2001-04-15"
+
+  #Generate return sample
+  signals_m_d_ref <- signals_m_df[which(signals_m_df$dates == current_date), ]
+  stocks_groups_m_d_ref <- stock_groups_m_df %>% dplyr::filter(dates == current_date)
+  covariance_matrix_sample_size <- 200
+  daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date), ]
+
+  #eligible stocks
+  eligible_stocks <- c("Stock B", "Stock C")
+
+  returns_sample <- daily_stock_returns_m_xts_upd_ref[, eligible_stocks]
+
+  #min date
+  dates <- zoo::index(returns_sample) %>% as.Date()
+  min_date <- dates[length(dates) - covariance_matrix_sample_size]
+  returns_sample <- returns_sample[which(zoo::index(returns_sample) >= min_date),]
+
+  #remove holidays
+  holidays <- as.Date(c("2000-11-15", "2000-12-24", "2000-12-25", "2000-12-31", "2001-01-01"))
+  no_holidays <- setdiff(zoo::index(returns_sample), holidays) %>% as.Date()
+  expected_results <- returns_sample[no_holidays]
+
+  #Fill NAs with row median
+  row_medians <- apply(expected_results, 1, function(x) median(x, na.rm = TRUE))
+  expected_results$`Stock C`[which(is.na(expected_results$`Stock C`))] <- row_medians[which(is.na(expected_results$`Stock C`))]
+  #expected_results$`Stock_B`[which(is.na(expected_results$`Stock B`))] <- row_medians[which(is.na(expected_results$`Stock B`))]
+  #expected_results$`Stock C`[which(is.na(expected_results$`Stock C`))] <- row_medians[which(is.na(expected_results$`Stock C`))]
+  #expected_results$`Stock E`[which(is.na(expected_results$`Stock E`))] <- row_medians[which(is.na(expected_results$`Stock E`))]
+
+  rownames(expected_results) <- NULL
+
+  results <- clean_returns_sample(returns_m_xts_sample = returns_sample,
+                                  groups_m_d_ref = stocks_groups_m_d_ref,
+                                  fill_by = "Sector"
+  )
+
+  rownames(results) <- NULL
+
+  expect_equal(results, expected_results)
+
+
+})
+
 test_that("clean_returns_sample works for a daily series WITH holidays and NAs (one NA filled by sector and the other by row median)", {
 
   #Load
