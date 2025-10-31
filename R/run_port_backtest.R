@@ -377,6 +377,7 @@ setMethod("run_port_backtest",
             scaler_shrinkage <- NULL
             chosen_scaler <- NULL
             use_raw_for_eligibility <- NULL
+            enable_group_representativeness <- NULL
 
             ###Portfolio objs
             port_construction_method <- "ew"
@@ -588,6 +589,9 @@ setMethod("run_port_backtest",
             chosen_scaler <- config@chosen_scaler
             scaler_shrinkage <- config@scaler_shrinkage
             use_raw_for_eligibility <- config@use_raw_for_eligibility
+
+            ###Group Representativeness
+            enable_group_representativeness <- config@enable_group_representativeness
 
             ####Liquidity
             main_liquidity_metric <- config@main_liquidity_metric
@@ -981,7 +985,7 @@ setMethod("run_port_backtest",
               #Liquidity Information (Constraints and Active Returns Calculation)
               liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs, main_liquidity_metric = main_liquidity_metric,
               #Group and benchmark constraints (stock groups also used to fill covariance data)
-              stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df,
+              enable_group_representativeness = enable_group_representativeness, stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df,
               #Return calculation (needs also liquidity and vol for net returns)
               volatility_m_df = volatility_m_df, fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_parameters,
               #Stock Weights
@@ -1247,7 +1251,7 @@ run_port_backtest_internal <- function(
   #Liquidity Information (Constraints and Active Returns Calculation)
   liquidity_m_df, liquidity_floor_cutoffs = NULL, main_liquidity_metric,
   #Group and benchmark constraints (stock groups also used to fill covariance data)
-  stock_groups_m_df = NULL, benchmark_weights_m_df = NULL,
+  enable_group_representativeness = NULL, stock_groups_m_df = NULL, benchmark_weights_m_df = NULL,
   #Return calculation (needs also liquidity and vol for net returns)
   volatility_m_df, fwd_return_m_df, transaction_costs_parameters,
   #Stock Weights
@@ -1305,7 +1309,7 @@ run_port_backtest_internal <- function(
       #Liquidity Information (Constraints and Active Returns Calculation)
       liquidity_m_df = liquidity_m_df, liquidity_floor_cutoffs = liquidity_floor_cutoffs, main_liquidity_metric = main_liquidity_metric,
       #Group and benchmark constraints (stock groups also used to fill covariance data)
-      stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df,
+      enable_group_representativeness = enable_group_representativeness, stock_groups_m_df = stock_groups_m_df, benchmark_weights_m_df = benchmark_weights_m_df,
       #Return calculation (needs also liquidity and vol for net returns)
       volatility_m_df = volatility_m_df, fwd_return_m_df = fwd_return_m_df, transaction_costs_parameters = transaction_costs_parameters,
       #Custom Stock Weights, Metrics and OR/AND rules
@@ -1680,6 +1684,9 @@ run_port_backtest_internal <- function(
           eligibility_quantile_range = eligibility_quantile_range, #Quantile range to elect stocks
           min_eligible_assets_fallback = min_eligible_assets_fallback, #Min number of assets to elect
 
+          #Group representativeness
+          enable_group_representativeness = enable_group_representativeness,
+
           ##Liquidity floor rule and classification
           liquidity_m_d_ref = liquidity_m_d_ref, #Liquidity information to apply liquidity floor rule
           liquidity_constraint_policy =  liquidity_constraint_policy, #Liquidity policy
@@ -1830,37 +1837,49 @@ run_port_backtest_internal <- function(
            full_port_returns_m_xts_upd_ref <- port_returns_m_xts[which(zoo::index(port_returns_m_xts) <= current_date), ]
          }
 
-          #### Clear rows in which all columns are NAs from full_port_returns_m_xts_upd_ref
-          all_NAs_rows <- which(apply(full_port_returns_m_xts_upd_ref, 1, function(x) all(is.na(x)))) %>% as.numeric()
-          full_port_returns_m_xts_upd_ref <- full_port_returns_m_xts_upd_ref[-all_NAs_rows,]
-          #### Apply summarize_performance or create_performance_m_df
-          if (!is.null(selected_benchmark)){
-            #### Compute performance summary
-            port_stats_m_d_ref <- summarize_performance(
-              selected_backtest_returns_corrected_positions_m_xts_upd_ref = full_port_returns_m_xts_upd_ref[, c("raw_return", "net_return")],
-              selected_market_factor_proxy_m_xts_upd_ref = full_port_returns_m_xts_upd_ref[, c("selected_bench_return"), drop = FALSE],
-              model_structure = "no_pooled", model_spec_theme_level = NULL, lmer_control = FALSE,
-              selected_signal_themes_m_d_ref = NULL, active_returns = TRUE
-            )$signal_universe_m_d_ref
-          } else {
-            #### Compute base
-            port_stats_m_d_ref <- create_performance_m_df(
-              selected_backtest_returns_corrected_positions_m_xts_upd_ref = full_port_returns_m_xts_upd_ref[, c("raw_return", "net_return")],
-              selected_market_factor_proxy_m_xts_upd_ref = NULL,
-              active_returns = FALSE
-            )
+          if (nrow(full_port_returns_m_xts_upd_ref) > 1){
+            #### Clear rows in which all columns are NAs from full_port_returns_m_xts_upd_ref
+            all_NAs_rows <- which(apply(full_port_returns_m_xts_upd_ref, 1, function(x) all(is.na(x)))) %>% as.numeric()
+            if (length(all_NAs_rows) > 0) full_port_returns_m_xts_upd_ref <- full_port_returns_m_xts_upd_ref[-all_NAs_rows,]
+            #### Apply summarize_performance or create_performance_m_df
+            if (!is.null(selected_benchmark)){
+              #### Compute performance summary
+              port_stats_m_d_ref <- summarize_performance(
+                selected_backtest_returns_corrected_positions_m_xts_upd_ref = full_port_returns_m_xts_upd_ref[, c("raw_return", "net_return")],
+                selected_market_factor_proxy_m_xts_upd_ref = full_port_returns_m_xts_upd_ref[, c("selected_bench_return"), drop = FALSE],
+                model_structure = "no_pooled", model_spec_theme_level = NULL, lmer_control = FALSE,
+                selected_signal_themes_m_d_ref = NULL, active_returns = TRUE
+              )$signal_universe_m_d_ref
+            } else {
+              #### Compute base
+              port_stats_m_d_ref <- create_performance_m_df(
+                selected_backtest_returns_corrected_positions_m_xts_upd_ref = full_port_returns_m_xts_upd_ref[, c("raw_return", "net_return")],
+                selected_market_factor_proxy_m_xts_upd_ref = NULL,
+                active_returns = FALSE
+              )
+            }
+
+            #### Join port_stats information to both rows
+            #### port_stats_m_d_ref will be a data.frame with two rows: raw_return and net_return
+            port_stats_m_d_ref <- port_stats_m_d_ref %>%
+              dplyr::left_join(
+                data.frame(
+                  tickers = c("raw_return", "net_return"),
+                  stock_port@port_stats %>%
+                    ##### Rename sharpe_ratio with SR and info_ratio with IR (if present)
+                    dplyr::rename_with(
+                      .cols = dplyr::any_of(c("sharpe_ratio", "info_ratio")),
+                      .fn   = function(nm) dplyr::recode(nm,
+                                                         sharpe_ratio = "SR",
+                                                         info_ratio   = "IR",
+                                                         .default     = nm)
+                    )
+                ), by = "tickers"
+              )
+
+            port_stats_m_d_ref_list[[which(rebalance_dates %in% current_date)]] <- port_stats_m_d_ref
           }
 
-          #### Join port_stats information to both rows
-          #### port_stats_m_d_ref will be a data.frame with two rows: raw_return and net_return
-          port_stats_m_d_ref <- port_stats_m_d_ref %>%
-            dplyr::left_join(
-              data.frame(
-                tickers = c("raw_return", "net_return"),
-                stock_port@port_stats
-              ), by = "tickers"
-            )
-          port_stats_m_d_ref_list[[which(rebalance_dates %in% current_date)]] <- port_stats_m_d_ref
 
         ##############################
       }
@@ -2041,6 +2060,7 @@ run_port_backtest_internal <- function(
     stock_groups_object_name = "not_identified",
     stock_groups_workflow = NULL,
     stock_groups_dates = if (!is.null(stock_groups_m_df)) sort(unique(dplyr::pull(stock_groups_m_df, dates))) else NULL,
+    enable_group_representativeness = enable_group_representativeness,
     #Custom
     custom_stock_metrics_object_name = "not_identified",
     custom_stock_metrics_dates = if (!is.null(custom_stock_metrics_m_df)) sort(unique(dplyr::pull(custom_stock_metrics_m_df, dates))) else NULL,

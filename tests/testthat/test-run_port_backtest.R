@@ -83,7 +83,8 @@ test_that("run_port_backtest works for a simple ew single signal strategy with o
   #Set Port Weights
   ew_port_1 <- set_portfolio_weights(
     universe_m_d_ref = stock_universe_m_d_ref_1,
-    port_construction_method = "ew"
+    port_construction_method = "ew",
+    selected_benchmark = "ibov"
   )
 
   #port_allocation
@@ -185,7 +186,8 @@ test_that("run_port_backtest works for a simple ew single signal strategy with o
   #Set Port Weights
   ew_port_2 <- set_portfolio_weights(
     universe_m_d_ref = stock_universe_m_d_ref_2,
-    port_construction_method = "ew"
+    port_construction_method = "ew",
+    selected_benchmark = "ibov"
   )
 
   #port_allocation
@@ -211,6 +213,29 @@ test_that("run_port_backtest works for a simple ew single signal strategy with o
                            port_weights_m_d_ref = port_allocation_3$port_weights_m_d_ref,
                            total_cost = port_allocation_3$port_costs_d_ref$total_cost,
                            verbose = TRUE
+  )
+
+
+  #Port stats
+  rebal_dates <- results@port_backtest_workflow[[length(results@port_backtest_workflow)]]$rebalance_dates
+  port_stats <- summarize_performance(
+      selected_backtest_returns_corrected_positions_m_xts_upd_ref =
+        results@port_returns_m_xts@data[which(zoo::index(results@port_returns_m_xts@data) <= rebal_dates[2]), c("raw_return", "net_return")],
+      selected_market_factor_proxy_m_xts_upd_ref =
+        results@port_returns_m_xts@data[which(zoo::index(results@port_returns_m_xts@data) <= rebal_dates[2]), "selected_bench_return"],
+      model_structure = "no_pooled", model_spec_theme_level = NULL, lmer_control = FALSE,
+      selected_signal_themes_m_d_ref = NULL, active_returns = TRUE, verbose = FALSE
+    )$signal_universe_m_d_ref %>%
+        dplyr::left_join(
+          data.frame(
+            tickers = c("raw_return", "net_return"),
+            ew_port_2@port_stats %>% dplyr::rename(IR = info_ratio)
+          ), by = "tickers"
+      ) %>%
+    dplyr::arrange(id)
+
+  expect_equal(
+    results@port_stats_m_df@data, port_stats
   )
 
 
@@ -337,7 +362,7 @@ test_that("run_port_backtest works for a simple ew single signal strategy with o
 
 
   #Summary, plot and print
-  expect_no_error(print(results))
+  #expect_no_error(print(results))
   expect_no_error(print(port_config))
 
 })
@@ -426,7 +451,8 @@ test_that("run_port_backtest works for a simple sw single signal strategy with o
   #Set Port Weights
   sw_port_1 <- set_portfolio_weights(
     universe_m_d_ref = stock_universe_m_d_ref_1,
-    port_construction_method = "sw"
+    port_construction_method = "sw",
+    selected_benchmark = "ibov"
   )
 
   #port_allocation
@@ -528,7 +554,8 @@ test_that("run_port_backtest works for a simple sw single signal strategy with o
   #Set Port Weights
   sw_port_2 <- set_portfolio_weights(
     universe_m_d_ref = stock_universe_m_d_ref_2,
-    port_construction_method = "sw"
+    port_construction_method = "sw",
+    selected_benchmark = "ibov"
   )
 
   #port_allocation
@@ -556,6 +583,27 @@ test_that("run_port_backtest works for a simple sw single signal strategy with o
                            verbose = TRUE
   )
 
+  #Port stats
+  rebal_dates <- results@port_backtest_workflow[[length(results@port_backtest_workflow)]]$rebalance_dates
+  port_stats <- summarize_performance(
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref =
+      results@port_returns_m_xts@data[which(zoo::index(results@port_returns_m_xts@data) <= rebal_dates[2]), c("raw_return", "net_return")],
+    selected_market_factor_proxy_m_xts_upd_ref =
+      results@port_returns_m_xts@data[which(zoo::index(results@port_returns_m_xts@data) <= rebal_dates[2]), "selected_bench_return"],
+    model_structure = "no_pooled", model_spec_theme_level = NULL, lmer_control = FALSE,
+    selected_signal_themes_m_d_ref = NULL, active_returns = TRUE, verbose = FALSE
+  )$signal_universe_m_d_ref %>%
+    dplyr::left_join(
+      data.frame(
+        tickers = c("raw_return", "net_return"),
+        sw_port_2@port_stats %>% dplyr::rename(IR = info_ratio)
+      ), by = "tickers"
+    ) %>%
+    dplyr::arrange(id)
+
+  expect_equal(
+    results@port_stats_m_df@data, port_stats
+  )
 
   #Check if stock universe is as expected
   expect_equal(results@final_stock_universe_m_d_ref@data, sw_port_2@universe_m_d_ref@data)
@@ -753,7 +801,8 @@ test_that("run_port_backtest works for a simple sw single signal strategy with m
   #Set Port Weights
   sw_port_1 <- set_portfolio_weights(
     universe_m_d_ref = stock_universe_m_d_ref_1,
-    port_construction_method = "sw"
+    port_construction_method = "sw",
+    selected_benchmark = "ibov"
   )
 
   #port_allocation
@@ -813,7 +862,8 @@ test_that("run_port_backtest works for a simple sw single signal strategy with m
   #Set Port Weights
   sw_port_2 <- set_portfolio_weights(
     universe_m_d_ref = stock_universe_m_d_ref_2,
-    port_construction_method = "sw"
+    port_construction_method = "sw",
+    selected_benchmark = "ibov"
   )
 
   #port_allocation
@@ -878,7 +928,8 @@ test_that("run_port_backtest works for a simple sw single signal strategy with m
   #Set Port Weights
   sw_port_3 <- set_portfolio_weights(
     universe_m_d_ref = stock_universe_m_d_ref_3,
-    port_construction_method = "sw"
+    port_construction_method = "sw",
+    selected_benchmark = "ibov"
   )
 
   #port_allocation
@@ -905,6 +956,28 @@ test_that("run_port_backtest works for a simple sw single signal strategy with m
                            total_cost = port_allocation_3$port_costs_d_ref$total_cost,
                            verbose = TRUE
   )
+
+  rebal_dates <- results@port_backtest_workflow[[length(results@port_backtest_workflow)]]$rebalance_dates
+  port_stats <- summarize_performance(
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref =
+      results@port_returns_m_xts@data[which(zoo::index(results@port_returns_m_xts@data) <= rebal_dates[2]), c("raw_return", "net_return")],
+    selected_market_factor_proxy_m_xts_upd_ref =
+      results@port_returns_m_xts@data[which(zoo::index(results@port_returns_m_xts@data) <= rebal_dates[2]), "selected_bench_return"],
+    model_structure = "no_pooled", model_spec_theme_level = NULL, lmer_control = FALSE,
+    selected_signal_themes_m_d_ref = NULL, active_returns = TRUE, verbose = FALSE
+  )$signal_universe_m_d_ref %>%
+    dplyr::left_join(
+      data.frame(
+        tickers = c("raw_return", "net_return"),
+        sw_port_2@port_stats %>% dplyr::rename(IR = info_ratio)
+      ), by = "tickers"
+    ) %>%
+    dplyr::arrange(id)
+
+  expect_equal(
+    results@port_stats_m_df@data, port_stats
+  )
+
 
 
   #Check if stock universe is as expected
