@@ -162,7 +162,7 @@ testthat::test_that("calculate_port_stats(port) - happy path with covariance and
   # Group Portfolio
   group_col <- names(stock_groups_m_d_ref)[4]
   macro_objects_list <- compute_agg_macro_objects(
-    eligible_universe_m_d_ref = elig_universe_m_d_ref,
+    universe_m_d_ref = stock_universe_m_d_ref,
     covariance_matrix = covariance_matrix,
     group_col = group_col,
     liquidity_m_d_ref = liquidity_m_d_ref,
@@ -337,6 +337,7 @@ testthat::test_that("calculate_port_stats(port) - active", {
   stock_universe_m_d_ref$is_eligible[4] <- 0L
   #Force 1 out of benchmark
   stock_universe_m_d_ref$ibov_bench_weights[2] <- 0
+  stock_universe_m_d_ref$ibov_bench_weights <- stock_universe_m_d_ref$ibov_bench_weights/sum(stock_universe_m_d_ref$ibov_bench_weights)
 
   #Test RP
   daily_stock_returns_m_xts_upd_ref <- daily_stock_returns_m_xts[which(zoo::index(daily_stock_returns_m_xts) <= current_date),]
@@ -386,7 +387,7 @@ testthat::test_that("calculate_port_stats(port) - active", {
 
   ### Compute macro objects
   macro_objects_list <- compute_agg_macro_objects(
-    eligible_universe_m_d_ref = stock_universe_m_d_ref %>% dplyr::filter(is_eligible == 1),
+    universe_m_d_ref = stock_universe_m_d_ref,
     covariance_matrix = covariance_matrix,
     group_col = group_col,
     liquidity_m_d_ref = liquidity_m_d_ref,
@@ -834,11 +835,8 @@ testthat::test_that("errors are appropriately called", {
   )
 
   uni <- mk_universe(elig = c(0L,0L,0L), w = c(0,0,0))
-  # No benchmark: will filter to empty set of eligible
-  out <- calculate_port_stats(universe_m_d_ref = uni)
-  testthat::expect_true(is.na(out$port_stats$exp_ret))
-  testthat::expect_true(is.na(out$port_stats$risk))
-  testthat::expect_true(is.na(out$port_stats$sharpe))
+  # Weights do not sum to 1
+  expect_error(calculate_port_stats(universe_m_d_ref = uni), "Weights in universe_m_d_ref should sum to 1.")
 
 
 })
