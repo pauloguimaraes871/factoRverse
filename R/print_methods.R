@@ -1533,7 +1533,7 @@ setMethod("show", "port_backtest_config", function(object) {
 })
 
 
-
+#port----------------------------------------
 #' @title Show a \code{port} object
 #' @description
 #' Provides a concise summary of a \code{port} object, including its subclass,
@@ -1592,18 +1592,7 @@ setMethod(
 
     #### 2) Classic ex-ante metrics
       ##### First choose group col
-      chosen_group_col <- NULL
-        if (is.data.frame(object@groups) && "tickers" %in% names(object@groups)) {
-          core_cols  <- c("id", "tickers", "dates")
-          gcols      <- setdiff(names(object@groups), core_cols)
-          if (object@port_construction_method == "mmaf" &&
-              !is.null(object@mmaf_group_col) &&
-              object@mmaf_group_col %in% gcols) {
-            chosen_group_col <- object@mmaf_group_col
-          } else if (length(gcols) >= 1L) {
-            chosen_group_col <- gcols[1L]
-          }
-        }
+      chosen_group_col <- object@group_col
 
       ##### Now choose bench_weights col
       weights_kind_default  <- "regular"
@@ -1621,22 +1610,15 @@ setMethod(
         }
       }
 
-
-      #### Calculate portfolio stats
-      port_stats <- calculate_port_stats(
-        object,
-        group_col         = chosen_group_col,
-        weights_kind      = weights_kind_default,
-        bench_weights_col = bench_col_default
-      )
-        #####
-        active_mode <- identical(weights_kind_default, "active")
+      ##### Port Stats
+      port_stats  <- object@port_stats
+      active_mode <- any(stringr::str_detect(names(port_stats), "act"))
 
         if (!active_mode) {
           cat("\nRisk x Return:\n")
-          cat(" Port Expected Return: ", round(as.numeric(port_stats$port_exp_ret), 3), "\n")
-          cat(" Port Expected Risk:   ", round(as.numeric(port_stats$port_risk), 3), "\n")
-          cat(" Port Expected Sharpe: ", round(as.numeric(port_stats$port_sharpe), 3), "\n")
+          cat(" Port Expected Return: ", round(as.numeric(port_stats$exp_ret), 3), "\n")
+          cat(" Port Expected Risk:   ", round(as.numeric(port_stats$risk), 3), "\n")
+          cat(" Port Expected Sharpe: ", round(as.numeric(port_stats$sharpe), 3), "\n")
 
           cat("\nConcentration & Breadth:\n")
           cat("  HHI (weights):             ", round(as.numeric(port_stats$hhi_weights), 4), "\n")
@@ -1652,33 +1634,39 @@ setMethod(
           if (!is.na(port_stats$wavg_pairwise_corr)) {
             cat("  Wtd Avg Pairwise Corr:      ", round(as.numeric(port_stats$wavg_pairwise_corr), 3), "\n")
           }
+          ##### Risk-contribution metrics
+          if (!is.na(port_stats$hhi_rrc) || !is.na(port_stats$n_eff_rrc) || !is.na(port_stats$rrc_dist_to_erc)) {
+            cat("  HHI (risk contrib):         ", round(as.numeric(port_stats$hhi_rrc), 4), "\n")
+            cat("  Eff. N (risk contrib):      ", round(as.numeric(port_stats$n_eff_rrc), 2), "\n")
+            cat("  RRC distance to ERC (L2):   ", round(as.numeric(port_stats$rrc_dist_to_erc), 4), "\n")
+          }
+
         } else {
           cat("\nRisk x Return:\n")
-          cat(" Port Expected Act. Return: ", round(as.numeric(port_stats$port_exp_ret), 3), "\n")
-          cat(" Port Expected TE:   ", round(as.numeric(port_stats$port_risk), 3), "\n")
-          cat(" Port Expected IR: ", round(as.numeric(port_stats$port_sharpe), 3), "\n")
+          cat(" Port Expected Act. Return: ", round(as.numeric(port_stats$act_exp_ret), 3), "\n")
+          cat(" Port Expected TE:   ", round(as.numeric(port_stats$act_risk), 3), "\n")
+          cat(" Port Expected IR: ", round(as.numeric(port_stats$info_ratio), 3), "\n")
 
           cat("\nConcentration & Breadth:\n")
-          cat("  HHI (act. weights):        ", round(as.numeric(port_stats$hhi_weights), 4), "\n")
-          cat("  Effective N (act. 1/HHI):  ", round(as.numeric(port_stats$n_eff_weights), 2), "\n")
-          cat("  Entropy Eff. N (act. exp H):", round(as.numeric(port_stats$entropy_effective_n), 2), "\n")
-          cat("  Gini (act. weights):       ", round(as.numeric(port_stats$gini_weights), 3), "\n")
-          cat("  Top-5 act. weight:         ", round(as.numeric(port_stats$top_5_concentration), 3), "\n")
-          cat("  Top-10 act. weight:        ", round(as.numeric(port_stats$top_10_concentration), 3), "\n")
-          cat("  Top-25 act. weight:        ", round(as.numeric(port_stats$top_25_concentration), 3), "\n")
-          if (!is.na(port_stats$diversification_ratio)) {
-            cat("  Diversification Ratio (act.):", round(as.numeric(port_stats$diversification_ratio), 3), "\n")
+          cat("  HHI (act. weights):        ", round(as.numeric(port_stats$act_hhi_weights), 4), "\n")
+          cat("  Effective N (act. 1/HHI):  ", round(as.numeric(port_stats$act_n_eff_weights), 2), "\n")
+          cat("  Entropy Eff. N (act. exp H):", round(as.numeric(port_stats$act_entropy_effective_n), 2), "\n")
+          cat("  Gini (act. weights):       ", round(as.numeric(port_stats$act_gini_weights), 3), "\n")
+          cat("  Top-5 act. weight:         ", round(as.numeric(port_stats$act_top_5_concentration), 3), "\n")
+          cat("  Top-10 act. weight:        ", round(as.numeric(port_stats$act_top_10_concentration), 3), "\n")
+          cat("  Top-25 act. weight:        ", round(as.numeric(port_stats$act_top_25_concentration), 3), "\n")
+          if (!is.na(port_stats$act_diversification_ratio)) {
+            cat("  Diversification Ratio (act.):", round(as.numeric(port_stats$act_diversification_ratio), 3), "\n")
           }
-          if (!is.na(port_stats$wavg_pairwise_corr)) {
-            cat("  Wtd Avg Pairwise Corr (act.):", round(as.numeric(port_stats$wavg_pairwise_corr), 3), "\n")
+          if (!is.na(port_stats$act_wavg_pairwise_corr)) {
+            cat("  Wtd Avg Pairwise Corr (act.):", round(as.numeric(port_stats$act_wavg_pairwise_corr), 3), "\n")
           }
-        }
-
-        ##### Risk-contribution metrics
-        if (!is.na(port_stats$hhi_rrc) || !is.na(port_stats$n_eff_rrc) || !is.na(port_stats$rrc_dist_to_erc)) {
-          cat("  HHI (risk contrib):         ", round(as.numeric(port_stats$hhi_rrc), 4), "\n")
-          cat("  Eff. N (risk contrib):      ", round(as.numeric(port_stats$n_eff_rrc), 2), "\n")
-          cat("  RRC distance to ERC (L2):   ", round(as.numeric(port_stats$rrc_dist_to_erc), 4), "\n")
+          ##### Risk-contribution metrics
+          if (!is.na(port_stats$act_hhi_rrc) || !is.na(port_stats$act_n_eff_rrc) || !is.na(port_stats$act_rrc_dist_to_erc)) {
+            cat("  HHI (risk contrib):         ", round(as.numeric(port_stats$act_hhi_rrc), 4), "\n")
+            cat("  Eff. N (risk contrib):      ", round(as.numeric(port_stats$act_n_eff_rrc), 2), "\n")
+            cat("  RRC distance to ERC (L2):   ", round(as.numeric(port_stats$act_rrc_dist_to_erc), 4), "\n")
+          }
         }
 
 
@@ -1727,27 +1715,32 @@ setMethod(
         #### Group metrics
         if (!is.null(chosen_group_col)) {
           cat("\nGroup Concentration (", chosen_group_col, "):\n", sep = "")
-          cat("  HHI (groups):               ", round(as.numeric(port_stats$hhi_groups), 4), "\n")
-          cat("  Effective N (groups):       ", round(as.numeric(port_stats$n_eff_groups), 2), "\n")
-          cat("  Top Group Weight:           ", round(as.numeric(port_stats$top_group_weight), 3), "\n")
-          cat("  Number of Groups:           ", as.integer(port_stats$n_groups), "\n")
+          if (!active_mode){
+            cat("  HHI (groups):               ", round(as.numeric(port_stats$group_hhi_weights), 4), "\n")
+            cat("  Effective N (groups):       ", round(as.numeric(port_stats$group_entropy_effective_n), 2), "\n")
+            cat("  Top 3 Group Weight:         ", round(as.numeric(port_stats$group_top_3_concentration), 3), "\n")
+            cat("  Number of Groups:           ", as.integer(port_stats$n_groups), "\n")
+          } else {
+            cat("  HHI (act. groups):          ", round(as.numeric(port_stats$act_group_hhi_weights), 4), "\n")
+            cat("  Effective N (act. groups):  ", round(as.numeric(port_stats$act_group_entropy_effective_n), 2), "\n")
+            cat("  Top Group Weight (act.):    ", round(as.numeric(port_stats$act_group_top_3_concentration), 3), "\n")
+            cat("  Number of Groups:           ", as.integer(port_stats$n_groups), "\n")
+          }
+
+          if (!is.null(object@group_cov_matrix)) {
+            cat("Group Correlation Matrix (first few rows shown):\n")
+            print(utils::head(round(stats::cov2cor(object@group_cov_matrix), 2), n = 10))
+          } else {
+            cat("No group covariance matrix provided.\n")
+          }
         } else if (is.data.frame(object@groups)) {
           cat("\nGroup Concentration:   Multiple or no group columns detected; run summary(object, \"Group Concentration by Column\") for a full table.\n")
         }
-
     } else {
       cat("\nNo groups specified.\n")
     }
-    if (!is.null(object@mmaf_method)){
-      cat("\nMMAF Method: ", object@mmaf_method, "\n")
-      cat("Group Column: ", object@mmaf_group_col, "\n")
-      if (!is.null(object@group_cov_matrix)) {
-        cat("Group Correlation Matrix (first few rows shown):\n")
-        print(utils::head(round(stats::cov2cor(object@group_cov_matrix), 2), n = 10))
-      } else {
-        cat("No group covariance matrix provided.\n")
-      }
-    }
+
+
 
     # Wrap up
     cat("\n=================================\n")
