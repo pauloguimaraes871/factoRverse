@@ -3356,6 +3356,7 @@ setClass(
 #' @slot port_costs_m_xts_list A list of meta_xts objects for portfolio costs (direct_cost, market_impact_cost, total_cost, turnover).
 #' @slot port_returns_m_xts_list A list of meta_xts objects for portfolio returns (raw_return, net_return, raw_active_return, net_active_return).
 #' @slot port_metrics_m_xts_list A list of meta_xts objects for portfolio metrics.
+#' @slot port_stats_m_xts_nested_list A nested list of meta_xts objects for portfolio statistics.
 #' @slot backtest_workflow_common A list containing the common backtest workflow parameters (used for compatibility).
 #'
 #' @export
@@ -3367,6 +3368,7 @@ setClass("port_backtest_cohort",
            port_costs_m_xts_list = "list",
            port_returns_m_xts_list = "list",
            port_metrics_m_xts_list = "list",
+           port_stats_m_xts_nested_list = "list",
            backtest_workflow_common = "list"
          ),
          validity = function(object) {
@@ -3375,17 +3377,6 @@ setClass("port_backtest_cohort",
            TRUE
          }
 )
-
-
-
-
-
-
-
-
-
-
-
 
 
 
