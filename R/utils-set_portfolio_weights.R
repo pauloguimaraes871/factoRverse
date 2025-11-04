@@ -104,7 +104,7 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
     tictoc::tic()
   }
 
-  ##Get eligible tickers
+    ##Get eligible tickers
   if (port_construction_method == "custom_weights"){
     ### For custom_weights, eligible tickers are those with weights > 0 in custom_weights_m_d_ref
     ### Thus positive weights dominates eligibility from classify_investment_universe
@@ -160,8 +160,6 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
       stop("Provided covariance matrix rownames/colnames contain NAs or NULLs.")
     }
   }
-
-
 
   ###################
 
@@ -355,6 +353,7 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
       cat("\n")
       cat(crayon::blurred(paste0("Calculating ", selected_benchmark, " portfolio...\n")))
     }
+
     selected_benchmark_port_obj <- set_portfolio_weights(
       universe_m_d_ref = bench_universe_m_d_ref, #Universe
       port_construction_method = "custom_weights",
@@ -511,8 +510,8 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
       group_universe_m_d_ref = if (level %in% c("port", "benchmark")) group_universe_m_d_ref else NULL,
       group_cov_matrix = if (level %in% c("port", "benchmark")) group_cov_matrix else NULL,
       #### A benchmark is only to be provided for level port
-      selected_benchmark = if (level %in% c("port", "sub_port")) selected_benchmark else NULL,
-      bench_universe_m_d_ref = if (level %in% c("port", "sub_port")) bench_universe_m_d_ref else NULL,
+      selected_benchmark = if (level %in% c("port", "sub_port") && !is.null(bench_universe_m_d_ref)) selected_benchmark else NULL,
+      bench_universe_m_d_ref = if (level %in% c("port", "sub_port") && !is.null(selected_benchmark)) bench_universe_m_d_ref else NULL,
       #### Reestimate only for port level
       all_returns_m_xts_upd_ref = if (level %in% c("port", "sub_port", "benchmark", "sub_benchmark")) all_returns_m_xts_upd_ref else NULL, #Return sample
       cov_matrix_sample_size = if (level %in% c("port", "sub_port", "benchmark", "sub_benchmark")) cov_matrix_sample_size else NULL, #Cov estimation
