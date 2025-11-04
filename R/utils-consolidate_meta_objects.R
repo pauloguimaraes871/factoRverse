@@ -449,11 +449,21 @@ consolidate_backtest_results <- function(new_backtest_outputs_list, old_backtest
       ##Consolidate data
       if (grepl("_m_df$", slot_name)) {
 
+        ###Get correct type
+        if (stringr::str_remove(class(old_obj), "_m_df") %in% c(
+          "signal_universe", "stock_universe", "oos_sb_outputs", "groups", "target",
+          "weights", "priors", "signals", "features", "feature_importance", "raw"
+        )){
+          type <- stringr::str_remove(class(old_obj), "_m_df")
+        } else {
+          type <- "generic"
+        }
+
         ###Use the "dataframes" consolidation
         updated_obj <- consolidate_generic_meta_dataframes(
           main_generic_m_df = old_obj,  # the 'main' object
           supplemental_generic_m_df  = new_obj,  # the 'additional' object
-          type = stringr::str_remove(class(old_obj), "_m_df"),
+          type = type,
           consolidate_name = FALSE
         )
 
