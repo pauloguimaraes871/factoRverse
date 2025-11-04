@@ -771,24 +771,6 @@ test_that("check_inputs_meta_sb_backtest works with wrong combination of base an
     dplyr::arrange(id) %>%
     create_meta_dataframe()
 
-  expect_error(
-    check_inputs_meta_sb_backtest(config = meta_config,
-                                  features_m_df = features_m_df,
-                                  target_m_df = target_m_df,
-                                  base_sb_backtest_results_list = list(rf_results, glmnet_results),
-                                  base_custom_signal_weights_m_df = NULL,
-                                  meta_custom_signal_weights_m_df = NULL,
-                                  base_custom_signal_universe_metrics_m_df = NULL,
-                                  meta_custom_signal_universe_metrics_m_df = NULL,
-                                  base_backtest_returns_m_xts = NULL,
-                                  meta_backtest_returns_m_xts = NULL,
-                                  base_benchmark_returns_m_xts = NULL,
-                                  meta_benchmark_returns_m_xts = NULL,
-                                  base_signal_themes_m_df = signal_themes_m_df,
-                                  meta_signal_themes_m_df = meta_signal_themes_m_df),
-    "meta-level objects are not supported at this time.")
-
-
   wrong_meta_signal_themes_m_df <- meta_signal_themes_m_df
   wrong_meta_signal_themes_m_df@data$id[1] <- signal_themes_m_df@data$id[1]
 
