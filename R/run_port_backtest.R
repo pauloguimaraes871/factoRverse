@@ -1787,7 +1787,7 @@ run_port_backtest_internal <- function(
           parallel = parallel
           )
 
-          #####Transform port_obj into stock_port obj
+        #####Transform port_obj into stock_port obj
           stock_port <- methods::new(
             "stock_port",
             universe_m_d_ref = stock_port@universe_m_d_ref,
@@ -1816,6 +1816,7 @@ run_port_backtest_internal <- function(
             main_liquidity_metric = main_liquidity_metric
           )
 
+
           #####Get stock_universe_m_d_ref
           stock_universe_m_d_ref <- stock_port@universe_m_d_ref@data
           stock_universe_m_d_ref_list[[which(rebalance_dates %in% current_date)]] <- stock_universe_m_d_ref
@@ -1823,20 +1824,23 @@ run_port_backtest_internal <- function(
         ### Compute performance metrics
          #### Check an old port_returns object exist from a prior run
          if (.update){
-           ##### Make sure that .old_port_returns_m_xts and port_returns_m_xts names match
-           if (!identical(names(.old_port_returns_m_xts), names(port_returns_m_xts))){
-             stop (".old_port_returns_m_xts and port_returns_m_xts names should match")
+           ##### Make sure that .old_backtest_port_returns_m_xts and port_returns_m_xts names match
+           if (!identical(names(.old_backtest_port_returns_m_xts), names(port_returns_m_xts))){
+             stop (".old_backtest_port_returns_m_xts and port_returns_m_xts names should match")
            }
-           ##### Horizontally port_returns_m_xts (current backtest) with prior returns (old dates) from .old_port_returns_m_xts
+           ##### Horizontally port_returns_m_xts (current backtest) with prior returns (old dates) from .old_backtest_port_returns_m_xts
            full_port_returns_m_xts_upd_ref <- rbind(
-             .old_port_returns_m_xts,
-             port_returns_m_xts[which(zoo::index(port_returns_m_xts) >= current_date), ],
-             fill = NA
+             .old_backtest_port_returns_m_xts,
+             port_returns_m_xts[which(zoo::index(port_returns_m_xts) >= current_date), ]
            )
          } else {
-           full_port_returns_m_xts_upd_ref <- port_returns_m_xts[which(zoo::index(port_returns_m_xts) <= current_date), ]
+           full_port_returns_m_xts_upd_ref <- port_returns_m_xts
          }
 
+          #### Subset port_returns_m_xts up to current_date
+          full_port_returns_m_xts_upd_ref <- full_port_returns_m_xts_upd_ref[which(zoo::index(full_port_returns_m_xts_upd_ref) <= current_date), ]
+
+          #### Compute performance metrics
           if (nrow(full_port_returns_m_xts_upd_ref) > 1){
             #### Clear rows in which all columns are NAs from full_port_returns_m_xts_upd_ref
             all_NAs_rows <- which(apply(full_port_returns_m_xts_upd_ref, 1, function(x) all(is.na(x)))) %>% as.numeric()
@@ -1844,41 +1848,75 @@ run_port_backtest_internal <- function(
             #### Apply summarize_performance or create_performance_m_df
             if (!is.null(selected_benchmark)){
               #### Compute performance summary
-              port_stats_m_d_ref <- summarize_performance(
+              port_stats_m_d_ref <- suppressWarnings(summarize_performance(
                 selected_backtest_returns_corrected_positions_m_xts_upd_ref = full_port_returns_m_xts_upd_ref[, c("raw_return", "net_return")],
                 selected_market_factor_proxy_m_xts_upd_ref = full_port_returns_m_xts_upd_ref[, c("selected_bench_return"), drop = FALSE],
                 model_structure = "no_pooled", model_spec_theme_level = NULL, lmer_control = FALSE,
                 selected_signal_themes_m_d_ref = NULL, active_returns = TRUE
-              )$signal_universe_m_d_ref
+              ))$signal_universe_m_d_ref
             } else {
               #### Compute base
-              port_stats_m_d_ref <- create_performance_m_df(
+              port_stats_m_d_ref <- suppressWarnings(create_performance_m_df(
                 selected_backtest_returns_corrected_positions_m_xts_upd_ref = full_port_returns_m_xts_upd_ref[, c("raw_return", "net_return")],
                 selected_market_factor_proxy_m_xts_upd_ref = NULL,
                 active_returns = FALSE
-              )
+              ))
+            }
+          } else {
+            #### Just grab the names
+            if (!is.null(selected_benchmark)){
+              #### Compute performance summary
+              port_stats_m_d_ref <- suppressWarnings(summarize_performance(
+                selected_backtest_returns_corrected_positions_m_xts_upd_ref = NULL,
+                selected_market_factor_proxy_m_xts_upd_ref = NULL,
+                model_structure = "no_pooled", model_spec_theme_level = NULL, lmer_control = FALSE,
+                selected_signal_themes_m_d_ref = NULL, active_returns = TRUE
+              ))$signal_universe_m_d_ref
+            } else {
+              #### Compute base
+              port_stats_m_d_ref <- suppressWarnings(create_performance_m_df(
+                selected_backtest_returns_corrected_positions_m_xts_upd_ref = NULL,
+                selected_market_factor_proxy_m_xts_upd_ref = NULL,
+                active_returns = FALSE
+              ))
             }
 
-            #### Join port_stats information to both rows
-            #### port_stats_m_d_ref will be a data.frame with two rows: raw_return and net_return
-            port_stats_m_d_ref <- port_stats_m_d_ref %>%
-              dplyr::left_join(
-                data.frame(
-                  tickers = c("raw_return", "net_return"),
-                  stock_port@port_stats %>%
-                    ##### Rename sharpe_ratio with SR and info_ratio with IR (if present)
-                    dplyr::rename_with(
-                      .cols = dplyr::any_of(c("sharpe_ratio", "info_ratio")),
-                      .fn   = function(nm) dplyr::recode(nm,
-                                                         sharpe_ratio = "SR",
-                                                         info_ratio   = "IR",
-                                                         .default     = nm)
-                    )
-                ), by = "tickers"
+            ##### Create a placeholder
+            new_rows <- data.frame(
+              id      = paste0(c("raw_return","net_return"), "-", current_date),
+              tickers = c("raw_return","net_return"),
+              dates   = as.Date(rep(current_date, 2)),
+              stringsAsFactors = FALSE
+            )
+            ##### Join columns with NAs
+            port_stats_m_d_ref <- new_rows %>%
+              dplyr::bind_cols(
+                data.frame(matrix(NA, nrow = 2, ncol = ncol(port_stats_m_d_ref))) %>%
+                  setNames(names(port_stats_m_d_ref)) %>%
+                  dplyr::select(-id, -tickers, -dates)
               )
-
-            port_stats_m_d_ref_list[[which(rebalance_dates %in% current_date)]] <- port_stats_m_d_ref
           }
+
+          #### Join port_stats information to both rows
+          #### port_stats_m_d_ref will be a data.frame with two rows: raw_return and net_return
+          port_stats_m_d_ref <- port_stats_m_d_ref %>%
+            dplyr::left_join(
+              data.frame(
+                tickers = c("raw_return", "net_return"),
+                stock_port@port_stats %>%
+                  ##### Rename sharpe_ratio with SR and info_ratio with IR (if present)
+                  dplyr::rename_with(
+                    .cols = dplyr::any_of(c("sharpe", "info_ratio")),
+                    .fn   = function(nm) dplyr::recode(nm,
+                                                       sharpe       = "SR",
+                                                       info_ratio   = "IR",
+                                                       .default     = nm)
+                )
+            ), by = "tickers"
+          )
+
+          #### Add current date
+          port_stats_m_d_ref_list[[which(rebalance_dates %in% current_date)]] <- port_stats_m_d_ref
 
 
         ##############################
@@ -2204,8 +2242,8 @@ run_port_backtest_internal <- function(
         rownames(final_stock_universe_m_d_ref) <- NULL
         final_stock_universe_m_d_ref <- create_meta_dataframe(final_stock_universe_m_d_ref, type = "stock_universe", port_backtest_workflow = port_backtest_workflow)
     }
-  ###Port Stats (turn into a signel meta_dataframe)
-  if (.update && length(port_stats_m_d_ref_list) == 0 && !exists("stock_port")){
+  ###Port Stats (turn into a signal meta_dataframe)
+  if (.update && length(port_stats_m_d_ref_list) == 0 && is.null(stock_port)){
     #####This refers to an empty update, when there is no rebalancing month in the update
     port_stats_m_df <- NULL
     final_port_stats_m_d_ref <- NULL
@@ -2216,9 +2254,9 @@ run_port_backtest_internal <- function(
     }
     ####Get port_stats_m_df
       #####Complete
-      port_stats_m_df <- do.call(rbind, port_stats_m_d_ref_list) %>% dplyr::arrange(id)
+      port_stats_m_df <- do.call(dplyr::bind_rows, port_stats_m_d_ref_list) %>% dplyr::arrange(id)
       rownames(port_stats_m_df) <- NULL
-      port_stats_m_df <- create_meta_dataframe(port_stats_m_df, workflow = port_backtest_workflow)
+      port_stats_m_df <- suppressWarnings(create_meta_dataframe(port_stats_m_df, workflow = port_backtest_workflow))
 
       #####Final
       final_port_stats_m_d_ref <- port_stats_m_d_ref %>% dplyr::arrange(id)
