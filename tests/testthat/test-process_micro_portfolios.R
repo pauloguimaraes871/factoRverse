@@ -774,11 +774,11 @@ test_that("set top down micro weights work with group weights for a MVO + constr
     opt_objective = "risk",
     n_random_ports = 500
   ),
-  "For concentration constraint: after scaling, ibov_bench_weights in group Exportador sums to more than 1. Normalizing to sum to 1.This might indicate that overall constraints do not hold because of this group."
+  "For concentration constraint/selected_benchmark: after scaling, ibov_bench_weights in group Exportador sums to more than 1. Normalizing to sum to 1.This might indicate that overall constraints do not hold because of this group."
   ),
  "For target weights: after scaling, target_weights in group Exportador sums to more than 1. Normalizing to sum to 1.This might indicate that overall constraints do not hold because of this group."
   ),
- "For concentration constraint: after scaling, ibov_bench_weights in group Doméstico Cíclico sums to more than 1. Normalizing to sum to 1.This might indicate that overall constraints do not hold because of this group."
+ "For concentration constraint/selected_benchmark: after scaling, ibov_bench_weights in group Doméstico Cíclico sums to more than 1. Normalizing to sum to 1.This might indicate that overall constraints do not hold because of this group."
   ),
  "For target weights: after scaling, target_weights in group Doméstico Cíclico sums to more than 1. Normalizing to sum to 1.This might indicate that overall constraints do not hold because of this group."
   )
@@ -1011,11 +1011,11 @@ test_that("set top down micro weights work with group weights for a MVO + constr
       opt_objective = "risk",
       n_random_ports = 500
   ),
-    "For concentration constraint: after scaling, ibov_bench_weights in group Exportador sums to more than 1. Normalizing to sum to 1.This might indicate that overall constraints do not hold because of this group."
+    "For concentration constraint/selected_benchmark: after scaling, ibov_bench_weights in group Exportador sums to more than 1. Normalizing to sum to 1.This might indicate that overall constraints do not hold because of this group."
   ),
   "For target weights: after scaling, target_weights in group Exportador sums to more than 1. Normalizing to sum to 1.This might indicate that overall constraints do not hold because of this group."
   ),
-  "For concentration constraint: after scaling, ibov_bench_weights in group Doméstico Cíclico sums to more than 1. Normalizing to sum to 1.This might indicate that overall constraints do not hold because of this group."
+  "For concentration constraint/selected_benchmark: after scaling, ibov_bench_weights in group Doméstico Cíclico sums to more than 1. Normalizing to sum to 1.This might indicate that overall constraints do not hold because of this group."
   ),
   "For target weights: after scaling, target_weights in group Doméstico Cíclico sums to more than 1. Normalizing to sum to 1.This might indicate that overall constraints do not hold because of this group."
   )

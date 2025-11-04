@@ -23,6 +23,7 @@ test_that("fit_sb_model works for SW", {
   signals_positions <- ifelse(stringr::str_detect(current_eligible_signals, "low_"), "short", "long")
   chosen_signals_and_positions <- signals_positions
   names(chosen_signals_and_positions) <- stringr::str_remove(current_eligible_signals, "low_")
+  signal_themes_m_d_ref <- signal_themes_m_df@data %>% dplyr::filter(dates == "2023-03-15")
 
   selected_features_corrected_positions_m_df <-
     select_and_correct_signals(signals_m_df = toy_preprocessed_features,
@@ -56,6 +57,7 @@ test_that("fit_sb_model works for SW", {
   results <- fit_sb_model(sb_algorithm = "sw", target_fwd_name = target_fwd_name,
                           selected_features_corrected_positions_m_refit = selected_features_corrected_positions_m_refit,
                           target_m_refit = target_m_refit,
+                          groups_m_d_ref = signal_themes_m_d_ref,
                           custom_objective_translated = custom_objective,
                           huber_delta = 1, quantile_tau = .5, early_stop = NULL,
                           keras_architecture_parameters = NULL, chosen_eval_metric_translated = NULL,
