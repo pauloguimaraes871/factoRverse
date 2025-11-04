@@ -218,6 +218,9 @@ define_signal_eligibility <- function(
     universe_m_d_ref = signal_universe_m_d_ref, #Signal Universe
     signal_significance_threshold = signal_significance_threshold, #Signal Significance Threshold
     groups_m_d_ref = selected_signal_themes_m_d_ref, #Groups to select
+    concentration_constraint_policy = list(
+      benchmark = c("theme_ss", "theme_sb"), #Reference benchmark
+      max_abs_active_group_weight = if(enable_theme_representativeness) 0.1 else NULL), #Set an arbitrary value to enable themes benchs
     enable_group_representativeness = enable_theme_representativeness,
     asset_object = "signals"
   )
