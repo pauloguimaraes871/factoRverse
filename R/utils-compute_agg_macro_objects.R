@@ -156,12 +156,12 @@ compute_agg_macro_objects <- function(universe_m_d_ref, covariance_matrix = NULL
     stop("eligible_universe_m_d_ref must only contain eligible tickers.")
   }
 
-  req_cols <- c("tickers", "dates", "is_eligible", group_col, "exp_ret_score")
+  req_cols <- c("tickers", "dates", "is_eligible", group_col, "id")
   miss <- setdiff(req_cols, names(eligible_universe_m_d_ref))
   if (length(miss)) stop(sprintf("eligible_universe_m_d_ref missing columns: %s", paste(miss, collapse=", ")))
 
   has_weights_col <- "weights" %in% names(eligible_universe_m_d_ref)
-
+  has_exp_ret_score_col <- "exp_ret_score" %in% names(eligible_universe_m_d_ref)
 
   ## Define micro_universe_m_d_ref_list if needed-----------------------------
 
@@ -225,11 +225,13 @@ compute_agg_macro_objects <- function(universe_m_d_ref, covariance_matrix = NULL
       }
 
       ### Calculate weighted average of exp_ret_score
-      group_exp_ret_score <- stats::weighted.mean(
-        current_group_universe_m_d_ref$exp_ret_score,
-        current_group_universe_m_d_ref$weights,
-        na.rm = TRUE
-      )
+      if (isTRUE(has_exp_ret_score_col)){
+        group_exp_ret_score <- stats::weighted.mean(
+          current_group_universe_m_d_ref$exp_ret_score,
+          current_group_universe_m_d_ref$weights,
+          na.rm = TRUE
+        )
+      }
 
       ### Calculate weighted average of liquidity_m_d_ref colnames and liquidity_m_d_ref
       group_liq_cols <- list()
@@ -260,22 +262,41 @@ compute_agg_macro_objects <- function(universe_m_d_ref, covariance_matrix = NULL
 
       ### Data frame
       if (isTRUE(has_weights_col)){
-        group_row <- data.frame(
-          id = paste0(g, "-", current_date),
-          tickers = g,
-          dates = as.Date(current_date),
-          exp_ret_score = group_exp_ret_score,
-          is_eligible = 1,
-          weights = total_group_weight
-        )
+        if (isTRUE(has_exp_ret_score_col)){
+          group_row <- data.frame(
+            id = paste0(g, "-", current_date),
+            tickers = g,
+            dates = as.Date(current_date),
+            exp_ret_score = group_exp_ret_score,
+            is_eligible = 1,
+            weights = total_group_weight
+          )
+        } else {
+          group_row <- data.frame(
+            id = paste0(g, "-", current_date),
+            tickers = g,
+            dates = as.Date(current_date),
+            is_eligible = 1,
+            weights = total_group_weight
+          )
+        }
       } else {
-        group_row <- data.frame(
-          id = paste0(g, "-", current_date),
-          tickers = g,
-          dates = as.Date(current_date),
-          exp_ret_score = group_exp_ret_score,
-          is_eligible = 1
-        )
+        if (isTRUE(has_exp_ret_score_col)){
+          group_row <- data.frame(
+            id = paste0(g, "-", current_date),
+            tickers = g,
+            dates = as.Date(current_date),
+            exp_ret_score = group_exp_ret_score,
+            is_eligible = 1
+          )
+        } else {
+          group_row <- data.frame(
+            id = paste0(g, "-", current_date),
+            tickers = g,
+            dates = as.Date(current_date),
+            is_eligible = 1
+          )
+        }
       }
 
 
@@ -324,9 +345,12 @@ compute_agg_macro_objects <- function(universe_m_d_ref, covariance_matrix = NULL
     }
 
     ### Relocate exp_ret_score and is_eligible to end
+    if (isTRUE(has_exp_ret_score_col)){
+      group_universe_m_d_ref <- group_universe_m_d_ref %>%
+        dplyr::relocate(exp_ret_score, .after = dplyr::last_col())
+    }
     group_universe_m_d_ref <- group_universe_m_d_ref %>%
-      dplyr::relocate(exp_ret_score, .after = dplyr::last_col()) %>%
-      dplyr::relocate(is_eligible,   .after = dplyr::last_col())
+      dplyr::relocate(is_eligible, .after = dplyr::last_col())
     if (isTRUE(has_weights_col)){
       group_universe_m_d_ref <- group_universe_m_d_ref %>%
         dplyr::relocate(weights, .after = dplyr::last_col())
