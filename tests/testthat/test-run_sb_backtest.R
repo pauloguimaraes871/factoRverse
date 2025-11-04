@@ -1848,7 +1848,7 @@ test_that("Custom Weights - run_sb_backtest works with toy_preprocessed_features
   first_sb_port <- fit_sb_model(sb_algorithm = "custom_weights", target_fwd_name = "fwd_premium_3m",
                                 selected_features_corrected_positions_m_refit = selected_features_first_rebal,
                                 most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
-                                selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_mocked_backtest_returns_m_xts_upd_ref,
+                                selected_backtest_returns_corrected_positions_m_xts_upd_ref = NULL,
                                 cov_matrix_sample_size = 4, cov_estimation_method = "ewma", active_returns = TRUE, groups_m_d_ref = NULL,
                                 custom_objective_translated = NULL, huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
                                 keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
@@ -1944,7 +1944,7 @@ test_that("Custom Weights - run_sb_backtest works with toy_preprocessed_features
                                  selected_features_corrected_positions_m_refit = selected_features_second_rebal,
                                  most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
                                  most_recent_custom_signal_weights_m_d_ref = most_recent_custom_weights_m_d_ref,
-                                 selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_mocked_backtest_returns_m_xts_upd_ref,
+                                 selected_backtest_returns_corrected_positions_m_xts_upd_ref = NULL,
                                  cov_matrix_sample_size = 4, cov_estimation_method = "ewma", active_returns = TRUE, groups_m_d_ref = NULL,
                                  custom_objective_translated = NULL, huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
                                  keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
@@ -2218,7 +2218,7 @@ test_that("Signal Weights + Custom Signal Universe Metrics - run_sb_backtest wor
   first_sb_port <- fit_sb_model(sb_algorithm = "sw", target_fwd_name = "fwd_premium_3m",
                                 selected_features_corrected_positions_m_refit = selected_features_first_rebal,
                                 most_recent_signal_universe_m_d_ref = first_most_recent_derived_signal_universe_m_d_ref,
-                                selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_mocked_backtest_returns_m_xts_upd_ref,
+                                selected_backtest_returns_corrected_positions_m_xts_upd_ref = NULL,
                                 cov_matrix_sample_size = 4, cov_estimation_method = "ewma", active_returns = TRUE, groups_m_d_ref = NULL,
                                 custom_objective_translated = "min_pe", huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
                                 keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
@@ -2313,7 +2313,7 @@ test_that("Signal Weights + Custom Signal Universe Metrics - run_sb_backtest wor
                                  selected_features_corrected_positions_m_refit = selected_features_second_rebal,
                                  most_recent_signal_universe_m_d_ref = second_most_recent_derived_signal_universe_m_d_ref,
                                  most_recent_custom_signal_weights_m_d_ref = NULL,
-                                 selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_mocked_backtest_returns_m_xts_upd_ref,
+                                 selected_backtest_returns_corrected_positions_m_xts_upd_ref = NULL,
                                  cov_matrix_sample_size = 4, cov_estimation_method = "ewma", active_returns = TRUE, groups_m_d_ref = NULL,
                                  custom_objective_translated = "min_pe", huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
                                  keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
@@ -2507,6 +2507,7 @@ test_that("EW - run_sb_backtest works with toy_preprocessed_features_and_targets
   first_sb_port <- fit_sb_model(sb_algorithm = "ew", target_fwd_name = "fwd_premium_3m",
                                 selected_features_corrected_positions_m_refit = selected_features_first_rebal,
                                 most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
+                                selected_backtest_returns_corrected_positions_m_xts_upd_ref = NULL,
                                 custom_objective_translated = NULL, huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
                                 keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL)
   #Predict
@@ -2592,9 +2593,11 @@ test_that("EW - run_sb_backtest works with toy_preprocessed_features_and_targets
   #Fitting
   second_sb_port <- fit_sb_model(sb_algorithm = "ew", target_fwd_name = "fwd_premium_3m",
                                  selected_features_corrected_positions_m_refit = selected_features_first_rebal,
+                                 selected_backtest_returns_corrected_positions_m_xts_upd_ref = NULL,
                                  most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
                                  custom_objective_translated = NULL, huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
-                                 keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL)
+                                 keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL
+                                 )
 
 
 
