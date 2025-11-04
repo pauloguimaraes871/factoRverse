@@ -22,6 +22,8 @@ An S4 class specifying parameters for backtesting stock-level portfolios.
 
 \item{\code{use_raw_for_eligibility}}{Logical; if TRUE, uses raw scores for eligibility instead of scaled scores.}
 
+\item{\code{enable_group_representativeness}}{Logical; if TRUE, ensures at least one asset in all groups in groups_m_d_ref}
+
 \item{\code{selected_benchmark}}{A character string representing the selected benchmark.}
 
 \item{\code{initial_buffer_period}}{A numeric value representing the initial buffer period.}

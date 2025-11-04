@@ -25,6 +25,8 @@ the common backtest workflow parameters.
 
 \item{\code{port_metrics_m_xts_list}}{A list of meta_xts objects for portfolio metrics.}
 
+\item{\code{port_stats_m_xts_nested_list}}{A nested list of meta_xts objects for portfolio statistics.}
+
 \item{\code{backtest_workflow_common}}{A list containing the common backtest workflow parameters (used for compatibility).}
 }}
 

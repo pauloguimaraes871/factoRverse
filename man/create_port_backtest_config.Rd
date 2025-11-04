@@ -11,6 +11,7 @@ create_port_backtest_config(
   chosen_scaler = NULL,
   scaler_shrinkage = NULL,
   use_raw_for_eligibility = NULL,
+  enable_group_representativeness = NULL,
   selected_benchmark = NULL,
   initial_buffer_period,
   rebalancing_months,
@@ -41,6 +42,8 @@ create_port_backtest_config(
 \item{scaler_shrinkage}{A numeric value between 0 and 1 indicating the shrinkage intensity for the scaler.}
 
 \item{use_raw_for_eligibility}{A logical value indicating whether to use raw scores for determining eligibility.}
+
+\item{enable_group_representativeness}{Logical; if TRUE, ensures at least one asset in all groups in groups_m_d_ref}
 
 \item{selected_benchmark}{A character string indicating the benchmark to use for benchmark-relative backtests.}
 

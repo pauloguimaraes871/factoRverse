@@ -31,6 +31,10 @@ signals derived from simple stock characteristics or expected returns from machi
 
 \item{\code{final_stock_universe_m_d_ref}}{A meta dataframe containing the last stock universe.}
 
+\item{\code{port_stats_m_df}}{A meta dataframe containing portfolio statistics across different dates.}
+
+\item{\code{final_port_stats_m_d_ref}}{A meta dataframe containing the final portfolio statistics.}
+
 \item{\code{port_backtest_workflow}}{A list detailing the portfolio backtest workflow, including parameters, rebalancing dates, and other metadata.}
 
 \item{\code{backtest_identifier}}{A character string representing the backtest identifier.}

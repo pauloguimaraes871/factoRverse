@@ -38,6 +38,7 @@ run_port_backtest(
   .test_seed = NULL,
   .update = FALSE,
   .old_backtest_port_weights_m_d_ref = NULL,
+  .old_backtest_port_returns_m_xts = NULL,
   .old_backtest_port_costs_d_ref = NULL,
   .old_backtest_covered_dates = NULL
 )
@@ -90,6 +91,8 @@ run_port_backtest(
 \item{.update}{(Internal) Logical; whether this is an update to an existing backtest. Default is \code{FALSE}.}
 
 \item{.old_backtest_port_weights_m_d_ref}{(Internal) Previously computed portfolio weights (used when \code{.update = TRUE}).}
+
+\item{.old_backtest_port_returns_m_xts}{(Internal) Previously computed return series (used when \code{.update = TRUE}).}
 
 \item{.old_backtest_port_costs_d_ref}{(Internal) Previously computed cost series (used when \code{.update = TRUE}).}
 

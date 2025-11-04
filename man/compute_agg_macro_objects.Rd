@@ -5,7 +5,7 @@
 \title{Build aggregated group-level universe objects (and optional group covariance)}
 \usage{
 compute_agg_macro_objects(
-  eligible_universe_m_d_ref,
+  universe_m_d_ref,
   covariance_matrix = NULL,
   group_col,
   micro_universe_m_d_ref_list = NULL,
@@ -13,16 +13,6 @@ compute_agg_macro_objects(
 )
 }
 \arguments{
-\item{eligible_universe_m_d_ref}{\code{data.frame}. Must contain at least:
-\itemize{
-\item \code{tickers} (\code{character}): asset identifiers;
-\item \code{dates} (\code{Date}): snapshot date;
-\item \code{is_eligible} (\code{integer}/\code{logical}): must be 1/TRUE for all rows provided;
-\item \code{exp_ret_score} (\code{numeric}): stock-level expected return score (used in aggregation);
-\item \code{weights} (\code{numeric}): portfolio weights for the snapshot (used to aggregate within group);
-\item \code{{group_col}} (\code{character}): grouping column name provided via \code{group_col}.
-}}
-
 \item{covariance_matrix}{\code{matrix} or \code{NULL}. Optional \strong{asset-level} covariance
 \eqn{\Sigma} whose row/column names are exactly \code{eligible_universe_m_d_ref$tickers}.
 If provided, a \strong{group covariance matrix} is computed via
@@ -47,6 +37,16 @@ When \code{NULL}, the function constructs this list from \code{eligible_universe
 metrics aligned by \code{id}/\code{tickers}/\code{dates}. All columns \strong{after} the first three
 (id, tickers, dates) are aggregated by \strong{weighted mean} using the group's
 within-group weights. If \code{NULL}, no liquidity aggregation is produced.}
+
+\item{eligible_universe_m_d_ref}{\code{data.frame}. Must contain at least:
+\itemize{
+\item \code{tickers} (\code{character}): asset identifiers;
+\item \code{dates} (\code{Date}): snapshot date;
+\item \code{is_eligible} (\code{integer}/\code{logical}): must be 1/TRUE for all rows provided;
+\item \code{exp_ret_score} (\code{numeric}): stock-level expected return score (used in aggregation);
+\item \code{weights} (\code{numeric}): portfolio weights for the snapshot (used to aggregate within group);
+\item \code{{group_col}} (\code{character}): grouping column name provided via \code{group_col}.
+}}
 }
 \value{
 \code{list} with components:

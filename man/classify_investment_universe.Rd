@@ -18,6 +18,9 @@ classify_investment_universe(
   benchmark_weights_m_d_ref = NULL,
   groups_m_d_ref = NULL,
   concentration_constraint_policy = NULL,
+  enable_group_representativeness = if (!is.null(groups_m_d_ref) &&
+    !is.null(concentration_constraint_policy$max_abs_active_group_weight)) TRUE else
+    FALSE,
   is_mmaf = FALSE,
   target_port_m_d_ref = NULL,
   ridge_pen = NULL,
@@ -91,6 +94,8 @@ Must have a correspondence in \code{benchmark_weights_m_d_ref}
 If a given group has no eligible asset, the one with the greatest signal will be automatically promoted.
 Note that, in the context of \code{generate_group_constraints}, a \code{benchmark_weights_m_d_ref} data frame must also be supplied.
 }}
+
+\item{enable_group_representativeness}{Logical. If TRUE, ensures that at least one asset from each group classification is included in the eligible universe.}
 
 \item{is_mmaf}{If TRUE, indicates that the concentration_constraint_policy refers to macro level and thus forces group eligibility.}
 

@@ -62,6 +62,7 @@ check_inputs_port_backtest(
   liquidity_m_df,
   liquidity_floor_cutoffs,
   main_liquidity_metric,
+  enable_group_representativeness,
   stock_groups_m_df,
   benchmark_weights_m_df,
   volatility_m_df,
@@ -190,6 +191,8 @@ check_inputs_port_backtest(
 \item{liquidity_floor_cutoffs}{A data frame providing liquidity floor cutoff values. It is validated by \code{validate_liquidity_floor_cutoffs} and must include the \code{main_liquidity_metric}.}
 
 \item{main_liquidity_metric}{A character string specifying the primary liquidity metric. It must be present in \code{liquidity_m_df} and include the substring \code{"mean_volfin"}.}
+
+\item{enable_group_representativeness}{A logical value indicating whether to enable group representativeness constraints. If \code{TRUE}, \code{stock_groups_m_df} must be provided.}
 
 \item{stock_groups_m_df}{(Optional) A data frame containing stock group data, coercible to a meta_dataframe. All stocks in \code{signals_m_df} should be represented, and group columns must be of type character.}
 
