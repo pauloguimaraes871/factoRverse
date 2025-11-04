@@ -2534,473 +2534,6 @@ setMethod("summary", "ss_backtest_results", function(object, summary_id = NULL) 
 })
 
 
-#' @title Summary Method for port Class
-#' @description Interactive DT summaries for a \code{port} object:
-#' 1) Portfolio Metrics, 2) Group Concentration by Column,
-#' 3) Preview: Weights & Scores (+ RRC), 4) Correlation Matrix.
-#' @param object An object of class \code{port}.
-#' @param summary_id Optional. One of: "Portfolio Metrics", "Group Concentration by Column",
-#'        "Preview: Weights & Scores", "Correlation Matrix" (or numeric index 1..4).
-#'        If NULL, a prompt is shown.
-#' @return Invisibly returns \code{object}.
-#' @export
-methods::setMethod("summary", "port", function(object, summary_id = NULL){
-
-  ## Dependencies
-  if (!requireNamespace("DT", quietly = TRUE) ||
-      !requireNamespace("htmltools", quietly = TRUE) ||
-      !requireNamespace("htmlwidgets", quietly = TRUE)) {
-    stop("Packages 'DT', 'htmltools', and 'htmlwidgets' are required. Please install them.")
-  }
-
-  ## small helpers for interactive prompts (local to summary)
-  .prompt_weights_args <- function(object) {
-    # weights_kind
-    wk_in <- readline(prompt = "Use active weights? (yes/no) [no]: ")
-    use_active <- tolower(trimws(wk_in)) %in% c("yes","y")
-    weights_kind <- if (use_active) "active" else "regular"
-
-    bench_weights_col <- NULL
-    if (weights_kind == "active") {
-      uni <- object@universe_m_d_ref@data
-      if (is.null(uni) || !"tickers" %in% names(uni)) {
-        stop("To use active weights, universe_m_d_ref@data must contain 'tickers'.")
-      }
-      cand <- grep("_bench_weights$", names(uni), value = TRUE)
-      if (length(cand) == 0L) {
-        stop("No '*_bench_weights' columns found; cannot compute active weights.")
-      } else if (length(cand) == 1L) {
-        bench_weights_col <- cand[1L]
-      } else {
-        cat("Available benchmark weight columns:\n")
-        for (i in seq_along(cand)) cat(sprintf("%d: %s\n", i, cand[i]))
-        sel <- readline(
-          prompt = sprintf("Choose benchmark column (name or number) [default = %s]: ", cand[1L])
-        )
-        if (nzchar(sel) && !is.na(suppressWarnings(as.numeric(sel)))) {
-          sidx <- as.numeric(sel)
-          if (!is.na(sidx) && sidx >= 1 && sidx <= length(cand)) bench_weights_col <- cand[sidx]
-        } else if (nzchar(sel) && (sel %in% cand)) {
-          bench_weights_col <- sel
-        } else {
-          bench_weights_col <- cand[1L]
-        }
-      }
-    }
-    list(weights_kind = weights_kind, bench_weights_col = bench_weights_col)
-  }
-
-  .prompt_group_col <- function(object) {
-    gdf <- object@groups
-    if (!is.data.frame(gdf) || !"tickers" %in% names(gdf)) return(NULL)
-    grouping_cols <- setdiff(names(gdf), c("id","tickers","dates"))
-    if (length(grouping_cols) == 0L) return(NULL)
-
-    # mmaf default
-    if (object@port_construction_method == "mmaf" &&
-        !is.null(object@mmaf_group_col) &&
-        object@mmaf_group_col %in% grouping_cols) {
-      def <- object@mmaf_group_col
-    } else {
-      def <- grouping_cols[1L]
-    }
-
-    # if only one, use it silently; else prompt
-    if (length(grouping_cols) == 1L) return(grouping_cols[1L])
-
-    cat("Available group columns:\n")
-    for (i in seq_along(grouping_cols)) cat(sprintf("%d: %s\n", i, grouping_cols[i]))
-    sel <- readline(
-      prompt = sprintf("Choose group column (name or number) [default = %s]: ", def)
-    )
-    if (nzchar(sel) && !is.na(suppressWarnings(as.numeric(sel)))) {
-      sidx <- as.numeric(sel)
-      if (!is.na(sidx) && sidx >= 1 && sidx <= length(grouping_cols)) {
-        return(grouping_cols[sidx])
-      }
-    } else if (nzchar(sel) && (sel %in% grouping_cols)) {
-      return(sel)
-    }
-    def
-  }
-
-
-  ## Palette
-  deep_navy <- "#000033"
-  black <- "#000000"
-  white <- "#FFFFFF"
-
-  ## Menu
-  available_tables <- c(
-    "Portfolio Metrics",
-    "Group Concentration by Column",
-    "Preview: Weights & Scores",
-    "Correlation Matrix"
-  )
-
-  cat("==============================\n")
-  cat("Port Summary (DT)\n")
-  cat("==============================\n\n")
-  cat("Portfolio Name:", object@port_name, "\n")
-  cat("Method:        ", object@port_construction_method, "\n")
-  cat("N Assets:      ", length(object@eligible_assets), "\n\n")
-
-  if (is.null(summary_id)) {
-    cat("Choose a table to display:\n")
-    for (i in seq_along(available_tables)) cat(paste0(i, ": ", available_tables[i], "\n"))
-    selection <- readline(prompt = "Enter the number of your choice: ")
-    summary_id <- as.numeric(selection)
-    if (is.na(summary_id) || summary_id < 1 || summary_id > length(available_tables)) stop("Invalid selection.")
-  }
-
-  if (is.numeric(summary_id)) {
-    if (summary_id >= 1 && summary_id <= length(available_tables)) table_name <- available_tables[summary_id] else stop("Invalid table number.")
-  } else if (is.character(summary_id)) {
-    if (summary_id %in% available_tables) table_name <- summary_id else stop("Invalid 'summary_id'. Options: ", paste(available_tables, collapse = ", "))
-  } else stop("'summary_id' must be a number or one of: ", paste(available_tables, collapse = ", "))
-
-  ## Common DT styling helper
-  render_dt <- function(df, caption_text) {
-    dt <- DT::datatable(
-      df,
-      rownames = FALSE,
-      extensions = c("FixedColumns","Scroller"),
-      options = list(
-        scrollX = TRUE,
-        scrollY = 400,
-        scroller = TRUE,
-        fixedColumns = list(leftColumns = 1),
-        dom = "t",
-        ordering = FALSE
-      ),
-      class = "cell-border stripe",
-      caption = htmltools::tags$caption(
-        style = paste0(
-          "caption-side: top; text-align: center; color: ", white,
-          "; background-color: ", black, "; padding: 10px; margin-bottom: 10px; font-size: 18px; font-weight: bold;"
-        ),
-        caption_text
-      )
-    ) %>%
-      DT::formatStyle(columns = names(df), backgroundColor = deep_navy, color = white)
-
-    css_styles <- paste0("
-      table.dataTable thead th { background-color: ", black, " !important; color: ", white, " !important; }
-      table.dataTable tbody tr { background-color: ", deep_navy, " !important; }
-      table.dataTable tbody td { border-color: #333333 !important; }
-      .dataTable { background-color: ", deep_navy, " !important; color: ", white, "; }
-    ")
-
-    htmlwidgets::prependContent(dt, htmltools::tags$style(css_styles))
-  }
-
-  ## 1) Portfolio Metrics -----------------------------------------------------
-  if (table_name == "Portfolio Metrics") {
-
-    # Prompt for args needed by calculate_port_stats()
-    wa <- .prompt_weights_args(object) # list(weights_kind, bench_weights_col)
-    gc <- .prompt_group_col(object)    # may be NULL
-
-    # Compute
-    port_stats <- calculate_port_stats(
-      object,
-      group_col = gc,
-      weights_kind = wa$weights_kind,
-      bench_weights_col = wa$bench_weights_col
-    )
-
-    # Build display from returned columns (no recomputation)
-    metrics <- list(
-      "Port Expected Return"       = port_stats$port_exp_ret,
-      "Port Expected Risk"         = port_stats$port_risk,
-      "Port Expected Sharpe"       = port_stats$port_sharpe,
-      "HHI (weights)"              = port_stats$hhi_weights,
-      "Effective N (1/HHI)"        = port_stats$n_eff_weights,
-      "Entropy (weights)"          = port_stats$entropy_weights,
-      "Entropy Eff. N (exp H)"     = port_stats$entropy_effective_n,
-      "Gini (weights)"             = port_stats$gini_weights,
-      "Top-5 concentration"        = port_stats$top_5_concentration,
-      "Top-10 concentration"       = port_stats$top_10_concentration,
-      "Top-25 concentration"       = port_stats$top_25_concentration,
-      "Diversification Ratio"      = port_stats$diversification_ratio,
-      "Wtd Avg Pairwise Corr"      = port_stats$wavg_pairwise_corr,
-      "HHI (risk contrib)"         = port_stats$hhi_rrc,
-      "Eff. N (risk contrib)"      = port_stats$n_eff_rrc,
-      "RRC distance to ERC (L2)"   = port_stats$rrc_dist_to_erc,
-      "Group HHI"                  = port_stats$hhi_groups,
-      "Group Effective N"          = port_stats$n_eff_groups,
-      "Top Group Weight"           = port_stats$top_group_weight,
-      "Number of Groups"           = port_stats$n_groups
-    )
-
-    df <- data.frame(
-      Metric = names(metrics),
-      Value  = unlist(metrics, use.names = FALSE),
-      stringsAsFactors = FALSE, check.names = FALSE
-    )
-    df$Value <- ifelse(is.na(df$Value), NA, round(as.numeric(df$Value), 6))
-
-    cap_bits <- c(
-      paste0("weights=", wa$weights_kind),
-      if (!is.null(wa$bench_weights_col)) paste0("bench=", wa$bench_weights_col) else NULL,
-      if (!is.null(gc)) paste0("group_col=", gc) else NULL
-    )
-    caption <- paste0(object@port_name, ": Portfolio Metrics",
-                      if (length(cap_bits)) paste0(" (", paste(cap_bits, collapse = " · "), ")") else "")
-
-    print(render_dt(df, caption))
-    return(invisible(object))
-  }
-
-  ## 2) Group Concentration by Column ----------------------------------------
-  if (table_name == "Group Concentration by Column") {
-    if (is.null(object@groups)) {
-      cat("No 'groups' slot available.\n"); return(invisible(object))
-    }
-    grp_df <- object@groups
-
-    # Basic validations
-    if (!is.data.frame(grp_df)) {
-      cat("'groups' must be a data.frame.\n")
-      return(invisible(object))
-    }
-    if (!("tickers" %in% names(grp_df))) {
-      cat("'groups' lacks a 'tickers' column.\n")
-      return(invisible(object))
-    }
-    if (!all(object@eligible_assets %in% grp_df$tickers)) {
-      cat("Not all eligible_assets are present in groups$tickers.\n")
-      return(invisible(object))
-    }
-
-    core_cols  <- c("id","tickers","dates")
-    group_cols <- setdiff(colnames(grp_df), core_cols)
-    if (length(group_cols) == 0L) {
-      cat("No group columns found in 'groups'.\n")
-      return(invisible(object))
-      }
-
-    # Prompt once for weights mode / benchmark (consistent across all group columns)
-    wa <- .prompt_weights_args(object) # list(weights_kind, bench_weights_col)
-
-    # Compute group metrics by calling calculate_port_stats for each group_col
-    rows <- lapply(group_cols, function(gcol) {
-      # calculate only the group metrics for this column; other fields are available but we pick the relevant ones
-      st <- calculate_port_stats(
-        object,
-        group_col        = gcol,
-        weights_kind     = wa$weights_kind,
-        bench_weights_col= wa$bench_weights_col
-      )
-
-      data.frame(
-        group_column       = gcol,
-        hhi_groups         = st$hhi_groups,
-        n_eff_groups       = st$n_eff_groups,
-        top_group_weight   = st$top_group_weight,
-        n_groups           = st$n_groups,
-        stringsAsFactors = FALSE
-      )
-    })
-
-    res <- do.call(rbind, rows)
-
-    # Nicely round numeric columns
-    num_cols <- c("hhi_groups","n_eff_groups","top_group_weight")
-    res[num_cols] <- lapply(res[num_cols], function(x) ifelse(is.na(x), NA, round(as.numeric(x), 6)))
-
-    cap_bits <- c(
-      paste0("weights=", wa$weights_kind),
-      if (!is.null(wa$bench_weights_col)) paste0("bench=", wa$bench_weights_col) else NULL
-    )
-    caption <- paste0(object@port_name, ": Group Concentration by Column",
-                      if (length(cap_bits)) paste0(" (", paste(cap_bits, collapse = " · "), ")") else "")
-
-    print(render_dt(res, caption))
-    return(invisible(object))
-  }
-
-  ## 3) Preview: Weights & Scores (+ RRC + Benchmark via universe_m_d_ref) -----
-  if (table_name == "Preview: Weights & Scores") {
-    # Pull universe df
-    if (is.null(object@universe_m_d_ref) || is.null(object@universe_m_d_ref@data)) {
-      stop("universe_m_d_ref@data is missing in this port.")
-    }
-    univ <- object@universe_m_d_ref@data
-
-    # Ensure tickers present to align
-    if (!("tickers" %in% names(univ))) {
-      stop("universe_m_d_ref@data must contain a 'tickers' column.")
-    }
-
-    # Detect benchmark weight columns
-    bench_cols <- grep("_bench_weights$", names(univ), value = TRUE)
-    if (length(bench_cols) == 0L) {
-      stop("No '*_bench_weights' column found in universe_m_d_ref@data.")
-    }
-
-    # If multiple, ask user to choose
-    chosen_bench_col <- bench_cols[1]
-    if (length(bench_cols) > 1L) {
-      cat("Available benchmark weight columns:\n")
-      for (i in seq_along(bench_cols)) cat(sprintf("%d: %s\n", i, bench_cols[i]))
-      sel <- readline(prompt = sprintf("Choose benchmark column (name or number) [default = %s]: ", chosen_bench_col))
-      if (nzchar(sel) && !is.na(suppressWarnings(as.numeric(sel)))) {
-        idx <- as.numeric(sel)
-        if (!is.na(idx) && idx >= 1 && idx <= length(bench_cols)) chosen_bench_col <- bench_cols[idx]
-      } else if (nzchar(sel) && (sel %in% bench_cols)) {
-        chosen_bench_col <- sel
-      }
-    }
-
-    # Ask whether to show ACTIVE (weights & RRC) instead of raw
-    active_ans <- readline(prompt = "Summarize ACTIVE weights and ACTIVE RRC? (yes/no) [no]: ")
-    show_active <- tolower(trimws(active_ans)) %in% c("yes", "y")
-
-    # Align portfolio vectors to eligible_assets
-    tick <- object@eligible_assets
-    w    <- as.numeric(object@weights); names(w) <- tick
-
-    # exp_ret_score (optional)
-    has_score <- !is.null(object@exp_ret_score)
-    if (has_score) {
-      score <- as.numeric(object@exp_ret_score)
-    }
-
-    # RRC (portfolio) – prefer the slot; compute if missing and Σ available
-    rrc <- NULL
-    if (!is.null(object@rel_risk_contr)) {
-      rrc <- as.numeric(object@rel_risk_contr)
-    } else if (!is.null(object@covariance_matrix)) {
-      Sigma <- object@covariance_matrix
-      Sw <- as.numeric(Sigma %*% w)
-      denom <- as.numeric(t(w) %*% Sigma %*% w)
-      rrc <- if (isTRUE(all.equal(denom, 0))) rep(NA_real_, length(w)) else w * Sw / denom
-    }
-
-    # Build benchmark weight vector aligned to eligible_assets
-    # Match eligible tickers to universe tickers
-    if (!all(tick %in% univ$tickers)) {
-      stop("Not all eligible_assets are present in universe_m_d_ref@data$tickers.")
-    }
-    ord <- match(tick, univ$tickers)
-    bw  <- as.numeric(univ[[chosen_bench_col]][ord]) # benchmark weights aligned
-
-    # Compute benchmark RRC from Σ if possible (no bench RRC column expected)
-    brrc <- rep(NA_real_, length(w))
-    if (!is.null(object@covariance_matrix)) {
-      Sigma <- object@covariance_matrix
-      Sb <- as.numeric(Sigma %*% bw)
-      bden <- as.numeric(t(bw) %*% Sigma %*% bw)
-      if (!isTRUE(all.equal(bden, 0))) brrc <- bw * Sb / bden
-    }
-
-    # Active transformations if requested
-    if (show_active) {
-      w_col_name   <- "active_weight"
-      rrc_col_name <- "active_rrc"
-      w_out   <- w - bw
-      rrc_out <- if (!is.null(rrc)) (rrc - brrc) else rep(NA_real_, length(w))
-    } else {
-      w_col_name   <- "weight"
-      rrc_col_name <- "rrc"
-      w_out   <- w
-      rrc_out <- if (!is.null(rrc)) rrc else rep(NA_real_, length(w))
-    }
-
-    # Compose preview table
-    df <- data.frame(
-      tickers = tick,
-      check.names = FALSE,
-      stringsAsFactors = FALSE
-    )
-    df[[w_col_name]] <- round(w_out, 6)
-    if (has_score) df$exp_ret_score <- round(score, 6)
-    df[[rrc_col_name]] <- round(rrc_out, 6)
-    df$bench_weight <- round(bw, 6)
-    df$bench_rrc    <- round(brrc, 6)
-
-    ## Ask user for ordering preference (aware of active/raw choice)
-    sortable_cols <- intersect(
-      c("tickers", w_col_name, "exp_ret_score", rrc_col_name, "bench_weight", "bench_rrc"),
-      names(df)
-    )
-    cat("Sortable columns available:\n")
-    for (i in seq_along(sortable_cols)) cat(sprintf("%d: %s\n", i, sortable_cols[i]))
-    default_col <- if (w_col_name %in% sortable_cols) w_col_name else sortable_cols[1]
-    sort_input <- readline(
-      prompt = sprintf("Sort by which column? (name or number) [default = %s]: ", default_col)
-    )
-
-    # Resolve chosen column
-    if (nzchar(sort_input) && !is.na(suppressWarnings(as.numeric(sort_input)))) {
-      sidx <- as.numeric(sort_input)
-      sort_col <- if (!is.na(sidx) && sidx >= 1 && sidx <= length(sortable_cols)) sortable_cols[sidx] else NULL
-    } else if (nzchar(sort_input)) {
-      sort_col <- if (sort_input %in% sortable_cols) sort_input else NULL
-    } else {
-      sort_col <- default_col
-    }
-    if (is.null(sort_col)) {
-      warning("Invalid sort column provided. Falling back to default.")
-      sort_col <- default_col
-    }
-
-    # Asc/Desc (numeric -> desc default; character -> asc)
-    is_numeric_col <- is.numeric(df[[sort_col]])
-    asc_default <- if (is_numeric_col) FALSE else TRUE
-    asc_input <- readline(
-      prompt = sprintf("Ascending order? (yes/no) [default = %s]: ",
-                       if (asc_default) "yes" else "no")
-    )
-    asc_flag <- if (tolower(trimws(asc_input)) %in% c("yes","y")) TRUE
-    else if (tolower(trimws(asc_input)) %in% c("no","n")) FALSE
-    else asc_default
-
-    # Order and preview
-    o <- base::order(df[[sort_col]], decreasing = !asc_flag, na.last = TRUE)
-    df <- df[o, , drop = FALSE]
-    df <- utils::head(df, 50)
-
-    cap <- paste0(
-      object@port_name, ": Preview (first 50 rows, ",
-      if (show_active) "ACTIVE " else "RAW ",
-      "metrics, bench = '", chosen_bench_col, "', sorted by '", sort_col, "' ",
-      if (asc_flag) "asc" else "desc", ")"
-    )
-
-    print(render_dt(df, cap))
-    return(invisible(object))
-  }
-
-
-  ## 4) Correlation Matrix ----------------------------------------------------
-  if (table_name == "Correlation Matrix") {
-    corr <- object@correlation_matrix
-    if (is.null(corr) && !is.null(object@covariance_matrix)) {
-      corr <- stats::cov2cor(object@covariance_matrix)
-    }
-    if (is.null(corr)) {
-      cat("No correlation or covariance matrix found to display.\n")
-      return(invisible(object))
-    }
-
-    # Build a data.frame with rownames as first column for DT
-    df_corr <- as.data.frame(corr, stringsAsFactors = FALSE, check.names = FALSE)
-    df_corr <- cbind(tickers = rownames(df_corr), df_corr)
-    # Round numeric cells (leave ticker column as-is)
-    num_cols <- setdiff(names(df_corr), "tickers")
-    df_corr[num_cols] <- lapply(df_corr[num_cols], function(x) round(as.numeric(x), 4))
-
-    print(render_dt(df_corr, paste0(object@port_name, ": Correlation Matrix")))
-    return(invisible(object))
-  }
-
-
-  invisible(object)
-})
-
-
 #' @title Summary Method for port_backtest_results Class
 #' @description Provides a detailed summary of `port_backtest_results` object.
 #' Users can select which summary table to display by specifying the `summary_id` parameter.
@@ -3028,6 +2561,7 @@ setMethod("summary", "port_backtest_results", function(object, summary_id = NULL
     "Returns Summary",
     "Costs Summary",
     "Metrics Summary",
+    "Stats Summary",
     "Stock Universe Summary",
     "Final Port Summary",
     "Final Stock Universe Summary",
@@ -3105,6 +2639,14 @@ setMethod("summary", "port_backtest_results", function(object, summary_id = NULL
 
     if(!is.null(port_metrics_m_xts)){
       summary(port_metrics_m_xts)
+    } else {
+      cat("No metrics available.")
+    }
+
+  } else if (table_name == "Stats Summary"){
+
+    if(!is.null(port_stats_m_df)){
+      summary(port_stats_m_df)
     } else {
       cat("No metrics available.")
     }
@@ -3255,7 +2797,8 @@ setMethod("summary", "port_backtest_cohort", function(object, summary_id = NULL)
     "Total Cost Summary",
     "Turnover Summary",
     "Weights Summary",
-    "Metrics Summary"
+    "Metrics Summary",
+    "Port Stats Summary"
   )
 
   # Print summary header
@@ -3411,6 +2954,61 @@ setMethod("summary", "port_backtest_cohort", function(object, summary_id = NULL)
     summary(metric_m_xts)
 
   }
+
+  if (table_name == "Port Stats Summary"){
+
+    port_stats_nested <- object@port_stats_m_xts_nested_list
+
+    # Validate presence
+    if (is.null(port_stats_nested) || (!length(port_stats_nested$raw_return) && !length(port_stats_nested$net_return))) {
+      stop("No port stats available in this cohort.")
+    }
+
+    # Detect which families exist
+    has_raw <- length(port_stats_nested$raw_return) > 0
+    has_net <- length(port_stats_nested$net_return) > 0
+
+    # Ask user to choose raw or net if both exist
+    chosen_family <- NULL
+    if (has_raw && has_net) {
+      cat("\nPort Stats are available for both raw_return and net_return.\n")
+      fam_in <- readline(prompt = "Type 'raw' for raw_return or 'net' for net_return: ")
+      fam_in <- tolower(trimws(fam_in))
+      if (fam_in %in% c("raw", "r")) chosen_family <- "raw_return"
+      if (fam_in %in% c("net", "n")) chosen_family <- "net_return"
+      if (is.null(chosen_family)) stop("Invalid choice. Please type 'raw' or 'net'.")
+    } else if (has_raw) {
+      chosen_family <- "raw_return"
+      cat("\nOnly raw_return stats are available. Proceeding with raw_return.\n")
+    } else { # has_net only
+      chosen_family <- "net_return"
+      cat("\nOnly net_return stats are available. Proceeding with net_return.\n")
+    }
+
+    # Available stats in the chosen family
+    family_list <- port_stats_nested[[chosen_family]]
+    if (!length(family_list)) stop("Selected family has no stats.")
+
+    # Build vector of stat names without the '_m_xts' suffix
+    all_names <- names(family_list)
+    available_stats <- sub("_m_xts$", "", all_names)
+
+    # Prompt user to pick the stat
+    cat("\nAvailable statistics:\n")
+    cat(paste0(" - ", available_stats), sep = "\n")
+    selected_stat <- readline(prompt = "Type the statistic name exactly as shown above: ")
+
+    if (!selected_stat %in% available_stats) {
+      stop("Invalid statistic selected.")
+    }
+
+    # Retrieve the meta_xts and show summary
+    stat_key <- paste0(selected_stat, "_m_xts")
+    stat_m_xts <- family_list[[stat_key]]
+    summary(stat_m_xts)
+  }
+
+
 
 })
 
