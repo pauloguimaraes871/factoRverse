@@ -1,4 +1,3 @@
-
 test_that("run_port_backtest works for a simple ew single signal strategy with only a liquidity_floor_rule constraint and selected benchmark", {
 
   #Create signals_m_d_ref
@@ -218,7 +217,13 @@ test_that("run_port_backtest works for a simple ew single signal strategy with o
 
   #Port stats
   rebal_dates <- results@port_backtest_workflow[[length(results@port_backtest_workflow)]]$rebalance_dates
-  port_stats <- summarize_performance(
+  port_stats_1 <- data.frame(
+    id = paste0(c("raw_return-", "net_return-"), rebal_dates[1]),
+    tickers = c("raw_return", "net_return"),
+    dates = rebal_dates[1],
+    ew_port_1@port_stats %>% dplyr::rename(IR = info_ratio)
+  )
+  port_stats_2 <- summarize_performance(
       selected_backtest_returns_corrected_positions_m_xts_upd_ref =
         results@port_returns_m_xts@data[which(zoo::index(results@port_returns_m_xts@data) <= rebal_dates[2]), c("raw_return", "net_return")],
       selected_market_factor_proxy_m_xts_upd_ref =
@@ -231,8 +236,11 @@ test_that("run_port_backtest works for a simple ew single signal strategy with o
             tickers = c("raw_return", "net_return"),
             ew_port_2@port_stats %>% dplyr::rename(IR = info_ratio)
           ), by = "tickers"
-      ) %>%
+      )
+
+  port_stats <- dplyr::bind_rows(port_stats_1, port_stats_2) %>%
     dplyr::arrange(id)
+  port_stats <- port_stats[, names(port_stats_2)]
 
   expect_equal(
     results@port_stats_m_df@data, port_stats
@@ -583,9 +591,15 @@ test_that("run_port_backtest works for a simple sw single signal strategy with o
                            verbose = TRUE
   )
 
-  #Port stats
+   #Port stats
   rebal_dates <- results@port_backtest_workflow[[length(results@port_backtest_workflow)]]$rebalance_dates
-  port_stats <- summarize_performance(
+  port_stats_1 <- data.frame(
+    id = paste0(c("raw_return-", "net_return-"), rebal_dates[1]),
+    tickers = c("raw_return", "net_return"),
+    dates = rebal_dates[1],
+    sw_port_1@port_stats %>% dplyr::rename(IR = info_ratio)
+  )
+  port_stats_2 <- summarize_performance(
     selected_backtest_returns_corrected_positions_m_xts_upd_ref =
       results@port_returns_m_xts@data[which(zoo::index(results@port_returns_m_xts@data) <= rebal_dates[2]), c("raw_return", "net_return")],
     selected_market_factor_proxy_m_xts_upd_ref =
@@ -598,8 +612,11 @@ test_that("run_port_backtest works for a simple sw single signal strategy with o
         tickers = c("raw_return", "net_return"),
         sw_port_2@port_stats %>% dplyr::rename(IR = info_ratio)
       ), by = "tickers"
-    ) %>%
+    )
+
+  port_stats <- dplyr::bind_rows(port_stats_1, port_stats_2) %>%
     dplyr::arrange(id)
+  port_stats <- port_stats[, names(port_stats_2)]
 
   expect_equal(
     results@port_stats_m_df@data, port_stats
@@ -856,7 +873,9 @@ test_that("run_port_backtest works for a simple sw single signal strategy with m
     min_eligible_assets_fallback = NULL,
     liquidity_m_d_ref = liquidity_m_d_ref,
     liquidity_floor_cutoffs = port_config@liquidity_floor_cutoffs,
-    liquidity_constraint_policy = as.list(port_config@liquidity_constraint_policy)
+    liquidity_constraint_policy = as.list(port_config@liquidity_constraint_policy),
+    benchmark_weights_m_d_ref = benchmark_weights_m_d_ref,
+    selected_benchmark = "ibov"
   )
 
   #Set Port Weights
@@ -958,21 +977,40 @@ test_that("run_port_backtest works for a simple sw single signal strategy with m
   )
 
   rebal_dates <- results@port_backtest_workflow[[length(results@port_backtest_workflow)]]$rebalance_dates
-  port_stats <- summarize_performance(
+  port_stats_1 <- data.frame(
+    id = paste0(c("raw_return-", "net_return-"), rebal_dates[1]),
+    tickers = c("raw_return", "net_return"),
+    dates = rebal_dates[1],
+    sw_port_1@port_stats %>% dplyr::rename(IR = info_ratio)
+  )
+  port_stats_2 <- data.frame(
+    id = paste0(c("raw_return-", "net_return-"), rebal_dates[2]),
+    tickers = c("raw_return", "net_return"),
+    dates = rebal_dates[2],
+    sw_port_2@port_stats %>% dplyr::rename(IR = info_ratio)
+  )
+
+  port_stats_3 <- summarize_performance(
     selected_backtest_returns_corrected_positions_m_xts_upd_ref =
-      results@port_returns_m_xts@data[which(zoo::index(results@port_returns_m_xts@data) <= rebal_dates[2]), c("raw_return", "net_return")],
+      results@port_returns_m_xts@data[which(zoo::index(results@port_returns_m_xts@data) <= rebal_dates[3]),
+                                      c("raw_return", "net_return")],
     selected_market_factor_proxy_m_xts_upd_ref =
-      results@port_returns_m_xts@data[which(zoo::index(results@port_returns_m_xts@data) <= rebal_dates[2]), "selected_bench_return"],
+      results@port_returns_m_xts@data[which(zoo::index(results@port_returns_m_xts@data) <= rebal_dates[3]),
+                                      "selected_bench_return"],
     model_structure = "no_pooled", model_spec_theme_level = NULL, lmer_control = FALSE,
     selected_signal_themes_m_d_ref = NULL, active_returns = TRUE, verbose = FALSE
   )$signal_universe_m_d_ref %>%
     dplyr::left_join(
       data.frame(
         tickers = c("raw_return", "net_return"),
-        sw_port_2@port_stats %>% dplyr::rename(IR = info_ratio)
+        sw_port_3@port_stats %>% dplyr::rename(IR = info_ratio)
       ), by = "tickers"
     ) %>%
     dplyr::arrange(id)
+
+  port_stats <- dplyr::bind_rows(port_stats_1, port_stats_2, port_stats_3) %>%
+    dplyr::arrange(id)
+  port_stats <- port_stats[, names(port_stats_3)]
 
   expect_equal(
     results@port_stats_m_df@data, port_stats
@@ -1178,7 +1216,8 @@ test_that("run_port_backtest works for a simple cs single signal strategy with o
     universe_m_d_ref = stock_universe_m_d_ref_1,
     port_construction_method = "cs",
     liquidity_m_d_ref = liquidity_m_d_ref,
-    cap_weighting_metric = "mean_volfin_3m"
+    cap_weighting_metric = "mean_volfin_3m",
+    selected_benchmark = "ibov"
   )
 
   #port_allocation
@@ -1282,7 +1321,8 @@ test_that("run_port_backtest works for a simple cs single signal strategy with o
     universe_m_d_ref = stock_universe_m_d_ref_2,
     port_construction_method = "cs",
     liquidity_m_d_ref = liquidity_m_d_ref,
-    cap_weighting_metric = "mean_volfin_3m"
+    cap_weighting_metric = "mean_volfin_3m",
+    selected_benchmark = "ibov"
   )
 
   #port_allocation
@@ -1309,6 +1349,38 @@ test_that("run_port_backtest works for a simple cs single signal strategy with o
                            total_cost = port_allocation_3$port_costs_d_ref$total_cost,
                            verbose = TRUE
   )
+
+  rebal_dates <- results@port_backtest_workflow[[length(results@port_backtest_workflow)]]$rebalance_dates
+  port_stats_1 <- data.frame(
+    id = paste0(c("raw_return-", "net_return-"), rebal_dates[1]),
+    tickers = c("raw_return", "net_return"),
+    dates = rebal_dates[1],
+    cs_port_1@port_stats %>% dplyr::rename(IR = info_ratio)
+  )
+  port_stats_2 <- summarize_performance(
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref =
+      results@port_returns_m_xts@data[which(zoo::index(results@port_returns_m_xts@data) <= rebal_dates[2]), c("raw_return", "net_return")],
+    selected_market_factor_proxy_m_xts_upd_ref =
+      results@port_returns_m_xts@data[which(zoo::index(results@port_returns_m_xts@data) <= rebal_dates[2]), "selected_bench_return"],
+    model_structure = "no_pooled", model_spec_theme_level = NULL, lmer_control = FALSE,
+    selected_signal_themes_m_d_ref = NULL, active_returns = TRUE, verbose = FALSE
+  )$signal_universe_m_d_ref %>%
+    dplyr::left_join(
+      data.frame(
+        tickers = c("raw_return", "net_return"),
+        cs_port_2@port_stats %>% dplyr::rename(IR = info_ratio)
+      ), by = "tickers"
+    ) %>%
+    dplyr::arrange(id)
+
+  port_stats <- dplyr::bind_rows(port_stats_1, port_stats_2) %>%
+    dplyr::arrange(id)
+  port_stats <- port_stats[, names(port_stats_2)]
+
+  expect_equal(
+    results@port_stats_m_df@data, port_stats
+  )
+
 
 
   #Check if stock universe is as expected
@@ -1537,9 +1609,10 @@ test_that("run_port_backtest works for a simple rp single signal strategy with o
     universe_m_d_ref = stock_universe_m_d_ref_1,
     port_construction_method = "rp",
     groups_m_d_ref = stock_groups_m_d_ref,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
     selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
-    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE
+    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE,
+    selected_benchmark = "ibov"
   )
 
   #port_allocation
@@ -1647,9 +1720,10 @@ test_that("run_port_backtest works for a simple rp single signal strategy with o
     universe_m_d_ref = stock_universe_m_d_ref_2,
     port_construction_method = "rp",
     groups_m_d_ref = stock_groups_m_d_ref,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
     selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
-    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE
+    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE,
+    selected_benchmark = "ibov"
   )
 
   #port_allocation
@@ -1857,6 +1931,7 @@ test_that("run_port_backtest works for a rp strategy with exp_ret_score_tilt (in
 
   #Run port_backtest
   expect_warning(
+  expect_warning(
     results <- run_port_backtest(signals_m_df = signals_m_df,
                                  fwd_return_m_df = fwd_return_m_df,
                                  liquidity_m_df = liquidity_m_df,
@@ -1871,6 +1946,8 @@ test_that("run_port_backtest works for a rp strategy with exp_ret_score_tilt (in
                                  custom_stock_metrics_m_df = port_metrics_m_df,
                                  verbose = TRUE),
     "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."
+  ),
+  "Weights for group 'Consumo Não-Cíclico' sum to zero. Fallback to equal weights."
   )
 
   #Expected results
@@ -1967,25 +2044,31 @@ test_that("run_port_backtest works for a rp strategy with exp_ret_score_tilt (in
 
 
   #Set Port Weights
-  rp_port_1 <- set_portfolio_weights(
-    universe_m_d_ref = stock_universe_m_d_ref_1,
-    port_construction_method = "rp",
-    groups_m_d_ref = stock_groups_m_d_ref,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
-    exp_ret_score_tilt = port_config@rp_parameters@exp_ret_score_tilt,
-    exp_ret_score_tilt_eta = port_config@rp_parameters@exp_ret_score_tilt_eta,
-    selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
-    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE
+  suppressWarnings(
+    rp_port_1 <- set_portfolio_weights(
+      universe_m_d_ref = stock_universe_m_d_ref_1,
+      port_construction_method = "rp",
+      groups_m_d_ref = stock_groups_m_d_ref,
+      eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+      exp_ret_score_tilt = port_config@rp_parameters@exp_ret_score_tilt,
+      exp_ret_score_tilt_eta = port_config@rp_parameters@exp_ret_score_tilt_eta,
+      selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
+      selected_benchmark = "ibov",
+      cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE
+    )
   )
 
   ## Test that exp_ret_score_tilt increases dy_med_36m
-  rp_port_contrafactual <- set_portfolio_weights(
-    universe_m_d_ref = stock_universe_m_d_ref_1 %>% dplyr::mutate(exp_ret_score = exp_ret_score_raw),
-    port_construction_method = "rp",
-    groups_m_d_ref = stock_groups_m_d_ref,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
-    selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
-    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE
+  suppressWarnings(
+    rp_port_contrafactual <- set_portfolio_weights(
+      universe_m_d_ref = stock_universe_m_d_ref_1 %>% dplyr::mutate(exp_ret_score = exp_ret_score_raw),
+      port_construction_method = "rp",
+      groups_m_d_ref = stock_groups_m_d_ref,
+      selected_benchmark = "ibov",
+      eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+      selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
+      cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE
+    )
   )
 
   expect_gt(
@@ -2006,7 +2089,8 @@ test_that("run_port_backtest works for a rp strategy with exp_ret_score_tilt (in
     universe_m_d_ref = stock_universe_m_d_ref_1,
     port_construction_method = "rp",
     groups_m_d_ref = stock_groups_m_d_ref,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    selected_benchmark = "ibov",
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
     selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
     cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE
   )
@@ -2134,9 +2218,10 @@ test_that("run_port_backtest works for a rp strategy with exp_ret_score_tilt (in
     universe_m_d_ref = stock_universe_m_d_ref_2,
     port_construction_method = "rp",
     groups_m_d_ref = stock_groups_m_d_ref,
+    selected_benchmark = "ibov",
     exp_ret_score_tilt = port_config@rp_parameters@exp_ret_score_tilt,
     exp_ret_score_tilt_eta = port_config@rp_parameters@exp_ret_score_tilt_eta,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
     selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
     cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE
   )
@@ -2146,7 +2231,8 @@ test_that("run_port_backtest works for a rp strategy with exp_ret_score_tilt (in
     universe_m_d_ref = stock_universe_m_d_ref_2 %>% dplyr::mutate(exp_ret_score = exp_ret_score_raw),
     port_construction_method = "rp",
     groups_m_d_ref = stock_groups_m_d_ref,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    selected_benchmark = "ibov",
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
     selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
     cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE
   )
@@ -2169,7 +2255,8 @@ test_that("run_port_backtest works for a rp strategy with exp_ret_score_tilt (in
     universe_m_d_ref = stock_universe_m_d_ref_2,
     port_construction_method = "rp",
     groups_m_d_ref = stock_groups_m_d_ref,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    selected_benchmark = "ibov",
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
     selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
     cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE
   )
@@ -2513,11 +2600,12 @@ test_that("run_port_backtest works for a hrp strategy with exp_ret_score_tilt (f
     universe_m_d_ref = stock_universe_m_d_ref_1,
     port_construction_method = "hrp",
     groups_m_d_ref = stock_groups_m_d_ref,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
     exp_ret_score_tilt = port_config@hrp_parameters@exp_ret_score_tilt,
     exp_ret_score_tilt_eta = port_config@hrp_parameters@exp_ret_score_tilt_eta,
     selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
-    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE
+    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE,
+    selected_benchmark = "ibov"
   )
 
   ## Test that exp_ret_score_tilt increases dy_med_36m
@@ -2525,9 +2613,10 @@ test_that("run_port_backtest works for a hrp strategy with exp_ret_score_tilt (f
     universe_m_d_ref = stock_universe_m_d_ref_1 %>% dplyr::mutate(exp_ret_score = exp_ret_score_raw),
     port_construction_method = "hrp",
     groups_m_d_ref = stock_groups_m_d_ref,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
     selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
-    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE
+    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE,
+    selected_benchmark = "ibov"
   )
 
   expect_gt(
@@ -2548,9 +2637,10 @@ test_that("run_port_backtest works for a hrp strategy with exp_ret_score_tilt (f
     universe_m_d_ref = stock_universe_m_d_ref_1,
     port_construction_method = "hrp",
     groups_m_d_ref = stock_groups_m_d_ref,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
     selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
-    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE
+    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE,
+    selected_benchmark = "ibov"
   )
 
   expect_gt(
@@ -2678,9 +2768,10 @@ test_that("run_port_backtest works for a hrp strategy with exp_ret_score_tilt (f
     groups_m_d_ref = stock_groups_m_d_ref,
     exp_ret_score_tilt = port_config@hrp_parameters@exp_ret_score_tilt,
     exp_ret_score_tilt_eta = port_config@hrp_parameters@exp_ret_score_tilt_eta,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
     selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
-    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE
+    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE,
+    selected_benchmark = "ibov"
   )
 
   ## Test that exp_ret_score_tilt increases dy_med_36m
@@ -2688,9 +2779,10 @@ test_that("run_port_backtest works for a hrp strategy with exp_ret_score_tilt (f
     universe_m_d_ref = stock_universe_m_d_ref_2 %>% dplyr::mutate(exp_ret_score = exp_ret_score_raw),
     port_construction_method = "hrp",
     groups_m_d_ref = stock_groups_m_d_ref,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
     selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
-    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE
+    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE,
+    selected_benchmark = "ibov"
   )
 
   expect_gt(
@@ -2711,9 +2803,10 @@ test_that("run_port_backtest works for a hrp strategy with exp_ret_score_tilt (f
     universe_m_d_ref = stock_universe_m_d_ref_2,
     port_construction_method = "hrp",
     groups_m_d_ref = stock_groups_m_d_ref,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
     selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
-    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE
+    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE,
+    selected_benchmark = "ibov"
   )
 
   expect_gt(
@@ -2736,9 +2829,10 @@ test_that("run_port_backtest works for a hrp strategy with exp_ret_score_tilt (f
     groups_m_d_ref = stock_groups_m_d_ref,
     exp_ret_score_tilt = "final",
     exp_ret_score_tilt_eta = 1.0,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
     selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
-    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE
+    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE,
+    selected_benchmark = "ibov"
   )
 
   expect_lt(
@@ -2977,6 +3071,7 @@ test_that("run_port_backtest works for a mmaf top_down strategy and selected ben
     create_meta_dataframe()
 
   #Run port_backtest
+  set.seed(123)
   suppressWarnings(
     results <- run_port_backtest(signals_m_df = signals_m_df,
                                  fwd_return_m_df = fwd_return_m_df,
@@ -2992,6 +3087,7 @@ test_that("run_port_backtest works for a mmaf top_down strategy and selected ben
                                  benchmark_returns_m_xts = benchmark_returns_m_xts,
                                  custom_stock_metrics_m_df = port_metrics_m_df,
                                  .test_seed = 123,
+                                 parallel = FALSE,
                                  verbose = TRUE)
   )
 
@@ -3109,23 +3205,31 @@ test_that("run_port_backtest works for a mmaf top_down strategy and selected ben
 
   #Set Port Weights
   set.seed(123)
+  suppressWarnings(
   mmaf_port_1 <- set_portfolio_weights(
     universe_m_d_ref = stock_universe_m_d_ref_1,
     port_construction_method = "mmaf",
     groups_m_d_ref = stock_groups_m_d_ref,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    eligible_returns_m_xts_upd_ref =
+      daily_stock_returns_m_xts_upd_ref,
     macro_opt_method = "random", macro_rp_method = "sample",
     macro_n_random_ports = 500, macro_opt_objective = "sharpe",
     macro_ridge_pen = macro_ridge_pen, macro_n_resamples = 3,
     macro_exp_ret_score_jitter = 0.2, macro_cov_eigval_jitter = 0.3,
     mmaf_group_col = "macro_sector", top_down_proxy_port_method = "rp",
     mmaf_method = "top_down",
+    liquidity_constraint_policy = liquidity_constraint_policy,
+    liquidity_m_d_ref = liquidity_m_d_ref,
     macro_concentration_constraint_policy = as.list(macro_concentration_constraint_policy),
     macro_port_construction_method = "mvo",
     micro_port_construction_method = "hrp",
     exp_ret_score_tilt = "inner", exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
     selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
-    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE
+    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE,
+    selected_benchmark = "ibov",
+    bench_assets_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    verbose = TRUE
+    )
   )
 
   ## Test that there is resampling evidence
@@ -3146,11 +3250,12 @@ test_that("run_port_backtest works for a mmaf top_down strategy and selected ben
 
   ## Test that exp_ret_score_tilt increases dy_med_36m
   set.seed(123)
+  suppressWarnings(
   mmaf_port_contrafactual <- set_portfolio_weights(
     universe_m_d_ref = stock_universe_m_d_ref_1,
     port_construction_method = "mmaf",
     groups_m_d_ref = stock_groups_m_d_ref,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
     macro_opt_method = "random", macro_rp_method = "sample",
     macro_n_random_ports = 500, macro_opt_objective = "sharpe",
     macro_ridge_pen = macro_ridge_pen, macro_n_resamples = 3,
@@ -3161,7 +3266,9 @@ test_that("run_port_backtest works for a mmaf top_down strategy and selected ben
     macro_port_construction_method = "mvo",
     micro_port_construction_method = "hrp",
     selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
-    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE
+    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE,
+    selected_benchmark = "ibov", bench_assets_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref
+    )
   )
 
   expect_gt(
@@ -3194,11 +3301,12 @@ test_that("run_port_backtest works for a mmaf top_down strategy and selected ben
   ## Test that running without ridge pen will provide a portfolio with more differences to target_weights
   #Set Port Weights
   set.seed(123)
+  suppressWarnings(
   mmaf_port_contrafactual <- set_portfolio_weights(
     universe_m_d_ref = stock_universe_m_d_ref_1,
     port_construction_method = "mmaf",
     groups_m_d_ref = stock_groups_m_d_ref,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
     macro_opt_method = "random", macro_rp_method = "sample",
     macro_n_random_ports = 500, macro_opt_objective = "sharpe",
     macro_n_resamples = 3,
@@ -3210,7 +3318,9 @@ test_that("run_port_backtest works for a mmaf top_down strategy and selected ben
     micro_port_construction_method = "hrp",
     exp_ret_score_tilt = "inner", exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
     selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
-    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE
+    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE,
+    selected_benchmark = "ibov", bench_assets_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref
+  )
   )
 
   expect_true("target_weights" %in% names(mmaf_port_1@universe_m_d_ref@data))
@@ -3415,11 +3525,12 @@ test_that("run_port_backtest works for a mmaf top_down strategy and selected ben
 
   #Set Port Weights
   set.seed(123)
+  suppressWarnings(
   mmaf_port_2 <- set_portfolio_weights(
     universe_m_d_ref = stock_universe_m_d_ref_2,
     port_construction_method = "mmaf",
     groups_m_d_ref = stock_groups_m_d_ref,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
     macro_opt_method = "random", macro_rp_method = "sample",
     macro_n_random_ports = 500, macro_opt_objective = "sharpe",
     macro_ridge_pen = macro_ridge_pen, macro_n_resamples = 3,
@@ -3429,9 +3540,12 @@ test_that("run_port_backtest works for a mmaf top_down strategy and selected ben
     macro_concentration_constraint_policy = as.list(macro_concentration_constraint_policy),
     macro_port_construction_method = "mvo",
     micro_port_construction_method = "hrp",
+    liquidity_m_d_ref = liquidity_m_d_ref,
     exp_ret_score_tilt = "inner", exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
     selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
-    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE
+    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE,
+    selected_benchmark = "ibov", bench_assets_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref
+  )
   )
 
   ## Test that there is resampling evidence
@@ -3452,11 +3566,12 @@ test_that("run_port_backtest works for a mmaf top_down strategy and selected ben
 
   ## Test that exp_ret_score_tilt increases dy_med_36m
   set.seed(123)
+  suppressWarnings(
   mmaf_port_contrafactual <- set_portfolio_weights(
     universe_m_d_ref = stock_universe_m_d_ref_2,
     port_construction_method = "mmaf",
     groups_m_d_ref = stock_groups_m_d_ref,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
     macro_opt_method = "random", macro_rp_method = "sample",
     macro_n_random_ports = 500, macro_opt_objective = "sharpe",
     macro_ridge_pen = macro_ridge_pen, macro_n_resamples = 3,
@@ -3467,7 +3582,9 @@ test_that("run_port_backtest works for a mmaf top_down strategy and selected ben
     macro_port_construction_method = "mvo",
     micro_port_construction_method = "hrp",
     selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
-    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE
+    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE,
+    selected_benchmark = "ibov", bench_assets_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref
+  )
   )
 
   expect_gt(
@@ -3500,11 +3617,12 @@ test_that("run_port_backtest works for a mmaf top_down strategy and selected ben
   ## Test that running without ridge pen will provide a portfolio with more differences to target_weights
   #Set Port Weights
   set.seed(123)
-  mmaf_port_contrafactual <- set_portfolio_weights(
+
+  mmaf_port_contrafactual <- suppressWarnings(set_portfolio_weights(
     universe_m_d_ref = stock_universe_m_d_ref_2,
     port_construction_method = "mmaf",
     groups_m_d_ref = stock_groups_m_d_ref,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
     macro_opt_method = "random", macro_rp_method = "sample",
     macro_n_random_ports = 500, macro_opt_objective = "sharpe",
     macro_n_resamples = 3,
@@ -3516,7 +3634,9 @@ test_that("run_port_backtest works for a mmaf top_down strategy and selected ben
     micro_port_construction_method = "hrp",
     exp_ret_score_tilt = "inner", exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
     selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
-    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE
+    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE,
+    selected_benchmark = "ibov", bench_assets_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref
+  )
   )
 
   expect_true("target_weights" %in% names(mmaf_port_2@universe_m_d_ref@data))
@@ -3696,6 +3816,37 @@ test_that("run_port_backtest works for a mmaf top_down strategy and selected ben
   expect_equal(as.Date(zoo::index(results@port_metrics_m_xts@data)[3]), as.Date(c("2023-04-15")))
 
 
+  #Port stats
+  rebal_dates <- results@port_backtest_workflow[[length(results@port_backtest_workflow)]]$rebalance_dates
+  port_stats_1 <- data.frame(
+    id = paste0(c("raw_return-", "net_return-"), rebal_dates[1]),
+    tickers = c("raw_return", "net_return"),
+    dates = rebal_dates[1],
+    mmaf_port_1@port_stats %>% dplyr::rename(IR = info_ratio)
+  )
+  port_stats_2 <- summarize_performance(
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref =
+      results@port_returns_m_xts@data[which(zoo::index(results@port_returns_m_xts@data) <= rebal_dates[2]), c("raw_return", "net_return")],
+    selected_market_factor_proxy_m_xts_upd_ref =
+      results@port_returns_m_xts@data[which(zoo::index(results@port_returns_m_xts@data) <= rebal_dates[2]), "selected_bench_return"],
+    model_structure = "no_pooled", model_spec_theme_level = NULL, lmer_control = FALSE,
+    selected_signal_themes_m_d_ref = NULL, active_returns = TRUE, verbose = FALSE
+  )$signal_universe_m_d_ref %>%
+    dplyr::left_join(
+      data.frame(
+        tickers = c("raw_return", "net_return"),
+        mmaf_port_2@port_stats %>% dplyr::rename(IR = info_ratio)
+      ), by = "tickers"
+    ) %>%
+    dplyr::arrange(id)
+  port_stats <- dplyr::bind_rows(port_stats_1, port_stats_2) %>%
+    dplyr::arrange(id)
+  port_stats <- port_stats[, names(port_stats_2)]
+
+  expect_equal(
+    results@port_stats_m_df@data,
+    port_stats)
+
 })
 
 test_that("run_port_backtest works for a mmaf bottom_up strategy and selected benchmark (macro = constrained rp, constrained rp)", {
@@ -3843,7 +3994,7 @@ test_that("run_port_backtest works for a mmaf bottom_up strategy and selected be
     universe_m_d_ref = stock_universe_m_d_ref_1,
     port_construction_method = "mmaf",
     groups_m_d_ref = stock_groups_m_d_ref,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
     exp_ret_score_tilt = "inner", exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
     macro_exp_ret_score_tilt = "inner", macro_exp_ret_score_tilt_eta = macro_exp_ret_score_tilt_eta,
     mmaf_group_col = "macro_sector", top_down_proxy_port_method = NULL,
@@ -3854,7 +4005,8 @@ test_that("run_port_backtest works for a mmaf bottom_up strategy and selected be
     macro_port_construction_method = "rp",
     micro_port_construction_method = "rp",
     selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
-    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE
+    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE,
+    selected_benchmark = "ibov"
   ))
 
   ## Test that constraints were applied to both bottom up and top down
@@ -3900,7 +4052,7 @@ test_that("run_port_backtest works for a mmaf bottom_up strategy and selected be
     universe_m_d_ref = stock_universe_m_d_ref_1,
     port_construction_method = "mmaf",
     groups_m_d_ref = stock_groups_m_d_ref,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
     mmaf_group_col = "macro_sector", top_down_proxy_port_method = NULL,
     mmaf_method = "bottom_up",
     concentration_constraint_policy = as.list(concentration_constraint_policy),
@@ -3909,7 +4061,8 @@ test_that("run_port_backtest works for a mmaf bottom_up strategy and selected be
     macro_port_construction_method = "rp",
     micro_port_construction_method = "rp",
     selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
-    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE
+    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE,
+    selected_benchmark = "ibov"
   ))
 
   expect_gt(
@@ -4081,7 +4234,7 @@ test_that("run_port_backtest works for a mmaf bottom_up strategy and selected be
     universe_m_d_ref = stock_universe_m_d_ref_2,
     port_construction_method = "mmaf",
     groups_m_d_ref = stock_groups_m_d_ref,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
     exp_ret_score_tilt = "inner", exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
     macro_exp_ret_score_tilt = "inner", macro_exp_ret_score_tilt_eta = macro_exp_ret_score_tilt_eta,
     mmaf_group_col = "macro_sector", top_down_proxy_port_method = NULL,
@@ -4092,7 +4245,8 @@ test_that("run_port_backtest works for a mmaf bottom_up strategy and selected be
     macro_port_construction_method = "rp",
     micro_port_construction_method = "rp",
     selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
-    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE
+    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE,
+    selected_benchmark = "ibov"
   ))
 
   ## Test that constraints were applied to both bottom up and top down
@@ -4139,7 +4293,7 @@ test_that("run_port_backtest works for a mmaf bottom_up strategy and selected be
     universe_m_d_ref = stock_universe_m_d_ref_2,
     port_construction_method = "mmaf",
     groups_m_d_ref = stock_groups_m_d_ref,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
     mmaf_group_col = "macro_sector", top_down_proxy_port_method = NULL,
     mmaf_method = "bottom_up",
     concentration_constraint_policy = as.list(concentration_constraint_policy),
@@ -4148,7 +4302,8 @@ test_that("run_port_backtest works for a mmaf bottom_up strategy and selected be
     macro_port_construction_method = "rp",
     micro_port_construction_method = "rp",
     selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
-    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE
+    cov_estimation_method = "ewma", cov_matrix_sample_size = 52, active_returns = TRUE,
+    selected_benchmark = "ibov"
   ))
 
 
@@ -4431,7 +4586,8 @@ test_that("run_port_backtest works for a oos_predictions blended strategy with o
   #Set Port Weights
   sw_port_1 <- set_portfolio_weights(
     universe_m_d_ref = stock_universe_m_d_ref_1,
-    port_construction_method = "sw"
+    port_construction_method = "sw",
+    selected_benchmark = "ibov"
   )
 
   #port_allocation
@@ -4532,7 +4688,8 @@ test_that("run_port_backtest works for a oos_predictions blended strategy with o
   #Set Port Weights
   sw_port_2 <- set_portfolio_weights(
     universe_m_d_ref = stock_universe_m_d_ref_2,
-    port_construction_method = "sw"
+    port_construction_method = "sw",
+    selected_benchmark = "ibov"
   )
 
   #port_allocation
@@ -4826,12 +4983,13 @@ test_that("run_port_backtest works for a oos_predictions blended strategy and 'm
     concentration_constraint_policy = as.list(port_config@concentration_constraint_policy),
     turnover_constraint_policy = as.list(port_config@turnover_constraint_policy),
     groups_m_d_ref = stock_groups_m_d_ref,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
     selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
     active_returns = port_config@cov_est_method@active_returns,
     cov_estimation_method = port_config@cov_est_method@cov_estimation_method,
     cov_matrix_sample_size = port_config@cov_est_method@cov_matrix_sample_size,
-    n_random_ports = port_config@mvo_parameters@n_random_ports
+    n_random_ports = port_config@mvo_parameters@n_random_ports,
+    selected_benchmark = "ibov"
   )
 
   #port_allocation
@@ -4949,12 +5107,13 @@ test_that("run_port_backtest works for a oos_predictions blended strategy and 'm
     concentration_constraint_policy = as.list(port_config@concentration_constraint_policy),
     turnover_constraint_policy = as.list(port_config@turnover_constraint_policy),
     groups_m_d_ref = stock_groups_m_d_ref,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
     selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
     active_returns = port_config@cov_est_method@active_returns,
     cov_estimation_method = port_config@cov_est_method@cov_estimation_method,
     cov_matrix_sample_size = port_config@cov_est_method@cov_matrix_sample_size,
-    n_random_ports = port_config@mvo_parameters@n_random_ports
+    n_random_ports = port_config@mvo_parameters@n_random_ports,
+    selected_benchmark = "ibov"
   )
 
   #port_allocation
@@ -5341,12 +5500,13 @@ test_that("run_port_backtest works for a oos_predictions blended strategy and 'm
     n_resamples = 3,
     exp_ret_score_jitter = 0.2,
     cov_eigval_jitter = 0.1,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
     selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
     active_returns = port_config@cov_est_method@active_returns,
     cov_estimation_method = port_config@cov_est_method@cov_estimation_method,
     cov_matrix_sample_size = port_config@cov_est_method@cov_matrix_sample_size,
-    n_random_ports = port_config@mvo_parameters@n_random_ports
+    n_random_ports = port_config@mvo_parameters@n_random_ports,
+    selected_benchmark = "ibov"
   )
 
     ##Run counterfactual
@@ -5361,12 +5521,13 @@ test_that("run_port_backtest works for a oos_predictions blended strategy and 'm
       n_resamples = 3,
       exp_ret_score_jitter = 0.2,
       cov_eigval_jitter = 0.1,
-      returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+      eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
       selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
       active_returns = port_config@cov_est_method@active_returns,
       cov_estimation_method = port_config@cov_est_method@cov_estimation_method,
       cov_matrix_sample_size = port_config@cov_est_method@cov_matrix_sample_size,
-      n_random_ports = port_config@mvo_parameters@n_random_ports
+      n_random_ports = port_config@mvo_parameters@n_random_ports,
+      selected_benchmark = "ibov"
     )
 
     ## Test that mvo_port_1 weights are closer to target_port_m_df than counterfactual
@@ -5501,12 +5662,13 @@ test_that("run_port_backtest works for a oos_predictions blended strategy and 'm
     n_resamples = 3,
     exp_ret_score_jitter = 0.2,
     cov_eigval_jitter = 0.1,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
     selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
     active_returns = port_config@cov_est_method@active_returns,
     cov_estimation_method = port_config@cov_est_method@cov_estimation_method,
     cov_matrix_sample_size = port_config@cov_est_method@cov_matrix_sample_size,
-    n_random_ports = port_config@mvo_parameters@n_random_ports
+    n_random_ports = port_config@mvo_parameters@n_random_ports,
+    selected_benchmark = "ibov"
   )
 
   ##Run counterfactual
@@ -5521,12 +5683,13 @@ test_that("run_port_backtest works for a oos_predictions blended strategy and 'm
     n_resamples = 3,
     exp_ret_score_jitter = 0.2,
     cov_eigval_jitter = 0.1,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
     selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
     active_returns = port_config@cov_est_method@active_returns,
     cov_estimation_method = port_config@cov_est_method@cov_estimation_method,
     cov_matrix_sample_size = port_config@cov_est_method@cov_matrix_sample_size,
-    n_random_ports = port_config@mvo_parameters@n_random_ports
+    n_random_ports = port_config@mvo_parameters@n_random_ports,
+    selected_benchmark = "ibov"
   )
 
   ## Test that mvo_port_1 weights are closer to target_port_m_df than counterfactual
@@ -5943,12 +6106,13 @@ test_that("run_port_backtest works for a META-LEVEL oos_predictions blended stra
     concentration_constraint_policy = as.list(port_config@concentration_constraint_policy),
     turnover_constraint_policy = as.list(port_config@turnover_constraint_policy),
     groups_m_d_ref = stock_groups_m_d_ref,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
     selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
     active_returns = port_config@cov_est_method@active_returns,
     cov_estimation_method = port_config@cov_est_method@cov_estimation_method,
     cov_matrix_sample_size = port_config@cov_est_method@cov_matrix_sample_size,
-    n_random_ports = port_config@mvo_parameters@n_random_ports
+    n_random_ports = port_config@mvo_parameters@n_random_ports,
+    selected_benchmark = "ibov"
   )
 
   #port_allocation
@@ -6066,12 +6230,13 @@ test_that("run_port_backtest works for a META-LEVEL oos_predictions blended stra
     concentration_constraint_policy = as.list(port_config@concentration_constraint_policy),
     turnover_constraint_policy = as.list(port_config@turnover_constraint_policy),
     groups_m_d_ref = stock_groups_m_d_ref,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
     selected_benchmark_m_xts_upd_ref = daily_bench_returns_m_xts_upd_ref[, "ibov"],
     active_returns = port_config@cov_est_method@active_returns,
     cov_estimation_method = port_config@cov_est_method@cov_estimation_method,
     cov_matrix_sample_size = port_config@cov_est_method@cov_matrix_sample_size,
-    n_random_ports = port_config@mvo_parameters@n_random_ports
+    n_random_ports = port_config@mvo_parameters@n_random_ports,
+    selected_benchmark = "ibov"
   )
 
   #port_allocation
@@ -6400,6 +6565,7 @@ test_that("run_port_backtest works for a benchmark-agnostic oos_predictions blen
   expect_warning(
   expect_warning(
   expect_warning(
+  expect_warning(
     results <- run_port_backtest(signals_m_df = signals_m_df,
                                  fwd_return_m_df = fwd_return_m_df,
                                  config = port_config,
@@ -6416,6 +6582,8 @@ test_that("run_port_backtest works for a benchmark-agnostic oos_predictions blen
   ), "Total cost higher than 1.0%. Consider changing backtest parameters or implementing a stricter liquidity_floor_rule constraint."
   ),
   "Total cost higher than 1.0%. Consider changing backtest parameters or implementing a stricter liquidity_floor_rule constraint."
+  ),
+  "Weights for group 'Utilidade Pública' sum to zero. Fallback to equal weights."
   )
 
   #Expected results
@@ -6462,6 +6630,7 @@ test_that("run_port_backtest works for a benchmark-agnostic oos_predictions blen
 
   #Set Port Weights
   set.seed(123)
+  suppressWarnings(
   mvo_port_1 <- set_portfolio_weights(
     universe_m_d_ref = stock_universe_m_d_ref_1,
     port_construction_method = "mvo",
@@ -6469,13 +6638,14 @@ test_that("run_port_backtest works for a benchmark-agnostic oos_predictions blen
     concentration_constraint_policy = as.list(port_config@concentration_constraint_policy),
     turnover_constraint_policy = as.list(port_config@turnover_constraint_policy),
     groups_m_d_ref = stock_groups_m_d_ref,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
     selected_benchmark_m_xts_upd_ref = NULL,
     opt_objective = "return",
     active_returns = port_config@cov_est_method@active_returns,
     cov_estimation_method = port_config@cov_est_method@cov_estimation_method,
     cov_matrix_sample_size = port_config@cov_est_method@cov_matrix_sample_size,
     n_random_ports = port_config@mvo_parameters@n_random_ports
+  )
   )
 
   #port_allocation
@@ -6589,6 +6759,7 @@ test_that("run_port_backtest works for a benchmark-agnostic oos_predictions blen
 
   #Set Port Weights
   set.seed(123)
+  suppressWarnings(
   mvo_port_2 <- set_portfolio_weights(
     universe_m_d_ref = stock_universe_m_d_ref_2,
     port_construction_method = "mvo",
@@ -6596,13 +6767,14 @@ test_that("run_port_backtest works for a benchmark-agnostic oos_predictions blen
     concentration_constraint_policy = as.list(port_config@concentration_constraint_policy),
     turnover_constraint_policy = as.list(port_config@turnover_constraint_policy),
     groups_m_d_ref = stock_groups_m_d_ref,
-    returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
     selected_benchmark_m_xts_upd_ref = NULL,
     opt_objective = "return",
     active_returns = port_config@cov_est_method@active_returns,
     cov_estimation_method = port_config@cov_est_method@cov_estimation_method,
     cov_matrix_sample_size = port_config@cov_est_method@cov_matrix_sample_size,
     n_random_ports = port_config@mvo_parameters@n_random_ports
+  )
   )
 
   #port_allocation
@@ -6720,6 +6892,35 @@ test_that("run_port_backtest works for a benchmark-agnostic oos_predictions blen
                port_metric_3 %>% as.numeric()
   )
 
+  #Check for port stats
+  rebal_dates <- results@port_backtest_workflow[[length(results@port_backtest_workflow)]]$rebalance_dates
+  port_stats_1 <- data.frame(
+    id = paste0(c("raw_return-", "net_return-"), rebal_dates[1]),
+    tickers = c("raw_return", "net_return"),
+    dates = rebal_dates[1],
+    mvo_port_1@port_stats %>% dplyr::rename(SR = sharpe)
+  )
+  port_stats_2 <- create_performance_m_df(
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref =
+      results@port_returns_m_xts@data[which(zoo::index(results@port_returns_m_xts@data) <= rebal_dates[2]), c("raw_return", "net_return")],
+    selected_market_factor_proxy_m_xts_upd_ref = NULL, active_returns = FALSE
+  ) %>%
+    dplyr::left_join(
+      data.frame(
+        tickers = c("raw_return", "net_return"),
+        mvo_port_2@port_stats %>% dplyr::rename(SR = sharpe)
+      ), by = "tickers"
+    )
+
+  port_stats <- dplyr::bind_rows(port_stats_1, port_stats_2) %>%
+    dplyr::arrange(id)
+  port_stats <- port_stats[, names(port_stats_2)]
+
+  expect_equal(
+    results@port_stats_m_df@data, port_stats
+  )
+
+
 
   #Check for stock port
   expect_equal(results@final_stock_port@type, "signal_blend")
@@ -6762,6 +6963,7 @@ test_that("run_port_backtest work for a benchmark-sensitive cohort of cw, cs and
   benchmark_weights_m_df <- create_meta_dataframe(benchmark_weights_m_df, type = "weights")
   benchmark_returns_m_xts <- create_meta_xts(benchmark_returns_m_xts)
   port_metrics_m_df <- create_meta_dataframe(signals_m_df@data)
+  stock_groups_m_df <- create_meta_dataframe(stock_groups_m_df, type = "groups")
 
   #Create port_backtest_config 1
   chosen_score_metric_and_position <- c(book_yield = "long")
@@ -6868,6 +7070,7 @@ test_that("run_port_backtest work for a benchmark-sensitive cohort of cw, cs and
                                     liquidity_m_df = liquidity_m_df,
                                     volatility_m_df = volatility_m_df,
                                     config = cw_config,
+                                    stock_groups_m_df = stock_groups_m_df,
                                     benchmark_weights_m_df = benchmark_weights_m_df,
                                     benchmark_returns_m_xts = benchmark_returns_m_xts,
                                     custom_stock_metrics_m_df = port_metrics_m_df,
@@ -6883,9 +7086,12 @@ test_that("run_port_backtest work for a benchmark-sensitive cohort of cw, cs and
   expect_equal(length(port_cohort@port_backtest_results_list), 3)
 
   #Check that port_weights are according to expectation
-  expect_equal(port_cohort@port_weights_m_df@data$`c:sw_book_yield_s:not_identified_f:not_identified`, sw_results@port_weights_m_df@data$eop_port_weights)
-  expect_equal(port_cohort@port_weights_m_df@data$`c:cs_book_yield_s:not_identified_f:not_identified`, cs_results@port_weights_m_df@data$eop_port_weights)
-  expect_equal(port_cohort@port_weights_m_df@data$`c:cw_book_yield_s:not_identified_f:not_identified`, cw_results@port_weights_m_df@data$eop_port_weights)
+  expect_equal(port_cohort@port_weights_m_df@data$c__sw_book_yield_s__not_identified_f__not_identified,
+               sw_results@port_weights_m_df@data$eop_port_weights)
+  expect_equal(port_cohort@port_weights_m_df@data$c__cs_book_yield_s__not_identified_f__not_identified,
+               cs_results@port_weights_m_df@data$eop_port_weights)
+  expect_equal(port_cohort@port_weights_m_df@data$c__cw_book_yield_s__not_identified_f__not_identified,
+               cw_results@port_weights_m_df@data$eop_port_weights)
   expect_equal(port_cohort@port_weights_m_df@data$bench_weights, cw_results@port_weights_m_df@data$bench_weights)
   expect_equal(port_cohort@port_weights_m_df@data$bench_weights, sw_results@port_weights_m_df@data$bench_weights)
   expect_equal(port_cohort@port_weights_m_df@data$bench_weights, cs_results@port_weights_m_df@data$bench_weights)
@@ -6893,78 +7099,78 @@ test_that("run_port_backtest work for a benchmark-sensitive cohort of cw, cs and
   expect_true(all(cs_results@port_weights_m_df@data$id %in% port_cohort@port_weights_m_df@data$id))
 
   #Check that port returns are according to expectation
-  expect_equal(port_cohort@port_returns_m_xts_list$raw_returns_m_xts@data$c.sw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+  expect_equal(port_cohort@port_returns_m_xts_list$raw_returns_m_xts@data$c__sw_book_yield_s__not_identified_f__not_identified %>% as.data.frame() %>% unname(),
                sw_results@port_returns_m_xts@data$raw_return %>% as.data.frame() %>% unname())
-  expect_equal(port_cohort@port_returns_m_xts_list$raw_returns_m_xts@data$c.cs_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+  expect_equal(port_cohort@port_returns_m_xts_list$raw_returns_m_xts@data$c__cs_book_yield_s__not_identified_f__not_identified %>% as.data.frame() %>% unname(),
                cs_results@port_returns_m_xts@data$raw_return %>% as.data.frame() %>% unname())
-  expect_equal(port_cohort@port_returns_m_xts_list$raw_returns_m_xts@data$c.cw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+  expect_equal(port_cohort@port_returns_m_xts_list$raw_returns_m_xts@data$c__cw_book_yield_s__not_identified_f__not_identified %>% as.data.frame() %>% unname(),
                cw_results@port_returns_m_xts@data$raw_return %>% as.data.frame() %>% unname())
 
   expect_equal(port_cohort@port_returns_m_xts_list$raw_returns_m_xts@data$selected_bench_return, sw_results@port_returns_m_xts@data$selected_bench_return)
   expect_equal(port_cohort@port_returns_m_xts_list$raw_returns_m_xts@data$selected_bench_return, cs_results@port_returns_m_xts@data$selected_bench_return)
   expect_equal(port_cohort@port_returns_m_xts_list$raw_returns_m_xts@data$selected_bench_return, cw_results@port_returns_m_xts@data$selected_bench_return)
 
-  expect_equal(port_cohort@port_returns_m_xts_list$net_returns_m_xts@data$c.sw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+  expect_equal(port_cohort@port_returns_m_xts_list$net_returns_m_xts@data$c__sw_book_yield_s__not_identified_f__not_identified %>% as.data.frame() %>% unname(),
                sw_results@port_returns_m_xts@data$net_return %>% as.data.frame() %>% unname())
-  expect_equal(port_cohort@port_returns_m_xts_list$net_returns_m_xts@data$c.cs_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+  expect_equal(port_cohort@port_returns_m_xts_list$net_returns_m_xts@data$c__cs_book_yield_s__not_identified_f__not_identified %>% as.data.frame() %>% unname(),
                cs_results@port_returns_m_xts@data$net_return %>% as.data.frame() %>% unname())
-  expect_equal(port_cohort@port_returns_m_xts_list$net_returns_m_xts@data$c.cw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+  expect_equal(port_cohort@port_returns_m_xts_list$net_returns_m_xts@data$c__cw_book_yield_s__not_identified_f__not_identified %>% as.data.frame() %>% unname(),
                cw_results@port_returns_m_xts@data$net_return %>% as.data.frame() %>% unname())
 
   expect_equal(port_cohort@port_returns_m_xts_list$net_returns_m_xts@data$selected_bench_return, sw_results@port_returns_m_xts@data$selected_bench_return)
   expect_equal(port_cohort@port_returns_m_xts_list$net_returns_m_xts@data$selected_bench_return, cs_results@port_returns_m_xts@data$selected_bench_return)
   expect_equal(port_cohort@port_returns_m_xts_list$net_returns_m_xts@data$selected_bench_return, cw_results@port_returns_m_xts@data$selected_bench_return)
 
-  expect_equal(port_cohort@port_returns_m_xts_list$raw_active_returns_m_xts@data$c.sw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+  expect_equal(port_cohort@port_returns_m_xts_list$raw_active_returns_m_xts@data$c__sw_book_yield_s__not_identified_f__not_identified  %>% as.data.frame() %>% unname(),
                sw_results@port_returns_m_xts@data$raw_active_return %>% as.data.frame() %>% unname())
-  expect_equal(port_cohort@port_returns_m_xts_list$raw_active_returns_m_xts@data$c.cs_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+  expect_equal(port_cohort@port_returns_m_xts_list$raw_active_returns_m_xts@data$c__cs_book_yield_s__not_identified_f__not_identified %>% as.data.frame() %>% unname(),
                cs_results@port_returns_m_xts@data$raw_active_return %>% as.data.frame() %>% unname())
-  expect_equal(port_cohort@port_returns_m_xts_list$raw_active_returns_m_xts@data$c.cw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+  expect_equal(port_cohort@port_returns_m_xts_list$raw_active_returns_m_xts@data$c__cw_book_yield_s__not_identified_f__not_identified %>% as.data.frame() %>% unname(),
                cw_results@port_returns_m_xts@data$raw_active_return %>% as.data.frame() %>% unname())
 
-  expect_equal(port_cohort@port_returns_m_xts_list$net_active_returns_m_xts@data$c.sw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+  expect_equal(port_cohort@port_returns_m_xts_list$net_active_returns_m_xts@data$c__sw_book_yield_s__not_identified_f__not_identified %>% as.data.frame() %>% unname(),
                sw_results@port_returns_m_xts@data$net_active_return %>% as.data.frame() %>% unname())
-  expect_equal(port_cohort@port_returns_m_xts_list$net_active_returns_m_xts@data$c.cs_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+  expect_equal(port_cohort@port_returns_m_xts_list$net_active_returns_m_xts@data$c__cs_book_yield_s__not_identified_f__not_identified %>% as.data.frame() %>% unname(),
                cs_results@port_returns_m_xts@data$net_active_return %>% as.data.frame() %>% unname())
-  expect_equal(port_cohort@port_returns_m_xts_list$net_active_returns_m_xts@data$c.cw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+  expect_equal(port_cohort@port_returns_m_xts_list$net_active_returns_m_xts@data$c__cw_book_yield_s__not_identified_f__not_identified %>% as.data.frame() %>% unname(),
                cw_results@port_returns_m_xts@data$net_active_return %>% as.data.frame() %>% unname())
 
 
   #Check that port costs are accordng to expectation
-  expect_equal(port_cohort@port_costs_m_xts_list$direct_cost_m_xts@data$c.sw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+  expect_equal(port_cohort@port_costs_m_xts_list$direct_cost_m_xts@data$c__sw_book_yield_s__not_identified_f__not_identified %>% as.data.frame() %>% unname(),
                sw_results@port_costs_m_xts@data$direct_cost %>% as.data.frame() %>% unname())
-  expect_equal(port_cohort@port_costs_m_xts_list$direct_cost_m_xts@data$c.cs_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+  expect_equal(port_cohort@port_costs_m_xts_list$direct_cost_m_xts@data$c__cs_book_yield_s__not_identified_f__not_identified %>% as.data.frame() %>% unname(),
                cs_results@port_costs_m_xts@data$direct_cost %>% as.data.frame() %>% unname())
-  expect_equal(port_cohort@port_costs_m_xts_list$direct_cost_m_xts@data$c.cw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+  expect_equal(port_cohort@port_costs_m_xts_list$direct_cost_m_xts@data$c__cw_book_yield_s__not_identified_f__not_identified %>% as.data.frame() %>% unname(),
                cw_results@port_costs_m_xts@data$direct_cost %>% as.data.frame() %>% unname())
 
-  expect_equal(port_cohort@port_costs_m_xts_list$market_impact_cost_m_xts@data$c.sw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+  expect_equal(port_cohort@port_costs_m_xts_list$market_impact_cost_m_xts@data$c__sw_book_yield_s__not_identified_f__not_identified %>% as.data.frame() %>% unname(),
                sw_results@port_costs_m_xts@data$market_impact_cost %>% as.data.frame() %>% unname())
-  expect_equal(port_cohort@port_costs_m_xts_list$market_impact_cost_m_xts@data$c.cs_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+  expect_equal(port_cohort@port_costs_m_xts_list$market_impact_cost_m_xts@data$c__cs_book_yield_s__not_identified_f__not_identified %>% as.data.frame() %>% unname(),
                cs_results@port_costs_m_xts@data$market_impact_cost %>% as.data.frame() %>% unname())
-  expect_equal(port_cohort@port_costs_m_xts_list$market_impact_cost_m_xts@data$c.cw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+  expect_equal(port_cohort@port_costs_m_xts_list$market_impact_cost_m_xts@data$c__cw_book_yield_s__not_identified_f__not_identified %>% as.data.frame() %>% unname(),
                cw_results@port_costs_m_xts@data$market_impact_cost %>% as.data.frame() %>% unname())
 
-  expect_equal(port_cohort@port_costs_m_xts_list$total_cost_m_xts@data$c.sw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+  expect_equal(port_cohort@port_costs_m_xts_list$total_cost_m_xts@data$c__sw_book_yield_s__not_identified_f__not_identified %>% as.data.frame() %>% unname(),
                sw_results@port_costs_m_xts@data$total_cost %>% as.data.frame() %>% unname())
-  expect_equal(port_cohort@port_costs_m_xts_list$total_cost_m_xts@data$c.cs_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+  expect_equal(port_cohort@port_costs_m_xts_list$total_cost_m_xts@data$c__cs_book_yield_s__not_identified_f__not_identified %>% as.data.frame() %>% unname(),
                cs_results@port_costs_m_xts@data$total_cost %>% as.data.frame() %>% unname())
-  expect_equal(port_cohort@port_costs_m_xts_list$total_cost_m_xts@data$c.cw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+  expect_equal(port_cohort@port_costs_m_xts_list$total_cost_m_xts@data$c__cw_book_yield_s__not_identified_f__not_identified %>% as.data.frame() %>% unname(),
                cw_results@port_costs_m_xts@data$total_cost %>% as.data.frame() %>% unname())
 
-  expect_equal(port_cohort@port_costs_m_xts_list$turnover_m_xts@data$c.sw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+  expect_equal(port_cohort@port_costs_m_xts_list$turnover_m_xts@data$c__sw_book_yield_s__not_identified_f__not_identified %>% as.data.frame() %>% unname(),
                sw_results@port_costs_m_xts@data$turnover %>% as.data.frame() %>% unname())
-  expect_equal(port_cohort@port_costs_m_xts_list$turnover_m_xts@data$c.cs_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+  expect_equal(port_cohort@port_costs_m_xts_list$turnover_m_xts@data$c__cs_book_yield_s__not_identified_f__not_identified %>% as.data.frame() %>% unname(),
                cs_results@port_costs_m_xts@data$turnover %>% as.data.frame() %>% unname())
-  expect_equal(port_cohort@port_costs_m_xts_list$turnover_m_xts@data$c.cw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+  expect_equal(port_cohort@port_costs_m_xts_list$turnover_m_xts@data$c__cw_book_yield_s__not_identified_f__not_identified %>% as.data.frame() %>% unname(),
                cw_results@port_costs_m_xts@data$turnover %>% as.data.frame() %>% unname())
 
   #Port Metrics
   #Check that length is 3 (no sw)
   expect_equal(port_cohort@port_metrics_m_xts_list$book_yield_m_xts@data %>% ncol(), 3)
-  expect_equal(port_cohort@port_metrics_m_xts_list$book_yield_m_xts@data$c.cs_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+  expect_equal(port_cohort@port_metrics_m_xts_list$book_yield_m_xts@data$c__cs_book_yield_s__not_identified_f__not_identified %>% as.data.frame() %>% unname(),
                cs_results@port_metrics_m_xts@data$book_yield %>% as.data.frame() %>% unname())
-  expect_equal(port_cohort@port_metrics_m_xts_list$book_yield_m_xts@data$c.cw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+  expect_equal(port_cohort@port_metrics_m_xts_list$book_yield_m_xts@data$c__cw_book_yield_s__not_identified_f__not_identified %>% as.data.frame() %>% unname(),
                cw_results@port_metrics_m_xts@data$book_yield %>% as.data.frame() %>% unname())
   expect_equal(port_cohort@port_metrics_m_xts_list$book_yield_m_xts@data$bench_book_yield %>% as.data.frame() %>% unname(),
                cs_results@port_metrics_m_xts@data$bench_book_yield %>% as.data.frame() %>% unname())
@@ -6973,18 +7179,66 @@ test_that("run_port_backtest work for a benchmark-sensitive cohort of cw, cs and
 
 
   expect_equal(port_cohort@port_metrics_m_xts_list$dy_med_36m_m_xts@data %>% ncol(), 3)
-  expect_equal(port_cohort@port_metrics_m_xts_list$dy_med_36m_m_xts@data$c.cs_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+  expect_equal(port_cohort@port_metrics_m_xts_list$dy_med_36m_m_xts@data$c__cs_book_yield_s__not_identified_f__not_identified %>% as.data.frame() %>% unname(),
                cs_results@port_metrics_m_xts@data$dy_med_36m %>% as.data.frame() %>% unname())
-  expect_equal(port_cohort@port_metrics_m_xts_list$dy_med_36m_m_xts@data$c.cw_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
+  expect_equal(port_cohort@port_metrics_m_xts_list$dy_med_36m_m_xts@data$c__cw_book_yield_s__not_identified_f__not_identified %>% as.data.frame() %>% unname(),
                cw_results@port_metrics_m_xts@data$dy_med_36m %>% as.data.frame() %>% unname())
 
-  #For vol_36m, there is data only for cs
+  #For vol_36m, there is data only for cw
   expect_equal(port_cohort@port_metrics_m_xts_list$vol_36m_m_xts@data %>% ncol(), 2)
-  expect_equal(port_cohort@port_metrics_m_xts_list$vol_36m_m_xts@data$c.cs_book_yield_s.not_identified_f.not_identified %>% as.data.frame() %>% unname(),
-               cs_results@port_metrics_m_xts@data$vol_36m %>% as.data.frame() %>% unname())
+  expect_equal(port_cohort@port_metrics_m_xts_list$vol_36m_m_xts@data$c__cw_book_yield_s__not_identified_f__not_identified %>% as.data.frame() %>% unname(),
+               cw_results@port_metrics_m_xts@data$vol_36m %>% as.data.frame() %>% unname())
 
   #Check that all metrics are present
   expect_equal(stringr::str_remove(names(port_cohort@port_metrics_m_xts_list), "_m_xts"), colnames(port_metrics_m_df@data)[-c(1:3)])
+
+  #Check that port stats are as expected
+  expect_equal(purrr::map_dbl(
+    port_cohort@port_stats_m_xts_nested_list$net_return,
+    function(x) ncol(x@data)
+  ) %>% unique(), c(3, 1))
+
+  expect_equal(
+    port_cohort@port_stats_m_xts_nested_list$net_return$info_ratio_m_xts@data$c__cw_book_yield_s__not_identified_f__not_identified %>% as.numeric(),
+    cw_results@port_stats_m_df@data %>% dplyr::filter(tickers == "net_return") %>% dplyr::pull(info_ratio) %>% as.numeric()
+  )
+  expect_equal(
+    port_cohort@port_stats_m_xts_nested_list$net_return$info_ratio_m_xts@data$c__cs_book_yield_s__not_identified_f__not_identified %>% as.numeric(),
+    cs_results@port_stats_m_df@data %>% dplyr::filter(tickers == "net_return") %>% dplyr::pull(info_ratio) %>% as.numeric()
+  )
+  expect_equal(
+    port_cohort@port_stats_m_xts_nested_list$net_return$info_ratio_m_xts@data$c__sw_book_yield_s__not_identified_f__not_identified %>% as.numeric(),
+    sw_results@port_stats_m_df@data %>% dplyr::filter(tickers == "net_return") %>% dplyr::pull(info_ratio) %>% as.numeric()
+  )
+
+  expect_equal(
+    port_cohort@port_stats_m_xts_nested_list$raw_return$info_ratio_m_xts@data$c__cw_book_yield_s__not_identified_f__not_identified %>% as.numeric(),
+    cw_results@port_stats_m_df@data %>% dplyr::filter(tickers == "raw_return") %>% dplyr::pull(info_ratio) %>% as.numeric()
+  )
+  expect_equal(
+    port_cohort@port_stats_m_xts_nested_list$raw_return$info_ratio_m_xts@data$c__cs_book_yield_s__not_identified_f__not_identified %>% as.numeric(),
+    cs_results@port_stats_m_df@data %>% dplyr::filter(tickers == "raw_return") %>% dplyr::pull(info_ratio) %>% as.numeric()
+  )
+  expect_equal(
+    port_cohort@port_stats_m_xts_nested_list$raw_return$info_ratio_m_xts@data$c__sw_book_yield_s__not_identified_f__not_identified %>% as.numeric(),
+    sw_results@port_stats_m_df@data %>% dplyr::filter(tickers == "raw_return") %>% dplyr::pull(info_ratio) %>% as.numeric()
+  )
+
+  expect_equal(
+    port_cohort@port_stats_m_xts_nested_list$net_return %>% names() %>% stringr::str_remove("_m_xts"),
+    names(cw_results@port_stats_m_df@data)[-c(1:3)] %>% sort()
+  )
+
+  #Only cw has group cols
+  expect_equal(
+    port_cohort@port_stats_m_xts_nested_list$net_return$group_info_ratio_m_xts@data %>% names(),
+    "c__cw_book_yield_s__not_identified_f__not_identified"
+  )
+  expect_equal(
+    port_cohort@port_stats_m_xts_nested_list$net_return$n_groups_m_xts@data$c__cw_book_yield_s__not_identified_f__not_identified %>% as.numeric(),
+    cw_results@port_stats_m_df@data %>% dplyr::filter(tickers == "net_return") %>% dplyr::pull(n_groups)
+  )
+
 
 
 })
@@ -7237,7 +7491,8 @@ test_that("run_port_backtest works for sector ports", {
   #Set Port Weights
   ew_port_1 <- set_portfolio_weights(
     universe_m_d_ref = stock_universe_m_d_ref_1,
-    port_construction_method = "ew"
+    port_construction_method = "ew",
+    selected_benchmark = "ibov"
   )
   expect_equal(ew_port_1@universe_m_d_ref@data %>% dplyr::filter(weights > 0) %>% dplyr::pull(weights) %>% unique() %>% length(),
               1)
@@ -7364,7 +7619,8 @@ test_that("run_port_backtest works for sector ports", {
   #Set Port Weights
   ew_port_2 <- set_portfolio_weights(
     universe_m_d_ref = stock_universe_m_d_ref_2,
-    port_construction_method = "ew"
+    port_construction_method = "ew",
+    selected_benchmark = "ibov"
   )
 
   expect_equal(ew_port_2@universe_m_d_ref@data %>% dplyr::filter(weights > 0) %>% dplyr::pull(weights) %>% unique() %>% length(),
@@ -7875,8 +8131,7 @@ test_that("run_port_backtest throws an error for selected benchmark missing", {
 })
 
 #UPDATE
-test_that("update_port_backtest works for a simple sw single signal strategy with a selected benchmark and
-          user_defined_OR_rules, with new month a rebalancing month", {
+test_that("update_port_backtest works for a simple sw single signal strategy with a selected benchmark and user_defined_OR_rules, with new month a rebalancing month", {
 
   #Create signals_m_d_ref
   load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
@@ -8009,15 +8264,16 @@ test_that("update_port_backtest works for a simple sw single signal strategy wit
   expect_equal(new_results@port_costs_m_xts@data, updated_results@port_costs_m_xts@data)
   expect_equal(new_results@port_returns_m_xts@data, updated_results@port_returns_m_xts@data)
   expect_equal(new_results@port_metrics_m_xts@data, updated_results@port_metrics_m_xts@data)
+  expect_equal(new_results@port_stats_m_df@data, updated_results@port_stats_m_df@data)
   expect_equal(new_results@transactions_log@data, updated_results@transactions_log@data)
   expect_equal(new_results@stock_universe_m_df@data, updated_results@stock_universe_m_df@data)
   expect_equal(new_results@final_stock_port, updated_results@final_stock_port)
   expect_equal(updated_results@port_backtest_config@initial_buffer_period, length(unique(signals_m_df@data$dates)) - 1)
 
+
 })
 
-test_that("update_port_backtest works for a simple cs single signal strategy with a selected benchmark,
-          with new month a post-rebalancing month AND 2 UPDATES", {
+test_that("update_port_backtest works for a simple cs single signal strategy with a selected benchmark, with new month a post-rebalancing month AND 2 UPDATES", {
 
             #Create signals_m_d_ref
             load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
@@ -8115,6 +8371,7 @@ test_that("update_port_backtest works for a simple cs single signal strategy wit
             expect_equal(new_results@port_costs_m_xts@data, updated_results@port_costs_m_xts@data)
             expect_equal(new_results@port_returns_m_xts@data, updated_results@port_returns_m_xts@data)
             expect_equal(new_results@port_metrics_m_xts@data, updated_results@port_metrics_m_xts@data)
+            expect_equal(new_results@port_stats_m_df@data, updated_results@port_stats_m_df@data)
             expect_equal(new_results@transactions_log@data, updated_results@transactions_log@data)
             expect_equal(new_results@stock_universe_m_df@data, updated_results@stock_universe_m_df@data)
             expect_equal(new_results@final_stock_port, updated_results@final_stock_port)
@@ -8165,6 +8422,7 @@ test_that("update_port_backtest works for a simple cs single signal strategy wit
             expect_equal(new_results2@port_costs_m_xts@data, updated_results2@port_costs_m_xts@data)
             expect_equal(new_results2@port_returns_m_xts@data, updated_results2@port_returns_m_xts@data)
             expect_equal(new_results2@port_metrics_m_xts@data, updated_results2@port_metrics_m_xts@data)
+            expect_equal(new_results2@port_stats_m_df@data, updated_results2@port_stats_m_df@data)
             expect_equal(new_results2@transactions_log@data, updated_results2@transactions_log@data)
             expect_equal(new_results2@stock_universe_m_df@data, updated_results2@stock_universe_m_df@data)
             expect_equal(new_results2@final_stock_port, updated_results2@final_stock_port)
@@ -8798,13 +9056,12 @@ test_that("update_port_backtest_works for a meta_sb_backtest AND 2 UPDATES", {
   expect_equal(updated_sb_meta_port_results_2@port_weights_m_df@data, new_sb_metaport_results@port_weights_m_df@data)
   expect_equal(updated_sb_meta_port_results_2@transactions_log, new_sb_metaport_results@transactions_log)
   expect_equal(updated_sb_meta_port_results_2@port_costs_m_xts@data, new_sb_metaport_results@port_costs_m_xts@data)
+  expect_equal(updated_sb_meta_port_results_2@port_stats_m_df@data, new_sb_metaport_results@port_stats_m_df@data)
   expect_equal(updated_sb_meta_port_results_2@port_returns_m_xts@data, new_sb_metaport_results@port_returns_m_xts@data)
   expect_equal(updated_sb_meta_port_results_2@stock_universe_m_df@data, new_sb_metaport_results@stock_universe_m_df@data)
 
 
 })
-
-
 
 test_that("update_port_backtest throws errors for uncompatible objects", {
 
