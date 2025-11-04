@@ -335,7 +335,6 @@ test_that("create_performance_m_df works with NAs (one column only NAs)", {
 
 })
 
-
 test_that("create_performance_m_df throws a warning for backtests with only positive values and errors for when selected_market_factor_proxy_m_xts is NULL", {
 
   set.seed(123)
@@ -443,5 +442,50 @@ test_that("create_performance_m_df works for Prob Sharpe Ratio and Min Track Rec
   #MinTrackRecord
   expect_equal(result$act_min_track_record[1], 18446.91, tolerance = 1e-3)
   expect_equal(result$act_min_track_record[2], min_track_record(B))
+
+})
+
+test_that("create_performance_m_df works for NULL case", {
+
+  #Create signals_m_d_ref_test
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  #Get arguments
+  chosen_signals_and_positions <- c(Alpha = "long", Gamma = "long", Beta = "short")
+  signal_significance_threshold <- 0.05
+  p_correction_method <- "none"
+  selected_market_factor_proxy_m_xts <- benchmark_returns_m_xts[, "IBOV"]
+
+  current_date <- "2001-06-15"
+
+  selected_market_factor_proxy_m_xts_upd_ref <- selected_market_factor_proxy_m_xts[c(1:4),]
+
+
+  #Create base_signal_universe_m_d_ref
+  base_signal_universe_m_d_ref <- create_performance_m_df(
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref = NULL,
+    selected_market_factor_proxy_m_xts_upd_ref = NULL,
+    active_returns = FALSE
+  )
+
+  expect_equal(
+    nrow(base_signal_universe_m_d_ref),
+    0
+  )
+
+  base_signal_universe_m_d_ref <- create_performance_m_df(
+    selected_backtest_returns_corrected_positions_m_xts_upd_ref = NULL,
+    selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
+    active_returns = TRUE
+  )
+
+  expect_equal(
+    nrow(base_signal_universe_m_d_ref),
+    0
+  )
+
+  expect_true(
+    any(stringr::str_detect(colnames(base_signal_universe_m_d_ref), "act_"))
+  )
 
 })

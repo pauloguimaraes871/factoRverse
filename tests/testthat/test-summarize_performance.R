@@ -419,3 +419,39 @@ test_that("summarize_performance works for pooled model_structure and NAs", {
   expect_equal(coef(result$frequentist_fit_results_list), coef(frequentist_fit_results_list$lmer_model))
 
 })
+
+test_that("summarize_performance works for NULL case", {
+
+  load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
+
+  expect_equal(
+    summarize_performance(selected_backtest_returns_corrected_positions_m_xts_upd_ref = NULL,
+                          selected_market_factor_proxy_m_xts_upd_ref = NULL,
+                          active_returns = FALSE,
+                          model_structure = "no_pooled")$signal_universe_m_d_ref %>% nrow(),
+    0
+  )
+
+  expect_true(
+    any(
+    stringr::str_detect(
+      names(summarize_performance(selected_backtest_returns_corrected_positions_m_xts_upd_ref = NULL,
+                                  selected_market_factor_proxy_m_xts_upd_ref = NULL,
+                                  active_returns = TRUE,
+                                  model_structure = "no_pooled")$signal_universe_m_d_ref),
+      "act"
+      )
+  )
+  )
+
+
+  expect_error(
+    summarize_performance(selected_backtest_returns_corrected_positions_m_xts_upd_ref = NULL,
+                          selected_market_factor_proxy_m_xts_upd_ref = NULL,
+                          model_structure = "partial_pooled"),
+    "selected_backtest_returns_corrected_positions_m_xts_upd_ref can't be NULL when model_structure == 'partial_pooled'."
+
+  )
+
+
+})
