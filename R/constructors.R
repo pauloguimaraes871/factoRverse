@@ -5453,7 +5453,129 @@ create_port_backtest_cohort <- function(port_backtest_results_list, cohort_name)
     )
   }
 
-  # Step 6: Create and Return the port_backtest_cohort Object
+  # Step 6: Merge port_stats_m_df (family-aware: active vs regular)
+  stats_m_dfs <- lapply(seq_along(port_backtest_results_list), function(i) {
+    x <- port_backtest_results_list[[i]]
+    if (is.null(x@port_stats_m_df)) return(NULL)
+    m_df <- x@port_stats_m_df@data
+
+    # Key columns
+    required_keys <- c("id", "tickers", "dates")
+    if (!all(required_keys %in% names(m_df))) {
+      stop("Each port_stats_m_df must contain columns: id, tickers, dates.")
+    }
+
+    # Partition columns
+    stat_cols <- setdiff(names(m_df), required_keys)
+    is_act    <- grepl("^act_", stat_cols)
+    is_group  <- grepl("^group_", stat_cols)
+    is_info   <- stat_cols == "info_ratio"
+    is_sharpe <- stat_cols == "sharpe"
+
+    # Family checks
+    if (benchmark_used) {
+      # Allowed: act_* , info_ratio, group_*
+      if (any(is_sharpe)) {
+        stop("port_stats_m_df contains 'sharpe' while benchmark is used (expected 'info_ratio' / 'act_*'). Backtest index: ", i)
+      }
+    } else {
+      # Allowed: regular (no act_*), sharpe, group_* ; disallow act_* and info_ratio
+      if (any(is_act | is_info)) {
+        bad <- paste(stat_cols[is_act | is_info], collapse = ", ")
+        stop("Found active/info columns without benchmark (not allowed): ", bad,
+             ". Backtest index: ", i)
+      }
+    }
+
+    m_df
+  })
+
+  # Remove NULLs if some backtests don't expose stats
+  stats_m_dfs <- Filter(Negate(is.null), stats_m_dfs)
+
+  port_stats_m_df_list <- list()
+  port_stats_m_xts_nested_list <- list(raw_return = list(), net_return = list())
+
+  if (length(stats_m_dfs) > 0) {
+    # 1) Validate alignment of keys across backtests
+    base_keys_df <- stats_m_dfs[[1]][, c("id", "tickers", "dates")]
+    for (i in seq_along(stats_m_dfs)) {
+      keys_i <- stats_m_dfs[[i]][, c("id", "tickers", "dates")]
+      if (!all(base_keys_df$id == keys_i$id &
+               base_keys_df$tickers == keys_i$tickers &
+               base_keys_df$dates == keys_i$dates)) {
+        stop("Mismatch in id, tickers, or dates in port_stats_m_df of backtest result at index ", i)
+      }
+    }
+
+    # 2) Build union of stat columns, respecting family rules
+    union_stat_cols <- sort(unique(unlist(lapply(stats_m_dfs, function(df) {
+      setdiff(names(df), c("id", "tickers", "dates"))
+    }))))
+
+    # Helper to convert merged (wide) data.frame to xts by return type
+    build_stat_xts <- function(merged_df, ret_type) {
+      sub <- merged_df[merged_df$tickers == ret_type, , drop = FALSE]
+      if (nrow(sub) == 0) return(NULL)
+      # Ensure date ordering and build matrix
+      sub <- sub[order(sub$dates), ]
+      value_cols <- setdiff(names(sub), c("id", "tickers", "dates"))
+      if (length(value_cols) == 0) return(NULL)
+      mat <- as.matrix(sub[, value_cols, drop = FALSE])
+      rownames(mat) <- NULL
+      # dates might already be Date; as.Date is safe
+      xts::xts(mat, order.by = as.Date(sub$dates))
+    }
+
+    # 3) For each stat column, merge across backtests (wide by id),
+    #    then (a) create a meta_dataframe and (b) create meta_xts for raw/net branches
+    for (stat_col in union_stat_cols) {
+      # 3a) Merge to wide (keys + one column per backtest id)
+      merged_stat_df <- base_keys_df
+      for (i in seq_along(stats_m_dfs)) {
+        df_i  <- stats_m_dfs[[i]]
+        bt_id <- port_backtest_results_list[[i]]@backtest_identifier
+
+        if (stat_col %in% names(df_i)) {
+          attach_i <- df_i[, c("id", stat_col), drop = FALSE]
+          names(attach_i)[2] <- bt_id
+          merged_stat_df <- dplyr::left_join(merged_stat_df, attach_i, by = "id")
+        } else {
+          # If a backtest lacks this stat, it simply won't contribute a column
+          next
+        }
+      }
+
+
+      # 3b) meta_xts (nested) for raw_return
+      raw_xts <- build_stat_xts(merged_stat_df, "raw_return")
+      if (!is.null(raw_xts)) {
+        port_stats_m_xts_nested_list$raw_return[[paste0(stat_col, "_m_xts")]] <- create_meta_xts(
+          data = raw_xts,
+          type = "metrics",
+          meta_xts_name = cohort_name,
+          metric_name = stat_col,
+          source = colnames(raw_xts)
+        )
+      }
+
+      # 3c) meta_xts (nested) for net_return
+      net_xts <- build_stat_xts(merged_stat_df, "net_return")
+      if (!is.null(net_xts)) {
+        port_stats_m_xts_nested_list$net_return[[paste0(stat_col, "_m_xts")]] <- create_meta_xts(
+          data = net_xts,
+          type = "metrics",
+          meta_xts_name = cohort_name,
+          metric_name = stat_col,
+          source = colnames(net_xts)
+        )
+      }
+    }
+  }
+
+
+
+  # Step 7: Create and Return the port_backtest_cohort Object
   cohort_obj <- methods::new("port_backtest_cohort",
     cohort_name = cohort_name,
     port_backtest_results_list = port_backtest_results_list,
@@ -5461,6 +5583,7 @@ create_port_backtest_cohort <- function(port_backtest_results_list, cohort_name)
     port_costs_m_xts_list = port_costs_m_xts_list,
     port_returns_m_xts_list = port_returns_m_xts_list,
     port_metrics_m_xts_list = port_metrics_m_xts_list,
+    port_stats_m_xts_nested_list = port_stats_m_xts_nested_list,
     backtest_workflow_common = common_values
   )
 
