@@ -580,7 +580,7 @@ setMethod(
 
         # Generate color palette based on the number of unique categories
         num_categories <- length(unique(df[[clustering_variables]]))
-        base_palette <- supressWarnings(RColorBrewer::brewer.pal(min(num_categories, 12), "Set3"))
+        base_palette <- suppressWarnings(RColorBrewer::brewer.pal(min(num_categories, 12), "Set3"))
         color_palette <- if (num_categories > 12) {
           grDevices::colorRampPalette(base_palette)(num_categories)
         } else {
@@ -5694,1478 +5694,667 @@ setMethod(
   signature(x = "port", y = "missing"),
   function(x, type = NULL, ...) {
 
-    # Check for required packages for plotting
+    ## ---- dependencies ----
     required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
-
     missing_pkgs <- required_plot_pkgs[!vapply(required_plot_pkgs, requireNamespace, FUN.VALUE = logical(1), quietly = TRUE)]
-
     if (length(missing_pkgs) > 0) {
       stop(
-        sprintf(
-          "The following packages are required to generate plots but are not installed: %s.\nPlease install them using install.packages().",
-          paste(missing_pkgs, collapse = ", ")
-        ),
+        sprintf("Required plotting packages not installed: %s. Install with install.packages().",
+                paste(missing_pkgs, collapse = ", ")),
         call. = FALSE
       )
     }
 
-    #------------------------------------------------------------------------------------------------
-    # 0) Prompt for 'type' if not specified
-    #------------------------------------------------------------------------------------------------
-    if (is.null(type)) {
-      available_types <- c(
-        "Weights",
-        "Expected Return Score",
-        "Risk-Return Trade-off",
-        "Correlation",
-        "Relative Risk Contribution",
-        "Efficient Frontier",
-        "Random Weights Distribution",
-        "Groups Allocation",
-        "Hierarchical Clustering",
-        "Allocation Flow (Groups -> Assets)",
-        "Within-Group Composition",
-        "Group Risk Decomposition"
-      )
-      cat("\nPlease choose a plot type:\n")
-      for (i in seq_along(available_types)) {
-        cat(paste0(i, ": ", available_types[i], "\n"))
-      }
-      selection <- readline(prompt = "Enter the number of your choice: ")
-      selection <- as.numeric(selection)
-      if (is.na(selection) || selection < 1 || selection > length(available_types)) {
-        stop("Invalid selection.")
-      }
-      type <- available_types[selection]
+    ## ---- palette ----
+    vibrant_purple <- "#6A0DAD"; black <- "#000000"; white <- "#FFFFFF"; blue_bg <- "#001f3f"
+    neon_green <- "#39FF14"; neon_orange <- "#FF5F1F"; neon_cyan <- "#00FFFF"; neon_blue <- "#1F51FF"
+    neon_yellow <- "#FFFF33"; neon_red <- "#FF073A"; neon_turquoise <- "#40E0D0"; neon_lime <- "#BFFF00"
+    neon_magenta <- "#FF00FF"; neon_hotpink <- "#FF69B4"; neon_pink <- "#FF007F"; neon_purple <- "#7F00FF"
+
+    neon_palette <- c(
+      neon_green, neon_orange, neon_cyan, neon_blue,
+      neon_yellow, neon_red, neon_turquoise, neon_lime,
+      neon_magenta, neon_hotpink, neon_pink, neon_purple,
+      vibrant_purple, black, white
+    )
+
+    ## ---- pull slots ----
+    U <- if (methods::is(x@universe_m_d_ref, "meta_dataframe")) x@universe_m_d_ref@data else NULL
+    asset_names <- x@eligible_assets
+    weights <- x@weights
+    exp_ret_score <- x@exp_ret_score
+    cov_mat <- x@covariance_matrix
+    corr_mat <- x@correlation_matrix
+    rel_risk_contr <- x@rel_risk_contr
+    random_port_wt <- x@random_port_weights
+    groups_df <- x@groups
+    group_col <- x@group_col
+    port_name <- x@port_name
+    port_stats <- x@port_stats
+
+    ## ---- helpers ----
+    .menu <- function(choices, title = "Choose:") {
+      cat(paste0("\n", title, "\n"))
+      for (i in seq_along(choices)) cat(sprintf("%d: %s\n", i, choices[i]))
+      sel <- readline(prompt = "Enter number: ")
+      sel <- suppressWarnings(as.integer(sel))
+      if (is.na(sel) || sel < 1L || sel > length(choices)) stop("Invalid selection.")
+      choices[sel]
     }
 
-    #------------------------------------------------------------------------------------------------
-    # Extract needed slots for convenience
-    #------------------------------------------------------------------------------------------------
-    weights           <- x@weights
-    exp_ret_score     <- x@exp_ret_score
-    cov_mat           <- x@covariance_matrix
-    corr_mat          <- x@correlation_matrix
-    rel_risk_contr    <- x@rel_risk_contr
-    random_port_wt    <- x@random_port_weights
-    groups_df         <- x@groups
-    universe_df       <- if (methods::is(x@universe_m_d_ref, "meta_dataframe")) x@universe_m_d_ref@data else NULL
-    asset_names       <- x@eligible_assets
-    port_name         <- x@port_name
-
-    ## Helpers
-    .get_bench_vector <- function(universe_df, asset_names){
-      bench_cols <- base::grep("_bench_weights$", base::colnames(universe_df), value = TRUE)
-      if (length(bench_cols) == 0) stop("No columns matching '_bench_weights' found in 'universe_df'.")
-      bench_col <- if (length(bench_cols) == 1) {
-        bench_cols[1]
+    .select_from_vector <- function(v, title = "Select items (indices '1,3' or names 'A,B' or 'all')") {
+      cat("\nItems:\n"); for (i in seq_along(v)) cat(sprintf("%d: %s\n", i, v[i]))
+      ans <- readline(prompt = paste0(title, ": "))
+      ans <- trimws(ans)
+      if (!nzchar(ans) || tolower(ans) == "all") return(v)
+      parts <- strsplit(ans, ",")[[1]]; parts <- trimws(parts)
+      all_num <- suppressWarnings(!any(is.na(as.numeric(parts))))
+      if (all_num) {
+        idx <- as.integer(parts)
+        if (any(idx < 1L | idx > length(v))) stop("Index out of range.")
+        return(v[idx])
       } else {
-        chosen <- utils::menu(bench_cols, title = "Select a benchmark to use for ACTIVE computations:")
-        if (chosen == 0) stop("No benchmark selected.")
-        bench_cols[chosen]
-      }
-      bench_df <- base::data.frame(tickers = asset_names, stringsAsFactors = FALSE) |>
-        dplyr::left_join(universe_df[, c("tickers", bench_col), drop = FALSE], by = "tickers")
-      bench_w <- bench_df[[bench_col]]
-      bench_w[base::is.na(bench_w)] <- 0
-      bench_w
-    }
-    # Resolve which column in x@groups defines the grouping:
-    # - If method == "mmaf" and mmaf_group_col is present, use it
-    # - Else, mimic your Group Composition logic (prompt if >1 group column)
-    .resolve_group_col <- function(x){
-      groups_df <- x@groups
-      if (is.null(groups_df)) stop("No valid groups slot found. This plot requires group information.")
-      required_cols <- c("id","tickers","dates")
-      if (!all(required_cols %in% colnames(groups_df))) {
-        stop("groups slot must contain at least 'id','tickers','dates'.")
-      }
-      group_cols <- setdiff(colnames(groups_df), required_cols)
-      if (length(group_cols) == 0) stop("No group columns found in 'groups' data.")
-
-      # If MMAF and the provided mmaf_group_col is valid, use it
-      if (identical(x@port_construction_method, "mmaf") &&
-          !is.null(x@mmaf_group_col) &&
-          x@mmaf_group_col %in% group_cols) {
-        return(list(groups_df = groups_df, main_group_col = x@mmaf_group_col))
-      }
-
-      # Otherwise replicate Group Composition behavior
-      if (length(group_cols) == 1) {
-        main_group_col <- group_cols[1]
-      } else {
-        for (i in seq_along(group_cols)) cat(paste0(i, ": ", group_cols[i], "\n"))
-        selection <- readline(prompt = "Choose the number for the group classification to use: ")
-        selection <- as.numeric(selection)
-        if (is.na(selection) || length(selection) != 1) stop("Invalid selection.")
-        main_group_col <- group_cols[selection]
-        if (!main_group_col %in% group_cols) stop("Invalid group selected.")
-      }
-
-      list(groups_df = groups_df, main_group_col = main_group_col)
-    }
-
-    #------------------------------------------------------------------------------------------------
-    # Handle nested MMAF portfolios (micro / macro)
-    #------------------------------------------------------------------------------------------------
-    # If the portfolio is of type MMAF and micro/macro slots exist,
-    # prompt the user to select which level to visualize.
-    if (x@port_construction_method == "mmaf" &&
-        !type %in% c("Groups Allocation", "Allocation Flow (Groups -> Assets)",
-                     "Within-Group Composition", "Group Risk Decomposition")) {
-
-      has_micro <- !is.null(x@micro)
-      has_macro <- !is.null(x@macro)
-
-      if (has_micro || has_macro) {
-
-        cat("\nThis portfolio uses the Micro-Macro Allocation Framework (MMAF).\n")
-        cat("You can visualize the overall MMAF portfolio or one of its components.\n")
-
-        options_list <- c("Overall (aggregate MMAF portfolio)")
-        if (has_macro) options_list <- c(options_list, "Macro portfolio (group-level)")
-        if (has_micro) options_list <- c(options_list, "Micro portfolios (within-group)")
-
-        for (i in seq_along(options_list)) {
-          cat(paste0(i, ": ", options_list[i], "\n"))
-        }
-
-        selection <- readline(prompt = "Enter the number of your choice: ")
-        selection <- as.numeric(selection)
-
-        if (is.na(selection) || selection < 1 || selection > length(options_list)) {
-          stop("Invalid selection.")
-        }
-
-        if (options_list[selection] == "Groups portfolio (group-level)") {
-          message("-> Plotting macro-level portfolio...")
-          plot(x@macro, type = type, ...)
-          return(invisible())
-        }
-
-        if (options_list[selection] == "Individual assets (within-group)") {
-          # If multiple micro portfolios exist (top_down MMAF),
-          # ask the user which group to inspect
-          if (is.list(x@micro) && length(x@micro) > 1) {
-            cat("\nAvailable micro portfolios:\n")
-            micro_names <- names(x@micro)
-            for (i in seq_along(micro_names)) {
-              cat(paste0(i, ": ", micro_names[i], "\n"))
-            }
-            micro_choice <- readline(prompt = "Select a group to plot: ")
-            micro_choice <- as.numeric(micro_choice)
-            if (is.na(micro_choice) || micro_choice < 1 || micro_choice > length(micro_names)) {
-              stop("Invalid group selection.")
-            }
-            selected_micro <- x@micro[[micro_names[micro_choice]]]
-          } else if (is.list(x@micro) && length(x@micro) == 1) {
-            selected_micro <- x@micro[[1]]
-          } else {
-            stop("Invalid micro slot structure, expected list of 'port' objects.")
-          }
-
-          message("-> Plotting selected micro-level portfolio...")
-          plot(selected_micro, type = type, ...)
-          return(invisible())
-        }
-
-        # If the user selects "Overall", fall through and continue with standard plotting
-        message("-> Plotting overall MMAF portfolio...")
+        if (!all(parts %in% v)) stop("Unknown names in selection.")
+        return(parts)
       }
     }
 
-    #------------------------------------------------------------------------------------------------
-    # Color definitions
-    #------------------------------------------------------------------------------------------------
-    vibrant_purple <- "#6A0DAD"
-    black          <- "#000000"
-    white          <- "#FFFFFF"
-    neon_green     <- "#39FF14"
-    neon_orange    <- "#FF5F1F"
-    neon_cyan       = "#00FFFF"
-    neon_blue       = "#1F51FF"
-    neon_yellow     = "#FFFF33"
-    neon_red        = "#FF073A"
-    neon_turquoise  = "#40E0D0"
-    neon_lime       = "#BFFF00"
-    neon_magenta    = "#FF00FF"
-    neon_hotpink    = "#FF69B4"
-    neon_pink      <- "#FF007F"
-    neon_purple    <- "#7F00FF"
-    blue_bg        <- "#001f3f"
-    neon_chartreuse <- "#7FFF00"
-    neon_indigo     <- "#4B0082"
-    neon_gold       <- "#FFD700"
-    neon_silver     <- "#C0C0C0"
-    neon_coral      <- "#FF7F50"
-    neon_violet     <- "#EE82EE"
-
-    #------------------------------------------------------------------------------------------------
-    # 1) weights - Bar chart
-    #------------------------------------------------------------------------------------------------
-    if (type == "Weights") {
-      # 1) Basic checks
-      if (length(weights) == 0) {
-        stop("No weights found in 'x'.")
-      }
-      if (length(asset_names) != length(weights)) {
-        stop("Mismatch between 'eligible_assets' and 'weights' length.")
-      }
-
-      # Build the main data frame (no filter yet; we will filter after user selection)
-      df_bar <- data.frame(Asset = asset_names, Weight = weights)
-
-      # If all zero or the sum is zero, there's nothing sensible to plot
-      if (all(df_bar$Weight == 0) || sum(df_bar$Weight) == 0) {
-        stop("Sum of weights is zero or all weights are zero. Nothing to plot.")
-      }
-
-      # 2) Prompt user if they want active weights
-      cat("Do you want to compute active weights? (y/n): ")
-      active_choice <- tolower(readline())
-      active_weights_mode <- FALSE
-      if (active_choice %in% c("y", "yes")) {
-        active_weights_mode <- TRUE
-      }
-
-      if (active_weights_mode) {
-        bench_cols <- grep("_bench_weights$", colnames(universe_df), value = TRUE)
-        if (length(bench_cols) == 0) {
-          stop("No columns matching '_bench_weights' found in 'universe_df'.")
-        }
-
-        bench_col <- NULL
-        if (length(bench_cols) == 1) {
-          bench_col <- bench_cols[1]
-          message("Benchmark is: ", bench_col)
-        } else {
-          message("Multiple benchmarks found:")
-          chosen <- utils::menu(bench_cols, title = "Select a benchmark to use for active weights:")
-          if (chosen == 0) {
-            stop("No benchmark selected. Aborting.")
-          }
-          bench_col <- bench_cols[chosen]
-          message("Benchmark is: ", bench_col)
-        }
-
-        # Join and calculate Active_Weight = portfolio Weight - benchmark Weight
-        df_bar <- dplyr::left_join(
-          df_bar,
-          universe_df %>% dplyr::select(tickers, !!bench_col),
-          by = c("Asset" = "tickers")
-        ) %>%
-          dplyr::mutate(Active_Weight = .data$Weight - !!rlang::sym(bench_col)) %>%
-          dplyr::select(.data$Asset, .data$Active_Weight) %>%
-          dplyr::rename(Weight = .data$Active_Weight)
-      }
-
-      # 3) Let user choose how to subset assets: top x or by names/indices
-      cat("\nHow do you want to choose which assets to display?\n")
-      cat("1: Top x weights (by absolute value)\n")
-      cat("2: Choose assets individually (by name or index)\n")
-      choice_mode <- as.integer(readline(prompt = "Your choice: "))
-
-      if (is.na(choice_mode) || !choice_mode %in% c(1,2)) {
-        stop("Invalid choice for asset selection mode.")
-      }
-
-      if (choice_mode == 1) {
-        # -- Option (i): Top x weights
-        cat("How many assets do you want to show? ")
-        n_choice <- as.integer(readline())
-        if (is.na(n_choice) || n_choice < 1 || n_choice > length(df_bar$Asset)) {
-          stop(paste0("Invalid number of assets. Must be between 1 and ", length(df_bar$Asset)))
-        }
-        # Reorder by abs weight and keep top n_choice
-        df_bar <- df_bar %>%
-          dplyr::arrange(dplyr::desc(abs(.data$Weight))) %>%
-          dplyr::slice_head(n = n_choice)
-
-      } else {
-        # -- Option (ii): Choose assets by name or index
-        cat("\nAssets:\n")
-        for (i in seq_along(asset_names)) {
-          cat(paste0(i, ": ", asset_names[i], "\n"))
-        }
-        cat("\nEnter 'all' for all assets,\nOR indices (e.g. '1,3'),\nOR names (e.g. 'IBM, AAPL'):\n")
-        selection <- readline(prompt = "Your choice: ")
-        selection <- trimws(selection)
-
-        if (!nzchar(selection)) {
-          stop("No selection provided.")
-        }
-
-        if (tolower(selection) == "all") {
-          # keep everything
-        } else {
-          parts <- strsplit(selection, ",")[[1]]
-          parts <- trimws(parts)
-          # Check if numeric
-          all_numeric <- suppressWarnings(!any(is.na(as.numeric(parts))))
-          if (all_numeric) {
-            indices <- as.numeric(parts)
-            if (any(indices < 1 | indices > length(asset_names))) {
-              stop("Some indices are out of range.")
-            }
-            chosen_assets <- asset_names[indices]
-          } else {
-            # Assume strings are asset names
-            if (!all(parts %in% asset_names)) {
-              stop("Some chosen assets are not in the set of available asset_names.")
-            }
-            chosen_assets <- parts
-          }
-          # Subset to only selected assets
-          df_bar <- df_bar %>%
-            dplyr::filter(.data$Asset %in% chosen_assets)
-        }
-      }
-
-      # 4) Create proportions (for labeling) & assemble final data
-      total_weight <- sum(df_bar$Weight)
-      if (total_weight == 0) {
-        stop("After selection, the sum of the weights is zero. Nothing to plot.")
-      }
-
-      df_bar <- df_bar %>%
-        dplyr::mutate(
-          prop = .data$Weight / total_weight,
-          label = paste0(
-            .data$Asset, "\n",
-            scales::percent(.data$prop, accuracy = 0.1)  # negative sign if Weight<0
-          )
-        )
-
-      # Create palette
-      neon_pallete <- c(
-        neon_green, neon_orange, neon_cyan, neon_blue,
-        neon_yellow, neon_red, neon_turquoise, neon_lime,
-        neon_magenta, neon_hotpink, neon_pink, neon_purple,
-        vibrant_purple, black, white, blue_bg, neon_chartreuse,
-        neon_indigo, neon_gold, neon_silver, neon_coral, neon_violet
-      )
-
-      # Plot title
-      plot_title <- if (active_weights_mode) {
-        paste("Portfolio Active Weights:", if (port_name == "") "not_identified" else port_name)
-      } else {
-        paste("Portfolio Weights:", if (port_name == "") "not_identified" else port_name)
-      }
-
-      # 5) Create bar plot - reorder x-axis by abs(Weight), but show actual sign
-      p <- ggplot2::ggplot(
-        df_bar,
-        ggplot2::aes(
-          x = stats::reorder(.data$Asset, -abs(.data$Weight)),  # order by abs
-          y = .data$Weight,
-          fill = .data$Asset
-        )
-      ) +
-        ggplot2::geom_bar(stat = "identity", color = white, width = 0.7, size = 0.5) +
-        ggplot2::scale_fill_manual(values = neon_pallete) +
-        ggplot2::labs(
-          title = plot_title,
-          x     = "Assets",
-          y     = if (active_weights_mode) "Active Weight (Port - Bench)" else "Weight"
-        ) +
-        ggplot2::theme_minimal() +
+    .gg_dark <- function(base_size = 12) {
+      ggplot2::theme_minimal(base_size = base_size) +
         ggplot2::theme(
           plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
           panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-          panel.grid.major = ggplot2::element_line(color = ggplot2::alpha("white", 0.2), size = 0.5),
-          panel.grid.minor = ggplot2::element_line(color = ggplot2::alpha("white", 0.1), size = 0.3),
           panel.grid       = ggplot2::element_blank(),
-          plot.title       = ggplot2::element_text(color = white, size = 16, face = "bold"),
           axis.text        = ggplot2::element_text(color = white),
           axis.title       = ggplot2::element_text(color = white),
-          legend.position  = "none"
-        )
-
-      print(p)
-      return(invisible(p))
-    }
-
-
-    #------------------------------------------------------------------------------------------------
-    # 2) exp_ret_score - Bar chart
-    #------------------------------------------------------------------------------------------------
-    if (type == "Expected Return Score") {
-      if (length(exp_ret_score) == 0)
-        stop("No exp_ret_score found in 'x'.")
-      if (length(asset_names) != length(exp_ret_score))
-        stop("Mismatch between 'eligible_assets' and 'exp_ret_score' length.")
-
-      # Create data frame
-      df_bar <- data.frame(Asset = asset_names, ExpRet = exp_ret_score)
-
-      # 1) Subset logic (top x or individual selections)
-      cat("\nHow do you want to choose which assets to display?\n")
-      cat("1: Top x by absolute ExpRet\n")
-      cat("2: Choose assets individually (by name or index)\n")
-      choice_mode <- as.integer(readline(prompt = "Your choice: "))
-
-      if (is.na(choice_mode) || !choice_mode %in% c(1, 2)) {
-        stop("Invalid choice for asset selection mode.")
-      }
-
-      if (choice_mode == 1) {
-        # -- Option (i): Top x by absolute ExpRet
-        cat("How many assets do you want to show? ")
-        n_choice <- as.integer(readline())
-        if (is.na(n_choice) || n_choice < 1 || n_choice > length(df_bar$Asset)) {
-          stop(paste0("Invalid number of assets. Must be between 1 and ", length(df_bar$Asset)))
-        }
-
-        df_bar <- df_bar %>%
-          dplyr::arrange(dplyr::desc(abs(.data$ExpRet))) %>%
-          dplyr::slice_head(n = n_choice)
-
-      } else {
-        # -- Option (ii): Choose assets by name or index
-        cat("\nAssets:\n")
-        for (i in seq_along(asset_names)) {
-          cat(paste0(i, ": ", asset_names[i], "\n"))
-        }
-        cat("\nEnter 'all' for all assets,\nOR indices (e.g. '1,3'),\nOR names (e.g. 'IBM, AAPL'):\n")
-        selection <- readline(prompt = "Your choice: ")
-        selection <- trimws(selection)
-
-        if (!nzchar(selection)) {
-          stop("No selection provided.")
-        }
-
-        if (tolower(selection) == "all") {
-          # keep everything
-        } else {
-          parts <- strsplit(selection, ",")[[1]]
-          parts <- trimws(parts)
-          # Check if numeric
-          all_numeric <- suppressWarnings(!any(is.na(as.numeric(parts))))
-          if (all_numeric) {
-            indices <- as.numeric(parts)
-            if (any(indices < 1 | indices > length(asset_names))) {
-              stop("Some indices are out of range.")
-            }
-            chosen_assets <- asset_names[indices]
-          } else {
-            # Assume strings are asset names
-            if (!all(parts %in% asset_names)) {
-              stop("Some chosen assets are not in the set of available asset_names.")
-            }
-            chosen_assets <- parts
-          }
-          df_bar <- df_bar %>% dplyr::filter(.data$Asset %in% chosen_assets)
-        }
-      }
-
-      # If after selection we have no data, abort
-      if (nrow(df_bar) == 0) {
-        stop("No assets left after selection. Nothing to plot.")
-      }
-
-      # 2) Plot
-      p <- ggplot2::ggplot(df_bar, ggplot2::aes(x = .data$Asset, y = .data$ExpRet, fill = .data$Asset)) +
-        ggplot2::geom_bar(stat = "identity", color = black, alpha = 0.8) +
-        ggplot2::theme_minimal() +
-        ggplot2::theme(
-          plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
-          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-          panel.grid.major = ggplot2::element_blank(),
-          axis.text        = ggplot2::element_text(color = white),
-          axis.title       = ggplot2::element_text(color = white),
-          legend.position  = "none",
-          plot.title       = ggplot2::element_text(color = white, size = 14, face = "bold")
-        ) +
-        ggplot2::labs(
-          title = paste("Expected Return Scores:",
-                        if (port_name == "") "not_identified" else port_name),
-          x = "Assets",
-          y = "Exp Ret Score"
-        )
-
-      print(p)
-      return(invisible(p))
-    }
-
-
-    #------------------------------------------------------------------------------------------------
-    # 3) risk_return - Scatterplot of risk (x) vs. exp_ret_score (y)
-    #------------------------------------------------------------------------------------------------
-    if (type == "Risk-Return Trade-off") {
-      if (is.null(cov_mat))
-        stop("No 'covariance_matrix' found in x for risk_return plot.")
-      if (is.null(exp_ret_score))
-        stop("No 'exp_ret_score' found in x for risk_return plot.")
-      if (nrow(cov_mat) != length(asset_names))
-        stop("Dimension mismatch between covariance_matrix and eligible_assets.")
-
-      diag_risk <- diag(cov_mat)
-      if (length(diag_risk) != length(asset_names))
-        stop("Mismatch between diagonal of covariance_matrix and eligible_assets.")
-      if (length(exp_ret_score) != length(asset_names))
-        stop("Mismatch between exp_ret_score and eligible_assets.")
-
-      df_scatter <- data.frame(
-        Asset  = asset_names,
-        Risk   = sqrt(diag_risk),
-        ExpRet = exp_ret_score
-      )
-
-      # 1) Subset logic (top x or individual selections)
-      cat("\nHow do you want to choose which assets to display?\n")
-      cat("1: Top x by absolute ExpRet\n")
-      cat("2: Choose assets individually (by name or index)\n")
-      choice_mode <- as.integer(readline(prompt = "Your choice: "))
-
-      if (is.na(choice_mode) || !choice_mode %in% c(1, 2)) {
-        stop("Invalid choice for asset selection mode.")
-      }
-
-      if (choice_mode == 1) {
-        cat("How many assets do you want to show? ")
-        n_choice <- as.integer(readline())
-        if (is.na(n_choice) || n_choice < 1 || n_choice > length(df_scatter$Asset)) {
-          stop(paste0("Invalid number of assets. Must be between 1 and ", length(df_scatter$Asset)))
-        }
-
-        df_scatter <- df_scatter %>%
-          dplyr::arrange(dplyr::desc(abs(.data$ExpRet))) %>%
-          dplyr::slice_head(n = n_choice)
-
-      } else {
-        cat("\nAssets:\n")
-        for (i in seq_along(asset_names)) {
-          cat(paste0(i, ": ", asset_names[i], "\n"))
-        }
-        cat("\nEnter 'all' for all assets,\nOR indices (e.g. '1,3'),\nOR names (e.g. 'IBM, AAPL'):\n")
-        selection <- readline(prompt = "Your choice: ")
-        selection <- trimws(selection)
-
-        if (!nzchar(selection)) {
-          stop("No selection provided.")
-        }
-
-        if (tolower(selection) == "all") {
-          # keep everything
-        } else {
-          parts <- strsplit(selection, ",")[[1]]
-          parts <- trimws(parts)
-          # Check if numeric
-          all_numeric <- suppressWarnings(!any(is.na(as.numeric(parts))))
-          if (all_numeric) {
-            indices <- as.numeric(parts)
-            if (any(indices < 1 | indices > length(asset_names))) {
-              stop("Some indices are out of range.")
-            }
-            chosen_assets <- asset_names[indices]
-          } else {
-            if (!all(parts %in% asset_names)) {
-              stop("Some chosen assets are not in the set of available asset_names.")
-            }
-            chosen_assets <- parts
-          }
-          df_scatter <- df_scatter %>% dplyr::filter(.data$Asset %in% chosen_assets)
-        }
-      }
-
-      if (nrow(df_scatter) == 0) {
-        stop("No assets left after selection. Nothing to plot.")
-      }
-
-      # 2) Plot
-      p <- ggplot2::ggplot(df_scatter, ggplot2::aes(x = .data$Risk, y = .data$ExpRet, label = .data$Asset)) +
-        ggplot2::geom_point(color = vibrant_purple, size = 3) +
-        ggrepel::geom_text_repel(
-          color = white,
-          size = 3.5,
-          box.padding = 0.3,
-          segment.color = white
-        ) +
-        ggplot2::theme_minimal() +
-        ggplot2::theme(
-          plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
-          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-          panel.grid.major = ggplot2::element_line(color = "grey20"),
-          axis.text        = ggplot2::element_text(color = white),
-          axis.title       = ggplot2::element_text(color = white),
-          plot.title       = ggplot2::element_text(color = white, size = 14, face = "bold")
-        ) +
-        ggplot2::labs(
-          title = paste("Risk vs. Expected Return Score:",
-                        if (port_name == "") "not_identified" else port_name),
-          x = "Expected Risk",
-          y = "Expected Return Score"
-        )
-
-      print(p)
-      return(invisible(p))
-    }
-
-    #------------------------------------------------------------------------------------------------
-    # 4) correlation - heatmap of correlations
-    #------------------------------------------------------------------------------------------------
-    if (type == "Correlation") {
-      if (is.null(corr_mat)) {
-        if (is.null(cov_mat))
-          stop("No covariance_matrix or correlation_matrix found in 'x'. Can't create correlation heatmap.")
-        diag_sd  <- sqrt(diag(cov_mat))
-        outer_sd <- diag_sd %*% t(diag_sd)
-        corr_mat <- cov_mat / outer_sd
-      }
-      if (nrow(corr_mat) != length(asset_names))
-        stop("Dimension mismatch between correlation_matrix and eligible_assets.")
-
-      cat("Assets:\n")
-      for (i in seq_along(asset_names)) {
-        cat(paste0(i, ": ", asset_names[i], "\n"))
-      }
-      cat("\nEnter 'all' for all assets,\nOR indices (e.g. '1,3'),\nOR names (e.g. 'book_yield, roe_3m'):\n")
-      selection <- readline(prompt = "Your choice: ")
-
-      if (nzchar(selection) && tolower(selection) != "all") {
-        parts <- strsplit(selection, ",")[[1]]
-        parts <- trimws(parts)
-        all_numeric <- suppressWarnings(!any(is.na(as.numeric(parts))))
-        if (all_numeric) {
-          indices <- as.numeric(parts)
-          if (any(indices < 1 | indices > length(asset_names)))
-            stop("Some indices are out of range.")
-          assets_to_plot <- asset_names[indices]
-        } else {
-          if (!all(parts %in% asset_names))
-            stop("Some chosen assets are not in the correlation matrix.")
-          assets_to_plot <- parts
-        }
-      } else {
-        assets_to_plot <- asset_names
-      }
-
-      sub_mat <- corr_mat[assets_to_plot, assets_to_plot, drop = FALSE]
-      sub_mat[upper.tri(sub_mat, diag = FALSE)] <- NA
-
-      df_cor          <- as.data.frame(sub_mat)
-      df_cor$AssetRow <- rownames(df_cor)
-
-      df_long <- df_cor %>%
-        tidyr::pivot_longer(
-          cols      = -AssetRow,
-          names_to  = "AssetCol",
-          values_to = "Correlation"
-        )
-
-      p <- ggplot2::ggplot(
-        df_long,
-        ggplot2::aes(
-          x = factor(.data$AssetCol, levels = assets_to_plot),
-          y = factor(.data$AssetRow, levels = rev(assets_to_plot)),
-          fill = .data$Correlation
-        )
-      ) +
-        ggplot2::geom_tile(color = "white") +
-
-        # NEW: Text labels for each tile
-        ggplot2::geom_text(
-          ggplot2::aes(label = round(.data$Correlation, 2)),
-          color = "black",  # or "white"
-          na.rm = TRUE,
-          size = 3
-        ) +
-
-        ggplot2::scale_fill_gradient2(
-          low      = neon_pink,
-          mid      = white,
-          high     = neon_green,
-          midpoint = 0,
-          limits   = c(-1, 1)
-        ) +
-        ggplot2::theme_minimal() +
-        ggplot2::theme(
-          plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
-          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-          axis.text.x      = ggplot2::element_text(angle = 45, vjust = 1, hjust = 1, color = white),
-          axis.text.y      = ggplot2::element_text(color = white),
-          axis.title       = ggplot2::element_blank(),
-          plot.title       = ggplot2::element_text(color = white, size = 14, face = "bold"),
-          legend.position  = "right",
+          plot.title       = ggplot2::element_text(color = white, face = "bold"),
           legend.title     = ggplot2::element_text(color = white),
           legend.text      = ggplot2::element_text(color = white)
-        ) +
-        ggplot2::labs(
-          title = paste("Correlation Heatmap:", if (port_name == "") "not_identified" else port_name)
         )
-
-      print(p)
-      return(invisible(p))
     }
 
-    #------------------------------------------------------------------------------------------------
-    # 5) relative_risk_contribution - bar chart
-    #------------------------------------------------------------------------------------------------
-    if (type == "Relative Risk Contribution") {
 
-      if (is.null(cov_mat))
-        stop("No 'covariance_matrix' found in 'x'. This plot requires covariance_matrix.")
-      if (length(weights) == 0 || length(asset_names) != length(weights))
-        stop("Weights not available or mismatch with eligible_assets.")
+    .bench_cols <- function(U) grep("_bench_weights$", colnames(U), value = TRUE)
 
-      # ---- Choose between portfolio-RRC and active-RRC
-      cat("\nCompute contributions against:\n")
-      cat("1: Portfolio weights (standard RRC)\n")
-      cat("2: ACTIVE weights vs a benchmark (tracking-error RRC)\n")
-      rrc_mode <- base::as.integer(readline(prompt = "Your choice: "))
-      if (base::is.na(rrc_mode) || !rrc_mode %in% c(1L, 2L)) stop("Invalid choice for RRC mode.")
+    .get_bench_col <- function(U) {
+      bc <- .bench_cols(U)
+      if (length(bc) == 0) return(NULL)
+      if (length(bc) == 1) return(bc[1])
+      .menu(bc, "Select benchmark column")
+    }
 
-      if (rrc_mode == 2L) {
-        if (is.null(universe_df) || !"tickers" %in% base::colnames(universe_df))
-          stop("To compute ACTIVE RRC you need 'universe_df' with a 'tickers' column.")
-        ## Compute active RRC
-        bench_w <- .get_bench_vector(universe_df, asset_names)
-        w_vec   <- weights - bench_w
-        rrc_tbl <- relative_risk_contribution(w_vec, cov_mat)
-        rrc_vec <- rrc_tbl$rel_risk_contr[match(asset_names, rrc_tbl$tickers)]
+    .safe_cor_from_cov <- function(C) {
+      d <- sqrt(diag(C)); outer <- d %*% t(d); C / outer
+    }
 
-        df_rrc <- base::data.frame(
-          Asset  = asset_names,
-          Weight = w_vec,          # ACTIVE weight
-          RRC    = rrc_vec,
-          stringsAsFactors = FALSE
-        )
-        rrc_title_suffix <- " (Active vs Benchmark)"
-        y_lab_weights    <- "Active Weight"
+    .resolve_group_col <- function() {
+      if (is.null(groups_df)) stop("groups slot not available.")
+      req <- c("id","tickers","dates")
+      if (!all(req %in% colnames(groups_df))) stop("groups must have 'id','tickers','dates'.")
+      if (is.null(group_col) || !group_col %in% setdiff(colnames(groups_df), req)) {
+        stop("group_col must be set and present in groups.")
+      }
+      group_col
+    }
+
+    .ensure_macro_groups_exist <- function(x) {
+      if (is.null(x@macro) || is.null(x@macro@universe_m_d_ref)) {
+        stop("macro universe not available.")
+      }
+      if (!methods::is(x@macro@universe_m_d_ref, "meta_dataframe")) {
+        stop("macro@universe_m_d_ref must be a 'meta_dataframe'.")
+      }
+      invisible(TRUE)
+    }
+
+    .macro_active_vectors <- function() {
+      ## For macro, act_* not stored; compute vs chosen benchmark from macro@universe_m_d_ref
+      Um <- if (methods::is(x@macro@universe_m_d_ref, "meta_dataframe")) x@macro@universe_m_d_ref@data else NULL
+      if (is.null(Um)) stop("macro universe data not available.")
+      bench_col <- .get_bench_col(Um)
+      if (is.null(bench_col)) stop("No *_bench_weights column found in macro universe.")
+      list(bench_col = bench_col, Um = Um)
+    }
+
+    ## ---- prompt type ----
+    available_types <- c(
+      "Weights",
+      "Expected Return Score",
+      "Risk-Return Trade-off",
+      "Correlation",
+      "Relative Risk Contribution",
+      "Efficient Frontier",
+      "Random Weights Distribution",
+      "Groups Allocation",
+      "Hierarchical Clustering",
+      "Allocation Flow (Groups -> Assets)",
+      "Within-Group Composition",
+      "Group Risk Decomposition",
+      "Portfolio Stats",
+      "Universe Data"
+    )
+    ## Build options
+    level_opts <- c("Portfolio")
+    if (!is.null(x@macro)) level_opts <- c(level_opts, "Macro")
+    if (identical(x@port_construction_method, "mmaf") && !is.null(x@micro)) level_opts <- c(level_opts, "Micro")
+
+    ## If there's only Portfolio, skip the menu
+    if (length(level_opts) == 1L) {
+      pick_label <- "Portfolio"
+    } else {
+      raw_pick <- .menu(level_opts, "Plot level (Portfolio / Macro / Micro)")
+
+      ## Accept both label or index; also guard 0/NA
+      if (is.character(raw_pick)) {
+        pick_label <- trimws(raw_pick)
+        if (!nzchar(pick_label) || !(pick_label %in% level_opts)) stop("Invalid level selection.")
       } else {
-        # Standard RRC on total portfolio weights
-        w_vec <- weights
-        rrc_vec <- if (!is.null(rel_risk_contr) && length(rel_risk_contr) == length(weights)) {
-          base::as.numeric(rel_risk_contr)
-        } else {
-          relative_risk_contribution(w_vec, cov_mat)
-        }
-        df_rrc <- base::data.frame(
-          Asset  = asset_names,
-          Weight = w_vec,
-          RRC    = rrc_vec,
-          stringsAsFactors = FALSE
+        idx <- suppressWarnings(as.integer(raw_pick))
+        if (is.na(idx) || idx <= 0L || idx > length(level_opts)) stop("Invalid level selection.")
+        pick_label <- level_opts[idx]
+      }
+    }
+
+    ## Dispatch by label
+    if (identical(pick_label, "Macro")) {
+      plot(x@macro, ...)
+      return(invisible())
+    }
+
+    if (identical(pick_label, "Micro")) {
+      micro_list <- x@micro
+      if (!is.list(micro_list) || length(micro_list) < 1L) stop("Micro portfolio list is empty.")
+      micro_names <- names(micro_list)
+      if (is.null(micro_names)) micro_names <- as.character(seq_along(micro_list))
+
+      cat("\nAvailable micro portfolios:\n")
+      for (i in seq_along(micro_names)) cat(i, ": ", micro_names[i], "\n", sep = "")
+
+      m_idx <- suppressWarnings(as.integer(readline(prompt = "Select micro index: ")))
+      if (is.na(m_idx) || m_idx < 1L || m_idx > length(micro_list)) stop("Invalid micro selection.")
+
+      plot(micro_list[[m_idx]], ...)
+      return(invisible())
+    }
+
+    ## Portfolio level continues: now ask the plot type
+    type <- .menu(available_types, "Choose plot type")
+
+    ## =========================================================================================
+    ## Weights
+    ## =========================================================================================
+    if (type == "Weights") {
+      if (length(weights) == 0L || length(weights) != length(asset_names)) stop("weights/eligible_assets mismatch.")
+      if (is.null(U) || !"tickers" %in% colnames(U)) stop("universe_m_d_ref@data must include 'tickers'.")
+
+      has_act <- "act_weights" %in% colnames(U)
+      bench_col <- .get_bench_col(U)  # may be NULL
+
+      metric_choices <- c("weights")
+      if (has_act) metric_choices <- c(metric_choices, "act_weights")
+      chosen_metrics <- .select_from_vector(metric_choices, "Metrics to include (choose names or 'all')")
+      add_bench <- if (!is.null(bench_col)) {
+        ans <- tolower(readline(prompt = sprintf("Add benchmark (%s) to plot? (y/n): ", bench_col)))
+        ans %in% c("y","yes")
+      } else FALSE
+
+      df <- data.frame(tickers = asset_names, weights = weights, stringsAsFactors = FALSE) |>
+        dplyr::left_join(U[, c("tickers", intersect(c("act_weights", bench_col), colnames(U))), drop = FALSE], by = "tickers")
+
+      plot_cols <- intersect(c("weights", "act_weights"), chosen_metrics)
+      if (add_bench && !is.null(bench_col)) {
+        names(df)[names(df) == bench_col] <- "_bench_"
+        plot_cols <- c(plot_cols, "_bench_")
+      }
+
+      ## subset choice
+      mode <- suppressWarnings(as.integer(readline(prompt = "\n1: Top x by |weights|  2: Pick names/indices\nChoice: ")))
+      if (!mode %in% c(1L,2L)) stop("Invalid choice.")
+      keep <- asset_names
+      if (mode == 1L) {
+        n_choice <- suppressWarnings(as.integer(readline(prompt = "How many assets? ")))
+        if (is.na(n_choice) || n_choice < 1L) n_choice <- min(length(asset_names), 20L)
+        ord <- order(-abs(df$weights))
+        keep <- df$tickers[ord][seq_len(min(n_choice, length(ord)))]
+      } else {
+        keep <- .select_from_vector(asset_names, "Pick assets")
+      }
+      df <- df[df$tickers %in% keep, , drop = FALSE]
+
+      dfl <- tidyr::pivot_longer(df, cols = tidyselect::any_of(plot_cols), names_to = "Metric", values_to = "Value")
+      pretty_names <- c(weights = "Weight", act_weights = "Active Weight", `_bench_` = "Benchmark")
+      dfl$Metric <- pretty_names[dfl$Metric]
+
+      p <- ggplot2::ggplot(dfl, ggplot2::aes(x = stats::reorder(tickers, -abs(Value)), y = Value, fill = Metric)) +
+        ggplot2::geom_bar(stat = "identity", position = "dodge", color = white, size = 0.4) +
+        ggplot2::scale_fill_manual(values = c("Weight" = vibrant_purple, "Active Weight" = neon_green, "Benchmark" = neon_blue)) +
+        .gg_dark() +
+        ggplot2::labs(title = paste("Portfolio Weights:", if (port_name == "") "not_identified" else port_name),
+                      x = "Assets", y = "Weight", fill = NULL)
+      print(p); return(invisible(p))
+    }
+
+    ## =========================================================================================
+    ## Expected Return Score
+    ## =========================================================================================
+    if (type == "Expected Return Score") {
+      if (is.null(exp_ret_score) || length(exp_ret_score) != length(asset_names)) stop("exp_ret_score/eligible_assets mismatch.")
+      df <- data.frame(Asset = asset_names, ExpRet = exp_ret_score, stringsAsFactors = FALSE)
+      mode <- suppressWarnings(as.integer(readline(prompt = "\n1: Top x by |ExpRet|  2: Pick names/indices\nChoice: ")))
+      if (!mode %in% c(1L,2L)) stop("Invalid choice.")
+      if (mode == 1L) {
+        n_choice <- suppressWarnings(as.integer(readline(prompt = "How many assets? ")))
+        n_choice <- if (is.na(n_choice) || n_choice < 1L) min(20L, nrow(df)) else min(n_choice, nrow(df))
+        df <- dplyr::arrange(df, dplyr::desc(abs(.data$ExpRet))) |> dplyr::slice_head(n = n_choice)
+      } else {
+        keep <- .select_from_vector(asset_names, "Pick assets")
+        df <- df[df$Asset %in% keep, , drop = FALSE]
+      }
+
+      p <- ggplot2::ggplot(df, ggplot2::aes(x = Asset, y = ExpRet, fill = Asset)) +
+        ggplot2::geom_bar(stat = "identity", color = black, alpha = 0.85) +
+        ggplot2::scale_fill_manual(values = rep(neon_palette, length.out = nrow(df))) +
+        .gg_dark() +
+        ggplot2::theme(legend.position = "none") +
+        ggplot2::labs(title = paste("Expected Return Scores:", if (port_name == "") "not_identified" else port_name),
+                      x = "Assets", y = "Score")
+      print(p); return(invisible(p))
+    }
+
+    ## =========================================================================================
+    ## Risk-Return Trade-off
+    ## =========================================================================================
+    if (type == "Risk-Return Trade-off") {
+      if (is.null(cov_mat)) stop("covariance_matrix required.")
+      if (is.null(U) || !"tickers" %in% colnames(U)) stop("universe data required.")
+      x_choices <- c("risk")
+      if ("rel_risk_contr" %in% colnames(U)) x_choices <- c(x_choices, "rel_risk_contr")
+      if ("act_rel_risk_contr" %in% colnames(U)) x_choices <- c(x_choices, "act_rel_risk_contr")
+      x_pick <- .menu(x_choices, "X-axis: choose risk or (active) RRC")
+
+      diag_risk <- sqrt(diag(cov_mat))
+      base_df <- data.frame(Asset = asset_names,
+                            risk  = diag_risk,
+                            ExpRet = exp_ret_score,
+                            stringsAsFactors = FALSE)
+
+      join_cols <- setdiff(x_pick, "risk")
+      if (length(join_cols) > 0L) {
+        base_df <- dplyr::left_join(
+          base_df,
+          U[, c("tickers", join_cols), drop = FALSE],
+          by = c("Asset" = "tickers")
         )
-        rrc_title_suffix <- ""
-        y_lab_weights    <- "Weight"
       }
 
-      # 1) Subset logic (top x or individual selections)
-      cat("\nHow do you want to choose which assets to display?\n")
-      cat("1: Top x by absolute RRC\n")
-      cat("2: Choose assets individually (by name or index)\n")
-      choice_mode <- as.integer(readline(prompt = "Your choice: "))
+      df <- base_df
+      names(df)[names(df) == x_pick] <- "X"
 
-      if (is.na(choice_mode) || !choice_mode %in% c(1, 2)) {
-        stop("Invalid choice for asset selection mode.")
-      }
-
-      if (choice_mode == 1) {
-        cat("How many assets do you want to show? ")
-        n_choice <- as.integer(readline())
-        if (is.na(n_choice) || n_choice < 1 || n_choice > length(df_rrc$Asset)) {
-          stop(paste0("Invalid number of assets. Must be between 1 and ", length(df_rrc$Asset)))
-        }
-
-        df_rrc <- df_rrc %>%
-          dplyr::arrange(dplyr::desc(abs(.data$RRC))) %>%
+      mode <- suppressWarnings(as.integer(readline(prompt = "\n1: Top x by |exp_ret_score|  2: Pick names/indices\nChoice: ")))
+      if (!mode %in% c(1L,2L)) stop("Invalid choice.")
+      if (mode == 1L) {
+        n_choice <- suppressWarnings(as.integer(readline(prompt = "How many assets? ")))
+        n_choice <- if (is.na(n_choice) || n_choice < 1L) min(20L, nrow(df)) else min(n_choice, nrow(df))
+        df <- dplyr::arrange(df, dplyr::desc(abs(.data$ExpRet))) |>
           dplyr::slice_head(n = n_choice)
-
       } else {
-        cat("\nAssets:\n")
-        for (i in seq_along(asset_names)) {
-          cat(paste0(i, ": ", asset_names[i], "\n"))
-        }
-        cat("\nEnter 'all' for all assets,\nOR indices (e.g. '1,3'),\nOR names (e.g. 'IBM, AAPL'):\n")
-        selection <- readline(prompt = "Your choice: ")
-        selection <- trimws(selection)
-
-        if (!nzchar(selection)) {
-          stop("No selection provided.")
-        }
-
-        if (tolower(selection) == "all") {
-          # keep everything
-        } else {
-          parts <- strsplit(selection, ",")[[1]]
-          parts <- trimws(parts)
-          # Check if numeric
-          all_numeric <- suppressWarnings(!any(is.na(as.numeric(parts))))
-          if (all_numeric) {
-            indices <- as.numeric(parts)
-            if (any(indices < 1 | indices > length(asset_names))) {
-              stop("Some indices are out of range.")
-            }
-            chosen_assets <- asset_names[indices]
-          } else {
-            if (!all(parts %in% asset_names)) {
-              stop("Some chosen assets are not in the set of available asset_names.")
-            }
-            chosen_assets <- parts
-          }
-          df_rrc <- df_rrc %>% dplyr::filter(.data$Asset %in% chosen_assets)
-        }
+        keep <- .select_from_vector(asset_names, "Pick assets")
+        df <- df[df$Asset %in% keep, , drop = FALSE]
       }
 
-      if (nrow(df_rrc) == 0) {
-        stop("No assets left after selection. Nothing to plot.")
-      }
-
-      # 2) Pivot to long format & plot
-      df_long <- tidyr::pivot_longer(
-        df_rrc,
-        cols = c("Weight", "RRC"),
-        names_to = "Metric",
-        values_to = "Value"
-      )
-
-      p <- ggplot2::ggplot(
-        df_long,
-        ggplot2::aes(x = .data$Asset, y = .data$Value, fill = .data$Metric)
-      ) +
-        ggplot2::geom_bar(position = "dodge", stat = "identity", color = black, alpha = 0.9) +
-        ggplot2::theme_minimal() +
-        ggplot2::theme(
-          plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
-          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-          panel.grid.major = ggplot2::element_blank(),
-          axis.text        = ggplot2::element_text(color = white),
-          axis.title       = ggplot2::element_text(color = white),
-          legend.title     = ggplot2::element_text(color = white),
-          legend.text      = ggplot2::element_text(color = white),
-          plot.title       = ggplot2::element_text(color = white, size = 14, face = "bold")
-        ) +
-        ggplot2::scale_fill_manual(values = c("Weight" = vibrant_purple, "RRC" = neon_green)) +
-        ggplot2::labs(
-          title = paste("Relative Risk Contribution:",
-                        if (port_name == "") "not_identified" else port_name),
-          x = "Asset",
-          y = "Value",
-          fill = "Metric"
-        )
-
-      print(p)
-      return(invisible(p))
+      p <- ggplot2::ggplot(df, ggplot2::aes(x = X, y = ExpRet, label = Asset)) +
+        ggplot2::geom_point(color = vibrant_purple, size = 3) +
+        ggrepel::geom_text_repel(color = white, size = 3.5, box.padding = 0.3, segment.color = white) +
+        .gg_dark() +
+        ggplot2::labs(title = sprintf("Risk-Return: X = %s, Y = exp_ret_score", x_pick),
+                        x = x_pick, y = "Expected Return Score")
+      print(p); return(invisible(p))
     }
 
-    #------------------------------------------------------------------------------------------------
-    # 6) efficient_frontier - scatterplot using random_port_weights
-    #------------------------------------------------------------------------------------------------
-    if (type == "Efficient Frontier") {
-      if (is.null(random_port_wt))
-        stop("No 'random_port_weights' found in 'x'. This plot requires random_port_weights.")
-      if (is.null(cov_mat))
-        stop("No covariance_matrix found in 'x'. This plot requires covariance_matrix.")
-      if (is.null(exp_ret_score))
-        stop("No exp_ret_score found in 'x'. This plot requires exp_ret_score.")
-      if (length(random_port_wt$tickers) != length(asset_names)) {
-        stop("random_port_weights does not have the same number of columns as eligible_assets.")
+    ## =========================================================================================
+    ## Correlation  (assets or groups)
+    ## =========================================================================================
+    if (type == "Correlation") {
+      mode <- .menu(c("Assets", "Groups"), "Correlation heatmap for")
+      if (mode == "Assets") {
+        C <- if (!is.null(corr_mat)) corr_mat else .safe_cor_from_cov(cov_mat)
+        if (is.null(C)) stop("Need correlation or covariance matrix.")
+        keep <- .select_from_vector(asset_names, "Pick assets or 'all'")
+        sub_mat <- C[keep, keep, drop = FALSE]
+      } else {
+        if (is.null(x@group_cov_matrix)) stop("group_cov_matrix required for group correlation.")
+        G <- x@group_cov_matrix
+        Gc <- stats::cov2cor(G)
+        keep <- .select_from_vector(colnames(Gc), "Pick groups or 'all'")
+        sub_mat <- Gc[keep, keep, drop = FALSE]
       }
 
-      # Temporarily rename columns in random_port_wt to match asset_names
-      rp_df <- random_port_wt[,-1]
+      M <- sub_mat
+      M[upper.tri(M, diag = FALSE)] <- NA
+      df <- as.data.frame(M); df$Row <- rownames(M)
+      dl <- tidyr::pivot_longer(df, cols = -Row, names_to = "Col", values_to = "Correlation")
+
+      p <- ggplot2::ggplot(dl, ggplot2::aes(x = factor(Col, levels = keep),
+                                            y = factor(Row, levels = rev(keep)),
+                                            fill = Correlation)) +
+        ggplot2::geom_tile(color = "white") +
+        ggplot2::geom_text(ggplot2::aes(label = round(Correlation, 2)), color = "black", na.rm = TRUE, size = 3) +
+        ggplot2::scale_fill_gradient2(low = neon_pink, mid = white, high = neon_green, midpoint = 0, limits = c(-1,1)) +
+        .gg_dark() +
+        ggplot2::theme(axis.title = ggplot2::element_blank()) +
+        ggplot2::labs(title = "Correlation Heatmap")
+      print(p); return(invisible(p))
+    }
+
+    ## =========================================================================================
+    ## Relative Risk Contribution
+    ## =========================================================================================
+    if (type == "Relative Risk Contribution") {
+      if (is.null(U) || !"tickers" %in% colnames(U)) stop("universe data required.")
+      cols <- c("rel_risk_contr", "act_rel_risk_contr")
+      cols <- cols[cols %in% colnames(U)]
+      if (length(cols) == 0) stop("No rel_risk_contr columns found in universe data.")
+      pick <- .menu(cols, "Choose RRC measure to plot")
+      is_active_rrc <- identical(pick, "act_rel_risk_contr")
+
+      df <- data.frame(tickers = asset_names, stringsAsFactors = FALSE) |>
+        dplyr::left_join(U[, c("tickers", pick), drop = FALSE], by = "tickers")
+      names(df)[names(df) == pick] <- "RRC"
+      df$Weight <- weights
+
+      mode <- suppressWarnings(as.integer(readline(prompt = "\n1: Top x by |RRC|  2: Pick names/indices\nChoice: ")))
+      if (!mode %in% c(1L,2L)) stop("Invalid choice.")
+      if (mode == 1L) {
+        n_choice <- suppressWarnings(as.integer(readline(prompt = "How many assets? ")))
+        n_choice <- if (is.na(n_choice) || n_choice < 1L) min(20L, nrow(df)) else min(n_choice, nrow(df))
+        df <- dplyr::arrange(df, dplyr::desc(abs(.data$RRC))) |> dplyr::slice_head(n = n_choice)
+      } else {
+        keep <- .select_from_vector(asset_names, "Pick assets")
+        df <- df[df$tickers %in% keep, , drop = FALSE]
+      }
+
+      dfl <- tidyr::pivot_longer(df, cols = c("Weight","RRC"), names_to = "Metric", values_to = "Value")
+
+      p <- ggplot2::ggplot(dfl, ggplot2::aes(x = tickers, y = Value, fill = Metric)) +
+        ggplot2::geom_bar(stat = "identity", position = "dodge", color = black, alpha = 0.9) +
+        ggplot2::scale_fill_manual(values = c("Weight" = vibrant_purple, "RRC" = neon_green)) +
+        .gg_dark() +
+        ggplot2::labs(
+          title = paste0("Relative Risk Contribution",
+                         if (is_active_rrc) " (Active)" else "",
+                         ": ", if (port_name == "") "not_identified" else port_name),
+          x = "Asset", y = "Value", fill = NULL
+        )
+      print(p); return(invisible(p))
+    }
+
+    ## =========================================================================================
+    ## Efficient Frontier
+    ## =========================================================================================
+    if (type == "Efficient Frontier") {
+      if (is.null(random_port_wt) || is.null(cov_mat) || is.null(exp_ret_score))
+        stop("random_port_weights, covariance_matrix, and exp_ret_score required.")
+      if (length(random_port_wt$tickers) != length(asset_names)) stop("random_port_weights columns mismatch.")
+
+      rp_df <- random_port_wt[, -1, drop = FALSE]
       rownames(rp_df) <- asset_names
 
-      # Calculate returns, risk, sharpe for each random portfolio
-      rp_returns <- apply(rp_df, 2, function(w) sum(w * exp_ret_score))
-      rp_risk    <- apply(rp_df, 2, function(w) sqrt(t(w) %*% cov_mat %*% w))
-      rp_sharpe  <- rp_returns / rp_risk
+      rp_ret <- apply(rp_df, 2, function(w) sum(w * exp_ret_score))
+      rp_risk <- apply(rp_df, 2, function(w) sqrt(t(w) %*% cov_mat %*% w))
+      rp_sh <- rp_ret / rp_risk
+      frontier_df <- data.frame(Return = rp_ret, Risk = rp_risk, Sharpe = rp_sh)
 
-      frontier_df <- data.frame(
-        Return = rp_returns,
-        Risk   = rp_risk,
-        Sharpe = rp_sharpe
-      )
+      opt_w <- weights
+      opt_ret <- sum(opt_w * exp_ret_score)
+      opt_risk <- sqrt(t(opt_w) %*% cov_mat %*% opt_w)
 
-      # Also compute risk/return for the "optimal" portfolio in x@weights
-      opt_w      <- weights
-      opt_return <- sum(opt_w * exp_ret_score)
-      opt_risk   <- sqrt(t(opt_w) %*% cov_mat %*% opt_w)
-      opt_sharpe <- opt_return / opt_risk
-
-      # For base_weights and target_weights
-      base_risk   <- NA_real_
-      base_return <- NA_real_
-      if (!is.null(universe_df) && "base_weights" %in% colnames(universe_df)) {
-
-        base_df <- data.frame(tickers = asset_names) %>%
-          dplyr::left_join(universe_df %>%
-                             dplyr::select(tickers, base_weights), by = "tickers"
-          )
-
-        base_w <- base_df$base_weights
-        base_return <- sum(base_w * exp_ret_score)
-        base_risk   <- sqrt(t(base_w) %*% cov_mat %*% base_w)
-        base_sharpe <- base_return / base_risk
-
-
+      base_risk <- base_return <- target_risk <- target_return <- NA_real_
+      if (!is.null(U) && "base_weights" %in% colnames(U)) {
+        bw <- dplyr::left_join(data.frame(tickers = asset_names),
+                               U[, c("tickers","base_weights")], by = "tickers")$base_weights
+        base_return <- sum(bw * exp_ret_score); base_risk <- sqrt(t(bw) %*% cov_mat %*% bw)
+      }
+      if (!is.null(U) && "target_weights" %in% colnames(U)) {
+        tw <- dplyr::left_join(data.frame(tickers = asset_names),
+                               U[, c("tickers","target_weights")], by = "tickers")$target_weights
+        target_return <- sum(tw * exp_ret_score); target_risk <- sqrt(t(tw) %*% cov_mat %*% tw)
       }
 
-      target_risk <- NA_real_
-      target_return <- NA_real_
-      if (!is.null(universe_df) && "target_weights" %in% colnames(universe_df)) {
-
-        target_df <- data.frame(tickers = asset_names) %>%
-          dplyr::left_join(universe_df %>%
-                             dplyr::select(tickers, target_weights), by = "tickers"
-          )
-
-
-        target_w <- target_df$target_weights
-        target_return <- sum(target_w * exp_ret_score)
-        target_risk   <- sqrt(t(target_w) %*% cov_mat %*% target_w)
-        target_sharpe <- target_return / target_risk
-
-      }
-
-      # Create the scatterplot
-      p <- ggplot2::ggplot(frontier_df, ggplot2::aes(x = .data$Risk, y = .data$Return, color = .data$Sharpe)) +
+      p <- ggplot2::ggplot(frontier_df, ggplot2::aes(x = Risk, y = Return, color = Sharpe)) +
         ggplot2::geom_point(size = 3, alpha = 0.7) +
         ggplot2::scale_color_gradient(low = neon_pink, high = neon_green) +
-        # Add the "optimal" portfolio point
-        ggplot2::annotate("point", x = opt_risk, y = opt_return, color = "red", size = 4, shape = 17) +
-        # Add base_weights point if available
-        {if (!is.na(base_risk) && !is.na(base_return)) ggplot2::annotate("point", x = base_risk, y = base_return, color = neon_blue, size = 4, shape = 15)} +
-        # Add target_weights point if available
-        {if (!is.na(target_risk) && !is.na(target_return)) ggplot2::annotate("point", x = target_risk, y = target_return, color = neon_orange, size = 4, shape = 18)} +
-        # Add labels for
-        ggplot2::theme_minimal() +
-        ggplot2::theme(
-          plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
-          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-          axis.text        = ggplot2::element_text(color = white),
-          axis.title       = ggplot2::element_text(color = white),
-          legend.title     = ggplot2::element_text(color = white),
-          legend.text      = ggplot2::element_text(color = white),
-          plot.title       = ggplot2::element_text(color = white, size = 14, face = "bold")
-        ) +
-        ggplot2::labs(
-          title = paste("Efficient Frontier:", if (port_name == "") "not_identified" else port_name),
-          x = "Expected Risk (Std Dev)",
-          y = "Expected Return",
-          color = "Sharpe"
-        )
-
-      ## Print that neon_blue point is base_weights and neon_orange is target_weights
-      if (!is.na(base_risk) && !is.na(base_return)) {
-        cat(paste0("Blue square point: Base Weights (Risk: ", round(base_risk,4), ", Return: ", round(base_return,4), ")\n"))
-      }
-      if (!is.na(target_risk) && !is.na(target_return)) {
-        cat(paste0("Orange diamond point: Target Weights (Risk: ", round(target_risk,4), ", Return: ", round(target_return,4), ")\n"))
-      }
-      cat(paste0("Red triangle point: Optimal Weights (Risk: ", round(opt_risk,4), ", Return: ", round(opt_return,4), ")\n"))
-
-
-      print(p)
-      return(invisible(p))
+        ggplot2::annotate("point", x = opt_risk, y = opt_ret, color = "red", size = 4, shape = 17) +
+        { if (!is.na(base_risk) && !is.na(base_return)) ggplot2::annotate("point", x = base_risk, y = base_return, color = neon_blue, size = 4, shape = 15) } +
+        { if (!is.na(target_risk) && !is.na(target_return)) ggplot2::annotate("point", x = target_risk, y = target_return, color = neon_orange, size = 4, shape = 18) } +
+        .gg_dark() +
+        ggplot2::labs(title = paste("Efficient Frontier:", if (port_name == "") "not_identified" else port_name),
+                      x = "Risk (stdev)", y = "Expected Return", color = "Sharpe")
+      if (!is.na(base_risk)) cat(sprintf("Blue square: Base Weights (Risk %.4f, Return %.4f)\n", base_risk, base_return))
+      if (!is.na(target_risk)) cat(sprintf("Orange diamond: Target Weights (Risk %.4f, Return %.4f)\n", target_risk, target_return))
+      cat(sprintf("Red triangle: Optimal Weights (Risk %.4f, Return %.4f)\n", opt_risk, opt_ret))
+      print(p); return(invisible(p))
     }
-    #------------------------------------------------------------------------------------------------
-    # 7) weight distribution
-    #------------------------------------------------------------------------------------------------
+
+    ## =========================================================================================
+    ## Random Weights Distribution
+    ## =========================================================================================
     if (type == "Random Weights Distribution") {
-      # Extract relevant slots
-      random_port_weights <- x@random_port_weights
-      if (any(is.null(x@ind_max_weights), is.null(x@ind_min_weights))) {
-        stop("Random Weights Distribution is only available when individual constraints are set.")
-      }
-      ind_max_weights <- x@ind_max_weights
-      ind_min_weights <- x@ind_min_weights
-      asset_names     <- x@eligible_assets
+      if (is.null(random_port_wt) || is.null(x@ind_max_weights) || is.null(x@ind_min_weights))
+        stop("random_port_weights and individual constraints required.")
+      W <- as.data.frame(t(random_port_wt[, -1, drop = FALSE])); colnames(W) <- random_port_wt$tickers
+      dl <- tidyr::pivot_longer(W, cols = dplyr::everything(), names_to = "assets", values_to = "weights")
+      constraints <- data.frame(assets = asset_names,
+                                ind_max_weights = x@ind_max_weights,
+                                ind_min_weights = x@ind_min_weights,
+                                stringsAsFactors = FALSE)
+      plot_data <- dplyr::left_join(dl, constraints, by = "assets")
 
-      # Basic checks
-      if (is.null(random_port_weights) || is.null(ind_max_weights) || is.null(ind_min_weights)) {
-        stop("random_port_weights, ind_max_weights, and ind_min_weights must be provided.")
-      }
-      if (length(ind_max_weights) != length(asset_names) ||
-          length(ind_min_weights) != length(asset_names)) {
-        stop("Mismatch between constraints and eligible assets.")
-      }
-
-      # Prepare data for plotting
-      # random_port_weights is assumed to have first column named 'tickers'
-      # and subsequent columns with random weight draws
-      weights_long <- as.data.frame(t(random_port_weights[, -1]))
-      colnames(weights_long) <- random_port_weights$tickers
-
-      weights_long <- tidyr::pivot_longer(
-        weights_long,
-        cols = dplyr::everything(),
-        names_to = "assets",
-        values_to = "weights"
-      )
-
-      constraints <- data.frame(
-        assets          = asset_names,
-        ind_max_weights = ind_max_weights,
-        ind_min_weights = ind_min_weights
-      )
-
-      plot_data <- dplyr::left_join(weights_long, constraints, by = "assets")
-
-      # Subset logic: Let user choose how to filter the displayed assets
-      cat("\nHow do you want to choose which assets to display?\n")
-      cat("1: Top x by average absolute random weight\n")
-      cat("2: Choose assets individually (by name or index)\n")
-      choice_mode <- as.integer(readline(prompt = "Your choice: "))
-
-      if (is.na(choice_mode) || !choice_mode %in% c(1, 2)) {
-        stop("Invalid choice for asset selection mode.")
+      mode <- suppressWarnings(as.integer(readline(prompt = "\n1: Top x by avg |random weight|  2: Pick names/indices\nChoice: ")))
+      if (!mode %in% c(1L,2L)) stop("Invalid choice.")
+      if (mode == 1L) {
+        av <- plot_data |> dplyr::group_by(.data$assets) |>
+          dplyr::summarize(avg_abs = mean(abs(.data$weights), na.rm = TRUE), .groups = "drop") |>
+          dplyr::arrange(dplyr::desc(.data$avg_abs))
+        n_choice <- suppressWarnings(as.integer(readline(prompt = "How many assets? ")))
+        n_choice <- if (is.na(n_choice) || n_choice < 1L) min(20L, nrow(av)) else min(n_choice, nrow(av))
+        keep <- av$assets[seq_len(n_choice)]
+        plot_data <- dplyr::filter(plot_data, .data$assets %in% keep)
+        constraints <- dplyr::filter(constraints, .data$assets %in% keep)
+      } else {
+        keep <- .select_from_vector(asset_names, "Pick assets")
+        plot_data <- dplyr::filter(plot_data, .data$assets %in% keep)
+        constraints <- dplyr::filter(constraints, .data$assets %in% keep)
       }
 
-      if (choice_mode == 1) {
-        # 1a) Calculate a ranking metric: for example, average absolute weight
-        df_avg <- plot_data %>%
-          dplyr::group_by(.data$assets) %>%
-          dplyr::summarize(avg_abs_weight = mean(abs(.data$weights), na.rm = TRUE)) %>%
-          dplyr::arrange(dplyr::desc(.data$avg_abs_weight))
+      p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = assets, y = weights)) +
+        ggplot2::geom_jitter(width = 0.2, color = vibrant_purple, alpha = 0.5, size = 2) +
+        ggplot2::geom_point(data = constraints, ggplot2::aes(x = assets, y = ind_max_weights), color = neon_orange, size = 3, shape = 17) +
+        ggplot2::geom_point(data = constraints, ggplot2::aes(x = assets, y = ind_min_weights), color = neon_green, size = 3, shape = 17) +
+        .gg_dark() +
+        ggplot2::labs(title = "Weight Distribution with Constraints", x = "Assets", y = "Weights")
+      print(p); return(invisible(p))
+    }
 
-        # 1b) Ask how many top assets user wants
-        cat("How many assets do you want to show? ")
-        n_choice <- as.integer(readline())
-        if (is.na(n_choice) || n_choice < 1 || n_choice > nrow(df_avg)) {
-          stop(paste0("Invalid number of assets. Must be between 1 and ", nrow(df_avg)))
-        }
+    ## =========================================================================================
+    ## Groups Allocation  (macro is available for any port with groups)
+    ## =========================================================================================
+    if (type == "Groups Allocation") {
+      ## macro exists for any port that has groups
+      .ensure_macro_groups_exist(x)
 
-        # 1c) Keep only those top assets in both plot_data & constraints
-        top_assets <- df_avg$assets[1:n_choice]
-        plot_data  <- dplyr::filter(plot_data, .data$assets %in% top_assets)
-        constraints <- dplyr::filter(constraints, .data$assets %in% top_assets)
+      Um <- if (methods::is(x@macro@universe_m_d_ref, "meta_dataframe"))
+        x@macro@universe_m_d_ref@data else NULL
+      if (is.null(Um)) stop("macro universe data not available.")
+
+      ## must have at least weights or rel_risk_contr
+      avail <- intersect(c("weights", "rel_risk_contr"), colnames(Um))
+      if (length(avail) == 0L) stop("macro universe lacks 'weights'/'rel_risk_contr'.")
+
+      ## prompt once for active version vs bench_weights
+      bench_col <- .get_bench_col(Um)  ## auto-detect *_bench_weights
+      active_ans <- tolower(readline(prompt = "Plot active version (vs bench_weights)? (y/n): "))
+      plot_active <- active_ans %in% c("y", "yes")
+
+      ## assemble base df
+      keep_cols <- c("tickers", intersect(c("weights","rel_risk_contr", bench_col), colnames(Um)))
+      df <- Um[, keep_cols, drop = FALSE]
+
+      if (plot_active) {
+        if (is.null(bench_col)) stop("To plot active, a bench_weights column must exist.")
+        ## active weights
+        w <- df$weights
+        b <- df[[bench_col]]
+        df$act_weights <- w - b
+
+        ## active RRC using group covariance
+        if (is.null(x@group_cov_matrix)) stop("group_cov_matrix required for Active RRC.")
+        gC <- x@group_cov_matrix
+        grp_names <- df$tickers
+        if (!all(grp_names %in% colnames(gC))) stop("group_cov_matrix must include macro groups.")
+        gC <- gC[grp_names, grp_names, drop = FALSE]
+
+        wte <- df$act_weights
+        port_var <- as.numeric(t(wte) %*% gC %*% wte)
+        mrc <- as.numeric(gC %*% wte)
+        df$act_rel_risk_contr <- (wte * mrc) / port_var
+
+        plot_cols <- c("act_weights", "act_rel_risk_contr")
+        pretty <- c(act_weights = "Active Weight", act_rel_risk_contr = "Active RRC")
 
       } else {
-        # 2) User picks assets by name or index
-        cat("\nAssets:\n")
-        for (i in seq_along(asset_names)) {
-          cat(paste0(i, ": ", asset_names[i], "\n"))
-        }
-        cat("\nEnter 'all' for all assets,\nOR indices (e.g. '1,3'),\nOR names (e.g. 'PETR4, VALE3'):\n")
-        selection <- readline(prompt = "Your choice: ")
-        selection <- trimws(selection)
-
-        if (!nzchar(selection)) {
-          stop("No selection provided.")
-        }
-
-        if (tolower(selection) == "all") {
-          # keep everything
-        } else {
-          parts <- strsplit(selection, ",")[[1]]
-          parts <- trimws(parts)
-          # Check if numeric
-          all_numeric <- suppressWarnings(!any(is.na(as.numeric(parts))))
-          if (all_numeric) {
-            indices <- as.numeric(parts)
-            if (any(indices < 1 | indices > length(asset_names))) {
-              stop("Some indices are out of range.")
-            }
-            chosen_assets <- asset_names[indices]
-          } else {
-            # Assume strings are asset names
-            if (!all(parts %in% asset_names)) {
-              stop("Some chosen assets are not in the set of available asset_names.")
-            }
-            chosen_assets <- parts
-          }
-          plot_data  <- dplyr::filter(plot_data, .data$assets %in% chosen_assets)
-          constraints <- dplyr::filter(constraints, .data$assets %in% chosen_assets)
-        }
+        ## non-active: weights, RRC, and bench_weights (renamed for legend)
+        if (is.null(bench_col)) stop("bench_weights column not found.")
+        names(df)[names(df) == bench_col] <- "bench_weights"
+        plot_cols <- intersect(c("weights","rel_risk_contr","bench_weights"), colnames(df))
+        pretty <- c(weights = "Weight", rel_risk_contr = "RRC", bench_weights = "Bench Weight")
       }
 
-      # Final check
-      if (nrow(plot_data) == 0) {
-        stop("No assets left after selection. Nothing to plot.")
-      }
+      dfl <- tidyr::pivot_longer(
+        df,
+        cols = tidyselect::any_of(plot_cols),
+        names_to = "Metric", values_to = "Value"
+      )
+      dfl$Metric <- pretty[dfl$Metric]
 
-      # Create the jitter plot
-      p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = .data$assets, y = .data$weights)) +
-        ggplot2::geom_jitter(width = 0.2, color = "#6A0DAD", alpha = 0.5, size = 2) +
-        # Show max constraint
-        ggplot2::geom_point(
-          data  = constraints,
-          ggplot2::aes(x = .data$assets, y = .data$ind_max_weights),
-          color = "#FF5F1F", size = 3, shape = 17
-        ) +
-        # Show min constraint
-        ggplot2::geom_point(
-          data  = constraints,
-          ggplot2::aes(x = .data$assets, y = .data$ind_min_weights),
-          color = "#39FF14", size = 3, shape = 17
-        ) +
-        ggplot2::theme_minimal() +
-        ggplot2::theme(
-          plot.background  = ggplot2::element_rect(fill = "#001f3f", color = NA),
-          panel.background = ggplot2::element_rect(fill = "#001f3f", color = NA),
-          panel.grid       = ggplot2::element_blank(),
-          axis.text        = ggplot2::element_text(color = "white"),
-          axis.title       = ggplot2::element_text(color = "white"),
-          plot.title       = ggplot2::element_text(color = "white", size = 14, face = "bold")
-        ) +
+      p <- ggplot2::ggplot(dfl, ggplot2::aes(x = tickers, y = Value, fill = Metric)) +
+        ggplot2::geom_bar(stat = "identity", position = "dodge", color = black) +
+        .gg_dark() +
         ggplot2::labs(
-          title = "Weight Distribution with Constraints",
-          x     = "Assets",
-          y     = "Weights"
+          title = paste0("Group Allocation (macro)", if (plot_active) " — Active" else ""),
+          x = "Group", y = "Value", fill = NULL
         )
 
+      ## these two lines were missing; without them the method falls through
       print(p)
       return(invisible(p))
     }
 
-    #------------------------------------------------------------------------------------------------
-    # 8) group_composition - compare group weights to a benchmark if available
-    #------------------------------------------------------------------------------------------------
-    if (type == "Groups Allocation") {
 
-      if (is.null(groups_df)){
-        stop("No valid groups slot found. This plot requires group information.")
-      }
-      required_cols <- c("id", "tickers", "dates")
-      if (!all(required_cols %in% colnames(groups_df))) {
-        stop("groups slot must contain at least 'id','tickers','dates'.")
-      }
-      # Identify group columns
-      group_cols <- setdiff(colnames(groups_df), required_cols)
-      if (length(group_cols) == 0)
-        stop("No group columns found in 'groups' data.")
-
-      # Merge each eligible asset with its group(s)
-      port_alloc    <- data.frame(tickers = asset_names, weights = weights)
-      groups_merged <- dplyr::left_join(port_alloc, groups_df, by = "tickers")
-      groups_merged <- dplyr::filter(groups_merged, !is.na(.data$id))
-
-      # Ask for which group to plot
-      if (length(group_cols) == 1){
-        main_group_col <- group_cols[1]
-      }
-      if (length(group_cols) == 0){
-        main_group_col <- NULL
-      }
-      if (length(group_cols) > 1){
-        for (i in seq_along(group_cols)) {
-          cat(paste0(i, ": ", group_cols[i], "\n"))
-        }
-        selection <- readline(prompt = "Please choose the number correspondig to the group classification of your choice: ")
-        selection <- as.numeric(selection)
-        if (is.na(selection) || length(selection) != 1) {
-          stop("Invalid selection.")
-        }
-        main_group_col <- group_cols[selection]
-        if (!main_group_col %in% group_cols){
-          stop("Invalid group selected.")
-        }
-      }
-
-      df_by_group <- groups_merged %>%
-        dplyr::group_by(.data[[main_group_col]]) %>%
-        dplyr::summarize(Portfolio_Weight = sum(.data$weights), .groups = "drop")
-
-      # Attempt to detect a benchmark column in the universe df
-      bench_cols <- grep("_bench_weights$", colnames(universe_df), value = TRUE)
-
-      # Ask for which bench to plot
-      if (length(bench_cols) == 1){
-        bench_col <- bench_cols[1]
-      }
-      if (length(bench_cols) == 0){
-        bench_col <- NULL
-      }
-      if (length(bench_cols) > 1){
-        for (i in seq_along(bench_cols)) {
-          cat(paste0(i, ": ", bench_cols[i], "\n"))
-        }
-        selection <- readline(prompt = "Please choose the number correspondig to the benchmark of your choice:: ")
-        selection <- as.numeric(selection)
-        if (is.na(selection) || length(selection) != 1) {
-          stop("Invalid selection.")
-        }
-        bench_col <- bench_cols[selection]
-        if (!bench_col %in% bench_cols){
-          stop("Invalid benchmark selected.")
-        }
-      }
-
-
-      if (!is.null(bench_col) && bench_col %in% colnames(universe_df)) {
-        # Merge group info with the universe benchmark column
-        bench_merged <- dplyr::left_join(groups_df, dplyr::select(universe_df, -group_cols), by = c("tickers"))
-
-        df_bench <- bench_merged %>%
-          dplyr::group_by(.data[[main_group_col]]) %>%
-          dplyr::summarize(Benchmark_Weight = sum(.data[[bench_col]], na.rm = TRUE), .groups = "drop")
-
-        df_compare <- dplyr::full_join(df_by_group, df_bench, by = main_group_col) %>%
-          tidyr::replace_na(list(Portfolio_Weight = 0, Benchmark_Weight = 0))
-
-        df_plot <- tidyr::pivot_longer(
-          df_compare,
-          cols = c("Portfolio_Weight", "Benchmark_Weight"),
-          names_to = "Type",
-          values_to = "Weight"
-        )
-
-        p <- ggplot2::ggplot(df_plot, ggplot2::aes_string(x = main_group_col, y = "Weight", fill = "Type")) +
-          ggplot2::geom_bar(stat = "identity", position = "dodge", color = black) +
-          ggplot2::theme_minimal() +
-          ggplot2::theme(
-            plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
-            panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-            panel.grid.major = ggplot2::element_blank(),
-            axis.text        = ggplot2::element_text(color = white),
-            axis.title       = ggplot2::element_text(color = white),
-            legend.title     = ggplot2::element_text(color = white),
-            legend.text      = ggplot2::element_text(color = white),
-            plot.title = ggplot2::element_text(color = "white", size = 14, face = "bold")
-          ) +
-          ggplot2::labs(
-            title = paste("Group Composition vs. Benchmark:", if (port_name == "") "not_identified" else port_name),
-            x     = main_group_col,
-            y     = "Weight",
-            fill  = "Allocation"
-          )
-
-        print(p)
-        return(invisible(p))
-
-      } else {
-        # No benchmark found, just the portfolio composition
-        p <- ggplot2::ggplot(df_by_group, ggplot2::aes_string(x = main_group_col, y = "Portfolio_Weight", fill = main_group_col)) +
-          ggplot2::geom_bar(stat = "identity", color = black) +
-          ggplot2::theme_minimal() +
-          ggplot2::theme(
-            plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
-            panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-            panel.grid.major = ggplot2::element_blank(),
-            axis.text        = ggplot2::element_text(color = white),
-            axis.title       = ggplot2::element_text(color = white),
-            legend.position  = "none"
-          ) +
-          ggplot2::labs(
-            title = paste("Group Composition:", if (port_name == "") "not_identified" else port_name),
-            x = main_group_col,
-            y = "Weight"
-          )
-
-        print(p)
-        return(invisible(p))
-      }
-    }
-
-    #------------------------------------------------------------------------------------------------
-    # 9) hierarchical_clustering - dendrogram of hclust object
-    #------------------------------------------------------------------------------------------------
+    ## =========================================================================================
+    ## Hierarchical Clustering
+    ## =========================================================================================
     if (type == "Hierarchical Clustering") {
-
-      # 0) Preconditions
-      if (is.null(x@clusters) || !inherits(x@clusters, "hclust")) {
-        stop("No valid hierarchical clustering ('hclust') object found in 'x@clusters'.")
-      }
-      if (length(x@eligible_assets) == 0) stop("No eligible assets found.")
-      if (is.null(x@weights) || length(x@weights) != length(x@eligible_assets)) {
-        stop("Weights must be available and match the eligible_assets length.")
-      }
-
-      # Pull what we can from the original hc (linkage method)
-      hc_original      <- x@clusters
-      linkage_method   <- if (!is.null(hc_original$method)) hc_original$method else "ward.D2"
-
-      # 1) Ask user how to select assets
-      weights_df <- data.frame(assets = x@eligible_assets, weights = x@weights)
-      cat("\nHow do you want to choose which assets to display?\n")
-      cat("1: Top x assets by absolute weight\n")
-      cat("2: Choose assets individually (by name or index)\n")
-      choice_mode <- as.integer(readline(prompt = "Your choice: "))
-
-      if (is.na(choice_mode) || !choice_mode %in% c(1, 2)) {
-        stop("Invalid choice for asset selection mode.")
-      }
-
-      if (choice_mode == 1) {
-        weights_df <- weights_df %>% dplyr::arrange(dplyr::desc(abs(.data$weights)))
-        cat("How many top-weighted assets do you want to show? ")
-        n_choice <- as.integer(readline())
-        if (is.na(n_choice) || n_choice < 2 || n_choice > nrow(weights_df)) {
-          stop(paste0("Invalid number of assets. Must be between 2 and ", nrow(weights_df)))
-        }
-        sel_assets <- weights_df$assets[1:n_choice]
+      if (is.null(x@clusters) || !inherits(x@clusters, "hclust")) stop("clusters (hclust) required.")
+      if (length(asset_names) == 0L || is.null(weights) || length(weights) != length(asset_names))
+        stop("eligible_assets/weights required.")
+      weights_df <- data.frame(assets = asset_names, weights = weights)
+      mode <- suppressWarnings(as.integer(readline(prompt = "\n1: Top x by |weight|  2: Pick names/indices\nChoice: ")))
+      if (!mode %in% c(1L,2L)) stop("Invalid choice.")
+      if (mode == 1L) {
+        weights_df <- dplyr::arrange(weights_df, dplyr::desc(abs(.data$weights)))
+        n_choice <- suppressWarnings(as.integer(readline(prompt = "How many? ")))
+        if (is.na(n_choice) || n_choice < 2L) n_choice <- min(12L, nrow(weights_df))
+        sel_assets <- weights_df$assets[seq_len(n_choice)]
       } else {
-        asset_names <- x@eligible_assets
-        cat("\nAssets:\n")
-        for (i in seq_along(asset_names)) cat(paste0(i, ": ", asset_names[i], "\n"))
-        cat("\nEnter 'all' for all assets,\nOR indices (e.g. '1,3'),\nOR names (e.g. 'PETR4, VALE3'):\n")
-        selection <- readline(prompt = "Your choice: ")
-        selection <- trimws(selection)
-        if (!nzchar(selection)) stop("No selection provided.")
-        if (tolower(selection) == "all") {
-          sel_assets <- asset_names
-        } else {
-          parts <- strsplit(selection, ",")[[1]] %>% trimws()
-          all_numeric <- suppressWarnings(!any(is.na(as.numeric(parts))))
-          if (all_numeric) {
-            idx <- as.numeric(parts)
-            if (any(idx < 1 | idx > length(asset_names))) stop("Some indices are out of range.")
-            sel_assets <- asset_names[idx]
-          } else {
-            if (!all(parts %in% asset_names)) stop("Some chosen assets are not available.")
-            sel_assets <- parts
-          }
-        }
-        if (length(sel_assets) < 2) stop("Need at least two assets to plot a dendrogram.")
+        sel_assets <- .select_from_vector(asset_names, "Pick assets")
+        if (length(sel_assets) < 2L) stop("Need at least two assets.")
       }
 
-      # 2) Build correlation matrix for the subset (prefer stored correlation; else derive from covariance)
-      if (!is.null(x@correlation_matrix)) {
-        corr_full <- x@correlation_matrix
-      } else if (!is.null(x@covariance_matrix)) {
-        corr_full <- stats::cov2cor(x@covariance_matrix)
-      } else {
-        stop("Need 'correlation_matrix' or 'covariance_matrix' to rebuild clustering for the subset.")
-      }
-
-      # Sanity checks & subsetting
-      if (!all(sel_assets %in% rownames(corr_full)) || !all(sel_assets %in% colnames(corr_full))) {
-        stop("Selected assets are not present in the correlation/covariance matrix.")
-      }
-      corr_sub <- corr_full[sel_assets, sel_assets, drop = FALSE]
-
-      # 3) HRP distance: d_ij = sqrt(0.5 * (1 - rho_ij)) ; ensure numerical safety
-      rho <- as.matrix(corr_sub)
+      C <- if (!is.null(corr_mat)) corr_mat else if (!is.null(cov_mat)) stats::cov2cor(cov_mat) else stop("Need correlation/covariance.")
+      if (!all(sel_assets %in% rownames(C))) stop("Selected assets missing in matrix.")
+      rho <- as.matrix(C[sel_assets, sel_assets, drop = FALSE])
       rho[is.na(rho)] <- 0
-      d2 <- 0.5 * (1 - rho)   # keep as matrix
-      d2[d2 < 0] <- 0         # numeric safety, preserves dims
-      diag(d2) <- 0           # OK now: 'd2' is a matrix
+      d2 <- 0.5 * (1 - rho)
+      d2[d2 < 0] <- 0
+      diag(d2) <- 0
+      hc_method <- if (!is.null(x@clusters$method)) x@clusters$method else "ward.D2"
+      hc_sub <- stats::hclust(stats::as.dist(sqrt(d2)), method = hc_method)
 
-      dist_sub <- stats::as.dist(sqrt(d2))
-
-      # 4) Recompute hclust on the subset using the original linkage method
-      hc_sub <- stats::hclust(dist_sub, method = linkage_method)
-
-      # 5) Plot with cyberpunk theme (base plot, no extra deps)
       op <- graphics::par(no.readonly = TRUE)
       on.exit(graphics::par(op), add = TRUE)
       graphics::par(bg = blue_bg, col.axis = white, col.lab = white, col.main = white, col.sub = white, fg = white)
-
-      graphics::plot(
-        hc_sub,
-        main   = paste("Hierarchical Clustering (subset):", if (x@port_name == "") "not_identified" else x@port_name),
-        xlab   = "",
-        sub    = "",
-        hang   = -1,
-        labels = hc_sub$labels
-      )
+      graphics::plot(hc_sub, main = paste("Hierarchical Clustering:", if (port_name == "") "not_identified" else port_name),
+                     xlab = "", sub = "", hang = -1, labels = hc_sub$labels)
       graphics::box(col = neon_blue)
-      graphics::mtext("Linkage height", side = 2, line = 2, col = white)
-
-      # 6) Optional: highlight k clusters with neon rectangles
-      cat("\nHighlight k clusters? (enter integer k, or 0 to skip): ")
-      k_in <- suppressWarnings(as.integer(readline()))
-      if (!is.na(k_in) && k_in > 0) {
-        stats::rect.hclust(hc_sub, k = k_in, border = neon_green)
-      }
-
-      message("-> Dendrogram plotted successfully with the selected subset of assets.")
+      k_in <- suppressWarnings(as.integer(readline(prompt = "Highlight k clusters (0=skip): ")))
+      if (!is.na(k_in) && k_in > 0L) stats::rect.hclust(hc_sub, k = k_in, border = neon_green)
       return(invisible(hc_sub))
     }
 
-    #------------------------------------------------------------------------------------------------
-    # 10) Allocation Flow (Groups -> Assets); bipartite (Macro -> Micro) flow using ggraph
-    #------------------------------------------------------------------------------------------------
+    ## =========================================================================================
+    ## Allocation Flow (Groups -> Assets)
+    ## =========================================================================================
     if (type == "Allocation Flow (Groups -> Assets)") {
+      gc <- .resolve_group_col()
+      if (length(x@eligible_assets) == 0L || length(x@weights) == 0L) stop("eligible_assets/weights required.")
+      if (is.null(U)) stop("universe data required.")
+      ## use most recent date in universe for group mapping
+      last_date <- max(U$dates)
+      gmap <- groups_df[groups_df$dates == last_date, c("tickers", gc), drop = FALSE]
+      final_df <- data.frame(tickers = x@eligible_assets, w = x@weights, stringsAsFactors = FALSE) |>
+        dplyr::left_join(gmap, by = "tickers")
+      if (any(is.na(final_df[[gc]]))) stop("Some assets lack group mapping.")
 
-      if (length(x@eligible_assets) == 0 || length(x@weights) == 0)
-        stop("Need eligible_assets and final weights in 'x'.")
-
-      grp <- .resolve_group_col(x)
-      groups_df      <- grp$groups_df %>%
-        dplyr::filter(dates == max(x@universe_m_d_ref@data$dates))
-      main_group_col <- grp$main_group_col
-
-      final_df <- data.frame(tickers = x@eligible_assets, w = x@weights, stringsAsFactors = FALSE) %>%
-        dplyr::left_join(groups_df[, c("tickers", main_group_col)], by = "tickers")
-
-      if (any(is.na(final_df[[main_group_col]])))
-        stop("Some eligible assets have no group mapping in 'groups'.")
-
-      macro_tbl <- final_df %>%
-        dplyr::group_by(.data[[main_group_col]]) %>%
-        dplyr::summarise(
-          group_w_signed = sum(.data$w, na.rm = TRUE),
-          group_w_abs    = sum(abs(.data$w), na.rm = TRUE),
-          .groups = "drop"
-        ) %>%
+      macro_tbl <- final_df |>
+        dplyr::group_by(.data[[gc]]) |>
+        dplyr::summarize(group_w_signed = sum(.data$w), group_w_abs = sum(abs(.data$w)), .groups = "drop") |>
         dplyr::arrange(dplyr::desc(.data$group_w_abs))
 
-      cat("\nHow many top groups (by final |weight|) do you want to show? ")
-      g_choice <- suppressWarnings(as.integer(readline()))
-      if (is.na(g_choice) || g_choice < 1 || g_choice > nrow(macro_tbl)) {
-        g_choice <- min(nrow(macro_tbl), 10L)
-        message("-> Using default top ", g_choice, " groups.")
-      }
-      keep_groups <- macro_tbl[[main_group_col]][seq_len(g_choice)]
+      g_choice <- suppressWarnings(as.integer(readline(prompt = "Top how many groups (by |weight|)? ")))
+      if (is.na(g_choice) || g_choice < 1L) g_choice <- min(nrow(macro_tbl), 10L)
+      keep_groups <- macro_tbl[[gc]][seq_len(g_choice)]
 
-      final_df <- final_df %>%
-        dplyr::filter(.data[[main_group_col]] %in% keep_groups)
+      n_choice <- suppressWarnings(as.integer(readline(prompt = "Top how many assets per group (by |weight|)? ")))
+      if (is.na(n_choice) || n_choice < 1L) n_choice <- 8L
 
-      cat("Top how many assets per selected group (by |weight|)? ")
-      n_choice <- suppressWarnings(as.integer(readline()))
-      if (is.na(n_choice) || n_choice < 1) {
-        n_choice <- 8L
-        message("-> Using default top ", n_choice, " assets per group.")
-      }
-
-      final_df <- final_df %>%
-        dplyr::group_by(.data[[main_group_col]]) %>%
-        dplyr::slice_max(order_by = abs(.data$w), n = n_choice, with_ties = FALSE) %>%
+      final_df <- final_df |>
+        dplyr::filter(.data[[gc]] %in% keep_groups) |>
+        dplyr::group_by(.data[[gc]]) |>
+        dplyr::slice_max(order_by = abs(.data$w), n = n_choice, with_ties = FALSE) |>
         dplyr::ungroup()
 
-      macro_filt <- final_df %>%
-        dplyr::group_by(.data[[main_group_col]]) %>%
-        dplyr::summarise(
-          group_w_signed = sum(.data$w, na.rm = TRUE),
-          group_w_abs    = sum(abs(.data$w), na.rm = TRUE),
-          .groups = "drop"
-        ) %>%
-        dplyr::arrange(dplyr::desc(.data$group_w_abs))
+      macro_filt <- final_df |>
+        dplyr::group_by(.data[[gc]]) |>
+        dplyr::summarize(group_w_signed = sum(.data$w), group_w_abs = sum(abs(.data$w)), .groups = "drop")
 
       group_nodes <- data.frame(
-        name    = paste0("G:", macro_filt[[main_group_col]]),
-        label   = macro_filt[[main_group_col]],
-        type    = "group",
-        size    = macro_filt$group_w_signed,
-        size_abs= macro_filt$group_w_abs,
+        name = paste0("G:", macro_filt[[gc]]),
+        label = macro_filt[[gc]],
+        type = "group",
+        size = macro_filt$group_w_signed,
+        size_abs = macro_filt$group_w_abs,
         stringsAsFactors = FALSE
       )
-
-      asset_nodes <- final_df %>%
-        dplyr::transmute(
-          name    = paste0("A:", .data$tickers),
-          label   = .data$tickers,
-          type    = "asset",
-          size    = .data$w,
-          size_abs= abs(.data$w),
-          group   = .data[[main_group_col]]
-        ) %>%
+      asset_nodes <- final_df |>
+        dplyr::transmute(name = paste0("A:", tickers), label = tickers, type = "asset",
+                         size = w, size_abs = abs(w), group = .data[[gc]]) |>
         dplyr::distinct()
-
-      # --- Layout with safe padding so labels aren’t cut
-      left_pad  <- 0.08  # extra space on the left
-      right_pad <- 0.04  # extra space on the right
-
-      # order & place groups
+      left_pad <- 0.08; right_pad <- 0.04
       group_nodes <- group_nodes[order(-group_nodes$size_abs), , drop = FALSE]
       group_nodes$x <- 0 + left_pad
       group_nodes$y <- cumsum(group_nodes$size_abs) - group_nodes$size_abs/2
 
-      # place assets inside each group
-      a_tbl <- asset_nodes %>%
-        dplyr::group_by(.data$group) %>%
-        dplyr::arrange(dplyr::desc(.data$size_abs), .by_group = TRUE) %>%
+      a_tbl <- asset_nodes |>
+        dplyr::group_by(.data$group) |>
+        dplyr::arrange(dplyr::desc(.data$size_abs), .by_group = TRUE) |>
         dplyr::mutate(
           y = {
             cs <- cumsum(size_abs) - size_abs/2
-            g_idx   <- match(paste0("G:", group), group_nodes$name)
-            g_center<- group_nodes$y[g_idx]
-            g_half  <- group_nodes$size_abs[g_idx]/2
+            g_idx <- match(paste0("G:", group), group_nodes$name)
+            g_center <- group_nodes$y[g_idx]; g_half <- group_nodes$size_abs[g_idx]/2
             (g_center - g_half) + cs
           }
-        ) %>%
+        ) |>
         dplyr::ungroup()
       a_tbl$x <- 1 - right_pad
 
@@ -7173,19 +6362,11 @@ setMethod(
         group_nodes[, c("name","label","type","size","size_abs")],
         a_tbl[, c("name","label","type","size","size_abs","group")]
       )
-      nodes <- dplyr::left_join(
-        nodes,
-        rbind(group_nodes[, c("name","x","y")], a_tbl[, c("name","x","y")]),
-        by = "name"
-      )
-
-      edges <- data.frame(
-        from   = paste0("G:", final_df[[main_group_col]]),
-        to     = paste0("A:", final_df$tickers),
-        weight = final_df$w,
-        stringsAsFactors = FALSE
-      )
-
+      nodes <- dplyr::left_join(nodes,
+                                rbind(group_nodes[, c("name","x","y")], a_tbl[, c("name","x","y")]),
+                                by = "name")
+      edges <- data.frame(from = paste0("G:", final_df[[gc]]), to = paste0("A:", final_df$tickers),
+                          weight = final_df$w, stringsAsFactors = FALSE)
       g <- igraph::graph_from_data_frame(edges, directed = TRUE, vertices = nodes)
       igraph::V(g)$x <- nodes$x[match(igraph::V(g)$name, nodes$name)]
       igraph::V(g)$y <- nodes$y[match(igraph::V(g)$name, nodes$name)]
@@ -7194,410 +6375,286 @@ setMethod(
       asset_nodes_plot <- nodes[nodes$type == "asset", , drop = FALSE]
 
       p <- ggraph::ggraph(g, layout = "manual", x = igraph::V(g)$x, y = igraph::V(g)$y) +
-        ggraph::geom_edge_link(
-          ggplot2::aes(
-            edge_width = pmax(abs(weight), 1e-9),
-            edge_alpha = pmax(abs(weight), 1e-9)
-          ),
-          colour = neon_blue, lineend = "round"
-        ) +
+        ggraph::geom_edge_link(ggplot2::aes(edge_width = pmax(abs(weight), 1e-9),
+                                            edge_alpha = pmax(abs(weight), 1e-9)),
+                               colour = neon_blue, lineend = "round") +
         ggraph::scale_edge_width(range = c(0.5, 6), guide = "none") +
         ggraph::scale_edge_alpha(range = c(0.35, 0.9), guide = "none") +
-        ggraph::geom_node_point(
-          data = group_nodes_plot,
-          mapping = ggplot2::aes(x = x, y = y, size = pmax(abs(size), 1e-9)),
-          colour = neon_green
-        ) +
-        ggraph::geom_node_point(
-          data = asset_nodes_plot,
-          mapping = ggplot2::aes(x = x, y = y, size = pmax(abs(size), 1e-9)),
-          colour = neon_magenta
-        ) +
+        ggraph::geom_node_point(data = group_nodes_plot, mapping = ggplot2::aes(x = x, y = y, size = pmax(abs(size), 1e-9)),
+                                colour = neon_green) +
+        ggraph::geom_node_point(data = asset_nodes_plot, mapping = ggplot2::aes(x = x, y = y, size = pmax(abs(size), 1e-9)),
+                                colour = neon_magenta) +
         ggplot2::scale_size_continuous(range = c(2, 10), guide = "none") +
-        ggraph::geom_node_text(
-          data = group_nodes_plot,
-          mapping = ggplot2::aes(
-            x = x, y = y,
-            label = paste0(label, " (", scales::percent(size, accuracy = 0.1), ")")
-          ),
-          colour = white, fontface = 2, hjust = 1, nudge_x = -left_pad * 0.4
-        ) +
-        ggraph::geom_node_text(
-          data = asset_nodes_plot,
-          mapping = ggplot2::aes(
-            x = x, y = y,
-            label = paste0(label, " (", scales::percent(size, accuracy = 0.1), ")")
-          ),
-          colour = white, size = 3, hjust = 0, nudge_x = right_pad * 0.4
-        ) +
+        ggraph::geom_node_text(data = group_nodes_plot,
+                               mapping = ggplot2::aes(x = x, y = y,
+                                                      label = paste0(label, " (", scales::percent(size, accuracy = 0.1), ")")),
+                               colour = white, fontface = 2, hjust = 1, nudge_x = -left_pad * 0.4) +
+        ggraph::geom_node_text(data = asset_nodes_plot,
+                               mapping = ggplot2::aes(x = x, y = y,
+                                                      label = paste0(label, " (", scales::percent(size, accuracy = 0.1), ")")),
+                               colour = white, size = 3, hjust = 0, nudge_x = right_pad * 0.4) +
         ggplot2::scale_x_continuous(limits = c(0 - left_pad, 1 + right_pad)) +
         ggplot2::coord_cartesian(clip = "off") +
-        ggplot2::theme_minimal() +
-        ggplot2::theme(
-          plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
-          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-          panel.grid       = ggplot2::element_blank(),
-          axis.text        = ggplot2::element_blank(),
-          axis.title       = ggplot2::element_blank(),
-          plot.title       = ggplot2::element_text(color = white, face = "bold"),
-          plot.margin      = ggplot2::margin(12, 18, 12, 90)  # extra left margin for long group names
-        ) +
-        ggplot2::labs(
-          title = paste("Allocation Flow (Groups \u2192 Assets):",
-                        if (x@port_name == "") "not_identified" else x@port_name)
-        )
-
-      print(p)
-      return(invisible(p))
+        .gg_dark() +
+        ggplot2::theme(axis.text = ggplot2::element_blank(), axis.title = ggplot2::element_blank(),
+                       plot.margin = ggplot2::margin(12, 18, 12, 90)) +
+        ggplot2::labs(title = paste("Allocation Flow (Groups \u2192 Assets):", if (port_name == "") "not_identified" else port_name))
+      print(p); return(invisible(p))
     }
 
-    #------------------------------------------------------------------------------------------------
-    # 11) groups_ind_composition - faceted bars of within-group weights (optionally ACTIVE)
-    #------------------------------------------------------------------------------------------------
+    ## =========================================================================================
+    ## Within-Group Composition
+    ## =========================================================================================
     if (type == "Within-Group Composition") {
+      gc <- .resolve_group_col()
+      df <- data.frame(tickers = x@eligible_assets, weight = x@weights, stringsAsFactors = FALSE) |>
+        dplyr::left_join(groups_df[, c("tickers", gc)], by = "tickers")
+      if (any(is.na(df[[gc]]))) stop("Missing group mapping.")
 
-      grp <- .resolve_group_col(x)
-      groups_df      <- grp$groups_df
-      main_group_col <- grp$main_group_col
+      metric_choice <- suppressWarnings(as.integer(readline(prompt = "\n1: Weight/Active Weight  2: Relative Risk Contribution\nChoice: ")))
+      if (!metric_choice %in% c(1L,2L)) stop("Invalid choice.")
 
-      df <- data.frame(tickers = x@eligible_assets, weight = x@weights) %>%
-        dplyr::left_join(groups_df[, c("tickers", main_group_col)], by = "tickers")
-
-      if (any(is.na(df[[main_group_col]])))
-        stop("Missing group mapping for some assets.")
-
-      # --- Choose metric to plot (Weight vs RRC)
-      cat("\nWhich metric do you want to plot?\n")
-      cat("1: Weight or Active Weight \n")
-      cat("2: Relative Risk Contribution (RRC)\n")
-      metric_choice <- base::as.integer(readline(prompt = "Your choice: "))
-      if (base::is.na(metric_choice) || !metric_choice %in% c(1L, 2L)) stop("Invalid choice for plot metric.")
-
-
-
-      # -------------------------------
-      # Ask if user wants ACTIVE weights
-      # -------------------------------
-      plot_title_suffix <- ""
-      y_lab <- "Final Weight"
-
+      plot_title_suffix <- ""; y_lab <- "Final Weight"
       if (metric_choice == 1L) {
-        cat("Do you want to compute active weights for this plot? (y/n): ")
-        active_choice <- tolower(readline())
-        active_mode <- active_choice %in% c("y", "yes")
-
-
-        if (active_mode) {
-          if (is.null(universe_df) || !all(c("tickers") %in% colnames(universe_df))) {
-            stop("Cannot compute active weights: 'universe_df' with a 'tickers' column is required.")
-          }
-          bench_cols <- grep("_bench_weights$", colnames(universe_df), value = TRUE)
-          if (length(bench_cols) == 0) {
-            stop("No columns matching '_bench_weights' found in 'universe_df'.")
-          }
-
-          bench_col <- NULL
-          if (length(bench_cols) == 1) {
-            bench_col <- bench_cols[1]
-            message("Benchmark is: ", bench_col)
-          } else {
-            message("Multiple benchmarks found:")
-            chosen <- utils::menu(bench_cols, title = "Select a benchmark to use for active weights:")
-            if (chosen == 0) stop("No benchmark selected. Aborting.")
-            bench_col <- bench_cols[chosen]
-            message("Benchmark is: ", bench_col)
-          }
-
-          # Join benchmark weights and compute active = portfolio - benchmark
-          bench_join <- universe_df[, c("tickers", bench_col), drop = FALSE]
-          names(bench_join)[names(bench_join) == bench_col] <- "bench_w"
-          df <- dplyr::left_join(df, bench_join, by = "tickers")
-          if (!"bench_w" %in% names(df)) stop("Benchmark join failed.")
-          df$plot_value <- df$weight - df$bench_w
-
-          plot_title_suffix <- " (Active)"
-          y_lab <- "Active Weight"
+        if (!is.null(U) && "act_weights" %in% colnames(U)) {
+          ans <- tolower(readline(prompt = "Use active weights? (y/n): "))
+          if (ans %in% c("y","yes")) {
+            df <- dplyr::left_join(df, U[, c("tickers","act_weights")], by = "tickers")
+            df$plot_value <- df$act_weights; y_lab <- "Active Weight"; plot_title_suffix <- " (Active)"
+          } else { df$plot_value <- df$weight }
         } else {
           df$plot_value <- df$weight
         }
-
       } else {
-        if (is.null(cov_mat)) stop("covariance_matrix is required to compute RRC.")
-        cat("Do you want active RRC vs a benchmark? (y/n): ")
-        active_rrc_choice <- base::tolower(readline())
-        active_rrc <- active_rrc_choice %in% c("y", "yes")
+        if (is.null(U)) stop("universe data required for RRC columns.")
+        rrc_cols <- c("rel_risk_contr","act_rel_risk_contr")
+        rrc_cols <- rrc_cols[rrc_cols %in% colnames(U)]
+        if (!all(c("rel_risk_contr") %in% rrc_cols)) stop("RRC columns missing in universe data.")
+        ans_act <- tolower(readline(prompt = "Use active RRC? (y/n): "))
+        use_active_rrc <- ans_act %in% c("y","yes") && "act_rel_risk_contr" %in% rrc_cols
+        chosen_rrc <- if (use_active_rrc) "act_rel_risk_contr" else "rel_risk_contr"
 
-        if (active_rrc) {
-          if (is.null(universe_df) || !"tickers" %in% base::colnames(universe_df))
-            stop("To compute active RRC you need 'universe_df' with a 'tickers' column.")
-          bench_w <- .get_bench_vector(universe_df, asset_names)
-          rrc_tbl <- relative_risk_contribution(weights - bench_w, cov_mat)
-          rrc_vec <- rrc_tbl$rel_risk_contr[match(asset_names, rrc_tbl$tickers)]
-          plot_title_suffix <- " (RRC Active)"
-        } else {
-          rrc_tbl <- relative_risk_contribution(weights, cov_mat)
-          rrc_vec <- rrc_tbl$rel_risk_contr[match(asset_names, rrc_tbl$tickers)]
-          plot_title_suffix <- " (RRC)"
-        }
-
-        # merge RRC back to df by ticker
-        rrc_df <- base::data.frame(tickers = asset_names, plot_value = base::as.numeric(rrc_vec),
-                                   stringsAsFactors = FALSE)
-        df <- dplyr::left_join(df, rrc_df, by = "tickers")
-
-        y_lab <- "Relative Risk Contribution"
+        df <- dplyr::left_join(df, U[, c("tickers", chosen_rrc)], by = "tickers")
+        names(df)[names(df) == chosen_rrc] <- "plot_value"
+        y_lab <- if (use_active_rrc) "Active RRC" else "RRC"
+        plot_title_suffix <- if (use_active_rrc) " (RRC Active)" else " (RRC)"
       }
 
-
-      # -------------------------------
-      # Choose top groups and top assets
-      # -------------------------------
-      gsum <- df %>%
-        dplyr::group_by(.data[[main_group_col]]) %>%
-        dplyr::summarise(group_value = sum(.data$plot_value), .groups = "drop") %>%
+      gsum <- df |>
+        dplyr::group_by(.data[[gc]]) |>
+        dplyr::summarize(group_value = sum(.data$plot_value), .groups = "drop") |>
         dplyr::arrange(dplyr::desc(.data$group_value))
+      g_choice <- suppressWarnings(as.integer(readline(prompt = "Top how many groups (by |value|)? ")))
+      if (is.na(g_choice) || g_choice < 1L || g_choice > nrow(gsum)) g_choice <- min(nrow(gsum), 9L)
+      keep_groups <- gsum[[gc]][seq_len(g_choice)]
+      n_choice <- suppressWarnings(as.integer(readline(prompt = "Top how many assets per group (by |value|)? ")))
+      if (is.na(n_choice) || n_choice < 1L) n_choice <- 10L
 
-      cat("\nHow many top groups (by |value|) do you want to show? ")
-      g_choice <- suppressWarnings(as.integer(readline()))
-      if (is.na(g_choice) || g_choice < 1 || g_choice > nrow(gsum)) {
-        g_choice <- min(nrow(gsum), 9L)
-        message("-> Using default top ", g_choice, " groups.")
-      }
-      keep_groups <- gsum[[main_group_col]][seq_len(g_choice)]
-
-      cat("Top how many assets per group (by |value|)? ")
-      n_choice <- suppressWarnings(as.integer(readline()))
-      if (is.na(n_choice) || n_choice < 1) {
-        n_choice <- 10L
-        message("-> Using default top ", n_choice, " assets per group.")
-      }
-
-      dfp <- df %>%
-        dplyr::filter(.data[[main_group_col]] %in% keep_groups) %>%
-        dplyr::group_by(.data[[main_group_col]]) %>%
-        dplyr::slice_max(order_by = abs(.data$plot_value), n = n_choice, with_ties = FALSE) %>%
+      dfp <- df |>
+        dplyr::filter(.data[[gc]] %in% keep_groups) |>
+        dplyr::group_by(.data[[gc]]) |>
+        dplyr::slice_max(order_by = abs(.data$plot_value), n = n_choice, with_ties = FALSE) |>
         dplyr::ungroup()
 
-      # -------------------------------
-      # Palette (cyberpunk)
-      # -------------------------------
-      vibrant_purple <- "#6A0DAD"; white <- "#FFFFFF"; blue_bg <- "#001f3f"
-      neon_green <- "#39FF14"; neon_pink <- "#FF007F"
-
-      # -------------------------------
-      # Plot
-      # -------------------------------
-      p <- ggplot2::ggplot(
-        dfp,
-        ggplot2::aes(
-          x     = stats::reorder(tickers, -abs(.data$plot_value)),
-          y     = .data$plot_value,
-          fill  = .data$plot_value > 0
-        )
-      ) +
+      p <- ggplot2::ggplot(dfp, ggplot2::aes(x = stats::reorder(tickers, -abs(.data$plot_value)),
+                                             y = .data$plot_value,
+                                             fill = .data$plot_value > 0)) +
         ggplot2::geom_bar(stat = "identity", color = white, size = 0.3) +
         ggplot2::scale_fill_manual(values = c("TRUE" = vibrant_purple, "FALSE" = neon_pink), guide = "none") +
-        ggplot2::facet_wrap(stats::reformulate(main_group_col), scales = "free_y") +
+        ggplot2::facet_wrap(stats::reformulate(gc), scales = "free_y") +
         ggplot2::coord_flip() +
-        ggplot2::theme_minimal() +
-        ggplot2::theme(
-          plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
-          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-          panel.grid       = ggplot2::element_blank(),
-          strip.text       = ggplot2::element_text(color = white, face = "bold"),
-          axis.text        = ggplot2::element_text(color = white),
-          axis.title       = ggplot2::element_text(color = white),
-          plot.title       = ggplot2::element_text(color = white, face = "bold")
-        ) +
-        ggplot2::labs(
-          title = paste0("Within-Group Composition", plot_title_suffix, ": ",
-                         if (x@port_name == "") "not_identified" else x@port_name),
-          x = "Asset (ordered by |weight|)",
-          y = y_lab
-        )
-
-      print(p)
-      return(invisible(p))
+        .gg_dark() +
+        ggplot2::theme(strip.text = ggplot2::element_text(color = white)) +
+        ggplot2::labs(title = paste0("Within-Group Composition", plot_title_suffix, ": ",
+                                     if (x@port_name == "") "not_identified" else x@port_name),
+                      x = "Asset (ordered by |value|)", y = y_lab)
+      print(p); return(invisible(p))
     }
 
-    #------------------------------------------------------------------------------------------------
-    # 12) groups_risk_recomposition - group RRC vs. aggregated ind. RRC (+ optional console listing)
-    #------------------------------------------------------------------------------------------------
+    ## =========================================================================================
+    ## Group Risk Decomposition
+    ## =========================================================================================
     if (type == "Group Risk Decomposition") {
+      gc <- .resolve_group_col()
+      if (is.null(U)) stop("universe data required.")
+      cols <- c("rel_risk_contr", "act_rel_risk_contr")
+      cols <- cols[cols %in% colnames(U)]
+      if (length(cols) == 0) stop("No RRC columns in universe data.")
+      pick <- .menu(cols, "Choose RRC column (portfolio or active)")
+      df_rc <- data.frame(tickers = asset_names, stringsAsFactors = FALSE) |>
+        dplyr::left_join(U[, c("tickers", pick)], by = "tickers") |>
+        dplyr::left_join(groups_df[, c("tickers", gc)], by = "tickers")
+      names(df_rc)[names(df_rc) == pick] <- "rrc"
+      if (any(is.na(df_rc[[gc]]))) stop("Missing group mapping.")
 
-      grp            <- .resolve_group_col(x)
-      groups_df      <- grp$groups_df
-      main_group_col <- grp$main_group_col
-      weights        <- x@weights
-      cov_mat        <- x@covariance_matrix
-      universe_df    <- if (methods::is(x@universe_m_d_ref, "meta_dataframe")) x@universe_m_d_ref@data else NULL
-
-      if (length(asset_names) == 0L || length(weights) != length(asset_names))
-        stop("Eligible assets and weights must be present and aligned.")
-
-      # ---- Choose RRC mode: portfolio vs ACTIVE (tracking error) ----------------
-      cat("\nCompute group/asset RRC against:\n")
-      cat("1: Portfolio weights (standard RRC)\n")
-      cat("2: ACTIVE weights vs a benchmark (tracking-error RRC)\n")
-      rrc_mode <- base::as.integer(readline(prompt = "Your choice: "))
-      if (base::is.na(rrc_mode) || !rrc_mode %in% c(1L, 2L)) stop("Invalid choice for RRC mode.")
-
-      title_suffix <- ""
-
-      if (rrc_mode == 2L) {
-        # ---- ACTIVE RRC (tracking error) ---------------------------------------
-        if (is.null(cov_mat))
-          stop("To compute ACTIVE RRC you must provide 'covariance_matrix' in 'x'.")
-        if (is.null(universe_df) || !"tickers" %in% base::colnames(universe_df))
-          stop("To compute ACTIVE RRC you need 'universe_df' with a 'tickers' column.")
-
-        bench_w <- .get_bench_vector(universe_df, asset_names)   # prompts if multiple benches
-        w_active <- weights - bench_w
-
-        # Compute active RRC using TE variance
-        rrc_tbl <- relative_risk_contribution(w_active, cov_mat)
-        rrc_vec <- rrc_tbl$rel_risk_contr[match(asset_names, rrc_tbl$tickers)]
-
-        # Build asset-level table for grouping
-        df_rc <- base::data.frame(
-          tickers = asset_names,
-          weight  = w_active,            # ACTIVE weight (for reference/printing)
-          rrc     = base::as.numeric(rrc_vec),
-          stringsAsFactors = FALSE
-        ) %>%
-          dplyr::left_join(groups_df[, c("tickers", main_group_col)], by = "tickers")
-
-        title_suffix <- " (Active vs Benchmark)"
-
-      } else {
-        # ---- Standard (portfolio) RRC ------------------------------------------
-        # Prefer asset-level RRC already in object; else compute.
-        rrc_base <- if (!is.null(x@rel_risk_contr) &&
-                        length(x@rel_risk_contr) == length(weights)) {
-          base::as.numeric(x@rel_risk_contr)
-        } else {
-          if (is.null(cov_mat)) stop("Need 'covariance_matrix' to compute RRC.")
-          relative_risk_contribution(weights, cov_mat)
-        }
-        df_rc <- base::data.frame(
-          tickers = asset_names,
-          weight  = weights,
-          rrc     = rrc_base,
-          stringsAsFactors = FALSE
-        ) %>%
-          dplyr::left_join(groups_df[, c("tickers", main_group_col)], by = "tickers")
-        # title_suffix stays ""
-      }
-
-
-      # Asset-level RRC -> aggregate to groups
-      g_rc <- df_rc %>%
-        dplyr::group_by(.data[[main_group_col]]) %>%
-        dplyr::summarise(
-          group_rrc = sum(.data$rrc, na.rm = TRUE),
-          group_w   = sum(.data$weight, na.rm = TRUE),
-          .groups   = "drop"
-        ) %>%
+      g_rc <- df_rc |>
+        dplyr::group_by(.data[[gc]]) |>
+        dplyr::summarize(group_rrc = sum(.data$rrc, na.rm = TRUE), .groups = "drop") |>
         dplyr::arrange(dplyr::desc(.data$group_rrc))
+      g_choice <- suppressWarnings(as.integer(readline(prompt = "Top how many groups to highlight? ")))
+      if (is.na(g_choice) || g_choice < 1L || g_choice > nrow(g_rc)) g_choice <- min(nrow(g_rc), 8L)
+      keep_groups <- g_rc[[gc]][seq_len(g_choice)]
 
-      cat("\nHow many top groups (by RRC) do you want to highlight? ")
-      g_choice <- suppressWarnings(as.integer(readline()))
-      if (is.na(g_choice) || g_choice < 1 || g_choice > nrow(g_rc)) {
-        g_choice <- min(nrow(g_rc), 8L)
-        message("-> Using default top ", g_choice, " groups by RRC.")
-      }
-      keep_groups <- g_rc[[main_group_col]][seq_len(g_choice)]
-
-      # Panel A: macro/group RRC bar
-      pA <- ggplot2::ggplot(g_rc, ggplot2::aes(
-        x = stats::reorder(.data[[main_group_col]], .data$group_rrc),
-        y = .data$group_rrc
-      )) +
-        ggplot2::geom_bar(stat = "identity", fill = "#6A0DAD", color = "#FFFFFF") +
+      pA <- ggplot2::ggplot(g_rc, ggplot2::aes(x = stats::reorder(.data[[gc]], .data$group_rrc), y = .data$group_rrc)) +
+        ggplot2::geom_bar(stat = "identity", fill = vibrant_purple, color = white) +
         ggplot2::coord_flip() +
-        ggplot2::theme_minimal() +
-        ggplot2::theme(
-          plot.background  = ggplot2::element_rect(fill = "#001f3f", color = NA),
-          panel.background = ggplot2::element_rect(fill = "#001f3f", color = NA),
-          panel.grid       = ggplot2::element_blank(),
-          axis.text        = ggplot2::element_text(color = "#FFFFFF"),
-          axis.title       = ggplot2::element_text(color = "#FFFFFF"),
-          plot.title       = ggplot2::element_text(color = "#FFFFFF", face = "bold")
-        ) +
-        ggplot2::labs(title = paste0("Groups Relative Risk Contribution", title_suffix),
-                      x = "Group", y = "Relative Risk Contribution")
+        .gg_dark() +
+        ggplot2::labs(title = "Groups Relative Risk Contribution", x = "Group", y = "RRC")
 
-      # Panel B: micro RRC within selected groups (stacked to 100%)
-      df_rc_f <- df_rc %>%
-        dplyr::filter(.data[[main_group_col]] %in% keep_groups) %>%
-        dplyr::group_by(.data[[main_group_col]], .data$tickers) %>%
-        dplyr::summarise(rrc = sum(.data$rrc, na.rm = TRUE), .groups = "drop")
+      df_rc_f <- df_rc |>
+        dplyr::filter(.data[[gc]] %in% keep_groups) |>
+        dplyr::group_by(.data[[gc]], .data$tickers) |>
+        dplyr::summarize(rrc = sum(.data$rrc, na.rm = TRUE), .groups = "drop")
 
-      # ---- NEW: Optional console print of asset names per group, ordered by RRC ----
-      cat("\nPrint asset-level RRC rankings per selected group to console? (y/n): ")
-      print_choice <- tolower(readline())
-      if (print_choice %in% c("y", "yes")) {
-        cat("Top how many assets per group should be printed? (integer; 0 for all): ")
-        k_in <- suppressWarnings(as.integer(readline()))
-        grp_levels <- unique(df_rc_f[[main_group_col]])
-
-        for (g in grp_levels) {
-          sub <- df_rc_f[df_rc_f[[main_group_col]] == g, , drop = FALSE]
-          if (nrow(sub) == 0) next
+      print_choice <- tolower(readline(prompt = "Print asset rankings per group to console? (y/n): "))
+      if (print_choice %in% c("y","yes")) {
+        k_in <- suppressWarnings(as.integer(readline(prompt = "Top k per group (0 = all): ")))
+        for (g in unique(df_rc_f[[gc]])) {
+          sub <- df_rc_f[df_rc_f[[gc]] == g, , drop = FALSE]
           sub <- sub[order(-sub$rrc), ]
-          total_rrc <- sum(sub$rrc, na.rm = TRUE)
-          share <- if (is.finite(total_rrc) && total_rrc != 0) sub$rrc / total_rrc else NA_real_
-          sub$share <- share
-
-          if (!is.na(k_in) && k_in > 0 && k_in < nrow(sub)) {
-            sub <- sub[seq_len(k_in), ]
-          }
-
-          cat("\n== Group:", g, "==\n", sep = " ")
-          for (i in seq_len(nrow(sub))) {
-            cat(sprintf("%2d. %-15s  RRC: %.6f  (share: %s)\n",
-                        i,
-                        sub$tickers[i],
-                        sub$rrc[i],
-                        ifelse(is.na(sub$share[i]),
-                               "NA",
-                               scales::percent(sub$share[i], accuracy = 0.1))))
-          }
+          if (!is.na(k_in) && k_in > 0L && k_in < nrow(sub)) sub <- sub[seq_len(k_in), ]
+          cat("\n== Group:", g, "==\n")
+          for (i in seq_len(nrow(sub))) cat(sprintf("%2d. %-15s  RRC: %.6f\n", i, sub$tickers[i], sub$rrc[i]))
         }
         cat("\n")
       }
 
-      pB <- ggplot2::ggplot(
-        df_rc_f,
-        ggplot2::aes(x = .data[[main_group_col]], y = .data$rrc, fill = .data$tickers)
-      ) +
-        ggplot2::geom_bar(stat = "identity", position = "fill", color = "#000000", alpha = 0.5) +
+      pB <- ggplot2::ggplot(df_rc_f, ggplot2::aes(x = .data[[gc]], y = .data$rrc, fill = .data$tickers)) +
+        ggplot2::geom_bar(stat = "identity", position = "fill", color = black, alpha = 0.6) +
         ggplot2::scale_y_continuous(labels = scales::percent) +
-        ggplot2::theme_minimal() +
-        ggplot2::theme(
-          plot.background  = ggplot2::element_rect(fill = "#001f3f", color = NA),
-          panel.background = ggplot2::element_rect(fill = "#001f3f", color = NA),
-          panel.grid       = ggplot2::element_blank(),
-          axis.text        = ggplot2::element_text(color = "#FFFFFF"),
-          axis.title       = ggplot2::element_text(color = "#FFFFFF"),
-          legend.position  = "none",
-          plot.title       = ggplot2::element_text(color = "#FFFFFF", face = "bold")
-        ) +
-        ggplot2::labs(title = paste0("Within-Group RRC (stacked to 100%)", title_suffix),
-                      x = "Group", y = "Share of Group RRC")
+        .gg_dark() + ggplot2::theme(legend.position = "none") +
+        ggplot2::labs(title = "Within-Group RRC (stacked to 100%)", x = "Group", y = "Share")
 
-      # Arrange side-by-side
       gridExtra::grid.arrange(pA, pB, ncol = 2)
       return(invisible(list(macro_rrc = pA, micro_rrc = pB)))
     }
 
+    ## =========================================================================================
+    ## Port Stats
+    ## =========================================================================================
+    if (type == "Portfolio Stats") {
+      if (is.null(x@port_stats) || !is.data.frame(x@port_stats) || nrow(x@port_stats) < 1L) {
+        stop("port_stats not available.")
+      }
+      ps <- x@port_stats[1, , drop = FALSE]
 
-    #------------------------------------------------------------------------------------------------
-    # If none of the above matched, show an error
-    #------------------------------------------------------------------------------------------------
+      # helpers: prefer active; fall back to raw
+      .pick_num <- function(df, prefs) {
+        cand <- prefs[prefs %in% names(df)]
+        if (length(cand) == 0L) return(NA_real_)
+        val <- suppressWarnings(as.numeric(df[[cand[1L]]]))
+        if (is.na(val)) NA_real_ else val
+      }
+
+      # A) basic metrics
+      exp_ret    <- .pick_num(ps, c("act_exp_ret", "exp_ret"))
+      risk       <- .pick_num(ps, c("act_risk", "risk"))
+      ratio_val  <- .pick_num(ps, c("info_ratio", "sharpe", "sharpe_ratio"))
+      ratio_lab  <- if ("info_ratio" %in% names(ps)) "Info Ratio" else "Sharpe"
+
+      dfA <- data.frame(
+        Metric = c("Expected Return", "Risk", ratio_lab),
+        Value  = c(exp_ret, risk, ratio_val),
+        stringsAsFactors = FALSE
+      )
+      pA <- ggplot2::ggplot(dfA, ggplot2::aes(x = Metric, y = Value, fill = Metric)) +
+        ggplot2::geom_col(color = black, width = 0.7) +
+        .gg_dark() +
+        ggplot2::theme(legend.position = "none",
+                       plot.title = ggplot2::element_text(color = white)) +
+        ggplot2::labs(title = "Basic Metrics", x = NULL, y = NULL)
+
+      # B) concentration via weights
+      hhi_w   <- .pick_num(ps, c("act_hhi_weights", "hhi_weights"))
+      dr_w    <- .pick_num(ps, c("act_diversification_ratio", "diversification_ratio"))
+      corr_w  <- .pick_num(ps, c("act_wavg_pairwise_corr", "wavg_pairwise_corr"))
+      gini_w  <- .pick_num(ps, c("act_gini_weights", "gini_weights"))
+      top5    <- .pick_num(ps, c("act_top_5_concentration", "top_5_concentration"))
+      top10   <- .pick_num(ps, c("act_top_10_concentration", "top_10_concentration"))
+      top25   <- .pick_num(ps, c("act_top_25_concentration", "top_25_concentration"))
+
+      dfB <- data.frame(
+        Metric = c("HHI (weights)", "Diversification Ratio", "Avg Pairwise Corr", "Gini (weights)",
+                   "Top 5", "Top 10", "Top 25"),
+        Value  = c(hhi_w, dr_w, corr_w, gini_w, top5, top10, top25),
+        stringsAsFactors = FALSE
+      )
+      pB <- ggplot2::ggplot(dfB, ggplot2::aes(x = Metric, y = Value, fill = Metric)) +
+        ggplot2::geom_col(color = black, width = 0.7) +
+        .gg_dark() +
+        ggplot2::theme(legend.position = "none",
+                       plot.title = ggplot2::element_text(color = white)) +
+        ggplot2::labs(title = "Concentration — Weights", x = NULL, y = NULL)
+
+
+      # C) concentration via RRC
+      hhi_rrc  <- .pick_num(ps, c("act_hhi_rrc", "hhi_rrc"))
+      neff_rrc <- .pick_num(ps, c("act_n_eff_rrc", "n_eff_rrc"))
+      dist_erc <- .pick_num(ps, c("act_rrc_dist_to_erc", "rrc_dist_to_erc"))
+
+      dfC <- data.frame(
+        Metric = c("HHI (RRC)", "N_eff (RRC)", "Dist. to ERC"),
+        Value  = c(hhi_rrc, neff_rrc, dist_erc),
+        stringsAsFactors = FALSE
+      )
+      pC <- ggplot2::ggplot(dfC, ggplot2::aes(x = Metric, y = Value, fill = Metric)) +
+        ggplot2::geom_col(color = black, width = 0.7) +
+        .gg_dark() +
+        ggplot2::theme(legend.position = "none",
+                       plot.title = ggplot2::element_text(color = white)) +
+        ggplot2::labs(title = "Concentration — RRC", x = NULL, y = NULL)
+
+      # D) group-level metrics
+      g_exp_ret <- .pick_num(ps, c("act_group_exp_ret", "group_exp_ret"))
+      g_risk    <- .pick_num(ps, c("act_group_risk", "group_risk"))
+      g_ir      <- .pick_num(ps, c("group_info_ratio", "group_sharpe", "group_sharpe_ratio"))
+      g_hhi_w   <- .pick_num(ps, c("act_group_hhi_weights", "group_hhi_weights"))
+      g_dr_w    <- .pick_num(ps, c("act_group_diversification_ratio", "group_diversification_ratio"))
+      g_corr_w  <- .pick_num(ps, c("act_group_wavg_pairwise_corr", "group_wavg_pairwise_corr"))
+      g_gini_w  <- .pick_num(ps, c("act_group_gini_weights", "group_gini_weights"))
+
+      dfD <- data.frame(
+        Metric = c("Group ExpRet", "Group Risk",
+                   if ("group_info_ratio" %in% names(ps)) "Group IR" else "Group Sharpe",
+                   "Group HHI (weights)", "Group Diversification Ratio",
+                   "Group Avg Pairwise Corr", "Group Gini (weights)"),
+        Value  = c(g_exp_ret, g_risk, g_ir, g_hhi_w, g_dr_w, g_corr_w, g_gini_w),
+        stringsAsFactors = FALSE
+      )
+      pD <- ggplot2::ggplot(dfD, ggplot2::aes(x = Metric, y = Value, fill = Metric)) +
+        ggplot2::geom_col(color = black, width = 0.7) +
+        .gg_dark() +
+        ggplot2::theme(legend.position = "none",
+                       plot.title = ggplot2::element_text(color = white)) +
+        ggplot2::labs(title = "Group Metrics", x = NULL, y = NULL)
+
+
+      # grid: use gridExtra if available; else print sequentially
+      if (requireNamespace("gridExtra", quietly = TRUE)) {
+        gridExtra::grid.arrange(pA, pB, pC, pD, ncol = 2)
+        return(invisible(NULL))
+      } else {
+        warning("Install 'gridExtra' to show a 2x2 grid. Printing sequentially.")
+        print(pA); print(pB); print(pC); print(pD)
+        return(invisible(NULL))
+      }
+    }
+
+
+
+    ## =========================================================================================
+    ## Universe Data
+    ## =========================================================================================
+    if (type == "Universe Data") {
+      if (!methods::is(x@universe_m_d_ref, "meta_dataframe")) stop("universe_m_d_ref is not meta_dataframe.")
+      plot(x@universe_m_d_ref, ...)
+      return(invisible(TRUE))
+    }
+
     stop(paste("Plot type", type, "not recognized."))
   }
 )
+
 
 
 #' @title Plot Method for port_backtest_results Class
@@ -7661,7 +6718,8 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_
     "Time-Series of Port Returns",
     "Cross-Sectional Performance Metric Plot",
     "Time-Series of Transaction Costs",
-    "Time-Series of Port Metrics"
+    "Time-Series of Port Metrics",
+    "Port Stats"
   )
 
 
@@ -7703,6 +6761,7 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_
   port_costs_m_xts <- x@port_costs_m_xts
   port_metrics_m_xts <- x@port_metrics_m_xts
   final_stock_port <- x@final_stock_port
+  port_stats_m_df <- x@port_stats_m_df
 
   #Prompt the user if he wants to plot rebalance dates
   if (is.null(vertical_lines) && plot_name != "Plot Subjacent Final Port"){
@@ -7935,6 +6994,13 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_
       stop("No port_metrics available to plot.")
     }
 
+  } else if (plot_name == "Port Stats"){
+    if (!is.null(port_stats_m_df)){
+      plot(port_stats_m_df)
+    } else {
+      stop("No port_stats available to plot.")
+    }
+
   } else {
     stop("The plot name provided is not valid. Please choose one of the following: ", paste(available_plots, collapse = ", "))
   }
@@ -8000,6 +7066,7 @@ setMethod("plot", "port_backtest_cohort", function(x, plot_id = NULL, vertical_l
     "Time-Series of Total Costs",
     "Time-Series of Turnover",
     "Time-Series of Port Metrics",
+    "Time-Series of Port Stats",
     "Weights Correlogram",
     "Weights Radar")
 
@@ -8284,13 +7351,68 @@ setMethod("plot", "port_backtest_cohort", function(x, plot_id = NULL, vertical_l
   }
 
   #Plot 14
+  if (plot_name == "Time-Series of Port Stats"){
+
+    port_stats_nested <- x@port_stats_m_xts_nested_list
+
+    # Validate presence
+    if (is.null(port_stats_nested) || (!length(port_stats_nested$raw_return) && !length(port_stats_nested$net_return))) {
+      stop("No port stats available in this cohort.")
+    }
+
+    # Detect which families exist
+    has_raw <- length(port_stats_nested$raw_return) > 0
+    has_net <- length(port_stats_nested$net_return) > 0
+
+    # Ask user to choose raw or net if both exist
+    chosen_family <- NULL
+    if (has_raw && has_net) {
+      cat("\nPort Stats are available for both raw_return and net_return.\n")
+      fam_in <- readline(prompt = "Type 'raw' for raw_return or 'net' for net_return: ")
+      fam_in <- tolower(trimws(fam_in))
+      if (fam_in %in% c("raw", "r")) chosen_family <- "raw_return"
+      if (fam_in %in% c("net", "n")) chosen_family <- "net_return"
+      if (is.null(chosen_family)) stop("Invalid choice. Please type 'raw' or 'net'.")
+    } else if (has_raw) {
+      chosen_family <- "raw_return"
+      cat("\nOnly raw_return stats are available. Proceeding with raw_return.\n")
+    } else { # has_net only
+      chosen_family <- "net_return"
+      cat("\nOnly net_return stats are available. Proceeding with net_return.\n")
+    }
+
+    # Available stats in the chosen family
+    family_list <- port_stats_nested[[chosen_family]]
+    if (!length(family_list)) stop("Selected family has no stats.")
+
+    # Build vector of stat names without the '_m_xts' suffix
+    all_names <- names(family_list)
+    available_stats <- sub("_m_xts$", "", all_names)
+
+    # Prompt user to pick the stat
+    cat("\nAvailable statistics:\n")
+    cat(paste0(" - ", available_stats), sep = "\n")
+    selected_stat <- readline(prompt = "Type the statistic name exactly as shown above: ")
+
+    if (!selected_stat %in% available_stats) {
+      stop("Invalid statistic selected.")
+    }
+
+    # Retrieve the meta_xts and plot
+    stat_key  <- paste0(selected_stat, "_m_xts")
+    stat_m_xts <- family_list[[stat_key]]
+
+    plot(stat_m_xts, vertical_lines = vertical_lines)
+  }
+
+  #Plot 15
   if (plot_name == "Weights Correlogram"){
 
     plot(port_weights_m_df, type = "correlogram")
 
   }
 
-  #Plot 15
+  #Plot 16
   if (plot_name == "Weights Radar"){
 
     port_weights_m_df@data <- port_weights_m_df@data %>% dplyr::select(-dplyr::any_of(c("bench_weights")))
