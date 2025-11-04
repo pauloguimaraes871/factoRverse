@@ -66,6 +66,39 @@ summarize_performance <- function(selected_backtest_returns_corrected_positions_
                                   verbose = TRUE
 ){
 
+  #Early return when input is NULL
+  if (is.null(selected_backtest_returns_corrected_positions_m_xts_upd_ref) ||
+      nrow(selected_backtest_returns_corrected_positions_m_xts_upd_ref) == 0) {
+
+    if (identical(model_structure, "partial_pooled")) {
+      stop("selected_backtest_returns_corrected_positions_m_xts_upd_ref can't be NULL when model_structure == 'partial_pooled'.")
+    }
+
+    ## Build the empty base table
+    base_signal_universe_m_d_ref <- create_performance_m_df(
+      selected_backtest_returns_corrected_positions_m_xts_upd_ref = NULL,
+      selected_market_factor_proxy_m_xts_upd_ref = selected_market_factor_proxy_m_xts_upd_ref,
+      active_returns = active_returns,
+      verbose = verbose
+    )
+
+    ## Ensure no_pooled branch columns are present (empty, zero-row)
+    no_pooled_cols <- c(
+      "alpha","alpha_se","beta","specific_risk","alpha_t_stat",
+      "treynor_ratio","appraisal_ratio","p_value"
+    )
+    for (nm in no_pooled_cols) {
+      if (!nm %in% colnames(base_signal_universe_m_d_ref)) {
+        base_signal_universe_m_d_ref[[nm]] <- NA_real_[0]
+      }
+    }
+    performance_summary_list <- list(
+      signal_universe_m_d_ref = base_signal_universe_m_d_ref,
+      frequentist_fit_results_list = NULL
+    )
+    return(performance_summary_list)
+  }
+
 
   #Initial Preparations
   ##################

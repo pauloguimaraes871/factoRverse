@@ -22,6 +22,48 @@
 #' @export
 create_performance_m_df <- function(selected_backtest_returns_corrected_positions_m_xts_upd_ref, selected_market_factor_proxy_m_xts_upd_ref, active_returns, verbose = TRUE){
 
+  #Return empty if selected_backtest_returns_corrected_positions_m_xts_upd_ref is NULL
+    ## Define helper
+    make_colnames <- function(active){
+      base <- c(
+        "id","tickers","dates",
+        "arith_mean_ret","geom_mean_ret","ann_ret",
+        "std_dev","ann_std_dev","semi_dev","down_dev","dd_dev","down_freq","exp_short",
+        "pain","ulcer","max_dd",
+        "skew","kurt",
+        "sharpe_ratio","ann_sharpe_ratio","sharpe_ratio_semi_dev","sortino_ratio",
+        "ann_burke_ratio","inv_d_ratio","sharpe_ratio_exp_short","ann_pain_ratio",
+        "ann_martin_ratio","ann_calmar_ratio","ann_adj_sharpe_ratio",
+        "omega","rachev_ratio",
+        "avg_dd_rec","avg_dd_length",
+        "hurst",
+        "min_track_record","prob_sharpe_ratio",
+        "modigliani","ann_modigliani"
+      )
+
+      if (!active) return(base)
+
+      act <- base
+      act[4:length(act)] <- paste0("act_", act[4:length(act)])
+      act[7]  <- "track_err"
+      act[8]  <- "ann_track_err"
+      act[19] <- "info_ratio"
+      act[20] <- "ann_info_ratio"
+      act[21] <- "info_ratio_semi_dev"
+      act[25] <- "info_ratio_exp_short"
+      act[29] <- "ann_adj_info_ratio"
+      act[36] <- "prob_info_ratio"
+      act
+    }
+
+    ## Early return for NULL input
+    if (is.null(selected_backtest_returns_corrected_positions_m_xts_upd_ref) ||
+        nrow(selected_backtest_returns_corrected_positions_m_xts_upd_ref) == 0) {
+      coln <- make_colnames(active_returns)
+      empty <- as.data.frame(setNames(replicate(length(coln), logical(0), simplify = FALSE), coln))
+      return(empty)
+    }
+
   #Check for selected_market_factor_proxy if active_returns is TRUE
   if(is.null(selected_market_factor_proxy_m_xts_upd_ref) && active_returns){
     stop("The selected_market_factor_proxy_m_xts_upd_ref object can't be NULL when active_returns is TRUE.")
