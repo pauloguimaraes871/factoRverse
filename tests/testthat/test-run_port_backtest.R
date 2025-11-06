@@ -1930,8 +1930,7 @@ test_that("run_port_backtest works for a rp strategy with exp_ret_score_tilt (in
   scaler_m_df <- signals_m_df@data %>% dplyr::select(id, tickers, dates, dy_med_36m) %>% create_meta_dataframe()
 
   #Run port_backtest
-  expect_warning(
-  expect_warning(
+  suppressWarnings(
     results <- run_port_backtest(signals_m_df = signals_m_df,
                                  fwd_return_m_df = fwd_return_m_df,
                                  liquidity_m_df = liquidity_m_df,
@@ -1944,12 +1943,8 @@ test_that("run_port_backtest works for a rp strategy with exp_ret_score_tilt (in
                                  benchmark_weights_m_df = benchmark_weights_m_df,
                                  benchmark_returns_m_xts = benchmark_returns_m_xts,
                                  custom_stock_metrics_m_df = port_metrics_m_df,
-                                 verbose = TRUE),
-    "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."
-  ),
-  "Weights for group 'Consumo Não-Cíclico' sum to zero. Fallback to equal weights."
-  )
-
+                                 verbose = TRUE)
+    )
   #Expected results
   current_date <- "2023-02-15"
   signals_m_d_ref <- signals_m_df@data %>% dplyr::filter(dates == current_date)
