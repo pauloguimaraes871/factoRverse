@@ -165,7 +165,7 @@ test_that("fit_sb_model works for RP", {
 
   signal_port <- set_portfolio_weights(port_construction_method = "rp",
                                        universe_m_d_ref = most_recent_signal_universe_m_d_ref,
-                                       returns_m_xts_upd_ref = selected_backtest_returns_m_xts_upd_ref,
+                                       eligible_returns_m_xts_upd_ref = selected_backtest_returns_m_xts_upd_ref,
                                        selected_benchmark_m_xts_upd_ref = mocked_selected_cov_matrix_benchmark_m_xts_upd_ref,
                                        active_returns = TRUE, cov_matrix_sample_size = 9, cov_estimation_method = "sample"
                                        )

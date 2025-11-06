@@ -2508,6 +2508,7 @@ test_that("EW - run_sb_backtest works with toy_preprocessed_features_and_targets
                                 selected_features_corrected_positions_m_refit = selected_features_first_rebal,
                                 most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
                                 selected_backtest_returns_corrected_positions_m_xts_upd_ref = NULL,
+                                groups_m_d_ref = NULL,
                                 custom_objective_translated = NULL, huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
                                 keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL)
   #Predict
@@ -2594,6 +2595,7 @@ test_that("EW - run_sb_backtest works with toy_preprocessed_features_and_targets
   second_sb_port <- fit_sb_model(sb_algorithm = "ew", target_fwd_name = "fwd_premium_3m",
                                  selected_features_corrected_positions_m_refit = selected_features_first_rebal,
                                  selected_backtest_returns_corrected_positions_m_xts_upd_ref = NULL,
+                                 groups_m_d_ref = NULL,
                                  most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
                                  custom_objective_translated = NULL, huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
                                  keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL
@@ -3305,7 +3307,9 @@ test_that("HRP - run_sb_backtest works with exp_ret_score - toy_preprocessed_fea
                                 keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
                                 selected_cov_matrix_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
                                 linkage = "ward.D", exp_ret_score_tilt = "inner", exp_ret_score_tilt_eta = 2,
-                                rp_method = "cyclical-spinu"
+                                rp_method = "cyclical-spinu",
+                                selected_benchmark = "theme_sb",
+                                bench_assets_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_m_xts_upd_ref
   )
   #Predict
   dates_first_prediction <- c("2023-02-15", "2023-03-15")
@@ -3385,8 +3389,6 @@ test_that("HRP - run_sb_backtest works with exp_ret_score - toy_preprocessed_fea
   targets_second_rebal_m_df <- target_m_df[which(target_m_df$dates %in% c("2022-10-15", "2022-11-15", "2022-12-15",
                                                                           "2023-01-15", "2023-01-15")),]
 
-
-
   #Fitting
   second_sb_port <- fit_sb_model(sb_algorithm = "hrp", target_fwd_name = "fwd_premium_3m",
                                  selected_features_corrected_positions_m_refit = selected_features_second_rebal,
@@ -3396,7 +3398,10 @@ test_that("HRP - run_sb_backtest works with exp_ret_score - toy_preprocessed_fea
                                  custom_objective_translated = "max_info_ratio", huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
                                  keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
                                  selected_cov_matrix_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
-                                 rp_method = "cyclical-spinu", linkage = "ward.D", exp_ret_score_tilt = "inner", exp_ret_score_tilt_eta = 2
+                                 rp_method = "cyclical-spinu", linkage = "ward.D", exp_ret_score_tilt = "inner",
+                                 exp_ret_score_tilt_eta = 2,
+                                 selected_benchmark = "theme_sb",
+                                 bench_assets_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_m_xts_upd_ref
   )
 
 
@@ -3600,10 +3605,12 @@ test_that("HRP - run_sb_backtest works with exp_ret_score - toy_preprocessed_fea
     universe_m_d_ref = most_recent_signal_universe_m_d_ref %>% dplyr::mutate(
       exp_ret_score = signal_transform(info_ratio, lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975)
     ),
-    returns_m_xts_upd_ref = selected_backtest_returns_m_xts_upd_ref,
+    eligible_returns_m_xts_upd_ref = selected_backtest_returns_m_xts_upd_ref,
     selected_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
     cov_matrix_sample_size = 2, cov_estimation_method = "ewma", active_returns = TRUE,
-    groups_m_d_ref = NULL, linkage = "ward.D", exp_ret_score_tilt = "inner", exp_ret_score_tilt_eta = 2
+    groups_m_d_ref = NULL, linkage = "ward.D", exp_ret_score_tilt = "inner", exp_ret_score_tilt_eta = 2,
+    selected_benchmark = "theme_sb",
+    bench_assets_returns_m_xts_upd_ref = selected_backtest_returns_m_xts_upd_ref
   )
 
   expect_equal(
@@ -3636,7 +3643,7 @@ test_that("HRP - run_sb_backtest works with exp_ret_score - toy_preprocessed_fea
       universe_m_d_ref = most_recent_signal_universe_m_d_ref %>% dplyr::mutate(
         exp_ret_score = signal_transform(info_ratio, lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975)
       ),
-      returns_m_xts_upd_ref = selected_backtest_returns_m_xts_upd_ref,
+      eligible_returns_m_xts_upd_ref = selected_backtest_returns_m_xts_upd_ref,
       selected_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
       cov_matrix_sample_size = 2, cov_estimation_method = "ewma", active_returns = TRUE,
       groups_m_d_ref = NULL, linkage = "ward.D"
@@ -17311,7 +17318,7 @@ test_that("GLMNET - Metabacktesting works for glmnet in meta learning (rf + glmn
   )
   )
 
-  oos_predictions_m_df@meta_dataframe_name <- paste0("m_config:", meta_config@config_name, "_", "f_mdf:", features_m_df@meta_dataframe_name)
+  oos_predictions_m_df@meta_dataframe_name <- paste0("m_config__", meta_config@config_name, "_", "f_mdf__", features_m_df@meta_dataframe_name)
   #Check if both objects are equal
   expect_equal(sb_metabacktest_results@base_learners_oos_predictions_m_df@data, oos_predictions_m_df@data)
   #Check if chosen_signals_and_positions flow is correct
@@ -17553,7 +17560,7 @@ test_that("EW - Metabacktesting works for EW in meta learning (rf + glmnet with 
   )
   )
 
-  oos_predictions_m_df@meta_dataframe_name <- paste0("m_config:", meta_config@config_name, "_", "f_mdf:", features_m_df@meta_dataframe_name)
+  oos_predictions_m_df@meta_dataframe_name <- paste0("m_config__", meta_config@config_name, "_", "f_mdf__", features_m_df@meta_dataframe_name)
   #Check if both objects are equal
   expect_equal(sb_metabacktest_results@base_learners_oos_predictions_m_df@data, oos_predictions_m_df@data)
   #Check if chosen_signals_and_positions flow is correct
@@ -17800,7 +17807,7 @@ test_that("SW - Metabacktesting works for SW in meta_learning with min_rmse (rf 
     features_m_df = features_m_df
   )
   )
-  oos_predictions_m_df@meta_dataframe_name <- paste0("m_config:", meta_config@config_name, "_", "f_mdf:", features_m_df@meta_dataframe_name)
+  oos_predictions_m_df@meta_dataframe_name <- paste0("m_config__", meta_config@config_name, "_", "f_mdf__", features_m_df@meta_dataframe_name)
   #Check if both objects are equal
   expect_equal(sb_metabacktest_results@base_learners_oos_predictions_m_df@data, oos_predictions_m_df@data)
   #Check if chosen_signals_and_positions flow is correct
@@ -18058,7 +18065,7 @@ test_that("SW - Metabacktesting works for SW in meta_learning with max_hr (risk-
   )
   )
 
-  oos_predictions_m_df@meta_dataframe_name <- paste0("m_config:", meta_config@config_name, "_", "f_mdf:", features_m_df@meta_dataframe_name)
+  oos_predictions_m_df@meta_dataframe_name <- paste0("m_config__", meta_config@config_name, "_", "f_mdf__", features_m_df@meta_dataframe_name)
   #Check if both objects are equal
   expect_equal(sb_metabacktest_results@base_learners_oos_predictions_m_df@data, oos_predictions_m_df@data)
   #Check that rows with NAs in target are present
@@ -18164,7 +18171,7 @@ test_that("SW - Metabacktesting works for SW in meta_learning with max_hr (risk-
 
 })
 
-test_that("Custom Signal Universe Metrics - Metabacktesting works for SW in meta_learning with max_inforatio (risk-par + glmnet with ss are base_sb_results) - features_passthrough = none - meta_ss_config with ss_object", {
+test_that("Custom Signal Universe Metrics - Metabacktesting works for SW in meta_learning with max_inforatio (risk-par + xgb with ss are base_sb_results) - features_passthrough = none - meta_ss_config with ss_object", {
 
   #Load
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
@@ -18269,10 +18276,13 @@ test_that("Custom Signal Universe Metrics - Metabacktesting works for SW in meta
     )
   )
 
-  glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 3, rebalancing_months = 6, target_fwd_name = "fwd_premium_1m",
-                                             config_name = "glmnet_123") %>%
-    add_tuning_strategy(tuning_method = "grid_search", validation_sample_size = 1) %>%
-    add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"), grid = list(c(0, 1), c(0.5, 0.9)))
+  xgb_config <- create_sb_backtest_config(sb_algorithm = "xgb",
+                                          training_sample_size = 3, rebalancing_months = 6, target_fwd_name = "fwd_premium_1m",
+                                          config_name = "xgb_123") %>%
+    add_tuning_strategy(tuning_method = "grid_search", validation_sample_size = 1, early_stop = 25) %>%
+    add_hyperparameter(hyperparameter = c("min_child_weight", "max_depth", "subsample", "colsample_bytree", "eta", "alpha", "gamma", "nrounds"),
+                       grid = list(1, c(3,6), c(0.5, 0.75), c(0.50, 1), c(0.05, 0.1), c(2, 5), 0, 500))
+
 
   rp_config <- create_sb_backtest_config(sb_algorithm = "rp", training_sample_size = 4, rebalancing_months = 6, target_fwd_name = "fwd_premium_1m",
                                          config_name = "rp_101") %>%
@@ -18292,29 +18302,17 @@ test_that("Custom Signal Universe Metrics - Metabacktesting works for SW in meta
       verbose = TRUE
     )
   )
-  #Replace : and - to .
-  rp_results@backtest_identifier <- stringr::str_replace_all(
-    rp_results@backtest_identifier, pattern = ":", replacement = "."
-  )
-  rp_results@backtest_identifier <- stringr::str_replace_all(
-    rp_results@backtest_identifier, pattern = "-", replacement = "."
-  )
 
+  set.seed(123)
   suppressWarnings(
-    glmnet_results <- run_sb_backtest(
+    xgb_results <- run_sb_backtest(
       target_m_df = target_m_df,
       features_m_df = signals_m_df,
       ss_backtest_results = ss_results,
-      config = glmnet_config,
+      config = xgb_config,
       parallel = FALSE,
       verbose = TRUE
     )
-  )
-  glmnet_results@backtest_identifier <- stringr::str_replace_all(
-    glmnet_results@backtest_identifier, pattern = ":", replacement = "."
-  )
-  glmnet_results@backtest_identifier <- stringr::str_replace_all(
-    glmnet_results@backtest_identifier, pattern = "-", replacement = "."
   )
 
   #Create SB portfolios
@@ -18351,9 +18349,9 @@ test_that("Custom Signal Universe Metrics - Metabacktesting works for SW in meta
   )
   rp_sb_port@backtest_identifier <- rp_results@backtest_identifier
   expect_warning(
-    glmnet_sb_port <- run_port_backtest(signals_m_df = signals_m_df,
+    xgb_sb_port <- run_port_backtest(signals_m_df = signals_m_df,
                                         fwd_return_m_df = fwd_return_m_df,
-                                        sb_backtest_results = glmnet_results,
+                                        sb_backtest_results = xgb_results,
                                         config = port_config,
                                         liquidity_m_df = mocked_liquidity_m_df,
                                         volatility_m_df = mocked_volatility_m_df,
@@ -18362,10 +18360,10 @@ test_that("Custom Signal Universe Metrics - Metabacktesting works for SW in meta
                                         verbose = TRUE),
     "Normalization not found in signals_m_df workflow. It is advisable that data is normalized before being fed to run_port_backtest."
   )
-  glmnet_sb_port@backtest_identifier <- glmnet_results@backtest_identifier
+  xgb_sb_port@backtest_identifier <- xgb_results@backtest_identifier
 
   sb_port_cohort <- suppressWarnings(
-    create_port_backtest_cohort(list(rp_sb_port, glmnet_sb_port), cohort_name = "guara")
+    create_port_backtest_cohort(list(rp_sb_port, xgb_sb_port), cohort_name = "guara")
   )
 
   #Calculate a custom signal_universe_metrics_m_df for meta-learning
@@ -18415,14 +18413,14 @@ test_that("Custom Signal Universe Metrics - Metabacktesting works for SW in meta
 
   meta_config <- create_sb_metabacktest_config(meta_sb_backtest_config = meta_learner_config,
                                                features_passthrough = c("none"),
-                                               config_name = "meta_rf_glmnet")
+                                               config_name = "meta_rf_xgb")
 
   set.seed(123)
   suppressWarnings(
     sb_metabacktest_results <- run_sb_backtest(
       target_m_df = target_m_df,
       features_m_df = signals_m_df,
-      base_sb_backtest_results_list = list(rp_results, glmnet_results),
+      base_sb_backtest_results_list = list(rp_results, xgb_results),
       meta_benchmark_returns_m_xts = benchmark_returns_m_xts,
       meta_port_backtest_cohort = sb_port_cohort,
       meta_custom_signal_universe_metrics_m_df = meta_custom_signal_universe_metrics_m_df,
@@ -18470,10 +18468,10 @@ test_that("Custom Signal Universe Metrics - Metabacktesting works for SW in meta
     date <- oos_dates[d]
 
     #oos pred matrix
-    oos_pred <- glmnet_results@oos_sb_outputs_m_df@data %>%
+    oos_pred <- xgb_results@oos_sb_outputs_m_df@data %>%
       dplyr::filter(dates == date) %>%
       dplyr::select(id, tickers, dates, pred) %>%
-      dplyr::rename(glmnet_pred = pred) %>%
+      dplyr::rename(xgb_pred = pred) %>%
       dplyr::left_join(
         rp_results@oos_sb_outputs_m_df@data %>%
           dplyr::select(id, pred) %>%
@@ -18501,8 +18499,8 @@ test_that("Custom Signal Universe Metrics - Metabacktesting works for SW in meta
       testthat::expect_equal(
         ##Multiply weight * prediction of each model
         signal_transform(
-          baked_oos_pred$glmnet_pred * weights_first_rebal[1] +
-            baked_oos_pred$rp_pred * weights_first_rebal[2],
+          baked_oos_pred$xgb_pred * weights_first_rebal[2] +
+            baked_oos_pred$rp_pred * weights_first_rebal[1],
           lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975
           ),
         sb_metabacktest_results@meta_sb_backtest_results@oos_sb_outputs_m_df@data %>%
@@ -18515,8 +18513,8 @@ test_that("Custom Signal Universe Metrics - Metabacktesting works for SW in meta
       testthat::expect_equal(
         ##Multiply weight * prediction of each model
         signal_transform(
-          baked_oos_pred$glmnet_pred * weights_second_rebal[1] +
-            baked_oos_pred$rp_pred * weights_second_rebal[2],
+          baked_oos_pred$xgb_pred * weights_second_rebal[2] +
+            baked_oos_pred$rp_pred * weights_second_rebal[1],
           lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975
         ),
         sb_metabacktest_results@meta_sb_backtest_results@oos_sb_outputs_m_df@data %>%
@@ -18559,9 +18557,10 @@ test_that("Custom Signal Universe Metrics - Metabacktesting works for SW in meta
 
   ##Fit meta learner sb backtest
   baked_oos_pred_m_df <- oos_pred_list %>% dplyr::bind_rows() %>% dplyr::arrange(id) %>% as.data.frame()  #Consolidate
-  names(baked_oos_pred_m_df)[4:5] <- meta_custom_signal_universe_metrics_m_df@data$tickers[c(1,3)]
+  names(baked_oos_pred_m_df)[4:5] <- meta_custom_signal_universe_metrics_m_df@data$tickers[c(3,1)]
 
   #Fit!!
+  set.seed(123)
   suppressWarnings(
     meta_learner_results <- run_sb_backtest(
       features_m_df = baked_oos_pred_m_df %>% create_meta_dataframe(type = "features"),
@@ -18587,13 +18586,14 @@ test_that("Custom Signal Universe Metrics - Metabacktesting works for SW in meta
   #Check other outputs (this is a also a test for crete_sb_metabacktest_results)
   #Mean val metrics
   expect_equal(nrow(sb_metabacktest_results@mean_validation_metrics), 9)
-  expect_equal(sb_metabacktest_results@mean_validation_metrics$avg_val[c(1:9)], glmnet_results@consolidated_eval_metrics$avg_val)
+  expect_equal(sb_metabacktest_results@mean_validation_metrics$avg_val[c(1:9)],
+               xgb_results@consolidated_eval_metrics$avg_val)
 
   #Consolidate oos testing metrics
   expect_equal(sb_metabacktest_results@combined_oos_testing_metrics$all_dates_oos_testing_metrics$cons_oos[c(1:9)],
                rp_results@consolidated_eval_metrics$cons_oos)
   expect_equal(sb_metabacktest_results@combined_oos_testing_metrics$all_dates_oos_testing_metrics$cons_oos[c(10:18)],
-               glmnet_results@consolidated_eval_metrics$cons_oos)
+               xgb_results@consolidated_eval_metrics$cons_oos)
   expect_equal(sb_metabacktest_results@combined_oos_testing_metrics$all_dates_oos_testing_metrics$cons_oos[c(19:27)],
                meta_learner_results@consolidated_eval_metrics$cons_oos)
 
@@ -18608,24 +18608,27 @@ test_that("Custom Signal Universe Metrics - Metabacktesting works for SW in meta
                rp_results@oos_testing_eval_metrics_m_xts@data["2023-01-15/2023-07-15"] %>% as.data.frame() %>% colMeans()%>% t() %>% as.data.frame()
   )
   expect_equal(sb_metabacktest_results@combined_oos_testing_metrics$common_dates_oos_testing_metrics[2, -c(1:2)] %>% tibble::remove_rownames(),
-               glmnet_results@oos_testing_eval_metrics_m_xts@data["2023-01-15/2023-07-15"] %>% as.data.frame() %>% colMeans()%>% t() %>% as.data.frame()
+               xgb_results@oos_testing_eval_metrics_m_xts@data["2023-01-15/2023-07-15"] %>% as.data.frame() %>% colMeans()%>% t() %>% as.data.frame()
   )
   expect_equal(sb_metabacktest_results@combined_oos_testing_metrics$common_dates_oos_testing_metrics[3, -c(1:2)] %>% tibble::remove_rownames(),
                meta_learner_results@oos_testing_eval_metrics_m_xts@data["2023-01-15/2023-07-15"] %>% as.data.frame() %>% colMeans()%>% t() %>% as.data.frame()
   )
   #OOS Eval Metrics
   for (j in seq_along(sb_metabacktest_results@time_series_oos_testing_metrics)){
-    expect_equal(sb_metabacktest_results@time_series_oos_testing_metrics[[j]]@data[,1] %>% as.numeric(),rp_results@oos_testing_eval_metrics_m_xts@data[,j] %>% as.numeric())
+    expect_equal(sb_metabacktest_results@time_series_oos_testing_metrics[[j]]@data[,1] %>% as.numeric(),
+                 rp_results@oos_testing_eval_metrics_m_xts@data[,j] %>% as.numeric())
 
-    expect_equal(sb_metabacktest_results@time_series_oos_testing_metrics[[j]]@data[,2] %>% as.numeric(),glmnet_results@oos_testing_eval_metrics_m_xts@data[,j] %>% as.numeric())
+    expect_equal(sb_metabacktest_results@time_series_oos_testing_metrics[[j]]@data[,2] %>% as.numeric(),
+                 xgb_results@oos_testing_eval_metrics_m_xts@data[,j] %>% as.numeric())
 
-    expect_equal(na.omit(sb_metabacktest_results@time_series_oos_testing_metrics[[j]]@data[,3]) %>% as.numeric(), meta_learner_results@oos_testing_eval_metrics_m_xts@data[,j] %>% as.numeric())
+    expect_equal(na.omit(sb_metabacktest_results@time_series_oos_testing_metrics[[j]]@data[,3]) %>% as.numeric(),
+                 meta_learner_results@oos_testing_eval_metrics_m_xts@data[,j] %>% as.numeric())
   }
 
   #Val Metrics
   for (j in seq_along(sb_metabacktest_results@time_series_validation_metrics)){
     expect_equal(sb_metabacktest_results@time_series_validation_metrics[[j]]@data[,1] %>% na.omit() %>% as.numeric(),
-                 glmnet_results@validation_eval_metrics_hyper_choice_m_xts@data[,j] %>% as.numeric())
+                 xgb_results@validation_eval_metrics_hyper_choice_m_xts@data[,j] %>% as.numeric())
   }
 
 })
@@ -18790,7 +18793,7 @@ test_that("OLS - Metabacktesting works in integration with run_port_backtest and
     features_passthrough_and_positions = features_passthrough_and_positions,
     features_m_df = signals_m_df
   )
-  oos_predictions_m_df@meta_dataframe_name <- paste0("m_config:", meta_config@config_name, "_", "f_mdf:", signals_m_df@meta_dataframe_name)
+  oos_predictions_m_df@meta_dataframe_name <- paste0("m_config__", meta_config@config_name, "_", "f_mdf__", signals_m_df@meta_dataframe_name)
   #Check if both objects are equal
   expect_equal(sb_metabacktest_results@base_learners_oos_predictions_m_df@data, oos_predictions_m_df@data)
   #Check that rows with NAs in target are present
@@ -19644,32 +19647,32 @@ test_that("update_sb_backtest works for GLMNET metabacktest - 2 updates - empty 
 
 
     #Base SB objects
-    expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$`c:rf_f:signals_t:target-fwd_premium_1m`@consolidated_eval_metrics,
-                 new_sb_metabacktest_results@base_sb_backtest_results_list$`c:rf_f:signals_t:target-fwd_premium_1m`@consolidated_eval_metrics)
-    expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$`c:rf_f:signals_t:target-fwd_premium_1m`@oos_sb_outputs_m_df@data,
-                 new_sb_metabacktest_results@base_sb_backtest_results_list$`c:rf_f:signals_t:target-fwd_premium_1m`@oos_sb_outputs_m_df@data)
-    expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$`c:rf_f:signals_t:target-fwd_premium_1m`@oos_testing_eval_metrics_m_xts@data,
-                 new_sb_metabacktest_results@base_sb_backtest_results_list$`c:rf_f:signals_t:target-fwd_premium_1m`@oos_testing_eval_metrics_m_xts@data,
+    expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@consolidated_eval_metrics,
+                 new_sb_metabacktest_results@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@consolidated_eval_metrics)
+    expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@oos_sb_outputs_m_df@data,
+                 new_sb_metabacktest_results@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@oos_sb_outputs_m_df@data)
+    expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@oos_testing_eval_metrics_m_xts@data,
+                 new_sb_metabacktest_results@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@oos_testing_eval_metrics_m_xts@data,
                  ignore_attr = TRUE)
-    expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$`c:rf_f:signals_t:target-fwd_premium_1m`@validation_eval_metrics_hyper_choice_m_xts@data,
-                 new_sb_metabacktest_results@base_sb_backtest_results_list$`c:rf_f:signals_t:target-fwd_premium_1m`@validation_eval_metrics_hyper_choice_m_xts@data,
+    expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@validation_eval_metrics_hyper_choice_m_xts@data,
+                 new_sb_metabacktest_results@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@validation_eval_metrics_hyper_choice_m_xts@data,
                  ignore_attr = TRUE)
-    expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$`c:rf_f:signals_t:target-fwd_premium_1m`@best_hyperparameters_m_xts@data,
-                 new_sb_metabacktest_results@base_sb_backtest_results_list$`c:rf_f:signals_t:target-fwd_premium_1m`@best_hyperparameters_m_xts@data,
+    expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@best_hyperparameters_m_xts@data,
+                 new_sb_metabacktest_results@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@best_hyperparameters_m_xts@data,
                  ignore_attr = TRUE)
-    expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$`c:rf_f:signals_t:target-fwd_premium_1m`@feature_importance_m_df@data,
-                 new_sb_metabacktest_results@base_sb_backtest_results_list$`c:rf_f:signals_t:target-fwd_premium_1m`@feature_importance_m_df@data,
+    expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@feature_importance_m_df@data,
+                 new_sb_metabacktest_results@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@feature_importance_m_df@data,
                  ignore_attr = TRUE)
 
-    expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$`c:ols_f:signals_t:target-fwd_premium_1m`@consolidated_eval_metrics,
-                 new_sb_metabacktest_results@base_sb_backtest_results_list$`c:ols_f:signals_t:target-fwd_premium_1m`@consolidated_eval_metrics)
-    expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$`c:ols_f:signals_t:target-fwd_premium_1m`@oos_sb_outputs_m_df@data,
-                 new_sb_metabacktest_results@base_sb_backtest_results_list$`c:ols_f:signals_t:target-fwd_premium_1m`@oos_sb_outputs_m_df@data)
-    expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$`c:ols_f:signals_t:target-fwd_premium_1m`@oos_testing_eval_metrics_m_xts@data,
-                 new_sb_metabacktest_results@base_sb_backtest_results_list$`c:ols_f:signals_t:target-fwd_premium_1m`@oos_testing_eval_metrics_m_xts@data,
+    expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c__ols_f__signals_t__target_fwd_premium_1m@consolidated_eval_metrics,
+                 new_sb_metabacktest_results@base_sb_backtest_results_list$c__ols_f__signals_t__target_fwd_premium_1m@consolidated_eval_metrics)
+    expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c__ols_f__signals_t__target_fwd_premium_1m@oos_sb_outputs_m_df@data,
+                 new_sb_metabacktest_results@base_sb_backtest_results_list$c__ols_f__signals_t__target_fwd_premium_1m@oos_sb_outputs_m_df@data)
+    expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c__ols_f__signals_t__target_fwd_premium_1m@oos_testing_eval_metrics_m_xts@data,
+                 new_sb_metabacktest_results@base_sb_backtest_results_list$c__ols_f__signals_t__target_fwd_premium_1m@oos_testing_eval_metrics_m_xts@data,
                  ignore_attr = TRUE)
-    expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$`c:ols_f:signals_t:target-fwd_premium_1m`@feature_importance_m_df@data,
-                 new_sb_metabacktest_results@base_sb_backtest_results_list$`c:ols_f:signals_t:target-fwd_premium_1m`@feature_importance_m_df@data,
+    expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c__ols_f__signals_t__target_fwd_premium_1m@feature_importance_m_df@data,
+                 new_sb_metabacktest_results@base_sb_backtest_results_list$c__ols_f__signals_t__target_fwd_premium_1m@feature_importance_m_df@data,
                  ignore_attr = TRUE)
 
 })
@@ -20210,32 +20213,32 @@ test_that("update_sb_backtest works for SW metabacktest - 2 updates - rebalancin
 
 
   #Base SB objects
-  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$`c:rf_f:signals_t:target-fwd_premium_1m`@consolidated_eval_metrics,
-               new_sb_metabacktest_results@base_sb_backtest_results_list$`c:rf_f:signals_t:target-fwd_premium_1m`@consolidated_eval_metrics)
-  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$`c:rf_f:signals_t:target-fwd_premium_1m`@oos_sb_outputs_m_df@data,
-               new_sb_metabacktest_results@base_sb_backtest_results_list$`c:rf_f:signals_t:target-fwd_premium_1m`@oos_sb_outputs_m_df@data)
-  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$`c:rf_f:signals_t:target-fwd_premium_1m`@oos_testing_eval_metrics_m_xts@data,
-               new_sb_metabacktest_results@base_sb_backtest_results_list$`c:rf_f:signals_t:target-fwd_premium_1m`@oos_testing_eval_metrics_m_xts@data,
+  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@consolidated_eval_metrics,
+               new_sb_metabacktest_results@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@consolidated_eval_metrics)
+  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@oos_sb_outputs_m_df@data,
+               new_sb_metabacktest_results@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@oos_sb_outputs_m_df@data)
+  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@oos_testing_eval_metrics_m_xts@data,
+               new_sb_metabacktest_results@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@oos_testing_eval_metrics_m_xts@data,
                ignore_attr = TRUE)
-  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$`c:rf_f:signals_t:target-fwd_premium_1m`@validation_eval_metrics_hyper_choice_m_xts@data,
-               new_sb_metabacktest_results@base_sb_backtest_results_list$`c:rf_f:signals_t:target-fwd_premium_1m`@validation_eval_metrics_hyper_choice_m_xts@data,
+  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@validation_eval_metrics_hyper_choice_m_xts@data,
+               new_sb_metabacktest_results@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@validation_eval_metrics_hyper_choice_m_xts@data,
                ignore_attr = TRUE)
-  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$`c:rf_f:signals_t:target-fwd_premium_1m`@best_hyperparameters_m_xts@data,
-               new_sb_metabacktest_results@base_sb_backtest_results_list$`c:rf_f:signals_t:target-fwd_premium_1m`@best_hyperparameters_m_xts@data,
+  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@best_hyperparameters_m_xts@data,
+               new_sb_metabacktest_results@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@best_hyperparameters_m_xts@data,
                ignore_attr = TRUE)
-  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$`c:rf_f:signals_t:target-fwd_premium_1m`@feature_importance_m_df@data,
-               new_sb_metabacktest_results@base_sb_backtest_results_list$`c:rf_f:signals_t:target-fwd_premium_1m`@feature_importance_m_df@data,
+  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@feature_importance_m_df@data,
+               new_sb_metabacktest_results@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@feature_importance_m_df@data,
                ignore_attr = TRUE)
 
-  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$`c:mvo_f:signals_t:target-fwd_premium_1m`@consolidated_eval_metrics,
-               new_sb_metabacktest_results@base_sb_backtest_results_list$`c:mvo_f:signals_t:target-fwd_premium_1m`@consolidated_eval_metrics)
-  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$`c:mvo_f:signals_t:target-fwd_premium_1m`@oos_sb_outputs_m_df@data,
-               new_sb_metabacktest_results@base_sb_backtest_results_list$`c:mvo_f:signals_t:target-fwd_premium_1m`@oos_sb_outputs_m_df@data)
-  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$`c:mvo_f:signals_t:target-fwd_premium_1m`@oos_testing_eval_metrics_m_xts@data,
-               new_sb_metabacktest_results@base_sb_backtest_results_list$`c:mvo_f:signals_t:target-fwd_premium_1m`@oos_testing_eval_metrics_m_xts@data,
+  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c__mvo_f__signals_t__target_fwd_premium_1m@consolidated_eval_metrics,
+               new_sb_metabacktest_results@base_sb_backtest_results_list$c__mvo_f__signals_t__target_fwd_premium_1m@consolidated_eval_metrics)
+  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c__mvo_f__signals_t__target_fwd_premium_1m@oos_sb_outputs_m_df@data,
+               new_sb_metabacktest_results@base_sb_backtest_results_list$c__mvo_f__signals_t__target_fwd_premium_1m@oos_sb_outputs_m_df@data)
+  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c__mvo_f__signals_t__target_fwd_premium_1m@oos_testing_eval_metrics_m_xts@data,
+               new_sb_metabacktest_results@base_sb_backtest_results_list$c__mvo_f__signals_t__target_fwd_premium_1m@oos_testing_eval_metrics_m_xts@data,
                ignore_attr = TRUE)
-  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$`c:mvo_f:signals_t:target-fwd_premium_1m`@feature_importance_m_df@data,
-               new_sb_metabacktest_results@base_sb_backtest_results_list$`c:mvo_f:signals_t:target-fwd_premium_1m`@feature_importance_m_df@data,
+  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c__mvo_f__signals_t__target_fwd_premium_1m@feature_importance_m_df@data,
+               new_sb_metabacktest_results@base_sb_backtest_results_list$c__mvo_f__signals_t__target_fwd_premium_1m@feature_importance_m_df@data,
                ignore_attr = TRUE)
 
 })
@@ -20948,9 +20951,6 @@ test_that("update_sb_backtest works for Custom Signal Universe Metrics - 2 updat
     verbose = FALSE
   )
   )
-  new_rf_results@backtest_identifier <- new_rf_results@backtest_identifier %>%
-    stringr::str_replace_all(":", "_") %>%
-    stringr::str_replace_all("-", "_")
 
   new_rf_sb_port@backtest_identifier <- new_rf_results@backtest_identifier
 
@@ -20969,9 +20969,7 @@ test_that("update_sb_backtest works for Custom Signal Universe Metrics - 2 updat
   )
   )
 
-  new_mvo_results@backtest_identifier <- new_mvo_results@backtest_identifier %>%
-    stringr::str_replace_all(":", "_") %>%
-    stringr::str_replace_all("-", "_")
+  new_mvo_results@backtest_identifier <- new_mvo_results@backtest_identifier
 
   new_mvo_sb_port@backtest_identifier <- new_mvo_results@backtest_identifier
 
@@ -21059,32 +21057,32 @@ test_that("update_sb_backtest works for Custom Signal Universe Metrics - 2 updat
 
 
   #Base SB objects
-  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c_rf_f_signals_t_target_fwd_premium_1m@consolidated_eval_metrics,
-               new_sb_metabacktest_results@base_sb_backtest_results_list$c_rf_f_signals_t_target_fwd_premium_1m@consolidated_eval_metrics)
-  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c_rf_f_signals_t_target_fwd_premium_1m@oos_sb_outputs_m_df@data,
-               new_sb_metabacktest_results@base_sb_backtest_results_list$c_rf_f_signals_t_target_fwd_premium_1m@oos_sb_outputs_m_df@data)
-  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c_rf_f_signals_t_target_fwd_premium_1m@oos_testing_eval_metrics_m_xts@data,
-               new_sb_metabacktest_results@base_sb_backtest_results_list$c_rf_f_signals_t_target_fwd_premium_1m@oos_testing_eval_metrics_m_xts@data,
+  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@consolidated_eval_metrics,
+               new_sb_metabacktest_results@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@consolidated_eval_metrics)
+  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@oos_sb_outputs_m_df@data,
+               new_sb_metabacktest_results@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@oos_sb_outputs_m_df@data)
+  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@oos_testing_eval_metrics_m_xts@data,
+               new_sb_metabacktest_results@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@oos_testing_eval_metrics_m_xts@data,
                ignore_attr = TRUE)
-  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c_rf_f_signals_t_target_fwd_premium_1m@validation_eval_metrics_hyper_choice_m_xts@data,
-               new_sb_metabacktest_results@base_sb_backtest_results_list$c_rf_f_signals_t_target_fwd_premium_1m@validation_eval_metrics_hyper_choice_m_xts@data,
+  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@validation_eval_metrics_hyper_choice_m_xts@data,
+               new_sb_metabacktest_results@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@validation_eval_metrics_hyper_choice_m_xts@data,
                ignore_attr = TRUE)
-  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c_rf_f_signals_t_target_fwd_premium_1m@best_hyperparameters_m_xts@data,
-               new_sb_metabacktest_results@base_sb_backtest_results_list$c_rf_f_signals_t_target_fwd_premium_1m@best_hyperparameters_m_xts@data,
+  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@best_hyperparameters_m_xts@data,
+               new_sb_metabacktest_results@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@best_hyperparameters_m_xts@data,
                ignore_attr = TRUE)
-  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c_rf_f_signals_t_target_fwd_premium_1m@feature_importance_m_df@data,
-               new_sb_metabacktest_results@base_sb_backtest_results_list$c_rf_f_signals_t_target_fwd_premium_1m@feature_importance_m_df@data,
+  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@feature_importance_m_df@data,
+               new_sb_metabacktest_results@base_sb_backtest_results_list$c__rf_f__signals_t__target_fwd_premium_1m@feature_importance_m_df@data,
                ignore_attr = TRUE)
 
-  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c_mvo_f_signals_t_target_fwd_premium_1m@consolidated_eval_metrics,
-               new_sb_metabacktest_results@base_sb_backtest_results_list$c_mvo_f_signals_t_target_fwd_premium_1m@consolidated_eval_metrics)
-  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c_mvo_f_signals_t_target_fwd_premium_1m@oos_sb_outputs_m_df@data,
-               new_sb_metabacktest_results@base_sb_backtest_results_list$c_mvo_f_signals_t_target_fwd_premium_1m@oos_sb_outputs_m_df@data)
-  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c_mvo_f_signals_t_target_fwd_premium_1m@oos_testing_eval_metrics_m_xts@data,
-               new_sb_metabacktest_results@base_sb_backtest_results_list$c_mvo_f_signals_t_target_fwd_premium_1m@oos_testing_eval_metrics_m_xts@data,
+  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c__mvo_f__signals_t__target_fwd_premium_1m@consolidated_eval_metrics,
+               new_sb_metabacktest_results@base_sb_backtest_results_list$c__mvo_f__signals_t__target_fwd_premium_1m@consolidated_eval_metrics)
+  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c__mvo_f__signals_t__target_fwd_premium_1m@oos_sb_outputs_m_df@data,
+               new_sb_metabacktest_results@base_sb_backtest_results_list$c__mvo_f__signals_t__target_fwd_premium_1m@oos_sb_outputs_m_df@data)
+  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c__mvo_f__signals_t__target_fwd_premium_1m@oos_testing_eval_metrics_m_xts@data,
+               new_sb_metabacktest_results@base_sb_backtest_results_list$c__mvo_f__signals_t__target_fwd_premium_1m@oos_testing_eval_metrics_m_xts@data,
                ignore_attr = TRUE)
-  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c_mvo_f_signals_t_target_fwd_premium_1m@feature_importance_m_df@data,
-               new_sb_metabacktest_results@base_sb_backtest_results_list$c_mvo_f_signals_t_target_fwd_premium_1m@feature_importance_m_df@data,
+  expect_equal(updated_sb_metabacktest_results_2@base_sb_backtest_results_list$c__mvo_f__signals_t__target_fwd_premium_1m@feature_importance_m_df@data,
+               new_sb_metabacktest_results@base_sb_backtest_results_list$c__mvo_f__signals_t__target_fwd_premium_1m@feature_importance_m_df@data,
                ignore_attr = TRUE)
 
 
