@@ -1074,11 +1074,11 @@ test_that("run_ss_backtest works for bayesian setting with priors_m_df", {
   )
 
   expect_equal(benchmark_weights_m_d_ref$theme_ss, c(1/3/2, 1/3/2, 1/3/2, 1/3, 1/3/2))
-  expect_equal(benchmark_weights_m_d_ref$theme_sb, c(1/3/2, 1/3/2, 1/3/2, 1/3, 1/3/2))
+  expect_equal(benchmark_weights_m_d_ref$theme_sb, c(1/3/2, 1/3/2, 1/3, 1/3, 0))
   signal_universe_m_d_ref_2$theme_ss_bench_weights <- benchmark_weights_m_d_ref$theme_ss
   signal_universe_m_d_ref_2$theme_sb_bench_weights <- benchmark_weights_m_d_ref$theme_sb
   signal_universe_m_d_ref_2$theme <- c("value", "value", "defensive", "momentum", "defensive")
-  signal_universe_m_d_ref_2$is_eligible <- c(1,1,1,1,1)
+  signal_universe_m_d_ref_2$is_eligible <- c(1,1,1,1,0)
 
 
 
