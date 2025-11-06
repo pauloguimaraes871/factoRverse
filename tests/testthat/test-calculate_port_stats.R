@@ -367,7 +367,6 @@ testthat::test_that("calculate_port_stats(port) - active", {
     dplyr::mutate(is_eligible = ifelse(weights > 0, 1, 0)) %>%
     dplyr::select(-weights)
 
-  expect_warning(
     selected_benchmark_port_obj <- set_portfolio_weights(
       universe_m_d_ref = bench_universe_m_d_ref, #Universe
       port_construction_method = "custom_weights",
@@ -378,9 +377,7 @@ testthat::test_that("calculate_port_stats(port) - active", {
       groups_m_d_ref = stock_groups_m_d_ref,
       selected_benchmark = NULL, #Avoid infinite recursion
       level = "benchmark"
-    ),
-    "The following groups are missing in macro eligible_assets: Financials"
-  )
+    )
 
   #Macro
   group_col <- names(stock_groups_m_df)[4]

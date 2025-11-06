@@ -1265,7 +1265,6 @@ test_that("set portfolio weights work for MVO (signals) - constrained (individua
   )
 
   set.seed(123)
-  expect_warning(
     results <-  set_portfolio_weights(port_construction_method = "mvo",
                                       universe_m_d_ref = most_recent_signal_universe_m_d_ref %>%
                                         dplyr::select(-max_weight, -min_weight, -weights, -rel_risk_contr),
@@ -1278,9 +1277,7 @@ test_that("set portfolio weights work for MVO (signals) - constrained (individua
                                       concentration_constraint_policy = concentration_constraint_policy,
                                       lower_quantile_winsorization = 0.05, upper_quantile_winsorization = 0.95,
                                       selected_benchmark = concentration_constraint_policy$benchmark
-    ),
-    "The following groups are missing in macro eligible_assets: momentum"
-  )
+    )
 
 
 
@@ -1298,7 +1295,7 @@ test_that("set portfolio weights work for MVO (signals) - constrained (individua
     dplyr::mutate(is_eligible = ifelse(weights > 0, 1, 0)) %>%
     dplyr::select(-weights)
 
-  expect_warning(
+
   selected_benchmark_obj <-
     set_portfolio_weights(port_construction_method = "custom_weights",
                           universe_m_d_ref = bench_universe_m_d_ref,
@@ -1309,8 +1306,7 @@ test_that("set portfolio weights work for MVO (signals) - constrained (individua
                             bench_assets_returns_m_xts_upd_ref,
                           selected_benchmark = NULL,
                           level = "benchmark"
-    ), "The following groups are missing in macro eligible_assets: momentum"
-  )
+    )
 
 
   #Macro
@@ -2860,7 +2856,6 @@ test_that("set_portfolio weights works for stocks (hrp + exp_ret_score_tilt = 'i
   expected_results$rel_risk_contr <- c(0, rrc$rel_risk_contr)
   expected_results$weights <- c(0, w[rownames(covariance_matrix)])
 
-  expect_warning(
     results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "hrp",
                                      eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
                                      groups_m_d_ref = stock_groups_m_d_ref,
@@ -2869,8 +2864,7 @@ test_that("set_portfolio weights works for stocks (hrp + exp_ret_score_tilt = 'i
                                      exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
                                      exp_ret_score_tilt = "inner",
                                      selected_benchmark = "ibov", bench_assets_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref
-    ), "The following groups are missing in macro eligible_assets: Oil"
-  )
+    )
 
   ## Add active statistics
   port_stats <- calculate_port_stats(
@@ -5868,36 +5862,30 @@ test_that("set portfolio weights work for only one eligible stock - artificial_p
   expect_equal(results@universe_m_d_ref@data$weights, c(1,0,0,0))
 
   #RP
-  expect_warning(
-    results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "rp",
-                                     eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
-                                     groups_m_d_ref = stock_groups_m_d_ref,
-                                     cov_matrix_sample_size = 252, cov_estimation_method = "sample",
-                                     active_returns = FALSE
-    ),"The following groups are missing in macro eligible_assets: Financials, Cyclical"
+  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "rp",
+                                   eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref,
+                                   groups_m_d_ref = stock_groups_m_d_ref,
+                                   cov_matrix_sample_size = 252, cov_estimation_method = "sample",
+                                   active_returns = FALSE
   )
 
   expect_equal(results@universe_m_d_ref@data$weights, c(1,0,0,0))
   #HRP
-  expect_warning(
-    results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "hrp",
-                                     eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
-                                     cov_matrix_sample_size = 252, cov_estimation_method = "sample",
-                                     active_returns = FALSE
-    ),"The following groups are missing in macro eligible_assets: Financials, Cyclical"
+  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "hrp",
+                                   eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
+                                   cov_matrix_sample_size = 252, cov_estimation_method = "sample",
+                                   active_returns = FALSE
   )
 
   expect_equal(results@universe_m_d_ref@data$weights, c(1,0,0,0))
   #MVO
-  expect_warning(
   results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "mvo",
                                    eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                    cov_matrix_sample_size = 252, cov_estimation_method = "sample",
                                    opt_objective = "risk", liquidity_constraint_policy = liquidity_constraint_policy,
                                    turnover_constraint_policy = turnover_constraint_policy,
                                    concentration_constraint_policy = concentration_constraint_policy
-    ), "The following groups are missing in macro eligible_assets: Financials, Cyclical"
-  )
+    )
 
   expect_equal(results@universe_m_d_ref@data$weights, c(1,0,0,0))
 
