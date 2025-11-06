@@ -6240,7 +6240,7 @@ setMethod(
         ggplot2::geom_bar(stat = "identity", position = "dodge", color = black) +
         .gg_dark() +
         ggplot2::labs(
-          title = paste0("Group Allocation (macro)", if (plot_active) " — Active" else ""),
+          title = paste0("Group Allocation (macro)", if (plot_active) " - Active" else ""),
           x = "Group", y = "Value", fill = NULL
         )
 
@@ -6584,7 +6584,7 @@ setMethod(
         .gg_dark() +
         ggplot2::theme(legend.position = "none",
                        plot.title = ggplot2::element_text(color = white)) +
-        ggplot2::labs(title = "Concentration — Weights", x = NULL, y = NULL)
+        ggplot2::labs(title = "Concentration - Weights", x = NULL, y = NULL)
 
 
       # C) concentration via RRC
@@ -6602,7 +6602,7 @@ setMethod(
         .gg_dark() +
         ggplot2::theme(legend.position = "none",
                        plot.title = ggplot2::element_text(color = white)) +
-        ggplot2::labs(title = "Concentration — RRC", x = NULL, y = NULL)
+        ggplot2::labs(title = "Concentration - RRC", x = NULL, y = NULL)
 
       # D) group-level metrics
       g_exp_ret <- .pick_num(ps, c("act_group_exp_ret", "group_exp_ret"))
