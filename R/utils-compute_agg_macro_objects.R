@@ -15,10 +15,10 @@
 #'   `liquidity_m_d_ref`'s columns;
 #' - `micro_universe_m_d_ref_list`: the per-group weights actually used.
 #'
-#' @param eligible_universe_m_d_ref `data.frame`. Must contain at least:
+#' @param universe_m_d_ref `data.frame`. Must contain at least:
 #'   - `tickers` (`character`): asset identifiers;
 #'   - `dates` (`Date`): snapshot date;
-#'   - `is_eligible` (`integer`/`logical`): must be 1/TRUE for all rows provided;
+#'   - `is_eligible` (`integer`/`logical`): must be 1 or 0;
 #'   - `exp_ret_score` (`numeric`): stock-level expected return score (used in aggregation);
 #'   - `weights` (`numeric`): portfolio weights for the snapshot (used to aggregate within group);
 #'   - `{group_col}` (`character`): grouping column name provided via `group_col`.

@@ -59,6 +59,22 @@ intra-group portfolios (e.g., \code{"mvo"}, \code{"risk_parity"}).}
 \item{universe_m_d_ref}{Data frame with stock-level reference data, including
 tickers and optional benchmark/target weights.}
 
+\item{eligible_returns_m_xts_upd_ref}{An optional \code{xts} object containing return data for the eligible tickers, used in covariance matrix estimation for Risk-Parity and MVO methods.}
+
+\item{selected_benchmark_m_xts_upd_ref}{An optional \code{xts} object containing benchmark returns used to compute active returns (only if \code{active_returns = TRUE}).}
+
+\item{active_returns}{Logical. If \code{TRUE}, covariance estimation will use active returns (asset returns minus benchmark). Defaults to \code{FALSE} if \code{selected_benchmark_m_xts_upd_ref} is \code{NULL}, otherwise \code{TRUE}.}
+
+\item{cov_estimation_method}{An optional character string specifying the method for estimating the covariance matrix. Defaults to \code{NULL}.}
+
+\item{cov_matrix_sample_size}{Integer. Number of time periods (rows in \code{eligible_returns_m_xts_upd_ref}) used to estimate the covariance matrix. If \code{NULL}, uses all available observations.}
+
+\item{groups_m_d_ref}{An optional data frame used for group constraints and covariance matrix estimation. Should include group information if used. Defaults to \code{NULL}.}
+
+\item{selected_benchmark}{It controls whether a 'port' object for the benchmark should be created and added to portolio results.}
+
+\item{bench_assets_returns_m_xts_upd_ref}{Optional. A 'xts' object containing returns for all stocks. Needed for computing benchmark and port stats.}
+
 \item{liquidity_m_d_ref}{(Optional) Data frame with liquidity metrics for
 the full universe.}
 

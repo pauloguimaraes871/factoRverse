@@ -66,11 +66,20 @@ Should refer to a \strong{single date}.}
 
 \item{mmaf_method}{Character scalar: \code{"top_down"} or \code{"bottom_up"}.}
 
+\item{eligible_returns_m_xts_upd_ref}{An optional \code{xts} object containing return data for the eligible tickers, used in covariance matrix estimation for Risk-Parity and MVO methods.}
+
 \item{covariance_matrix}{Numeric covariance matrix with row/col names that
 exactly match the \code{tickers} of eligible names (same ordering is enforced).}
 
-\item{groups_m_d_ref}{A data.frame/tibble with group (sector) membership for tickers.
-Must include \code{id}, \code{tickers}, \code{dates}, and the \code{mmaf_group_col} column.}
+\item{selected_benchmark_m_xts_upd_ref}{An optional \code{xts} object containing benchmark returns used to compute active returns (only if \code{active_returns = TRUE}).}
+
+\item{active_returns}{Logical. If \code{TRUE}, covariance estimation will use active returns (asset returns minus benchmark). Defaults to \code{FALSE} if \code{selected_benchmark_m_xts_upd_ref} is \code{NULL}, otherwise \code{TRUE}.}
+
+\item{cov_estimation_method}{An optional character string specifying the method for estimating the covariance matrix. Defaults to \code{NULL}.}
+
+\item{cov_matrix_sample_size}{Integer. Number of time periods (rows in \code{eligible_returns_m_xts_upd_ref}) used to estimate the covariance matrix. If \code{NULL}, uses all available observations.}
+
+\item{groups_m_d_ref}{An optional data frame used for group constraints and covariance matrix estimation. Should include group information if used. Defaults to \code{NULL}.}
 
 \item{mmaf_group_col}{Character scalar naming the column in \code{groups_m_d_ref} that carries
 the group/sector classification. (Your wrapper enforces this as the 4th column.)}
@@ -150,6 +159,10 @@ sector allocation, prefer \code{"ew"}, \code{"rp"} or \code{"hrp"} and keep \cod
 \item{macro_exp_ret_score_tilt_eta}{Optional numeric, tilt intensity for macro RP.}
 
 \item{macro_linkage}{Character, passed to macro hierarchical methods when applicable.}
+
+\item{selected_benchmark}{It controls whether a 'port' object for the benchmark should be created and added to portolio results.}
+
+\item{bench_assets_returns_m_xts_upd_ref}{Optional. A 'xts' object containing returns for all stocks. Needed for computing benchmark and port stats.}
 
 \item{lower_quantile_winsorization, upper_quantile_winsorization}{Numerics in (0,1),
 passed through to micro and macro \code{set_portfolio_weights()}.}

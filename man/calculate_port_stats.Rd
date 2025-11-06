@@ -43,6 +43,8 @@ prefixed with \code{group_}.}
 
 \item{all_returns_m_xts_upd_ref}{An optional \code{xts} object containing return data for all tickers, used in covariance matrix estimation for Risk-Parity and MVO methods.}
 
+\item{cov_estimation_method}{Character. Covariance matrix estimation method to use.}
+
 \item{cov_matrix_sample_size}{Integer. Number of time periods (rows in \code{all_returns_m_xts_upd_ref}) used to estimate the covariance matrix. If \code{NULL}, uses all available observations.}
 
 \item{groups_m_d_ref}{An optional data frame used for group constraints and covariance matrix estimation. Should include group information if used. Defaults to \code{NULL}.}

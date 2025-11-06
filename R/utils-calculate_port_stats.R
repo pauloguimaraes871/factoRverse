@@ -14,6 +14,7 @@
 #'   Only rows with \code{is_eligible == 1} are used for the **portfolio**.
 #' @param covariance_matrix Optional covariance matrix for the eligible tickers when benchmark is not provided
 #' @param all_returns_m_xts_upd_ref An optional `xts` object containing return data for all tickers, used in covariance matrix estimation for Risk-Parity and MVO methods.
+#' @param cov_estimation_method Character. Covariance matrix estimation method to use.
 #' @param cov_matrix_sample_size Integer. Number of time periods (rows in `all_returns_m_xts_upd_ref`) used to estimate the covariance matrix. If `NULL`, uses all available observations.
 #' @param selected_benchmark Character indicating the benchmark to use
 #' @param bench_universe_m_d_ref Optional \code{data.frame} in the same format as

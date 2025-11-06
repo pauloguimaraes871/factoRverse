@@ -28,16 +28,6 @@ how R sanitizes names (spaces/dashes → dots; leading digits prefixed with \cod
 If multiple columns in \code{obj} normalize to the same token, the first occurrence
 is selected (per \code{base::match()} semantics).
 }
-\examples{
-cn <- c("Stock A", "Stock.B", "X1Price")
-X  <- stats::setNames(matrix(0, 2, 3), cn)
-col_match(X, c("Stock A", "Stock B", "1Price"))
-# -> c("Stock A", "Stock.B", "X1Price")
-
-# Case-insensitive match:
-col_match(X, c("stock a", "stock b"), ignore_case = TRUE)
-
-}
 \seealso{
 base::make.names, base::match
 }

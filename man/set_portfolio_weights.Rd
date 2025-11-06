@@ -178,6 +178,8 @@ Helps in assessing which type of portfolio is being created.}
 \item{upper_quantile_winsorization}{An optional numeric value for upper quantile winsorization when handling cap weighting and scaling. Defaults to \code{NULL}.}
 
 \item{parallel}{Logical. If \code{TRUE}, enables parallel processing for computationally intensive tasks. Defaults to \code{FALSE}.}
+
+\item{verbose}{Logical. If \code{TRUE}, prints progress messages.}
 }
 \value{
 A data frame or object (depending on the portfolio construction method) with the updated portfolio weights assigned based on the specified method and constraints.

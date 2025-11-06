@@ -31,7 +31,14 @@
 #'   as weighted means of intra-sector micro weights.
 #' @param top_down_proxy_port_method Character: micro method to build *proxy* intra-sector
 #'   portfolios in the initial pass of `"top_down"` (e.g., `"rp"`, `"hrp"`, `"ew"`).
-#'
+#' @param eligible_returns_m_xts_upd_ref An optional `xts` object containing return data for the eligible tickers, used in covariance matrix estimation for Risk-Parity and MVO methods.
+#' @param selected_benchmark_m_xts_upd_ref An optional `xts` object containing benchmark returns used to compute active returns (only if `active_returns = TRUE`).
+#' @param active_returns Logical. If `TRUE`, covariance estimation will use active returns (asset returns minus benchmark). Defaults to `FALSE` if `selected_benchmark_m_xts_upd_ref` is `NULL`, otherwise `TRUE`.
+#' @param cov_matrix_sample_size Integer. Number of time periods (rows in `eligible_returns_m_xts_upd_ref`) used to estimate the covariance matrix. If `NULL`, uses all available observations.
+#' @param cov_estimation_method An optional character string specifying the method for estimating the covariance matrix. Defaults to \code{NULL}.
+#' @param groups_m_d_ref An optional data frame used for group constraints and covariance matrix estimation. Should include group information if used. Defaults to \code{NULL}.
+#' @param selected_benchmark It controls whether a 'port' object for the benchmark should be created and added to portolio results.
+#' @param bench_assets_returns_m_xts_upd_ref Optional. A 'xts' object containing returns for all stocks. Needed for computing benchmark and port stats.
 #' @param micro_port_construction_method Character micro method used for the actual
 #'   intra-sector optimization (e.g., `"mvo"`, `"rp"`, `"hrp"`, `"ew"`, or custom handled
 #'   by `set_portfolio_weights()`).
@@ -631,7 +638,6 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
 #' @param group_members List mapping group names to member tickers.
 #' @param universe_m_d_ref Data frame with stock-level reference data, including
 #'   tickers and optional benchmark/target weights.
-#' @param covariance_matrix Numeric covariance matrix covering all tickers.
 #' @param liquidity_m_d_ref (Optional) Data frame with liquidity metrics for
 #'   the full universe.
 #' @param concentration_constraint_policy (Optional) Policy object controlling
@@ -645,6 +651,14 @@ create_mmaf_portfolio <- function(universe_m_d_ref, mmaf_method = "bottom_up",
 #' @param rp_method (Optional) Risk parity method.
 #' @param exp_ret_score_tilt (Optional) Expected return tilt applied under risk parity.
 #' @param exp_ret_score_tilt_eta (Optional) Tilt intensity for expected return tilt.
+#' @param eligible_returns_m_xts_upd_ref An optional `xts` object containing return data for the eligible tickers, used in covariance matrix estimation for Risk-Parity and MVO methods.
+#' @param selected_benchmark_m_xts_upd_ref An optional `xts` object containing benchmark returns used to compute active returns (only if `active_returns = TRUE`).
+#' @param active_returns Logical. If `TRUE`, covariance estimation will use active returns (asset returns minus benchmark). Defaults to `FALSE` if `selected_benchmark_m_xts_upd_ref` is `NULL`, otherwise `TRUE`.
+#' @param cov_matrix_sample_size Integer. Number of time periods (rows in `eligible_returns_m_xts_upd_ref`) used to estimate the covariance matrix. If `NULL`, uses all available observations.
+#' @param cov_estimation_method An optional character string specifying the method for estimating the covariance matrix. Defaults to \code{NULL}.
+#' @param groups_m_d_ref An optional data frame used for group constraints and covariance matrix estimation. Should include group information if used. Defaults to \code{NULL}.
+#' @param selected_benchmark It controls whether a 'port' object for the benchmark should be created and added to portolio results.
+#' @param bench_assets_returns_m_xts_upd_ref Optional. A 'xts' object containing returns for all stocks. Needed for computing benchmark and port stats.
 #' @param n_random_ports (Optional) Number of random portfolios used for resampling.
 #' @param random_ports_method (Optional) Sampling method for random portfolios.
 #' @param opt_objective (Optional) Optimization objective (e.g., `"min_var"`, `"sharpe"`).
@@ -1011,7 +1025,6 @@ set_top_down_micro_weights <- function(group_name, group_weights = NULL,
 #'   constraints or ridge penalty are active.
 #' @param micro_port_construction_method Character. Method for constructing
 #'   intra-group portfolios (e.g., `"mvo"`, `"risk_parity"`).
-#'
 #' @inheritParams set_top_down_micro_weights
 #'
 #' @param verbose Logical. If `TRUE`, prints progress messages.
