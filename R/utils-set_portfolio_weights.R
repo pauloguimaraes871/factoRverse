@@ -67,6 +67,7 @@
 #' @param bench_assets_returns_m_xts_upd_ref Optional. A 'xts' object containing returns for all stocks. Needed for computing benchmark and port stats.
 #' @param level Character. Level of the portfolio object. Options are `"port"`, `"benchmark"`, or `"group"`. Defaults to `"port"`.
 #' Helps in assessing which type of portfolio is being created.
+#' @param verbose Logical. If `TRUE`, prints progress messages.
 #' @return A data frame or object (depending on the portfolio construction method) with the updated portfolio weights assigned based on the specified method and constraints.
 #'
 #' @export
@@ -105,22 +106,22 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
   }
 
     ##Get eligible tickers
-  if (port_construction_method == "custom_weights"){
-    ### For custom_weights, eligible tickers are those with weights > 0 in custom_weights_m_d_ref
-    ### Thus positive weights dominates eligibility from classify_investment_universe
-    ### For sub level == "group", all should be considered eligible, though
-    if (level == "group") {
-      eligible_tickers <- universe_m_d_ref %>% dplyr::pull(tickers)
+    if (port_construction_method == "custom_weights"){
+      ### For custom_weights, eligible tickers are those with weights > 0 in custom_weights_m_d_ref
+      ### Thus positive weights dominates eligibility from classify_investment_universe
+      ### For sub level == "group", all should be considered eligible, though
+      if (level == "group") {
+        eligible_tickers <- universe_m_d_ref %>% dplyr::pull(tickers)
+      } else {
+        eligible_tickers <- universe_m_d_ref %>%
+          dplyr::left_join(custom_weights_m_d_ref %>%
+                             dplyr::select(id, weights), by = "id") %>%
+          dplyr::filter(weights > 0) %>%
+          dplyr::pull(tickers)
+      }
     } else {
-      eligible_tickers <- universe_m_d_ref %>%
-        dplyr::left_join(custom_weights_m_d_ref %>%
-                           dplyr::select(id, weights), by = "id") %>%
-        dplyr::filter(weights > 0) %>%
-        dplyr::pull(tickers)
+      eligible_tickers <-  universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
     }
-  } else {
-    eligible_tickers <-  universe_m_d_ref %>% dplyr::filter(is_eligible == 1) %>% dplyr::pull(tickers)
-  }
 
   #Calculate covariance matrix
   ###################
@@ -354,25 +355,33 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
       cat(crayon::blurred(paste0("Calculating ", selected_benchmark, " portfolio...\n")))
     }
 
-    selected_benchmark_port_obj <- set_portfolio_weights(
-      universe_m_d_ref = bench_universe_m_d_ref, #Universe
-      port_construction_method = "custom_weights",
-      custom_weights_m_d_ref = bench_weights_m_d_ref,
-      eligible_returns_m_xts_upd_ref = bench_assets_returns_m_xts_upd_ref, #Return sample
-      cov_matrix_sample_size = cov_matrix_sample_size, #Cov estimation
-      cov_estimation_method = cov_estimation_method,
-      groups_m_d_ref = groups_m_d_ref,
-      selected_benchmark = NULL, #Avoid infinite recursion
-      level = if (level == "sub_port") "sub_benchmark" else "benchmark"
-    )
-    if (isTRUE(verbose)){
-      cat("\n")
-      cat(crayon::blurred("Finished benchmark portfolio.\n"))
-    }
+    ### For benchmarks, if bench_weights sum to 0, skip portfolio creation
+    if (level == "sub_port" && all(is.na(bench_weights_m_d_ref$weights))){
+      #### Return NULLs
+      selected_benchmark_port_obj <- NULL
+      bench_universe_m_d_ref <- NULL
+      bench_cov_matrix <- NULL
+    } else {
+      selected_benchmark_port_obj <- set_portfolio_weights(
+        universe_m_d_ref = bench_universe_m_d_ref, #Universe
+        port_construction_method = "custom_weights",
+        custom_weights_m_d_ref = bench_weights_m_d_ref,
+        eligible_returns_m_xts_upd_ref = bench_assets_returns_m_xts_upd_ref, #Return sample
+        cov_matrix_sample_size = cov_matrix_sample_size, #Cov estimation
+        cov_estimation_method = cov_estimation_method,
+        groups_m_d_ref = groups_m_d_ref,
+        selected_benchmark = NULL, #Avoid infinite recursion
+        level = if (level == "sub_port") "sub_benchmark" else "benchmark"
+      )
+      if (isTRUE(verbose)){
+        cat("\n")
+        cat(crayon::blurred("Finished benchmark portfolio.\n"))
+      }
 
-    selected_benchmark_port_obj@port_name <- selected_benchmark
-    bench_universe_m_d_ref <- selected_benchmark_port_obj@universe_m_d_ref@data
-    bench_cov_matrix <- selected_benchmark_port_obj@covariance_matrix
+      selected_benchmark_port_obj@port_name <- selected_benchmark
+      bench_universe_m_d_ref <- selected_benchmark_port_obj@universe_m_d_ref@data
+      bench_cov_matrix <- selected_benchmark_port_obj@covariance_matrix
+    }
 
   } else {
 
@@ -540,7 +549,6 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
         universe_m_d_ref$act_rel_risk_contr[which(is.na(universe_m_d_ref$act_rel_risk_contr))] <- 0
       }
     }
-
 
   ##Create the s4 obj
   eligible_assets <- eligible_universe_m_d_ref %>% dplyr::pull(tickers)
