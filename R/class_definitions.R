@@ -2927,7 +2927,7 @@ setClass(
   ),
   validity = function(object) {
 
-    # port_construction_method must be one of the allowed
+   # port_construction_method must be one of the allowed
     if (!object@port_construction_method %in% c("ew","sw","cw","cs","rp","mvo","custom_weights", "hrp", "mmaf")) {
       stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'mvo', 'custom_weights', 'hrp' or 'mmaf'.")
     }
@@ -3008,7 +3008,7 @@ setClass(
       if (length(eligible_groups) != ncol(object@group_cov_matrix)){
         stop("group_cov_matrix must have the same number of cols as eligible groups")
       }
-      if (any(!colnames(object@group_cov_matrix) %in% eligible_groups)){
+      if (any(!colnames(object@group_cov_matrix) %in% c(eligible_groups, "forced"))){ ### For signals, there might be forced signals
         stop("group_cov_matrix must have the same colnames as eligible groups")
       }
       ### colnames must be ordered according to sort
@@ -3128,7 +3128,7 @@ setClass(
         unique()
       missing_groups <- setdiff(all_groups, object@macro@eligible_assets)
       if (length(missing_groups) > 0) {
-        warning(paste0("The following groups are missing in macro eligible_assets: ",
+        message(paste0("The following groups are missing in macro eligible_assets: ",
                         paste(missing_groups, collapse = ", ")))
       }
     }
