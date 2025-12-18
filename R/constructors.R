@@ -2206,7 +2206,7 @@ setMethod(
       priors <- lapply(seq_along(distribution_choice), function(i) {
         coef_name <- if (!is.null(theme)) {
           paste0("theme", theme[i], if (type == "slope") ":market_factor_proxy" else "")
-        } else if (type == "slope") "market_factor_proxy" else "Intercept"
+        } else if (type == "slope") "market_factor_proxy" else ""
         brms::set_prior(
           paste0(distribution_choice[i], "(", paste(pars[[i]], collapse = ", "), ")"),
           class = "b", # Correctly setting class to 'b'

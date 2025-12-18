@@ -499,9 +499,14 @@ check_inputs_ss_backtest <- function(
         },
         "fixed_intercept_fixed_slope" = {
           required_rows <- data.frame(
-            class = c("Intercept", "b", "sd", "sd", "sigma", "cor"),
-            coef = c("", "market_factor_proxy", "Intercept", "market_factor_proxy", "", ""),
-            group = c("", "", "theme:tickers", "theme:tickers", "", "")
+            class = c("b", "b", "sd", "sd", "sigma", "cor"),
+            coef  = c("", "market_factor_proxy",
+                      "Intercept", "market_factor_proxy",
+                      "", ""),
+            group = c("", "",
+                      "theme:tickers", "theme:tickers",
+                      "", ""),
+            stringsAsFactors = FALSE
           )
           all(apply(required_rows, 1, function(row) {
             any(user_priors$class == row["class"] &
