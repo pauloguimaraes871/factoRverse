@@ -12,7 +12,7 @@
 #' @param period A `numeric` value indicating the time window:
 #' @param window A `character` specifying the window type: either "rolling" (default) or "seasonal".
 #' @param FUN A `character` specifying the function to apply. Supported options:
-#'   - "median", "sd", "cagr", "skew", "sur", "mean_std", "res_mom", "idio_vol".
+#'   - "median", "sd", "cagr", "skew", "sur", "signal_to_noise", "res_mom", "idio_vol".
 #' @param signal (For `meta_dataframe`) A `character` specifying the column name on which the rolling function is computed.
 #' @param col_name (For `meta_xts`) A `character` specifying the column name.
 #' @param benchmark_returns_m_xts A `meta_xts` object. Required for `FUN` "res_mom" and "idio_vol".
@@ -26,6 +26,9 @@
 #' The function should return `TRUE` for elements that should be counted. Only used for FUN = "count_if".
 #' @param offset_months A `numeric` value specifying the number of months to offset ahead or backwards for `seasonal` window type.
 #' @param specific_dates A `Date` vector specifying specific dates to consider for the rolling calculation.
+#' @param mult_last_n A `numeric` value indicating the number of most recent observations to multiply by a factor when computing certain metrics (default: 0).
+#' @param mult_by A `numeric` value indicating the multiplication factor for the last `n` observations when computing certain metrics (default: -1 for most metrics, 0 for "geom_mean_ret").
+#' @param top_n A `numeric` value indicating the number of top elements to consider when computing the "max" function (default: 1).
 #' @param ... Additional arguments passed to the function.
 #'
 #' @return A modified `meta_dataframe` or `meta_xts` object with an additional column named `"<metric>_<window>_<period>_<FUN>"`,
@@ -259,7 +262,7 @@ setMethod("compute_window",
                        #Dynamically adjust period for values length
                        cagr(begin = begin_value, final = final_value, period = period)
                      },
-                     "mean_std" = mean_std(values, na.rm = na.rm),
+                     "signal_to_noise" = signal_to_noise(values, na.rm = na.rm, mult_last_n = 0),
                      "res_mom" = res_mom(ret_values = values, bench_ret_values = selected_bench_ret_values, na.rm = na.rm),
                      "idio_vol" = idio_vol(ret_values = values, bench_ret_values = selected_bench_ret_values, na.rm = na.rm),
                      "count_if" = count_if(values, count_condition_fun = count_condition_fun),
@@ -329,7 +332,8 @@ setMethod("compute_window",
           signature(data = "meta_xts", period = "numeric", FUN = "character"),
           function(data, period, FUN, window = "rolling",
                    col_name, benchmark_returns_m_xts = NULL, selected_bench = NULL, na.rm = TRUE,
-                   only_unique = FALSE, feature_name = NULL, min_non_na = 0, specific_dates = NULL) {
+                   only_unique = FALSE, feature_name = NULL, min_non_na = 0, specific_dates = NULL,
+                   mult_last_n = 0, mult_by = if (FUN == "geom_mean_ret") 0 else -1, top_n = 1) {
 
             #Extract relevant elements
             ###############
@@ -364,7 +368,8 @@ setMethod("compute_window",
             if (period < 0) {
               stop("The period must be greater or equal to 0.")
             }
-            if (only_unique && FUN %in% c("cagr", "res_mom", "idio_vol", "geom_mean_ret")){
+            if (only_unique && FUN %in% c("cagr", "res_mom", "idio_vol", "geom_mean_ret",
+                                          "alpha", "alpha_tstat", "beta", "correlation")){
               stop("The 'only_unique' is not supported for FUN ", FUN)
             }
             if (window != "rolling"){
@@ -374,12 +379,14 @@ setMethod("compute_window",
               stop("The specific_dates argument must be of class 'Date'.")
             }
             ##Additional Checks for FUN types
-            if (FUN %in% c("res_mom", "idio_vol", "lag")) {
+            if (FUN %in% c("res_mom", "idio_vol", "lag", "correlation", "alpha", "alpha_tstat", "beta")) {
               if (window != "rolling"){
                 stop("The 'window' argument must be 'rolling' for FUN ", FUN)
               }
             }
-            if (FUN %in% c("res_mom", "idio_vol")){
+
+            benchmark_FUNs <- c("res_mom", "idio_vol", "alpha", "beta", "correlation", "alpha_tstat")
+            if (FUN %in% benchmark_FUNs){
               if (!is_returns_meta_xts) {
                 stop("benchmark_returns_m_xts must be provided for FUN ", FUN)
               }
@@ -394,7 +401,7 @@ setMethod("compute_window",
             if (meta_xts_type == "returns" && FUN %in% c("cagr")) {
               stop("The FUN ", FUN, " is not supported for returns_meta_xts. Use metrics_meta_xts instead.")
             }
-            if (meta_xts_type == "metrics" && FUN %in% c("geom_mean_ret", "idio_vol", "res_mom")) {
+            if (meta_xts_type == "metrics" && FUN %in% c("geom_mean_ret", "idio_vol", "res_mom", "alpha", "alpha_tstat", "beta")) {
               stop("The FUN ", FUN, " is not supported for metrics_meta_xts. Use returns_meta_xts instead.")
             }
 
@@ -482,14 +489,18 @@ setMethod("compute_window",
                 rolling_values[i] <- switch(FUN,
                                             "mean" = stats::mean(values, na.rm = na.rm),
                                             "median" = stats::median(values, na.rm = na.rm),
-                                            "geom_mean_ret" = geometric_mean_return(values, na.rm = na.rm),
-                                            "max" = max(values, na.rm = na.rm),
+                                            "geom_mean_ret" = geometric_mean_return(values, na.rm = na.rm, mult_by = mult_by, mult_last_n = mult_last_n),
+                                            "max" = sum_top_n(values, top_n = top_n, na.rm = na.rm),
                                             "min" = min(values, na.rm = na.rm),
                                             "sd" = stats::sd(values, na.rm = na.rm),
                                             "skew" = skew(values, na.rm = na.rm),
                                             "sur" = sur(final_value = final_value, past_values = values, na.rm = na.rm),
                                             "cagr" = cagr(begin = begin_value, final = final_value, period = period),
-                                            "mean_std" = mean_std(values, na.rm = na.rm),
+                                            "signal_to_noise" = signal_to_noise(values, na.rm = na.rm, mult_last_n = mult_last_n, mult_by = mult_by),
+                                            "alpha" = alpha_bench(ret_values = values, bench_ret_values = selected_bench_ret_values, mult_last_n = mult_last_n, mult_by = mult_by, na.rm = na.rm),
+                                            "alpha_tstat" = alpha_tstat_bench(ret_values = values, bench_ret_values = selected_bench_ret_values, mult_last_n = mult_last_n, mult_by = mult_by, na.rm = na.rm),
+                                            "beta" = beta_bench(ret_values = values, bench_ret_values = selected_bench_ret_values, na.rm = na.rm),
+                                            "correlation" = correlation_bench(ret_values = values, bench_ret_values = selected_bench_ret_values, na.rm = na.rm),
                                             "res_mom" = res_mom(ret_values = values, bench_ret_values = selected_bench_ret_values, na.rm = na.rm),
                                             "idio_vol" = idio_vol(ret_values = values, bench_ret_values = selected_bench_ret_values, na.rm = na.rm),
                                             stop("Unsupported function type"))
@@ -611,6 +622,8 @@ sur <- function(final_value, past_values, na.rm = TRUE) {
 #'
 #' @param returns Numeric vector of returns. Each return must be greater than
 #'   `-100` (i.e. no return worse than -100 %).
+#' @param mult_last_n = Integer >= 0. If > 0, multiply the last n (in time order) by a number.
+#' @param mult_by Numeric scalar. The number to multiply the last n values by. Default is 0 (skip).
 #' @param na.rm Logical. Should `NA` values be removed?  Default `FALSE`.
 #' @param scale Numeric divisor/multiplier used to convert between percentage
 #'   points and decimals.  Default `100`.
@@ -630,9 +643,21 @@ sur <- function(final_value, past_values, na.rm = TRUE) {
 #' geometric_mean_return(c(2, NA, 1), na.rm = TRUE)
 #'
 #' @export
-geometric_mean_return <- function(returns, na.rm = FALSE, scale = 100) {
+geometric_mean_return <- function(returns, na.rm = FALSE, mult_last_n = 0, mult_by = 0, scale = 100) {
 
+  # NA handling
   if (na.rm) returns <- returns[!is.na(returns)]
+
+  # If no observations, return NA
+  if (length(returns) == 0) return(NA_real_)
+
+  # Multiply last n values
+  if (!is.null(mult_last_n) && mult_last_n > 0L) {
+    n <- length(returns)
+    k <- min(mult_last_n, n)
+    idx <- (n - k + 1L):n
+    returns[idx] <- mult_by * returns[idx]
+  }
 
   if (any(returns <= -scale)) {
     stop("All returns must be greater than -", scale, " (i.e. > -100%).")
@@ -702,21 +727,405 @@ cagr <- function(begin, final, period) {
 #'
 #' This function computes the mean-to-standard deviation ratio of values in a numeric vector.
 #' This ratio is also known as the inverse of the coefficient of variation or, in finance, as the Sharpe Ratio when the risk-free rate is zero.
+#' Optional sign inversion on the last n observations
 #'
-#' @param values A numeric vector.
-#' @param na.rm A logical value indicating whether to remove NA values before computation (default is TRUE).
 #'
-#' @return A numeric value representing the mean-to-std ratio. If the standard deviation is zero,
-#' \code{NA_real_} is returned.
+#' @param values Numeric vector.
+#' @param na.rm Logical.
+#' @param mult_last_n Integer >= 0. If > 0, multiply the last n (in time order) by a number.
+#' @param mult_by Numeric scalar. The number to multiply the last n values by. Default is -1 (inversion).
+#'
+#' @return Numeric scalar.
+signal_to_noise <- function(values, na.rm = TRUE, mult_last_n = 0L, mult_by = -1) {
+
+  if (!is.numeric(values)) stop("values must be numeric.")
+  if (is.null(mult_last_n)) mult_last_n <- 0L
+  mult_last_n <- as.integer(mult_last_n)
+  if (mult_last_n < 0L) stop("mult_last_n must be >= 0.")
+
+  if (na.rm) values <- values[!is.na(values)]
+  if (length(values) == 0L) return(NA_real_)
+
+  if (mult_last_n > 0L) {
+    n <- length(values)
+    k <- min(mult_last_n, length(values))
+    idx <- (n - k + 1L):n
+    values[idx] <- mult_by * values[idx]
+  }
+
+  sd_val <- stats::sd(values, na.rm = FALSE)
+  if (is.na(sd_val) || sd_val == 0) return(NA_real_)
+  mean(values, na.rm = FALSE) / sd_val
+}
+
+#' Sum of the top n maximum values
+#'
+#' @param values Numeric vector.
+#' @param top_n Integer >= 1.
+#' @param na.rm Logical.
+#'
+#' @return Numeric scalar.
+sum_top_n <- function(values, top_n = 1L, na.rm = TRUE) {
+  if (!is.numeric(values)) stop("values must be numeric.")
+  top_n <- as.integer(top_n)
+  if (top_n < 1L) stop("top_n must be >= 1.")
+
+  if (na.rm) values <- values[!is.na(values)]
+  if (length(values) < top_n) return(NA_real_)
+
+  sum(sort(values, decreasing = TRUE)[seq_len(top_n)])
+}
+
+
+##Regression Helper
+#' Validator function for returns and benchmark returns
+validate_returns_bench <- function(ret_values, bench_ret_values){
+
+  ##If ret_values are all NAs, return NA
+  if (all(is.na(ret_values))) return(NA_real_)
+  ##If ret_values contain Inf or -Inf, return NA
+  if (any(is.infinite(ret_values))) return(NA_real_)
+  ##If any NA or Inf in bench_ret_values, return error
+  if (any(is.na(bench_ret_values))) stop("NA values in benchmark returns")
+  if (any(is.infinite(bench_ret_values))) stop("Infinite values in benchmark returns")
+  ##If lenghts differ, throw error
+  if (length(ret_values) != length(bench_ret_values)) stop("Lengths of returns and benchmark returns differ")
+
+}
+
+
+
+
+#' Internal helper: fit regression of signal returns on benchmark returns
+#'
+#' @param ret_values Numeric vector (signal returns).
+#' @param bench_ret_values Numeric vector (benchmark returns).
+#' @param na.rm Logical. If TRUE, drop NA positions from ret_values (and aligned bench).
+#' @param include_intercept Logical. If TRUE, fit y ~ 1 + x, else fit y ~ x (no intercept).
+#' @param mult_last_n Integer >= 0. If > 0, multiply the last n (in time order) of ret_values by -1 before fitting the regression. Default is 0.
+#' @param mult_by Numeric scalar. The number to multiply the last n values by. Default is -1 (inversion).
+#'
+#' @return A list with elements: alpha, beta, residuals, residual_sd, n_obs.
+bench_regression_fit <- function(
+    ret_values,
+    bench_ret_values,
+    mult_last_n = 0,
+    mult_by = -1,
+    na.rm = TRUE,
+    include_intercept = TRUE
+) {
+
+  validate_returns_bench(ret_values, bench_ret_values)
+
+  # apply mult_last_n to ret_values ONLY
+  if (!is.null(mult_last_n) && mult_last_n > 0L) {
+    n <- length(ret_values)
+    k <- min(mult_last_n, n)
+    idx <- (n - k + 1L):n
+    ret_values[idx] <- mult_by*ret_values[idx]
+  }
+
+
+  # aligned NA removal (only from ret_values, but apply to both)
+  if (na.rm && any(is.na(ret_values))) {
+    idx_keep <- !is.na(ret_values)
+    ret_values <- ret_values[idx_keep]
+    bench_ret_values <- bench_ret_values[idx_keep]
+  }
+
+  n_obs <- length(ret_values)
+  if (n_obs < 2L) {
+    return(list(alpha = NA_real_, beta = NA_real_, residuals = numeric(0), residual_sd = NA_real_, n_obs = n_obs))
+  }
+
+  # Build design matrix and fit with lm.fit (fast + stable)
+  if (isTRUE(include_intercept)) {
+    X <- cbind(`(Intercept)` = 1, bench = bench_ret_values)
+  } else {
+    X <- cbind(bench = bench_ret_values)
+  }
+  colnames(X) <- NULL
+
+  fit <- stats::lm.fit(x = X, y = ret_values)
+
+  # Remove coefficient names caused by column names in the design matrix
+  if (!is.null(fit$coefficients)) {
+    names(fit$coefficients) <- NULL
+  }
+
+  # rank deficiency -> return NA metrics
+  if (is.null(fit$coefficients) || any(is.na(fit$coefficients))) {
+    return(list(alpha = NA_real_, beta = NA_real_, residuals = numeric(0), residual_sd = NA_real_, n_obs = n_obs))
+  }
+
+  if (isTRUE(include_intercept)) {
+    alpha <- fit$coefficients[1]
+    beta  <- fit$coefficients[2]
+  } else {
+    alpha <- 0
+    beta  <- fit$coefficients[1]
+  }
+
+  residuals <- fit$residuals
+  residual_sd <- stats::sd(residuals, na.rm = TRUE)
+
+  list(
+    alpha = alpha,
+    beta = beta,
+    residuals = residuals,
+    residual_sd = residual_sd,
+    n_obs = n_obs
+  )
+}
+
+
+#' Calculate Alpha Relative to a Benchmark
+#'
+#' This function computes the \emph{alpha} of a return series relative to a benchmark,
+#' defined as the intercept of a linear regression of the form:
+#'
+#' \deqn{
+#' r_t = \alpha + \beta b_t + \varepsilon_t
+#' }
+#'
+#' where \eqn{r_t} denotes the asset returns and \eqn{b_t} denotes the benchmark returns.
+#' The estimated intercept \eqn{\alpha} measures the average excess return of the asset
+#' that is not explained by exposure to the benchmark.
+#'
+#' The regression is estimated using ordinary least squares (OLS). Missing values in
+#' \code{ret_values} may be removed depending on \code{na.rm}, while missing or infinite
+#' values in \code{bench_ret_values} are not allowed and result in an error.
+#'
+#' @param ret_values A numeric vector of asset returns.
+#' @param bench_ret_values A numeric vector of benchmark returns aligned in time with
+#'   \code{ret_values}.
+#' @param mult_last_n Integer >= 0. If > 0, multiply the last n (in time order) of
+#'   \code{ret_values} by 'mult_by' before fitting the regression. Default is 0.
+#' @param na.rm Logical. If \code{TRUE}, removes observations where \code{ret_values} is
+#'   \code{NA} and drops the corresponding benchmark observations. Default is \code{TRUE}.
+#'
+#' @return A numeric scalar representing the estimated regression intercept (alpha).
+#' Returns \code{NA_real_} if the regression cannot be estimated (e.g., insufficient
+#' observations, degenerate design matrix).
+#'
+#' @details
+#' \itemize{
+#'   \item If all elements of \code{ret_values} are \code{NA}, \code{NA_real_} is returned.
+#'   \item If any element of \code{bench_ret_values} is \code{NA} or infinite, an error is thrown.
+#'   \item If fewer than two valid observations are available after NA handling,
+#'         \code{NA_real_} is returned.
+#' }
+#'
+#' @seealso
+#' \code{\link{beta_bench}}, \code{\link{res_mom}}, \code{\link{idio_vol}}
 #'
 #' @export
+alpha_bench <- function(ret_values, bench_ret_values, mult_last_n = 0,
+                        mult_by = -1, na.rm = TRUE) {
+
+  out <- bench_regression_fit(ret_values, bench_ret_values, na.rm = na.rm,
+                              mult_last_n = mult_last_n, mult_by = -1,
+                              include_intercept = TRUE)
+  out$alpha
+}
+
+#' Compute the t-Statistic of Alpha Relative to a Benchmark
 #'
-#' @examples
-#' mean_std(c(1, 2, 3, 4, 5))
-mean_std <- function(values, na.rm = TRUE) {
-  sd_val <- stats::sd(values, na.rm = na.rm)
-  if (is.na(sd_val) || sd_val == 0) return(NA_real_)
-  mean(values, na.rm = na.rm) / sd_val
+#' This function calculates the t-statistic associated with the intercept
+#' (\eqn{\alpha}) in a linear regression of asset returns on benchmark returns.
+#' The model estimated is:
+#'
+#' \deqn{
+#' r_t = \alpha + \beta b_t + \varepsilon_t,
+#' }
+#'
+#' where \eqn{r_t} denotes the asset returns and \eqn{b_t} denotes the benchmark
+#' returns over a given rolling window. The regression is estimated using the
+#' internal helper \code{bench_regression_fit()}, which is a lightweight wrapper
+#' around \code{lm.fit()} designed for high-volume, rolling, and point-in-time
+#' computations.
+#'
+#' The t-statistic is computed as:
+#'
+#' \deqn{
+#' t_{\alpha} = \frac{\alpha}{SE(\alpha)},
+#' }
+#'
+#' where the standard error of the intercept is given by the OLS formula:
+#'
+#' \deqn{
+#' SE(\alpha) =
+#' \sqrt{
+#'   \sigma^2
+#'   \left(
+#'     \frac{1}{n}
+#'     +
+#'     \frac{\bar{b}^2}{\sum (b_t - \bar{b})^2}
+#'   \right)
+#' }.
+#' }
+#'
+#' @param ret_values Numeric vector of asset returns.
+#' @param bench_ret_values Numeric vector of benchmark returns aligned with
+#'   \code{ret_values}.
+#' @param mult_last_n Integer >= 0. If > 0, multiply the last n (in time order) of
+#'   \code{ret_values} by 'mult_by' before fitting the regression. Default is 0.
+#' @param mult_by Numeric scalar. The number to multiply the last n values by. Default is -1 (inversion).
+#' @param na.rm Logical. If \code{TRUE}, removes rows with NA in
+#'   \code{ret_values} and applies the same mask to the benchmark. Default is
+#'   \code{TRUE}. Missing or infinite values in the benchmark are not allowed
+#'   and produce an error.
+#'
+#' @return A numeric scalar equal to the t-statistic of the regression intercept.
+#' Returns \code{NA_real_} if:
+#' \itemize{
+#'   \item the regression is not estimable (e.g., insufficient observations),
+#'   \item the benchmark has zero variance,
+#'   \item the standard error of alpha is zero or undefined,
+#'   \item the rolling window contains fewer than three usable observations.
+#' }
+#'
+#' @details
+#' This function is designed for use inside rolling computations and has no side
+#' effects: all output is numeric and unnamed. It is robust to missing values in
+#' the return series and implements strict point-in-time validation. The OLS
+#' formulas are computed manually for performance reasons and to ensure that the
+#' function behaves predictably under minimal rolling sample sizes.
+#'
+#' @seealso
+#' \code{\link{bench_regression_fit}},
+#' \code{\link{alpha_bench}},
+#' \code{\link{beta_bench}},
+#' \code{\link{correlation_bench}}
+#'
+#' @export
+alpha_tstat_bench <- function(ret_values, bench_ret_values,
+                              mult_last_n = 0, mult_by = -1, na.rm = TRUE) {
+
+  out <- bench_regression_fit(
+    ret_values = ret_values,
+    bench_ret_values = bench_ret_values,
+    mult_last_n = mult_last_n,
+    mult_by = mult_by,
+    na.rm = na.rm,
+    include_intercept = TRUE
+  )
+
+  # Handle impossible cases
+  if (is.na(out$alpha) || out$n_obs < 3L) return(NA_real_)
+  if (is.na(out$residual_sd)) return(NA_real_)
+
+  n <- out$n_obs
+  b <- bench_ret_values
+  p <- 2 #Intercept + beta
+
+  # If NA removal occurred, ret_values is shortened
+  if (na.rm) {
+    idx_keep <- !is.na(ret_values)
+    b <- bench_ret_values[idx_keep]
+  } else {
+    b <- bench_ret_values
+  }
+
+  # Compute Sxx centered
+  mean_b <- mean(b)
+  Sxx <- sum((b - mean_b)^2)
+  if (Sxx <= 0) return(NA_real_)   # no variation -> undefined
+
+  SSR <- sum(out$residuals^2)
+  sigma2 <- SSR/(n-p)
+
+  se_alpha <- sqrt( sigma2 * (1/n + mean_b^2 / Sxx) )
+  if (se_alpha == 0) return(NA_real_)
+
+  out$alpha / se_alpha
+}
+
+
+
+#' Calculate Beta Relative to a Benchmark
+#'
+#' This function computes the \emph{beta} of a return series relative to a benchmark,
+#' defined as the slope coefficient in the linear regression:
+#'
+#' \deqn{
+#' r_t = \alpha + \beta b_t + \varepsilon_t
+#' }
+#'
+#' The estimated \eqn{\beta} measures the systematic exposure of the asset returns
+#' to movements in the benchmark.
+#'
+#' The regression is estimated via ordinary least squares (OLS). Missing values in
+#' \code{ret_values} may be removed depending on \code{na.rm}, while missing or infinite
+#' values in \code{bench_ret_values} are not permitted.
+#'
+#' @param ret_values A numeric vector of asset returns.
+#' @param bench_ret_values A numeric vector of benchmark returns aligned in time with
+#'   \code{ret_values}.
+#' @param na.rm Logical. If \code{TRUE}, removes observations where \code{ret_values} is
+#'   \code{NA} and drops the corresponding benchmark observations. Default is \code{TRUE}.
+#'
+#' @return A numeric scalar representing the estimated regression slope (beta).
+#' Returns \code{NA_real_} if the regression cannot be estimated.
+#'
+#' @details
+#' \itemize{
+#'   \item A beta close to zero indicates low systematic exposure to the benchmark.
+#'   \item A beta greater than one indicates amplified exposure to benchmark movements.
+#'   \item If the benchmark variance is zero or the regression is rank-deficient,
+#'         \code{NA_real_} is returned.
+#' }
+#'
+#' @seealso
+#' \code{\link{alpha_bench}}, \code{\link{idio_vol}}
+#'
+#' @export
+beta_bench <- function(ret_values, bench_ret_values, na.rm = TRUE) {
+  out <- bench_regression_fit(ret_values, bench_ret_values, na.rm = na.rm, include_intercept = TRUE)
+  out$beta
+}
+
+#' Calculate Correlation with a Benchmark
+#'
+#' This function computes the Pearson correlation coefficient between a return series
+#' and a benchmark return series over a given window.
+#'
+#' Unlike regression-based measures such as alpha or beta, correlation is a symmetric
+#' statistic that captures the strength and direction of linear co-movement between
+#' the two series, without attributing causality or directional dependence.
+#'
+#' @param ret_values A numeric vector of asset returns.
+#' @param bench_ret_values A numeric vector of benchmark returns aligned in time with
+#'   \code{ret_values}.
+#' @param na.rm Logical. If \code{TRUE}, removes observations where \code{ret_values} is
+#'   \code{NA} and drops the corresponding benchmark observations. Default is \code{TRUE}.
+#'
+#' @return A numeric scalar in the interval \eqn{[-1, 1]} representing the Pearson
+#' correlation coefficient. Returns \code{NA_real_} if the correlation cannot be computed.
+#'
+#' @details
+#' \itemize{
+#'   \item A value of \code{1} indicates perfect positive linear correlation.
+#'   \item A value of \code{-1} indicates perfect negative linear correlation.
+#'   \item A value of \code{0} indicates no linear correlation.
+#'   \item Missing or infinite values in \code{bench_ret_values} result in an error.
+#' }
+#'
+#' @seealso
+#' \code{\link{alpha_bench}}, \code{\link{beta_bench}}
+#'
+#' @export
+correlation_bench <- function(ret_values, bench_ret_values, na.rm = TRUE) {
+  validate_returns_bench(ret_values, bench_ret_values)
+
+if (na.rm && any(is.na(ret_values))) {
+  idx_keep <- !is.na(ret_values)
+  ret_values <- ret_values[idx_keep]
+  bench_ret_values <- bench_ret_values[idx_keep]
+}
+
+if (length(ret_values) < 2L) return(NA_real_)
+stats::cor(ret_values, bench_ret_values, use = "everything", method = "pearson")
 }
 
 ## Residual Momentum
@@ -741,39 +1150,29 @@ res_mom <- function(ret_values, bench_ret_values, na.rm = TRUE) {
 
   #Initial checks
   ##########
-    ##If ret_values are all NAs, return NA
-    if (all(is.na(ret_values))) return(NA_real_)
-    ##If ret_values contain Inf or -Inf, return NA
-    if (any(is.infinite(ret_values))) return(NA_real_)
-    ##If any NA or Inf in bench_ret_values, return error
-    if (any(is.na(bench_ret_values))) stop("NA values in benchmark returns")
-    if (any(is.infinite(bench_ret_values))) stop("Infinite values in benchmark returns")
-    ##If lenghts differ, throw error
-    if (length(ret_values) != length(bench_ret_values)) stop("Lengths of returns and benchmark returns differ")
+  validate_returns_bench(ret_values, bench_ret_values)
   ##########
 
   #Treat NAs and all equal
   ###########
     ##If na.rm TRUE, remove NAs from ret_values and remove same indices from bench_ret_values
     if (na.rm && any(is.na(ret_values))) {
-      ##Get NAs indexes
-      na_index <- which(is.na(ret_values))
-      ##Clean
-      ret_values <- ret_values[-na_index]
-      bench_ret_values <- bench_ret_values[-na_index]
+      idx_keep <- !is.na(ret_values)
+      ret_values <- ret_values[idx_keep]
+      bench_ret_values <- bench_ret_values[idx_keep]
     }
     ##If ret_values = bench_values, return 0
-    if (all(ret_values == bench_ret_values)) return(NA_real_)
+    if (length(ret_values) > 0L && all(ret_values == bench_ret_values)) return(NA_real_)
   ###########
 
   # Fit a linear model: returns ~ benchmark returns
   ###########
-  reg <- stats::lm(ret_values ~ bench_ret_values - 1) # Fit linear regression without intercept
-  residuals <- stats::residuals(reg) # Get residuals
-  residuals_sum <- sum(residuals, na.rm = na.rm) # Sum of residuals
-  residuals_sd  <- stats::sd(residuals, na.rm = na.rm) # Standard deviation of residuals
-  if (is.na(residuals_sd) || residuals_sd < 1e-10) return(NA_real_)
-  residuals_sum / residuals_sd
+  out <- bench_regression_fit(ret_values, bench_ret_values, na.rm = FALSE, include_intercept = FALSE)
+  if (length(out$residuals) == 0L) return(NA_real_)
+  if (is.na(out$residual_sd) || out$residual_sd < 1e-10) return(NA_real_)
+
+  sum(out$residuals, na.rm = TRUE) / out$residual_sd
+
   ###########
 }
 
@@ -801,40 +1200,31 @@ idio_vol <- function(ret_values, bench_ret_values, na.rm = TRUE) {
 
   #Initial checks
   ##########
-    ##If ret_values are all NAs, return NA
-    if (all(is.na(ret_values))) return(NA_real_)
-    ##If ret_values contain Inf or -Inf, return NA
-    if (any(is.infinite(ret_values))) return(NA_real_)
-    ##If any NA or Inf in bench_ret_values, return error
-    if (any(is.na(bench_ret_values))) stop("NA values in benchmark returns")
-    if (any(is.infinite(bench_ret_values))) stop("Infinite values in benchmark returns")
-    ##If lenghts differ, throw error
-    if (length(ret_values) != length(bench_ret_values)) stop("Lengths of returns and benchmark returns differ")
+  validate_returns_bench(ret_values, bench_ret_values)
   ###########
 
   #Treat NAs and all equal
   ###########
     ##If na.rm TRUE, remove NAs from ret_values and remove same indices from bench_ret_values
     if (na.rm && any(is.na(ret_values))) {
-      ###Get NAs indexes
-      na_index <- which(is.na(ret_values))
-      ###Clean
-      ret_values <- ret_values[-na_index]
-      bench_ret_values <- bench_ret_values[-na_index]
+      idx_keep <- !is.na(ret_values)
+      ret_values <- ret_values[idx_keep]
+      bench_ret_values <- bench_ret_values[idx_keep]
     }
     ##If ret_values = bench_values, return 0
-    if (all(ret_values == bench_ret_values)) return(0)
+    if (length(ret_values) > 0L && all(ret_values == bench_ret_values)) return(0)
 
   ###########
 
 
   # Fit a linear model: returns ~ benchmark returns
   ###########
-  reg <- stats::lm(ret_values ~ bench_ret_values)
-  beta_est <- stats::coef(reg)[2] %>% unname() #Get beta
-  sd_signal <- stats::sd(ret_values, na.rm = na.rm) #Get standard deviation of stock returns
-  sd_bench  <- stats::sd(bench_ret_values, na.rm = na.rm) #Get standard deviation of benchmark returns
-  idio_var <- sd_signal^2 - beta_est^2 * sd_bench^2 #Compute idiosyncratic variance
+  out <- bench_regression_fit(ret_values, bench_ret_values, na.rm = FALSE, include_intercept = TRUE)
+  if (is.na(out$beta)) return(NA_real_)
+
+  sd_signal <- stats::sd(ret_values, na.rm = TRUE) #Get standard deviation of stock returns
+  sd_bench  <- stats::sd(bench_ret_values, na.rm = TRUE) #Get standard deviation of benchmark returns
+  idio_var <- sd_signal^2 - (out$beta^2) * (sd_bench^2) #Compute idiosyncratic variance
 
   if (is.na(idio_var) || idio_var < 0) return(NA_real_)
   sqrt(idio_var)

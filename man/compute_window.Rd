@@ -36,7 +36,9 @@ compute_window(data, period, FUN, ...)
   only_unique = FALSE,
   feature_name = NULL,
   min_non_na = 0,
-  specific_dates = NULL
+  specific_dates = NULL,
+  invert_last_n = 0,
+  top_n = 1
 )
 }
 \arguments{
@@ -46,7 +48,7 @@ compute_window(data, period, FUN, ...)
 
 \item{FUN}{A \code{character} specifying the function to apply. Supported options:
 \itemize{
-\item "median", "sd", "cagr", "skew", "sur", "mean_std", "res_mom", "idio_vol".
+\item "median", "sd", "cagr", "skew", "sur", "signal_to_noise", "res_mom", "idio_vol".
 }}
 
 \item{...}{Additional arguments passed to the function.}

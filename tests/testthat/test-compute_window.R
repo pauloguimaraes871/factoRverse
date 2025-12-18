@@ -634,7 +634,7 @@ test_that("compute_window computes correct sd values for random NAs, only unique
   expect_equal(beta_A[4], sd(c(-3,4,6)))
 })
 
-test_that("compute_window computes correct mean_std values for Infs", {
+test_that("compute_window computes correct signal_to_noise values for Infs", {
   # Create meta_dataframe
   features_m_df <- create_meta_dataframe(
     list(
@@ -660,40 +660,40 @@ test_that("compute_window computes correct mean_std values for Infs", {
     features_names = c("Alpha", "Beta", "Gamma", "Delta")
   )
 
-  features_m_df <- compute_window(features_m_df, period = 1, signal = "Alpha", FUN = "mean_std")
+  features_m_df <- compute_window(features_m_df, period = 1, signal = "Alpha", FUN = "signal_to_noise")
 
   # For Stock A: Values: 0, 3, Inf, 3.
   alpha_A <- features_m_df@data %>%
     dplyr::filter(tickers == "Stock A") %>%
     dplyr::arrange(dates) %>%
-    dplyr::pull(Alpha_mean_std_roll_1m)
+    dplyr::pull(Alpha_signal_to_noise_roll_1m)
 
   expect_equal(alpha_A[1], NA_real_)
-  expect_equal(alpha_A[2], mean_std(c(0,3)))
-  expect_equal(alpha_A[3], mean_std(c(3,4)))
-  expect_equal(alpha_A[4], mean_std(c(Inf,4), na.rm = TRUE))
+  expect_equal(alpha_A[2], signal_to_noise(c(0,3)))
+  expect_equal(alpha_A[3], signal_to_noise(c(3,4)))
+  expect_equal(alpha_A[4], signal_to_noise(c(Inf,4), na.rm = TRUE))
 
   # For Stock B: Values: 1, Inf, 4, 4.
   alpha_B <- features_m_df@data %>%
     dplyr::filter(tickers == "Stock B") %>%
     dplyr::arrange(dates) %>%
-    dplyr::pull(Alpha_mean_std_roll_1m)
+    dplyr::pull(Alpha_signal_to_noise_roll_1m)
 
   expect_equal(alpha_B[1], NA_real_)
-  expect_equal(alpha_B[2], mean_std(c(3,1)))
-  expect_equal(alpha_B[3], mean_std(c(1,4)))
-  expect_equal(alpha_B[4], mean_std(c(Inf,4), na.rm = TRUE))
+  expect_equal(alpha_B[2], signal_to_noise(c(3,1)))
+  expect_equal(alpha_B[3], signal_to_noise(c(1,4)))
+  expect_equal(alpha_B[4], signal_to_noise(c(Inf,4), na.rm = TRUE))
 
   # For Stock C: Values: 2, Inf, Inf, 5.
   alpha_C <- features_m_df@data %>%
     dplyr::filter(tickers == "Stock C") %>%
     dplyr::arrange(dates) %>%
-    dplyr::pull(Alpha_mean_std_roll_1m)
+    dplyr::pull(Alpha_signal_to_noise_roll_1m)
 
   expect_equal(alpha_C[1], NA_real_)
-  expect_equal(alpha_C[2], mean_std(c(Inf,Inf)))
-  expect_equal(alpha_C[3], mean_std(c(2,Inf)))
-  expect_equal(alpha_C[4], mean_std(c(2,5), na.rm = TRUE))
+  expect_equal(alpha_C[2], signal_to_noise(c(Inf,Inf)))
+  expect_equal(alpha_C[3], signal_to_noise(c(2,Inf)))
+  expect_equal(alpha_C[4], signal_to_noise(c(2,5), na.rm = TRUE))
 
 })
 
@@ -718,22 +718,22 @@ test_that("compute_window works correctly window = SEASONAL", {
   )
 
   #Period = 24
-  features_m_df <- compute_window(features_m_df, period = 24, signal = "Alpha", FUN = "mean_std", window = "seasonal",
+  features_m_df <- compute_window(features_m_df, period = 24, signal = "Alpha", FUN = "signal_to_noise", window = "seasonal",
                                   offset_months = c(1:3))
 
   # For Stock A
   alpha_A <- features_m_df@data %>%
     dplyr::filter(tickers == "Stock A") %>%
     dplyr::arrange(dates) %>%
-    dplyr::pull(Alpha_mean_std_seas_24m)
+    dplyr::pull(Alpha_signal_to_noise_seas_24m)
 
   #Expect all NAs until there are at least two past obs
   expect_true(all(is.na(alpha_A[1:10])))
-  expect_equal(alpha_A[11], mean_std(c(9,-3)))
-  expect_equal(alpha_A[12], mean_std(c(9,-3, 5)))
-  expect_equal(alpha_A[13], mean_std(c(-3, 5, 8)))
-  expect_equal(alpha_A[25], mean_std(c(-3,5,8,2,12,15)))
-  expect_equal(alpha_A[35], mean_std(c(15,0,2,6,8,9))) #Only 24 months
+  expect_equal(alpha_A[11], signal_to_noise(c(9,-3)))
+  expect_equal(alpha_A[12], signal_to_noise(c(9,-3, 5)))
+  expect_equal(alpha_A[13], signal_to_noise(c(-3, 5, 8)))
+  expect_equal(alpha_A[25], signal_to_noise(c(-3,5,8,2,12,15)))
+  expect_equal(alpha_A[35], signal_to_noise(c(15,0,2,6,8,9))) #Only 24 months
 
   #Period = 36m
   features_m_df <- compute_window(features_m_df, period = 36, signal = "Beta", FUN = "sd", window = "seasonal",
@@ -805,13 +805,13 @@ test_that("compute_window works when small meta_dataframe is being used", {
   )
 
   #Period = 1
-  features_m_df <- compute_window(features_m_df, period = 1, signal = "Alpha", FUN = "mean_std", window = "seasonal")
+  features_m_df <- compute_window(features_m_df, period = 1, signal = "Alpha", FUN = "signal_to_noise", window = "seasonal")
 
   # For Stock A
   alpha_A <- features_m_df@data %>%
     dplyr::filter(tickers == "Stock A") %>%
     dplyr::arrange(dates) %>%
-    dplyr::pull(Alpha_mean_std_seas_1m)
+    dplyr::pull(Alpha_signal_to_noise_seas_1m)
 
   #Expect all NAs until there are at least two past obs
   expect_true(all(is.na(alpha_A)))
@@ -1925,7 +1925,332 @@ test_that("compute_window computes correct idio_vol values for period = 3 (A) in
 
 })
 
-test_that("compute_window computes correct mean_std values for period = 2 (A) in meta_xts", {
+test_that("compute_window computes correct alpha values for period = 3 (A) in meta_xts, with min_non_na > 0", {
+
+  returns_xts <- create_meta_xts(
+    xts::xts(
+      matrix(c(2, 3, 10, 3,
+               1, 7, 0, 4,
+               0, 9, 9, 5,
+               1, 6, 4, -2,
+               9, -2, 0, 4,
+               2, 5, 4, 9
+      ),
+      nrow = 6, ncol = 4, byrow = TRUE,
+      dimnames = list(NULL, c("A", "B", "C", "D"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15"))
+    ),
+    meta_xts_name = "test_xts", type = "returns", asset_type = "stocks"
+  )
+
+  benchmark_ret_xts <- create_meta_xts(
+    xts::xts(
+      matrix(c(2, 3, 10, 3,
+               1, 7, 0, 4,
+               0, 9, 9, 5
+      ),
+      nrow = 6, ncol = 2, byrow = TRUE,
+      dimnames = list(NULL, c("ibov", "smll"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15"))
+    ),
+    meta_xts_name = "test_xts", type = "returns", asset_type = "benchmarks"
+  )
+
+  expect_warning(
+    returns_xts <- compute_window(returns_xts, period = 3, col_name = "A",
+                                  FUN = "alpha", benchmark_returns_m_xts = benchmark_ret_xts, selected_bench = "ibov",
+                                  min_non_na = 3, specific_dates = as.Date(c("2001-04-15", "2001-06-15", "2001-07-15"))),
+    "There are NA values in the time series.")
+
+  metric_values <- returns_xts@data[, "A_alpha_roll_3m"] %>% as.numeric()
+
+  expect_equal(metric_values[1], NA_real_)
+  expect_equal(metric_values[2], NA_real_)
+  expect_equal(metric_values[3], NA_real_)
+  expect_equal(metric_values[4], alpha_bench(ret_values = c(1,0,1,2), bench_ret_values = c(0,1,10,2)))
+  expect_equal(metric_values[5], alpha_bench(ret_values = c(9,1,0,1), bench_ret_values = c(0,0,1,10)))
+  expect_equal(metric_values[6], NA_real_)
+
+  expect_equal(metric_values[4], summary(lm(c(1,0,1,2) ~ c(0,1,10,2)))$coefficients[1,1])
+  expect_equal(metric_values[5], summary(lm(c(9,1,0,1) ~ c(0,0,1,10)))$coefficients[1,1])
+
+
+  expect_equal(zoo::index(returns_xts@data) %>% as.character(), as.character(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15")))
+
+
+})
+
+test_that("compute_window computes correct beta values for period = 3 (A) in meta_xts, with min_non_na > 0", {
+
+  returns_xts <- create_meta_xts(
+    xts::xts(
+      matrix(c(2, 3, 10, 3,
+               1, 7, 0, 4,
+               0, 9, 9, 5,
+               1, 6, 4, -2,
+               9, -2, 0, 4,
+               2, 5, 4, 9
+      ),
+      nrow = 6, ncol = 4, byrow = TRUE,
+      dimnames = list(NULL, c("A", "B", "C", "D"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15"))
+    ),
+    meta_xts_name = "test_xts", type = "returns", asset_type = "stocks"
+  )
+
+  benchmark_ret_xts <- create_meta_xts(
+    xts::xts(
+      matrix(c(2, 3, 10, 3,
+               1, 7, 0, 4,
+               0, 9, 9, 5
+      ),
+      nrow = 6, ncol = 2, byrow = TRUE,
+      dimnames = list(NULL, c("ibov", "smll"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15"))
+    ),
+    meta_xts_name = "test_xts", type = "returns", asset_type = "benchmarks"
+  )
+
+  expect_warning(
+    returns_xts <- compute_window(returns_xts, period = 3, col_name = "A",
+                                  FUN = "beta", benchmark_returns_m_xts = benchmark_ret_xts, selected_bench = "ibov",
+                                  min_non_na = 3, specific_dates = as.Date(c("2001-04-15", "2001-06-15", "2001-07-15"))),
+    "There are NA values in the time series.")
+
+  metric_values <- returns_xts@data[, "A_beta_roll_3m"] %>% as.numeric()
+
+  expect_equal(metric_values[1], NA_real_)
+  expect_equal(metric_values[2], NA_real_)
+  expect_equal(metric_values[3], NA_real_)
+  expect_equal(metric_values[4], beta_bench(ret_values = c(1,0,1,2), bench_ret_values = c(0,1,10,2)))
+  expect_equal(metric_values[5], beta_bench(ret_values = c(9,1,0,1), bench_ret_values = c(0,0,1,10)))
+  expect_equal(metric_values[6], NA_real_)
+
+  expect_equal(metric_values[4], summary(lm(c(1,0,1,2) ~ c(0,1,10,2)))$coefficients[2,1])
+  expect_equal(metric_values[5], summary(lm(c(9,1,0,1) ~ c(0,0,1,10)))$coefficients[2,1])
+
+
+  expect_equal(zoo::index(returns_xts@data) %>% as.character(), as.character(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15")))
+
+
+})
+
+test_that("compute_window computes correct correlation values for period = 3 (A) in meta_xts, with min_non_na > 0", {
+
+  returns_xts <- create_meta_xts(
+    xts::xts(
+      matrix(c(2, 3, 10, 3,
+               1, 7, 0, 4,
+               0, 9, 9, 5,
+               1, 6, 4, -2,
+               9, -2, 0, 4,
+               2, 5, 4, 9
+      ),
+      nrow = 6, ncol = 4, byrow = TRUE,
+      dimnames = list(NULL, c("A", "B", "C", "D"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15"))
+    ),
+    meta_xts_name = "test_xts", type = "returns", asset_type = "stocks"
+  )
+
+  benchmark_ret_xts <- create_meta_xts(
+    xts::xts(
+      matrix(c(2, 3, 10, 3,
+               1, 7, 0, 4,
+               0, 9, 9, 5
+      ),
+      nrow = 6, ncol = 2, byrow = TRUE,
+      dimnames = list(NULL, c("ibov", "smll"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15"))
+    ),
+    meta_xts_name = "test_xts", type = "returns", asset_type = "benchmarks"
+  )
+
+  expect_warning(
+    returns_xts <- compute_window(returns_xts, period = 3, col_name = "A",
+                                  FUN = "correlation", benchmark_returns_m_xts = benchmark_ret_xts, selected_bench = "ibov",
+                                  min_non_na = 3, specific_dates = as.Date(c("2001-04-15", "2001-06-15", "2001-07-15"))),
+    "There are NA values in the time series.")
+
+  metric_values <- returns_xts@data[, "A_correlation_roll_3m"] %>% as.numeric()
+
+  expect_equal(metric_values[1], NA_real_)
+  expect_equal(metric_values[2], NA_real_)
+  expect_equal(metric_values[3], NA_real_)
+  expect_equal(metric_values[4], stats::cor(c(1,0,1,2), c(0,1,10,2)))
+  expect_equal(metric_values[5], stats::cor(c(9,1,0,1), c(0,0,1,10)))
+  expect_equal(metric_values[6], NA_real_)
+
+  expect_equal(zoo::index(returns_xts@data) %>% as.character(), as.character(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15")))
+
+
+})
+
+test_that("compute_window computes correct alpha values for period = 3 (A) in meta_xts, with min_non_na > 0 and inversion of last n", {
+
+  returns_xts <- create_meta_xts(
+    xts::xts(
+      matrix(c(2, 3, 10, 3,
+               1, 7, 0, 4,
+               0, 9, 9, 5,
+               1, 6, 4, -2,
+               9, -2, 0, 4,
+               2, 5, 4, 9
+      ),
+      nrow = 6, ncol = 4, byrow = TRUE,
+      dimnames = list(NULL, c("A", "B", "C", "D"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15"))
+    ),
+    meta_xts_name = "test_xts", type = "returns", asset_type = "stocks"
+  )
+
+  benchmark_ret_xts <- create_meta_xts(
+    xts::xts(
+      matrix(c(2, 3, 10, 3,
+               1, 7, 0, 4,
+               0, 9, 9, 5
+      ),
+      nrow = 6, ncol = 2, byrow = TRUE,
+      dimnames = list(NULL, c("ibov", "smll"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15"))
+    ),
+    meta_xts_name = "test_xts", type = "returns", asset_type = "benchmarks"
+  )
+
+  expect_warning(
+    returns_xts <- compute_window(returns_xts, period = 3, col_name = "A",
+                                  FUN = "alpha", benchmark_returns_m_xts = benchmark_ret_xts, selected_bench = "ibov",
+                                  mult_last_n = 1,
+                                  min_non_na = 2, specific_dates = as.Date(c("2001-04-15", "2001-05-15", "2001-06-15", "2001-07-15"))),
+    "There are NA values in the time series.")
+
+  metric_values <- returns_xts@data[, "A_alpha_roll_3m"] %>% as.numeric()
+
+  expect_equal(metric_values[1], NA_real_)
+  expect_equal(metric_values[2], alpha_bench(ret_values = c(-1,2), bench_ret_values = c(10,2)))
+  expect_equal(metric_values[3], alpha_bench(ret_values = c(0, 1,2), bench_ret_values = c(1, 10,2)))
+  expect_equal(metric_values[4], alpha_bench(ret_values = c(-1,0,1,2), bench_ret_values = c(0,1,10,2)))
+  expect_equal(metric_values[5], alpha_bench(ret_values = c(-9,1,0,1), bench_ret_values = c(0,0,1,10)))
+  expect_equal(metric_values[6], NA_real_)
+
+  expect_equal(metric_values[4], summary(lm(c(-1,0,1,2) ~ c(0,1,10,2)))$coefficients[1,1])
+  expect_equal(metric_values[5], summary(lm(c(-9,1,0,1) ~ c(0,0,1,10)))$coefficients[1,1])
+
+
+  expect_equal(zoo::index(returns_xts@data) %>% as.character(), as.character(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15")))
+
+
+})
+
+test_that("compute_window computes correct alpha values for period = 3 (A) in meta_xts, with min_non_na > 0 and inversion of last n with last n > obs", {
+
+  returns_xts <- create_meta_xts(
+    xts::xts(
+      matrix(c(2, 3, 10, 3,
+               1, 7, 0, 4,
+               0, 9, 9, 5,
+               1, 6, 4, -2,
+               9, -2, 0, 4,
+               2, 5, 4, 9
+      ),
+      nrow = 6, ncol = 4, byrow = TRUE,
+      dimnames = list(NULL, c("A", "B", "C", "D"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15"))
+    ),
+    meta_xts_name = "test_xts", type = "returns", asset_type = "stocks"
+  )
+
+  benchmark_ret_xts <- create_meta_xts(
+    xts::xts(
+      matrix(c(2, 3, 10, 3,
+               1, 7, 0, 4,
+               0, 9, 9, 5
+      ),
+      nrow = 6, ncol = 2, byrow = TRUE,
+      dimnames = list(NULL, c("ibov", "smll"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15"))
+    ),
+    meta_xts_name = "test_xts", type = "returns", asset_type = "benchmarks"
+  )
+
+  expect_warning(
+    returns_xts <- compute_window(returns_xts, period = 3, col_name = "A",
+                                  FUN = "alpha", benchmark_returns_m_xts = benchmark_ret_xts, selected_bench = "ibov",
+                                  mult_last_n = 3,
+                                  min_non_na = 2, specific_dates = as.Date(c("2001-04-15", "2001-05-15", "2001-06-15", "2001-07-15"))),
+    "There are NA values in the time series.")
+
+  metric_values <- returns_xts@data[, "A_alpha_roll_3m"] %>% as.numeric()
+
+  expect_equal(metric_values[1], NA_real_)
+  expect_equal(metric_values[2], alpha_bench(ret_values = c(-1,-2), bench_ret_values = c(10,2)))
+  expect_equal(metric_values[3], alpha_bench(ret_values = c(0, -1,-2), bench_ret_values = c(1, 10,2)))
+  expect_equal(metric_values[4], alpha_bench(ret_values = c(-1,0,-1,2), bench_ret_values = c(0,1,10,2)))
+  expect_equal(metric_values[5], alpha_bench(ret_values = c(-9,-1,0,1), bench_ret_values = c(0,0,1,10)))
+  expect_equal(metric_values[6], NA_real_)
+
+
+
+  expect_equal(zoo::index(returns_xts@data) %>% as.character(), as.character(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15")))
+
+
+})
+
+test_that("compute_window computes correct alpha t stat values for period = 3 (A) in meta_xts, with min_non_na > 0", {
+
+  returns_xts <- create_meta_xts(
+    xts::xts(
+      matrix(c(2, 3, 10, 3,
+               1, 7, 0, 4,
+               0, 9, 9, 5,
+               1, 6, 4, -2,
+               9, -2, 0, 4,
+               2, 5, 4, 9
+      ),
+      nrow = 6, ncol = 4, byrow = TRUE,
+      dimnames = list(NULL, c("A", "B", "C", "D"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15"))
+    ),
+    meta_xts_name = "test_xts", type = "returns", asset_type = "stocks"
+  )
+
+  benchmark_ret_xts <- create_meta_xts(
+    xts::xts(
+      matrix(c(2, 3, 10, 3,
+               1, 7, 0, 4,
+               0, 9, 9, 5
+      ),
+      nrow = 6, ncol = 2, byrow = TRUE,
+      dimnames = list(NULL, c("ibov", "smll"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15"))
+    ),
+    meta_xts_name = "test_xts", type = "returns", asset_type = "benchmarks"
+  )
+
+  expect_warning(
+    returns_xts <- compute_window(returns_xts, period = 3, col_name = "A",
+                                  FUN = "alpha_tstat", benchmark_returns_m_xts = benchmark_ret_xts, selected_bench = "ibov",
+                                  min_non_na = 3, specific_dates = as.Date(c("2001-04-15", "2001-06-15", "2001-07-15"))),
+    "There are NA values in the time series.")
+
+  metric_values <- returns_xts@data[, "A_alpha_tstat_roll_3m"] %>% as.numeric()
+
+  expect_equal(metric_values[1], NA_real_)
+  expect_equal(metric_values[2], NA_real_)
+  expect_equal(metric_values[3], NA_real_)
+  expect_equal(metric_values[4], alpha_tstat_bench(ret_values = c(1,0,1,2), bench_ret_values = c(0,1,10,2)))
+  expect_equal(metric_values[5], alpha_tstat_bench(ret_values = c(9,1,0,1), bench_ret_values = c(0,0,1,10)))
+  expect_equal(metric_values[6], NA_real_)
+
+  expect_equal(metric_values[4], summary(lm(c(1,0,1,2) ~ c(0,1,10,2)))$coefficients[1,3])
+  expect_equal(metric_values[5], summary(lm(c(9,1,0,1) ~ c(0,0,1,10)))$coefficients[1,3])
+
+  expect_equal(zoo::index(returns_xts@data) %>% as.character(), as.character(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15")))
+
+
+})
+
+test_that("compute_window computes correct signal_to_noise values for period = 2 (A) in meta_xts", {
 
   dates <- seq.Date(as.Date("2001-03-15"), as.Date("2003-08-15"), by = "month")
   #Generate matrix
@@ -1938,16 +2263,92 @@ test_that("compute_window computes correct mean_std values for period = 2 (A) in
     meta_xts_name = "test_xts", type = "metrics"
   )
 
-  metrics_xts <- compute_window(metrics_xts, period = 24, col_name = "A", FUN = "mean_std", window = "rolling",
+  metrics_xts <- compute_window(metrics_xts, period = 24, col_name = "A", FUN = "signal_to_noise", window = "rolling",
                                 min_non_na = 23)
 
-  metric_values <- metrics_xts@data[, "A_mean_std_roll_24m"] %>% as.numeric()
+  metric_values <- metrics_xts@data[, "A_signal_to_noise_roll_24m"] %>% as.numeric()
 
   expect_true(all(is.na(metric_values[1:22])))
-  expect_equal(metric_values[23], mean_std(metrics_xts@data[c(1:23), "A"]))
-  expect_equal(metric_values[28], mean_std(metrics_xts@data[c(4:28), "A"]))
-  expect_equal(metric_values[30], mean_std(metrics_xts@data[c(6:30), "A"]))
+  expect_equal(metric_values[23], signal_to_noise(metrics_xts@data[c(1:23), "A"]))
+  expect_equal(metric_values[28], signal_to_noise(metrics_xts@data[c(4:28), "A"]))
+  expect_equal(metric_values[30], signal_to_noise(metrics_xts@data[c(6:30), "A"]))
 
+
+})
+
+test_that("compute_window computes correct signal_to_noise values for period = 2 (A) in meta_xts with mult_last_n = 10", {
+
+  dates <- seq.Date(as.Date("2001-03-15"), as.Date("2003-08-15"), by = "month")
+  #Generate matrix
+  set.seed(123)
+  metrics_matrix <- matrix(rnorm(30), nrow = length(dates), ncol = 4, dimnames = list(NULL, c("A", "B", "C", "D")))
+
+  metrics_xts <- create_meta_xts(
+    xts::xts(metrics_matrix,
+             order.by = dates),
+    meta_xts_name = "test_xts", type = "metrics"
+  )
+
+  metrics_xts <- compute_window(metrics_xts, period = 24, col_name = "A", FUN = "signal_to_noise", window = "rolling",
+                                min_non_na = 23, mult_last_n = 10)
+
+  metric_values <- metrics_xts@data[, "A_signal_to_noise_roll_24m"] %>% as.numeric()
+
+  expect_true(all(is.na(metric_values[1:22])))
+  inverted_first_piece <- metrics_xts@data[c(1:23), "A"]
+  inverted_first_piece$A[c(23:14)] <- inverted_first_piece$A[c(23:14)] * (-1)
+
+  expect_equal(metric_values[23], signal_to_noise(inverted_first_piece$A))
+
+
+  inverted_second_piece <- metrics_xts@data[c(4:28), "A"]
+  inverted_second_piece$A[c(25:16)] <- inverted_second_piece$A[c(25:16)] * (-1)
+
+  expect_equal(metric_values[28], signal_to_noise(inverted_second_piece$A))
+
+
+  inverted_third_piece <- metrics_xts@data[c(6:30), "A"]
+  inverted_third_piece$A[c(25:16)] <- inverted_third_piece$A[c(25:16)] * (-1)
+
+  expect_equal(metric_values[30], signal_to_noise(inverted_third_piece$A))
+
+})
+
+test_that("compute_window computes correct geom_mean_ret values for period = 2 (A) in meta_xts with mult_last_n = 10 and mult_by = 0", {
+
+  dates <- seq.Date(as.Date("2001-03-15"), as.Date("2003-08-15"), by = "month")
+  #Generate matrix
+  set.seed(123)
+  returns_matrix <- matrix(rnorm(30), nrow = length(dates), ncol = 4, dimnames = list(NULL, c("A", "B", "C", "D")))
+
+  returns_xts <- suppressWarnings(create_meta_xts(
+    xts::xts(returns_matrix,
+             order.by = dates),
+    meta_xts_name = "test_xts", type = "returns"
+  ))
+
+  returns_xts <- suppressWarnings(compute_window(returns_xts, period = 24, col_name = "A", FUN = "geom_mean_ret", window = "rolling",
+                                  min_non_na = 23, mult_last_n = 10, mult_by = 0))
+
+  return_values <- returns_xts@data[, "A_geom_mean_ret_roll_24m"] %>% as.numeric()
+
+  expect_true(all(is.na(return_values[1:22])))
+  changed_first_piece <- returns_xts@data[c(1:23), "A"]
+  changed_first_piece$A[c(23:14)] <- changed_first_piece$A[c(23:14)] * (0)
+
+  expect_equal(return_values[23], geometric_mean_return(changed_first_piece$A))
+
+
+  changed_second_piece <- returns_xts@data[c(4:28), "A"]
+  changed_second_piece$A[c(25:16)] <- changed_second_piece$A[c(25:16)] * (-0)
+
+  expect_equal(return_values[28], geometric_mean_return(changed_second_piece$A))
+
+
+  changed_third_piece <- returns_xts@data[c(6:30), "A"]
+  changed_third_piece$A[c(25:16)] <- changed_third_piece$A[c(25:16)] * (-0)
+
+  expect_equal(return_values[30], geometric_mean_return(changed_third_piece$A))
 
 })
 
@@ -1979,6 +2380,72 @@ test_that("compute_window computes correct skew values for period = 3 (A) in met
   expect_equal(metric_values[4], skew(c(6, 2, 1)))
   expect_equal(metric_values[5], NA_real_)
   expect_equal(metric_values[6], skew(c(6, 2)))
+
+
+})
+
+test_that("compute_window computes correct max values for period = 3 (A) in meta_xts and unique_values = TRUE", {
+
+  metrics_xts <- create_meta_xts(
+    xts::xts(
+      matrix(c(2, 3, 10, 3,
+               1, 7, 4, 4,
+               2, 9, 9, 5,
+               6, 6, 4, -2,
+               6, 2, 1, 4,
+               2, 3, 4, -3
+      ),
+      nrow = 6, ncol = 4, byrow = TRUE,
+      dimnames = list(NULL, c("A", "B", "C", "D"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15"))
+    ),
+    meta_xts_name = "test_xts", type = "metrics"
+  )
+
+  metrics_xts <- compute_window(metrics_xts, period = 3, col_name = "A", FUN = "max", top_n = 2, only_unique = TRUE,
+                                specific_dates = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15", "2001-06-15", "2001-07-15", "2001-08-15")))
+
+  metric_values <- metrics_xts@data[, "A_max_roll_3m"] %>% as.numeric()
+
+  expect_equal(metric_values[1], NA_real_)
+  expect_equal(metric_values[2], sum(c(2, 1)))
+  expect_equal(metric_values[3], sum(c(2, 1)))
+  expect_equal(metric_values[4], sum(c(6, 2)))
+  expect_equal(metric_values[5], sum(c(6, 2)))
+  expect_equal(metric_values[6], sum(c(6, 2)))
+
+
+})
+
+test_that("compute_window computes correct max values for period = 3 (A) in meta_xts and unique_values = FALSE", {
+
+  metrics_xts <- create_meta_xts(
+    xts::xts(
+      matrix(c(20, 3, 10, 3,
+               1, 7, 4, 4,
+               2, 9, 9, 5,
+               6, 6, 4, -2,
+               6, 2, 1, 4,
+               2, 3, 4, -3
+      ),
+      nrow = 6, ncol = 4, byrow = TRUE,
+      dimnames = list(NULL, c("A", "B", "C", "D"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15"))
+    ),
+    meta_xts_name = "test_xts", type = "metrics"
+  )
+
+  metrics_xts <- compute_window(metrics_xts, period = 3, col_name = "A", FUN = "max", top_n = 2, only_unique = FALSE,
+                                specific_dates = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15", "2001-06-15", "2001-07-15", "2001-08-15")))
+
+  metric_values <- metrics_xts@data[, "A_max_roll_3m"] %>% as.numeric()
+
+  expect_equal(metric_values[1], NA_real_)
+  expect_equal(metric_values[2], sum(c(20, 1)))
+  expect_equal(metric_values[3], sum(c(20, 2)))
+  expect_equal(metric_values[4], sum(c(20, 6)))
+  expect_equal(metric_values[5], sum(c(6, 6)))
+  expect_equal(metric_values[6], sum(c(6, 6)))
 
 
 })
@@ -2140,6 +2607,109 @@ test_that("compute_window throws errors when benchmark_m_xts does not match", {
 
 })
 
+test_that("res_mom handle egde cases", {
+
+  returns_xts <- create_meta_xts(
+    xts::xts(
+      matrix(c(2, 3, 10, 3,
+               1, 7, 0, 4,
+               0, 9, 9, 5,
+               1, 6, 4, -2,
+               9, -2, 0, 4,
+               2, 5, 4, 9
+      ),
+      nrow = 6, ncol = 4, byrow = TRUE,
+      dimnames = list(NULL, c("A", "B", "C", "D"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15"))
+    ),
+    meta_xts_name = "test_xts", type = "returns", asset_type = "stocks"
+  )
+
+  benchmark_ret_xts <- suppressWarnings(create_meta_xts(
+    xts::xts(
+      matrix(c(NA, 3, 10, 3,
+               1, 7, 0, 4
+      ),
+      nrow = 4, ncol = 2, byrow = TRUE,
+      dimnames = list(NULL, c("ibov", "smll"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15"))
+    ),
+    meta_xts_name = "test_xts", type = "returns", asset_type = "benchmarks"
+  ))
+
+  expect_error(
+    returns_xts <- res_mom(returns_xts@data$A, benchmark_ret_xts@data$ibov),
+    "NA values in benchmark returns")
+
+  benchmark_ret_xts <- suppressWarnings(create_meta_xts(
+    xts::xts(
+      matrix(c(Inf, 3, 10, 3,
+               1, 7, 0, 4
+      ),
+      nrow = 4, ncol = 2, byrow = TRUE,
+      dimnames = list(NULL, c("ibov", "smll"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15"))
+    ),
+    meta_xts_name = "test_xts", type = "returns", asset_type = "benchmarks"
+  ))
+
+  expect_error(
+    returns_xts <- res_mom(returns_xts@data$A, benchmark_ret_xts@data$ibov),
+    "Infinite values in benchmark returns")
+
+  benchmark_ret_xts <- suppressWarnings(create_meta_xts(
+    xts::xts(
+      matrix(c(5, 3, 10, 3,
+               1, 7, 0, 4
+      ),
+      nrow = 4, ncol = 2, byrow = TRUE,
+      dimnames = list(NULL, c("ibov", "smll"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15"))
+    ),
+    meta_xts_name = "test_xts", type = "returns", asset_type = "benchmarks"
+  ))
+
+  expect_error(
+    returns_xts <- res_mom(returns_xts@data$A, c(1, benchmark_ret_xts@data$ibov)),
+    "Lengths of returns and benchmark returns differ")
+
+  returns_xts <- suppressWarnings(create_meta_xts(
+    xts::xts(
+      matrix(c(NA, 3, 10, 3,
+               1, 7, 0, 4,
+               0, 9, 9, 5,
+               1, 6, 4, -2,
+               9, -2, 0, 4,
+               2, 5, 4, 9
+      ),
+      nrow = 6, ncol = 4, byrow = TRUE,
+      dimnames = list(NULL, c("A", "B", "C", "D"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15", "2001-07-15", "2001-08-15"))
+    ),
+    meta_xts_name = "test_xts", type = "returns", asset_type = "stocks"
+  ))
+
+  benchmark_ret_xts <- suppressWarnings(create_meta_xts(
+    xts::xts(
+      matrix(c(5, 3, 10, 3,
+               1, 7, 0, 4
+      ),
+      nrow = 4, ncol = 2, byrow = TRUE,
+      dimnames = list(NULL, c("ibov", "smll"))),
+      order.by = as.Date(c("2001-03-15", "2001-04-15", "2001-05-15",  "2001-06-15"))
+    ),
+    meta_xts_name = "test_xts", type = "returns", asset_type = "benchmarks"
+  ))
+
+
+  expect_equal(
+    res_mom(returns_xts@data$A[c(1:4)], benchmark_ret_xts@data$ibov),
+    res_mom(returns_xts@data$A[c(2:4)], benchmark_ret_xts@data$ibov[c(2:4)])
+    )
+
+
+
+})
 
 
 
