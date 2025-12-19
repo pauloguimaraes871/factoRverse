@@ -37,7 +37,8 @@ compute_window(data, period, FUN, ...)
   feature_name = NULL,
   min_non_na = 0,
   specific_dates = NULL,
-  invert_last_n = 0,
+  mult_last_n = 0,
+  mult_by = if (FUN == "geom_mean_ret") 0 else -1,
   top_n = 1
 )
 }
@@ -80,6 +81,12 @@ The function should return \code{TRUE} for elements that should be counted. Only
 \item{col_name}{(For \code{meta_xts}) A \code{character} specifying the column name.}
 
 \item{specific_dates}{A \code{Date} vector specifying specific dates to consider for the rolling calculation.}
+
+\item{mult_last_n}{A \code{numeric} value indicating the number of most recent observations to multiply by a factor when computing certain metrics (default: 0).}
+
+\item{mult_by}{A \code{numeric} value indicating the multiplication factor for the last \code{n} observations when computing certain metrics (default: -1 for most metrics, 0 for "geom_mean_ret").}
+
+\item{top_n}{A \code{numeric} value indicating the number of top elements to consider when computing the "max" function (default: 1).}
 }
 \value{
 A modified \code{meta_dataframe} or \code{meta_xts} object with an additional column named \code{"<metric>_<window>_<period>_<FUN>"},

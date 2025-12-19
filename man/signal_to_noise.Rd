@@ -4,14 +4,16 @@
 \alias{signal_to_noise}
 \title{Calculate Mean-to-Standard Deviation Ratio (Signal-to-Noise Ratio)}
 \usage{
-signal_to_noise(values, na.rm = TRUE, invert_last_n = 0L)
+signal_to_noise(values, na.rm = TRUE, mult_last_n = 0L, mult_by = -1)
 }
 \arguments{
 \item{values}{Numeric vector.}
 
 \item{na.rm}{Logical.}
 
-\item{invert_last_n}{Integer >= 0. If > 0, multiply the last n (in time order) by -1.}
+\item{mult_last_n}{Integer >= 0. If > 0, multiply the last n (in time order) by a number.}
+
+\item{mult_by}{Numeric scalar. The number to multiply the last n values by. Default is -1 (inversion).}
 }
 \value{
 Numeric scalar.

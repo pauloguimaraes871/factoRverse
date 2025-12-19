@@ -7,7 +7,7 @@
 #' @param features_m_df A \code{meta_dataframe} object.
 #' @param sector_column A \code{character} specifying the column name representing sector classification in the dataset.
 #' @param signal A \code{character} specifying the column name on which the function is computed.
-#' @param FUN A \code{character} specifying the function to apply. Options are "median", "mean", "sd", "skew", "sur", "mean_std".
+#' @param FUN A \code{character} specifying the function to apply. Options are "median", "mean", "sd", "skew", "sur", "signal_to_noise".
 #' @param na.rm A \code{logical} indicating whether to remove NA values (default TRUE).
 #' @param feature_name A \code{character} specifying the name of the feature to be added to the meta_dataframe. If NULL,
 #' the feature name will be set to "<signal>_sector_<FUN>". Default is NULL.
@@ -24,7 +24,7 @@
 #'   \item \strong{median}: \code{stats::median(x, na.rm = na.rm)}
 #'   \item \strong{mean}: \code{stats::mean(x, na.rm = na.rm)}
 #'   \item \strong{sd}: \code{stats::sd(x, na.rm = na.rm)}
-#'   \item \strong{mean_std}: \code{stats::mean(x, na.rm = na.rm) / stats::sd(x, na.rm = na.rm)}
+#'   \item \strong{signal_to_noise}: \code{stats::mean(x, na.rm = na.rm) / stats::sd(x, na.rm = na.rm)}
 #' }
 #'
 #' @export
@@ -72,7 +72,7 @@ setMethod("compute_sector_wise",
                          "median" = stats::median(!!rlang::sym(signal), na.rm = na.rm),
                          "mean" = mean(!!rlang::sym(signal), na.rm = na.rm),
                          "sd" = stats::sd(!!rlang::sym(signal), na.rm = na.rm),
-                         "mean_std" = mean_std(!!rlang::sym(signal), na.rm = na.rm),
+                         "signal_to_noise" = signal_to_noise(!!rlang::sym(signal), na.rm = na.rm),
                          stop("Unsupported function type")
                   ),
                   NA_real_

@@ -7,7 +7,8 @@
 bench_regression_fit(
   ret_values,
   bench_ret_values,
-  invert_last_n = 0,
+  mult_last_n = 0,
+  mult_by = -1,
   na.rm = TRUE,
   include_intercept = TRUE
 )
@@ -16,6 +17,10 @@ bench_regression_fit(
 \item{ret_values}{Numeric vector (signal returns).}
 
 \item{bench_ret_values}{Numeric vector (benchmark returns).}
+
+\item{mult_last_n}{Integer >= 0. If > 0, multiply the last n (in time order) of ret_values by -1 before fitting the regression. Default is 0.}
+
+\item{mult_by}{Numeric scalar. The number to multiply the last n values by. Default is -1 (inversion).}
 
 \item{na.rm}{Logical. If TRUE, drop NA positions from ret_values (and aligned bench).}
 

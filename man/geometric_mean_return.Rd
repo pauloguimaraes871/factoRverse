@@ -4,13 +4,23 @@
 \alias{geometric_mean_return}
 \title{Geometric Mean Return (percentage-point scale)}
 \usage{
-geometric_mean_return(returns, na.rm = FALSE, scale = 100)
+geometric_mean_return(
+  returns,
+  na.rm = FALSE,
+  mult_last_n = 0,
+  mult_by = 0,
+  scale = 100
+)
 }
 \arguments{
 \item{returns}{Numeric vector of returns. Each return must be greater than
 \code{-100} (i.e. no return worse than -100 \%).}
 
 \item{na.rm}{Logical. Should \code{NA} values be removed?  Default \code{FALSE}.}
+
+\item{mult_last_n}{= Integer >= 0. If > 0, multiply the last n (in time order) by a number.}
+
+\item{mult_by}{Numeric scalar. The number to multiply the last n values by. Default is 0 (skip).}
 
 \item{scale}{Numeric divisor/multiplier used to convert between percentage
 points and decimals.  Default \code{100}.}

@@ -779,6 +779,9 @@ sum_top_n <- function(values, top_n = 1L, na.rm = TRUE) {
 
 ##Regression Helper
 #' Validator function for returns and benchmark returns
+#' @param ret_values Numeric vector (signal returns).
+#' @param bench_ret_values Numeric vector (benchmark returns).
+#' @return NA_real_ if ret_values are all NAs or contain Inf/-Inf, else throws error if bench_ret_values contain NA/Inf or lengths differ.
 validate_returns_bench <- function(ret_values, bench_ret_values){
 
   ##If ret_values are all NAs, return NA
@@ -790,6 +793,8 @@ validate_returns_bench <- function(ret_values, bench_ret_values){
   if (any(is.infinite(bench_ret_values))) stop("Infinite values in benchmark returns")
   ##If lenghts differ, throw error
   if (length(ret_values) != length(bench_ret_values)) stop("Lengths of returns and benchmark returns differ")
+
+  TRUE
 
 }
 
@@ -815,7 +820,8 @@ bench_regression_fit <- function(
     include_intercept = TRUE
 ) {
 
-  validate_returns_bench(ret_values, bench_ret_values)
+  valid <- validate_returns_bench(ret_values, bench_ret_values)
+  if (is.na(valid)) return(NA_real_)
 
   # apply mult_last_n to ret_values ONLY
   if (!is.null(mult_last_n) && mult_last_n > 0L) {
@@ -901,6 +907,7 @@ bench_regression_fit <- function(
 #'   \code{ret_values}.
 #' @param mult_last_n Integer >= 0. If > 0, multiply the last n (in time order) of
 #'   \code{ret_values} by 'mult_by' before fitting the regression. Default is 0.
+#' @param mult_by Numeric scalar. The number to multiply the last n values by. Default is -1 (inversion).
 #' @param na.rm Logical. If \code{TRUE}, removes observations where \code{ret_values} is
 #'   \code{NA} and drops the corresponding benchmark observations. Default is \code{TRUE}.
 #'
@@ -1116,7 +1123,8 @@ beta_bench <- function(ret_values, bench_ret_values, na.rm = TRUE) {
 #'
 #' @export
 correlation_bench <- function(ret_values, bench_ret_values, na.rm = TRUE) {
-  validate_returns_bench(ret_values, bench_ret_values)
+  valid <- validate_returns_bench(ret_values, bench_ret_values)
+  if (is.na(valid)) return(NA_real_)
 
 if (na.rm && any(is.na(ret_values))) {
   idx_keep <- !is.na(ret_values)
@@ -1150,7 +1158,8 @@ res_mom <- function(ret_values, bench_ret_values, na.rm = TRUE) {
 
   #Initial checks
   ##########
-  validate_returns_bench(ret_values, bench_ret_values)
+  valid <- validate_returns_bench(ret_values, bench_ret_values)
+  if (is.na(valid)) return(NA_real_)
   ##########
 
   #Treat NAs and all equal
@@ -1200,7 +1209,8 @@ idio_vol <- function(ret_values, bench_ret_values, na.rm = TRUE) {
 
   #Initial checks
   ##########
-  validate_returns_bench(ret_values, bench_ret_values)
+  valid <- validate_returns_bench(ret_values, bench_ret_values)
+  if (is.na(valid)) return(NA_real_)
   ###########
 
   #Treat NAs and all equal

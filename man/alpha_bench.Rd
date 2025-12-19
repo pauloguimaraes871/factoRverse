@@ -4,7 +4,13 @@
 \alias{alpha_bench}
 \title{Calculate Alpha Relative to a Benchmark}
 \usage{
-alpha_bench(ret_values, bench_ret_values, invert_last_n = 0, na.rm = TRUE)
+alpha_bench(
+  ret_values,
+  bench_ret_values,
+  mult_last_n = 0,
+  mult_by = -1,
+  na.rm = TRUE
+)
 }
 \arguments{
 \item{ret_values}{A numeric vector of asset returns.}
@@ -12,8 +18,10 @@ alpha_bench(ret_values, bench_ret_values, invert_last_n = 0, na.rm = TRUE)
 \item{bench_ret_values}{A numeric vector of benchmark returns aligned in time with
 \code{ret_values}.}
 
-\item{invert_last_n}{Integer >= 0. If > 0, multiply the last n (in time order) of
-\code{ret_values} by -1 before fitting the regression. Default is 0.}
+\item{mult_last_n}{Integer >= 0. If > 0, multiply the last n (in time order) of
+\code{ret_values} by 'mult_by' before fitting the regression. Default is 0.}
+
+\item{mult_by}{Numeric scalar. The number to multiply the last n values by. Default is -1 (inversion).}
 
 \item{na.rm}{Logical. If \code{TRUE}, removes observations where \code{ret_values} is
 \code{NA} and drops the corresponding benchmark observations. Default is \code{TRUE}.}

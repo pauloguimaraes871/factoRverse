@@ -208,7 +208,7 @@ test_that("compute_sector_wise works for sd", {
 
 })
 
-test_that("compute_sector_wise works for mean_std", {
+test_that("compute_sector_wise works for signal_to_noise", {
   # Create meta_dataframe
   features_m_df <- create_meta_dataframe(
     list(
@@ -240,24 +240,24 @@ test_that("compute_sector_wise works for mean_std", {
   )
 
   # Compute median
-  features_m_df <- compute_sector_wise(features_m_df, sector_column = "sector", signal = "Alpha", FUN = "mean_std")
+  features_m_df <- compute_sector_wise(features_m_df, sector_column = "sector", signal = "Alpha", FUN = "signal_to_noise")
 
   # For Stock A:
   alpha_A <- features_m_df@data %>%
     dplyr::filter(tickers == "Stock A") %>%
     dplyr::arrange(dates) %>%
-    dplyr::pull(Alpha_sector_mean_std)
+    dplyr::pull(Alpha_sector_signal_to_noise)
 
-  expect_equal(alpha_A[1], mean_std(c(0,10)))  # No previous record for first date
-  expect_equal(alpha_A[2], mean_std(c(3,7)))
-  expect_equal(alpha_A[3], mean_std(c(4,2)))
-  expect_equal(alpha_A[4], mean_std(c(9,5)))
+  expect_equal(alpha_A[1], signal_to_noise(c(0,10)))  # No previous record for first date
+  expect_equal(alpha_A[2], signal_to_noise(c(3,7)))
+  expect_equal(alpha_A[3], signal_to_noise(c(4,2)))
+  expect_equal(alpha_A[4], signal_to_noise(c(9,5)))
 
   # For Stock B:
   alpha_B <- features_m_df@data %>%
     dplyr::filter(tickers == "Stock B") %>%
     dplyr::arrange(dates) %>%
-    dplyr::pull(Alpha_sector_mean_std)
+    dplyr::pull(Alpha_sector_signal_to_noise)
 
   expect_equal(alpha_B[1], NA_real_)  # No previous record for first date
   expect_equal(alpha_B[2], NA_real_)
@@ -268,12 +268,12 @@ test_that("compute_sector_wise works for mean_std", {
   alpha_C <- features_m_df@data %>%
     dplyr::filter(tickers == "Stock C") %>%
     dplyr::arrange(dates) %>%
-    dplyr::pull(Alpha_sector_mean_std)
+    dplyr::pull(Alpha_sector_signal_to_noise)
 
-  expect_equal(alpha_C[1], mean_std(c(0,10)))  # No previous record for first date
-  expect_equal(alpha_C[2], mean_std(c(3,7)))
-  expect_equal(alpha_C[3], mean_std(c(4,2)))
-  expect_equal(alpha_C[4], mean_std(c(9,5)))
+  expect_equal(alpha_C[1], signal_to_noise(c(0,10)))  # No previous record for first date
+  expect_equal(alpha_C[2], signal_to_noise(c(3,7)))
+  expect_equal(alpha_C[3], signal_to_noise(c(4,2)))
+  expect_equal(alpha_C[4], signal_to_noise(c(9,5)))
 
 
 })

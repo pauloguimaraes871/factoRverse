@@ -32,7 +32,7 @@ compute_sector_wise(
 
 \item{signal}{A \code{character} specifying the column name on which the function is computed.}
 
-\item{FUN}{A \code{character} specifying the function to apply. Options are "median", "mean", "sd", "skew", "sur", "mean_std".}
+\item{FUN}{A \code{character} specifying the function to apply. Options are "median", "mean", "sd", "skew", "sur", "signal_to_noise".}
 
 \item{na.rm}{A \code{logical} indicating whether to remove NA values (default TRUE).}
 
@@ -57,6 +57,6 @@ If no matching observation is found, the resulting value is \code{NA}. The avail
 \item \strong{median}: \code{stats::median(x, na.rm = na.rm)}
 \item \strong{mean}: \code{stats::mean(x, na.rm = na.rm)}
 \item \strong{sd}: \code{stats::sd(x, na.rm = na.rm)}
-\item \strong{mean_std}: \code{stats::mean(x, na.rm = na.rm) / stats::sd(x, na.rm = na.rm)}
+\item \strong{signal_to_noise}: \code{stats::mean(x, na.rm = na.rm) / stats::sd(x, na.rm = na.rm)}
 }
 }
