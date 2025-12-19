@@ -67,6 +67,11 @@ test_that("bench_regression_fit applies mult_last_n correctly", {
   out2 <- bench_regression_fit(ret, bench, mult_last_n = 1, mult_by = -1)
 
   expect_false(isTRUE(all.equal(out1$beta, out2$beta)))
+
+  out3 <- bench_regression_fit(c(1,2,-3), c(1,2,3))
+
+  expect_equal(out2, out3)
+
 })
 
 
