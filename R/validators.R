@@ -40,7 +40,14 @@ is_coercible_to_meta_dataframe <- function(obj) {
       return(FALSE)
     }
 
-    if(any(obj$id != obj$id[order(obj$id)])){
+    if (!is.character(obj$id)) {
+      message("The 'id' column must be character.")
+      return(FALSE)
+    }
+
+    ordered_id <- dplyr::arrange(obj, id)$id
+
+    if (!isTRUE(all.equal(obj$id, ordered_id, check.attributes = FALSE))) {
       message("Object must be ordered alphabetically according to id.")
       return(FALSE)
     }
