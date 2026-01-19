@@ -489,8 +489,8 @@ setMethod("create_target_m_df",
             if (features_m_df@current_date != daily_returns_m_df@current_date){
               stop("features_m_df and daily_returns_m_df must have the same current_date.")
             }
-            if (!all(features_m_df@data$id %in% daily_returns_m_df@data$id)){
-              stop("Some ids from features_m_df do not exist in daily_returns_m_df")
+            if (!all(features_m_df@data$tickers %in% daily_returns_m_df@data$tickers)){
+              stop("Some tickers from features_m_df do not exist in daily_returns_m_df")
             }
             if (!identical(as.character(sort(unique(daily_returns_m_df@data$dates))),
                            as.character(sort(zoo::index(daily_bench_returns_m_xts@data))))){
@@ -512,10 +512,10 @@ setMethod("create_target_m_df",
             ##############
 
             ##Get selected dates and ids
-            selected_ids <- features_m_df@data %>% dplyr::pull(id)
-            selected_daily_returns_m_df <- daily_returns_m_df@data %>% dplyr::filter(id %in% selected_ids)
-            selected_dates <- selected_daily_returns_m_df %>% dplyr::pull(dates) %>% unique() %>% sort()
-
+            selected_ids     <- features_m_df@data %>% dplyr::pull(id)
+            selected_tickers <- features_m_df@data %>% dplyr::pull(tickers) %>% unique()
+            selected_daily_returns_m_df <- daily_returns_m_df@data %>% dplyr::filter(tickers %in% selected_tickers)
+            selected_dates <- features_m_df@data %>% dplyr::pull(dates) %>% unique() %>% sort()
 
             ##Build fwd_date_process fun
             fwd_date_process <- function(i){
@@ -525,7 +525,11 @@ setMethod("create_target_m_df",
 
               ###Subset current row and date
               current_date <- selected_dates[i]
-              selected_daily_returns_m_d_ref <- selected_daily_returns_m_df %>% dplyr::filter(dates %in% current_date)
+              closest_date_in_daily_returns_m_d_ref <- selected_daily_returns_m_df %>%
+                dplyr::filter(dates >= current_date) %>%
+                dplyr::pull(dates) %>%
+                min()
+              selected_daily_returns_m_d_ref <- selected_daily_returns_m_df %>% dplyr::filter(dates %in% closest_date_in_daily_returns_m_d_ref)
               current_tickers <- selected_daily_returns_m_d_ref %>% dplyr::pull(tickers)
 
               ####Print
@@ -535,6 +539,19 @@ setMethod("create_target_m_df",
               ####Ensure current row is correctly assigned
               if (nrow(selected_daily_returns_m_d_ref) == 0) {
                 stop("No data found for selected date: ", current_date)
+              }
+
+              ####Ensure there is at least one closest date in daily_returns_m_d_ref
+              if (length(closest_date_in_daily_returns_m_d_ref) == 0 | is.infinite(closest_date_in_daily_returns_m_d_ref) | is.na(closest_date_in_daily_returns_m_d_ref)) {
+                stop("No closest date found in daily_returns_m_df for selected date: ", current_date)
+              }
+
+              ####Ensure all tickers for current_date in features_m_df exist in daily_returns_m_df
+              current_features_tickers <- features_m_df@data %>% dplyr::filter(dates == current_date) %>% dplyr::pull(tickers)
+              if (!identical(sort(current_features_tickers), sort(current_tickers))) {
+                missing_tickers <- setdiff(current_features_tickers, current_tickers)
+                stop("The following tickers from features_m_df for date ", current_date,
+                     " are missing in daily_returns_m_df: ", paste(missing_tickers, collapse = ", "))
               }
 
               ###Compute forward dates

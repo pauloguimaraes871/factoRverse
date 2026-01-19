@@ -1155,9 +1155,9 @@ test_that("create_target_m_df throws an error when objects do not match expectat
   )
 
 
-  #Wrong ids
+  #Wrong tickers
   wrong_feat_m_df <- pre_silver_features_m_df
-  wrong_feat_m_df@data$id[10] <- "wrong_id"
+  wrong_feat_m_df@data$tickers[10] <- "wrong_ticker"
 
   #Create target_m_df
   expect_error(
@@ -1172,7 +1172,7 @@ test_that("create_target_m_df throws an error when objects do not match expectat
         active_returns = TRUE,
         parallel = FALSE
       )
-    ), "Some ids from features_m_df do not exist in daily_returns_m_df"
+    ), "Some tickers from features_m_df do not exist in daily_returns_m_df"
   )
 
 

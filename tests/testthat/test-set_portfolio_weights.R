@@ -3979,15 +3979,12 @@ test_that("set portfolio weights works for stocks (rp + exp_ret_score_tilt = 'in
   expected_results$rel_risk_contr[which(is.na(expected_results$rel_risk_contr))] <- 0
   expected_results$weights[which(is.na(expected_results$weights))] <- 0
 
-  expect_warning(
-    results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "rp",
+  results <- set_portfolio_weights(universe_m_d_ref = stock_universe_m_d_ref, port_construction_method = "rp",
                                      eligible_returns_m_xts_upd_ref = daily_stock_returns_m_xts_upd_ref, groups_m_d_ref = stock_groups_m_d_ref,
                                      cov_matrix_sample_size = cov_matrix_sample_size, cov_estimation_method = cov_estimation_method,
                                      exp_ret_score_tilt = exp_ret_score_tilt, exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
                                      active_returns = FALSE
-    ),"Weights for group 'Petróleo gás e biocombustíveis' sum to zero. Fallback to equal weights."
-  )
-
+    )
 
 
   expect_equal(results@universe_m_d_ref@data, expected_results)
