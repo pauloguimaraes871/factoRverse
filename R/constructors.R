@@ -530,7 +530,7 @@ setMethod("create_target_m_df",
                 dplyr::pull(dates) %>%
                 min()
               selected_daily_returns_m_d_ref <- selected_daily_returns_m_df %>% dplyr::filter(dates %in% closest_date_in_daily_returns_m_d_ref)
-              current_tickers <- selected_daily_returns_m_d_ref %>% dplyr::pull(tickers)
+              current_tickers <- selected_daily_returns_m_d_ref %>% dplyr::pull(tickers) %>% unname()
 
               ####Print
               cat(crayon::cyan(paste0("Processing date ", format(as.Date(current_date), "%Y-%m-%d"))))
@@ -548,10 +548,11 @@ setMethod("create_target_m_df",
 
               ####Ensure all tickers for current_date in features_m_df exist in daily_returns_m_df
               current_features_tickers <- features_m_df@data %>% dplyr::filter(dates == current_date) %>% dplyr::pull(tickers)
-              if (!identical(sort(current_features_tickers), sort(current_tickers))) {
-                missing_tickers <- setdiff(current_features_tickers, current_tickers)
+              missing_tickers <- setdiff(current_features_tickers, current_tickers)
+              if (length(missing_tickers) > 0L){
                 stop("The following tickers from features_m_df for date ", current_date,
-                     " are missing in daily_returns_m_df: ", paste(missing_tickers, collapse = ", "))
+                     " are missing in daily_returns_m_df: ",
+                     paste(missing_tickers, collapse = ", "))
               }
 
               ###Compute forward dates
@@ -572,7 +573,7 @@ setMethod("create_target_m_df",
 
               ###Retrieve all forward returns from selected_daily_returns_m_df and replace NAs with 0
               selected_daily_returns_m_d_fwd <- daily_returns_m_df@data %>% #Get from complete database
-                dplyr::filter(tickers %in% current_tickers, dates %in% seq_fwd_dates) %>% #Subset ticker_i and only fwd dates
+                dplyr::filter(tickers %in% current_features_tickers, dates %in% seq_fwd_dates) %>% #Subset ticker_i and only fwd dates
                 dplyr::mutate(dplyr::across(dplyr::all_of(past_ret_column), ~ tidyr::replace_na(.x, 0))) #Replace NAs with 0
 
               ###Do the same with benchmark
