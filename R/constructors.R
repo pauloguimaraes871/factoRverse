@@ -559,8 +559,15 @@ setMethod("create_target_m_df",
               seq_fwd_dates <- seq.Date(from = fwd_dates[1] + 1, to = fwd_dates[length(fwd_dates)], by = "days")
 
               ###If any of the dates in exceed current_date, return NA
-              if (any(seq_fwd_dates > daily_returns_m_df@current_date)){
-                return(selected_daily_returns_m_d_ref %>% dplyr::select(id, tickers, dates))
+              if (any(seq_fwd_dates > daily_returns_m_df@current_date)) {
+                out <- selected_daily_returns_m_d_ref %>%
+                  dplyr::mutate(
+                    dates = current_date,
+                    id    = paste0(tickers, "-", dates)
+                  ) %>%
+                  dplyr::select(id, tickers, dates)
+
+                return(out)
               }
 
               ###Retrieve all forward returns from selected_daily_returns_m_df and replace NAs with 0
