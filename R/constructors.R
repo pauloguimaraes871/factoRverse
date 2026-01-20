@@ -562,6 +562,7 @@ setMethod("create_target_m_df",
               ###If any of the dates in exceed current_date, return NA
               if (any(seq_fwd_dates > daily_returns_m_df@current_date)) {
                 out <- selected_daily_returns_m_d_ref %>%
+                  dplyr::filter(tickers %in% current_features_tickers) %>%
                   dplyr::mutate(
                     dates = current_date,
                     id    = paste0(tickers, "-", dates)
