@@ -94,6 +94,7 @@ Collate:
     'screen_by_conditions.R'
     'screen_by_feature.R'
     'screen_by_liquidity.R'
+    'set_bank_characteristics_na.R'
     'summarize_performance.R'
     'summary_methods.R'
     'time_series_split.R'
