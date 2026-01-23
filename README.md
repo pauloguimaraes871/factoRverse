@@ -43,4 +43,29 @@ devtools::install_github("pauloguimaraes871/factoRverse")
 
 ## Usage
 
+### Handling Bank Characteristics
+
+The package includes functionality to properly handle financial firm
+characteristics following academic best practices. Certain
+characteristics that are meaningful for manufacturing and retail firms
+(e.g., inventory, PPE, capex) are not applicable to banks and insurance
+companies.
+
+``` r
+library(factoRverse)
+
+# Set non-meaningful characteristics to NA for banks
+features_m_df <- set_bank_characteristics_na(
+  features_m_df,
+  sector_column = "sectors_to_treat_as_banks",
+  bank_values = c("Bank", "Financial"),
+  insurance_values = c("Insurance")
+)
+```
+
+For more details, see the documentation at
+`?set_bank_characteristics_na` and the research rationale in
+`inst/doc/bank_characteristics_treatment.md`.
+
+
 
