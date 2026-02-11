@@ -774,7 +774,7 @@ setMethod("run_sb_backtest",
                     macro_hrp_parameters <- macro_port_config@hrp_parameters
                     macro_linkage <- macro_hrp_parameters@linkage
                     macro_exp_ret_score_tilt <- macro_hrp_parameters@exp_ret_score_tilt
-                    macro_exp_ret_score_tilt_eta <- macro_hrp_parameters@exp_ret_score_tilt
+                    macro_exp_ret_score_tilt_eta <- macro_hrp_parameters@exp_ret_score_tilt_eta
 
                   }
                 }
