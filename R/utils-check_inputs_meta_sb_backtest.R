@@ -296,11 +296,11 @@ check_inputs_meta_sb_backtest <- function(
     stop("training_sample_size plus validation_sample_size is not the same in every base SB backtest results.")
   }
   ####Rebalancing Month
-  if (any(sapply(base_sb_backtest_results_list,
-                 function(x) !identical(x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]$rebalancing_months,
-                                        base_sb_backtest_results_list[[1]]@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]$rebalancing_months)))){
-    stop("rebalancing_months is not the same in every base SB backtest results.")
-  }
+  #if (any(sapply(base_sb_backtest_results_list,
+  #               function(x) !identical(x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]$rebalancing_months,
+  #                                      base_sb_backtest_results_list[[1]]@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]$rebalancing_months)))){
+  #  stop("rebalancing_months is not the same in every base SB backtest results.")
+  #}
   ####Target FWD Name
   if (any(sapply(base_sb_backtest_results_list,
                  function(x) !identical(x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]$target_fwd_name,

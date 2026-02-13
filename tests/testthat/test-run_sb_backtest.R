@@ -18006,7 +18006,7 @@ test_that("SW - Metabacktesting works for SW in meta_learning with min_rmse (rf 
 
 })
 
-test_that("SW - Metabacktesting works for SW in meta_learning with max_hr (risk-par + glmnet with ss are base_sb_results) - features_passthrough = none - meta_ss_config without ss_object", {
+test_that("SW - Metabacktesting works for SW in meta_learning with max_hr (risk-par + glmnet with ss are base_sb_results) - features_passthrough = none - meta_ss_config without ss_object + diff rebal months", {
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -18085,7 +18085,7 @@ test_that("SW - Metabacktesting works for SW in meta_learning with max_hr (risk-
     add_tuning_strategy(tuning_method = "grid_search", validation_sample_size = 3) %>%
     add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"), grid = list(c(0, 1), c(0.5, 0.9)))
 
-  rp_config <- create_sb_backtest_config(sb_algorithm = "rp", training_sample_size = 7, rebalancing_months = 6, target_fwd_name = "fwd_premium_3m",
+  rp_config <- create_sb_backtest_config(sb_algorithm = "rp", training_sample_size = 7, rebalancing_months = c(4,6), target_fwd_name = "fwd_premium_3m",
                                          config_name = "rp_101") %>%
     add_cov_est_method(cov_matrix_sample_size = 4, cov_matrix_benchmark = "IBOV")
 

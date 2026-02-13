@@ -1507,7 +1507,7 @@ setMethod("run_sb_backtest",
               as.data.frame(lapply(base_sb_backtest_results_list, function(x) unique(as.Date(x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]$dates_testing_sample))))
 
             meta_learner_backtest_results@sb_backtest_workflow[[length(meta_learner_backtest_results@sb_backtest_workflow)]]$rebalance_dates_bl <-
-            as.data.frame(lapply(base_sb_backtest_results_list, function(x) unique(as.Date(x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]$rebalance_dates))))
+            lapply(base_sb_backtest_results_list, function(x) unique(as.Date(x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]$rebalance_dates)))
 
 
             # Displays how much time it took
