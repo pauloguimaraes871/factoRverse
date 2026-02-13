@@ -2159,14 +2159,14 @@ test_that("Custom Weights - run_sb_backtest works with toy_preprocessed_features
 })
 
 #Define your test
-test_that("Signal Weights + Custom Signal Universe Metrics - run_sb_backtest works with toy_preprocessed_features_and_targets", {
+test_that("Signal Weights + Custom Signal Universe Metrics - run_sb_backtest works with toy_preprocessed_features_and_targets and 2 rebal months", {
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
   set.seed(123)
   ##Signal Weights Config
   suppressWarnings(
-  sw_config <- create_sb_backtest_config(sb_algorithm = "sw", custom_objective = "min_pe", rebalancing_months = 7, training_sample_size = 5, target_fwd_name = "fwd_premium_3m",
+  sw_config <- create_sb_backtest_config(sb_algorithm = "sw", custom_objective = "min_pe", rebalancing_months = c(5, 7), training_sample_size = 5, target_fwd_name = "fwd_premium_3m",
                                          chosen_signals_and_positions = "all")
   )
 
@@ -2229,8 +2229,7 @@ test_that("Signal Weights + Custom Signal Universe Metrics - run_sb_backtest wor
   )
   #Predict
   dates_first_prediction <- c("2022-11-15", "2022-12-15", "2023-01-15",
-                              "2023-02-15", "2023-03-15", "2023-04-15",
-                              "2023-05-15", "2023-06-15")
+                              "2023-02-15", "2023-03-15", "2023-04-15")
   #Resulting vectors
   prediction_list_first_prediction <- list()
   y_list_first_prediction <- list()
@@ -2291,7 +2290,7 @@ test_that("Signal Weights + Custom Signal Universe Metrics - run_sb_backtest wor
 
 
   #2nd rebalancing
-  second_most_recent_derived_signal_universe_m_d_ref <- derived_signal_universe_m_df %>% dplyr::filter(dates == "2023-06-15") %>% dplyr::mutate(is_eligible = 1)
+  second_most_recent_derived_signal_universe_m_d_ref <- derived_signal_universe_m_df %>% dplyr::filter(dates == "2023-04-15") %>% dplyr::mutate(is_eligible = 1)
 
   #Features Objects
   selected_toy_preprocessed_features <- toy_preprocessed_features
@@ -2299,14 +2298,13 @@ test_that("Signal Weights + Custom Signal Universe Metrics - run_sb_backtest wor
   selected_features_second_rebal <- selected_toy_preprocessed_features[which(selected_toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
                                                                                                                              "2022-10-15",
                                                                                                                              "2022-11-15", "2022-12-15", "2023-01-15",
-                                                                                                                             "2023-02-15", "2023-03-15", "2023-04-15")),]
+                                                                                                                             "2023-02-15")),]
 
   #Targets
   targets_second_rebal_m_df <- toy_preprocessed_targets[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
                                                                                                      "2022-10-15",
                                                                                                      "2022-11-15", "2022-12-15", "2023-01-15",
-                                                                                                     "2023-02-15", "2023-03-15", "2023-04-15")),]
-
+                                                                                                     "2023-02-15")),]
 
   #Fitting
   second_sb_port <- fit_sb_model(sb_algorithm = "sw", target_fwd_name = "fwd_premium_3m",
@@ -2322,10 +2320,8 @@ test_that("Signal Weights + Custom Signal Universe Metrics - run_sb_backtest wor
                                  rp_method = "cyclical-spinu"
   )
 
-
-
   #Predict
-  dates_second_prediction <- c("2023-07-15")
+  dates_second_prediction <- c("2023-05-15", "2023-06-15")
   #Resulting obj
   prediction_list_second_prediction <- list()
   y_list_second_prediction <- list()
@@ -2386,24 +2382,120 @@ test_that("Signal Weights + Custom Signal Universe Metrics - run_sb_backtest wor
   names(mb_oos_second_prediction) <- dates_second_prediction
 
 
+  #3rd rebalancing
+  third_most_recent_derived_signal_universe_m_d_ref <- derived_signal_universe_m_df %>% dplyr::filter(dates == "2023-06-15") %>% dplyr::mutate(is_eligible = 1)
+
+  #Features Objects
+  selected_toy_preprocessed_features <- toy_preprocessed_features
+
+  selected_features_third_rebal <- selected_toy_preprocessed_features[which(selected_toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
+                                                                                                                             "2022-10-15",
+                                                                                                                             "2022-11-15", "2022-12-15", "2023-01-15",
+                                                                                                                             "2023-02-15", "2023-03-15", "2023-04-15")),]
+
+  #Targets
+  targets_third_rebal_m_df <- toy_preprocessed_targets[which(toy_preprocessed_features$dates %in% c("2022-07-15", "2022-08-15", "2022-09-15",
+                                                                                                     "2022-10-15",
+                                                                                                     "2022-11-15", "2022-12-15", "2023-01-15",
+                                                                                                     "2023-02-15", "2023-03-15", "2023-04-15")),]
+
+
+  #Fitting
+  third_sb_port <- fit_sb_model(sb_algorithm = "sw", target_fwd_name = "fwd_premium_3m",
+                                 selected_features_corrected_positions_m_refit = selected_features_third_rebal,
+                                 most_recent_signal_universe_m_d_ref = third_most_recent_derived_signal_universe_m_d_ref,
+                                 most_recent_custom_signal_weights_m_d_ref = NULL,
+                                 selected_backtest_returns_corrected_positions_m_xts_upd_ref = NULL,
+                                 cov_matrix_sample_size = 4, cov_estimation_method = "ewma", active_returns = TRUE, groups_m_d_ref = NULL,
+                                 custom_objective_translated = "min_pe", huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
+                                 keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
+                                 selected_cov_matrix_benchmark_m_xts_upd_ref = selected_cov_matrix_benchmark_m_xts_upd_ref,
+                                 upper_quantile_winsorization = 0.975, lower_quantile_winsorization = 0.025,
+                                 rp_method = "cyclical-spinu"
+  )
+
+
+
+  #Predict
+  dates_third_prediction <- c("2023-07-15")
+  #Resulting obj
+  prediction_list_third_prediction <- list()
+  y_list_third_prediction <- list()
+  error_list_third_prediction <- list()
+  r_oos_third_prediction <- vector(length = length(dates_third_prediction))
+  cp_oos_third_prediction <- vector(length = length(dates_third_prediction))
+  rmse_oos_third_prediction <- vector(length = length(dates_third_prediction))
+  mae_oos_third_prediction <- vector(length = length(dates_third_prediction))
+  pseudo_huber_oos_third_prediction <- vector(length = length(dates_third_prediction))
+  pinball_oos_third_prediction <- vector(length = length(dates_third_prediction))
+  mape_oos_third_prediction <- vector(length = length(dates_third_prediction))
+  hr_oos_third_prediction <- vector(length = length(dates_third_prediction))
+  mb_oos_third_prediction <- vector(length = length(dates_third_prediction))
+
+
+
+
+  for(i in seq_along(dates_third_prediction)){
+
+    #Subset for each date
+    features_third_prediction <-  selected_toy_preprocessed_features[which(selected_toy_preprocessed_features$dates %in% dates_third_prediction[i]),]
+    target_third_prediction <-  toy_preprocessed_targets$fwd_premium_3m[which(toy_preprocessed_targets$dates %in% dates_third_prediction[i])]
+
+    #Fill obj
+    prediction_list_third_prediction[[i]] <- predict(third_sb_port, features_third_prediction)
+    error_list_third_prediction[[i]] <- target_third_prediction - prediction_list_third_prediction[[i]]
+    y_list_third_prediction[[i]] <- target_third_prediction
+
+    #Rename
+    names(prediction_list_third_prediction[[i]]) <- features_third_prediction$tickers
+    names(error_list_third_prediction[[i]]) <- features_third_prediction$tickers
+    names(y_list_third_prediction[[i]]) <- features_third_prediction$tickers
+
+    r_oos_third_prediction[i] <- 1 - (sum(error_list_third_prediction[[i]]^(2))/sum(y_list_third_prediction[[i]]^2))
+    cp_oos_third_prediction[i] <- sum((y_list_third_prediction[[i]])*(prediction_list_third_prediction[[i]]))/length(y_list_third_prediction[[i]])
+    rmse_oos_third_prediction[i] <- sqrt(sum(error_list_third_prediction[[i]]^(2))/length(y_list_third_prediction[[i]]))
+    mae_oos_third_prediction[i] <- sum(abs(error_list_third_prediction[[i]]))/length(y_list_third_prediction[[i]])
+    pseudo_huber_oos_third_prediction[i] <- mean(1^2*(sqrt(1+(error_list_third_prediction[[i]])^2)-1))
+    pinball_oos_third_prediction[i] <- mean(ifelse(error_list_third_prediction[[i]] >= 0, 0.5*error_list_third_prediction[[i]], (1-0.5)*(-1)*error_list_third_prediction[[i]]))
+    mape_oos_third_prediction[i] <- mean(abs(error_list_third_prediction[[i]]/y_list_third_prediction[[i]]))
+    hr_oos_third_prediction[i] <- length(which(sign(y_list_third_prediction[[i]]) == sign(prediction_list_third_prediction[[i]])))/length(y_list_third_prediction[[i]])
+    mb_oos_third_prediction[i] <- mean(error_list_third_prediction[[i]])
+
+
+  }
+  #Set dates
+  names(prediction_list_third_prediction) <- dates_third_prediction
+  names(error_list_third_prediction) <- dates_third_prediction
+  names(y_list_third_prediction) <- dates_third_prediction
+  names(r_oos_third_prediction) <- dates_third_prediction
+  names(cp_oos_third_prediction) <- dates_third_prediction
+  names(rmse_oos_third_prediction) <- dates_third_prediction
+  names(mae_oos_third_prediction) <- dates_third_prediction
+  names(pseudo_huber_oos_third_prediction) <- dates_third_prediction
+  names(pinball_oos_third_prediction) <- dates_third_prediction
+  names(mape_oos_third_prediction) <- dates_third_prediction
+  names(hr_oos_third_prediction) <- dates_third_prediction
+  names(mb_oos_third_prediction) <- dates_third_prediction
+
+
   #Create final objects
   expected_results <- list()
   outputs <- list()
 
   expected_results[[1]] <- outputs
   #Prediction list
-  prediction_list <- c(prediction_list_first_prediction, prediction_list_second_prediction)
-  names(prediction_list) <- c(names(prediction_list_first_prediction), names(prediction_list_second_prediction))
+  prediction_list <- c(prediction_list_first_prediction, prediction_list_second_prediction, prediction_list_third_prediction)
+  names(prediction_list) <- c(names(prediction_list_first_prediction), names(prediction_list_second_prediction), names(prediction_list_third_prediction))
 
 
   #Error list
-  error_list <- c(error_list_first_prediction, error_list_second_prediction)
-  names(error_list) <- c(names(error_list_first_prediction), names(error_list_second_prediction))
+  error_list <- c(error_list_first_prediction, error_list_second_prediction, error_list_third_prediction)
+  names(error_list) <- c(names(error_list_first_prediction), names(error_list_second_prediction), names(error_list_third_prediction))
 
 
   #Y list
-  y_list <- c(y_list_first_prediction, y_list_second_prediction)
-  names(y_list) <- c(names(y_list_first_prediction), names(y_list_second_prediction))
+  y_list <- c(y_list_first_prediction, y_list_second_prediction, y_list_third_prediction)
+  names(y_list) <- c(names(y_list_first_prediction), names(y_list_second_prediction), names(y_list_third_prediction))
 
   # Combine into a data frame
   combine_lists_to_df <- function(pred_list, error_list, y_list) {
@@ -2432,16 +2524,16 @@ test_that("Signal Weights + Custom Signal Universe Metrics - run_sb_backtest wor
 
 
   #Eval metrics
-  eval_metrics <- xts::xts(data.frame(rss = c(r_oos_first_prediction, r_oos_second_prediction),
-                                      cp = c(cp_oos_first_prediction, cp_oos_second_prediction),
-                                      rmse = c(rmse_oos_first_prediction, rmse_oos_second_prediction),
-                                      mae = c(mae_oos_first_prediction, mae_oos_second_prediction),
-                                      mphe = c(pseudo_huber_oos_first_prediction, pseudo_huber_oos_second_prediction),
-                                      mpe = c(pinball_oos_first_prediction, pinball_oos_second_prediction),
-                                      mape = c(mape_oos_first_prediction, mape_oos_second_prediction),
-                                      hr = c(hr_oos_first_prediction, hr_oos_second_prediction),
-                                      mb = c(mb_oos_first_prediction, mb_oos_second_prediction)),
-                           order.by = as.Date(c(names(y_list_first_prediction), names(y_list_second_prediction))))
+  eval_metrics <- xts::xts(data.frame(rss = c(r_oos_first_prediction, r_oos_second_prediction, r_oos_third_prediction),
+                                      cp = c(cp_oos_first_prediction, cp_oos_second_prediction, cp_oos_third_prediction),
+                                      rmse = c(rmse_oos_first_prediction, rmse_oos_second_prediction, rmse_oos_third_prediction),
+                                      mae = c(mae_oos_first_prediction, mae_oos_second_prediction, mae_oos_third_prediction),
+                                      mphe = c(pseudo_huber_oos_first_prediction, pseudo_huber_oos_second_prediction, pseudo_huber_oos_third_prediction),
+                                      mpe = c(pinball_oos_first_prediction, pinball_oos_second_prediction, pinball_oos_third_prediction),
+                                      mape = c(mape_oos_first_prediction, mape_oos_second_prediction, mape_oos_third_prediction),
+                                      hr = c(hr_oos_first_prediction, hr_oos_second_prediction, hr_oos_third_prediction),
+                                      mb = c(mb_oos_first_prediction, mb_oos_second_prediction, mb_oos_third_prediction)),
+                           order.by = as.Date(c(names(y_list_first_prediction), names(y_list_second_prediction), names(y_list_third_prediction))))
 
   expected_results$outputs[[2]] <- eval_metrics
   expect_equal(expected_results$outputs[[2]], sb_backtest_results@oos_testing_eval_metrics_m_xts@data)
@@ -2455,8 +2547,8 @@ test_that("Signal Weights + Custom Signal Universe Metrics - run_sb_backtest wor
 
   #Test if weights match
   expect_equal(sb_backtest_results@final_sb_model@model@weights,
-               signal_transform(second_most_recent_derived_signal_universe_m_d_ref %>% dplyr::pull(pe) *-1, lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975)/
-                 sum(signal_transform(second_most_recent_derived_signal_universe_m_d_ref %>% dplyr::pull(pe) *-1, lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975))
+               signal_transform(third_most_recent_derived_signal_universe_m_d_ref %>% dplyr::pull(pe) *-1, lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975)/
+                 sum(signal_transform(third_most_recent_derived_signal_universe_m_d_ref %>% dplyr::pull(pe) *-1, lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975))
   )
 
 })
@@ -21087,6 +21179,8 @@ test_that("update_sb_backtest works for Custom Signal Universe Metrics - 2 updat
 
 
 })
+
+
 
 
 ###################
