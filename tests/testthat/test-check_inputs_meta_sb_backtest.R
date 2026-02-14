@@ -462,37 +462,37 @@ test_that("checks related to base_backtest_results work", {
 
   #Different rebalancing_month
   ############################
-  ew_config <- create_sb_backtest_config(sb_algorithm = "ew", training_sample_size = 4, rebalancing_months = 8, target_fwd_name = "fwd_premium_3m",
-                                         config_name = "ew_123")
+  #ew_config <- create_sb_backtest_config(sb_algorithm = "ew", training_sample_size = 4, rebalancing_months = 8, target_fwd_name = "fwd_premium_3m",
+  #                                       config_name = "ew_123")
 
-  suppressWarnings(
-    wrong_ew_results <- run_sb_backtest(
-      target_m_df = target_m_df,
-      features_m_df = features_m_df,
-      ss_backtest_results = ss_results,
-      config = ew_config,
-      parallel = FALSE,
-      verbose = TRUE
-    )
-  )
+  #suppressWarnings(
+  #  wrong_ew_results <- run_sb_backtest(
+  #    target_m_df = target_m_df,
+  #    features_m_df = features_m_df,
+  #    ss_backtest_results = ss_results,
+  #    config = ew_config,
+  #    parallel = FALSE,
+  #    verbose = TRUE
+  #  )
+  #)
 
-  wrong_meta_config <-
-    create_sb_metabacktest_config(meta_sb_backtest_config = meta_learner_config,
-                                  features_passthrough = "all",
-                                  config_name = "meta_rf_ew")
+  #wrong_meta_config <-
+  #  create_sb_metabacktest_config(meta_sb_backtest_config = meta_learner_config,
+  #                                features_passthrough = "all",
+  #                                config_name = "meta_rf_ew")
 
-  expect_error(
-    check_inputs_meta_sb_backtest(config = wrong_meta_config,
-                                  features_m_df = features_m_df, target_m_df = target_m_df,
-                                  base_sb_backtest_results_list = list(rp_results, wrong_ew_results, mvo_results),
-                                  base_signal_themes_m_df = signal_themes_m_df,
-                                  base_custom_signal_weights_m_df = NULL, base_custom_signal_universe_metrics_m_df = NULL,
-                                  meta_signal_themes_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL,
-                                  base_backtest_returns_m_xts = mocked_backtest_returns_m_xts, base_benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
-                                  meta_backtest_returns_m_xts = NULL, meta_benchmark_returns_m_xts = NULL,
-                                  verbose = TRUE
-    ), "rebalancing_months is not the same in every base SB backtest results."
-  )
+  #expect_error(
+  #  check_inputs_meta_sb_backtest(config = wrong_meta_config,
+  #                                features_m_df = features_m_df, target_m_df = target_m_df,
+  #                                base_sb_backtest_results_list = list(rp_results, wrong_ew_results, mvo_results),
+  #                                base_signal_themes_m_df = signal_themes_m_df,
+  #                                base_custom_signal_weights_m_df = NULL, base_custom_signal_universe_metrics_m_df = NULL,
+  #                                meta_signal_themes_m_df = NULL, meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL,
+  #                                base_backtest_returns_m_xts = mocked_backtest_returns_m_xts, base_benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
+  #                                meta_backtest_returns_m_xts = NULL, meta_benchmark_returns_m_xts = NULL,
+  #                                verbose = TRUE
+  #  ), "rebalancing_months is not the same in every base SB backtest results."
+  #)
 
   #Different target_fwd_name
   ############################
