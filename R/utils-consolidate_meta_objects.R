@@ -649,7 +649,7 @@ consolidate_sb_metabacktest_results <- function(all_sb_backtest_results, meta_sb
     ##Identify which backtests have validation
     sb_names_with_validation <- ifelse(
       !sapply(all_sb_backtest_results, function(x) x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]$sb_algorithm) %in%
-        c("ols", "ew", "sw", "rp", "mvo"),
+        c("ols", "ew", "sw", "rp", "hrp", "mvo", "mmaf"),
       1, 0
     )
     sb_names_with_validation <- all_sb_names[sb_names_with_validation == 1]
@@ -1013,14 +1013,61 @@ plot_consolidated_sb_backtest_results <- function(combined_metrics, mean_validat
   faint_blue <- "#003366"
   black <- "#000000"
   white <- "#FFFFFF"
-  neon_hot_pink <- "#FF69B4"      # Hot Pink
-  neon_lime_green <- "#32CD32"    # Lime Green
-  neon_bright_orange <- "#FFA500" # Bright Orange
+  neon_hot_pink <- "#FF69B4"
+  neon_lime_green <- "#32CD32"
+  neon_bright_orange <- "#FFA500"
+  neon_rose_pink        <- "#FF6EC7"
+  pastel_neon_peach     <- "#FFB347"
+  pastel_neon_mint      <- "#77DD77"
+  pastel_neon_sky_blue  <- "#AEC6CF"
+  pastel_lavender       <- "#CBAACB"
+  pastel_blush_pink     <- "#FFD1DC"
+  powder_neon_blue      <- "#B0E0E6"
+  pastel_neon_soft_yellow <- "#FDFD96"
+  lavender_mist         <- "#E6E6FA"
+  coral_neon            <- "#FF7F50"
+  turquoise_neon        <- "#40E0D0"
+  electric_cyan         <- "#7DF9FF"
+  bright_neon_green     <- "#66FF66"
+  vivid_magenta_pink    <- "#FF66CC"
+  soft_neon_orange      <- "#FF9966"
+  pastel_aqua_green     <- "#99FFCC"
+  pastel_violet         <- "#CC99FF"
+  luminous_yellow       <- "#FFFF66"
+  light_neon_fuchsia    <- "#FF99CC"
+  pastel_cyan           <- "#99FFFF"
 
-  # Extended neon palette with 9 colors
+  # Extended neon palette
   extended_neon_palette <- c(
-    neon_blue, neon_pink, neon_yellow, neon_green, neon_orange, neon_purple,
-    neon_hot_pink, neon_lime_green, neon_bright_orange
+    neon_blue,
+    neon_pink,
+    neon_yellow,
+    neon_purple,
+    neon_orange,
+    neon_green,
+    neon_hot_pink,
+    neon_lime_green,
+    neon_bright_orange,
+    neon_rose_pink,
+    pastel_neon_peach,
+    pastel_neon_mint,
+    pastel_neon_sky_blue,
+    pastel_lavender,
+    pastel_blush_pink,
+    powder_neon_blue,
+    pastel_neon_soft_yellow,
+    lavender_mist,
+    coral_neon,
+    turquoise_neon,
+    electric_cyan,
+    bright_neon_green,
+    vivid_magenta_pink,
+    soft_neon_orange,
+    pastel_aqua_green,
+    pastel_violet,
+    luminous_yellow,
+    light_neon_fuchsia,
+    pastel_cyan
   )
 
   # Generate the selected plot
