@@ -4,12 +4,16 @@
 \alias{plot,ss_backtest_results,ANY-method}
 \title{Plot Method for ss_backtest_results Class}
 \usage{
-\S4method{plot}{ss_backtest_results,ANY}(x, plot_id = NULL)
+\S4method{plot}{ss_backtest_results,ANY}(x, plot_id = NULL, palette = "cyberpunk", variable = NULL)
 }
 \arguments{
 \item{x}{An object of class \code{ss_backtest_results}.}
 
 \item{plot_id}{A character string or numeric value specifying which plot to display.}
+
+\item{palette}{A character string specifying the color palette to use for the plots. Default is "cyberpunk". Supported options include "cyberpunk", "neon", and "extended_neon".}
+
+\item{variable}{A character string specifying the variable to plot (used for certain plot types). Default is NULL.}
 }
 \value{
 Invisibly returns the input object.

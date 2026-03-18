@@ -7,15 +7,16 @@
 \S4method{plot}{meta_dataframe,missing}(
   x,
   type = NULL,
-  clustering_variables = NULL,
+  clustering_variables = "auto",
   variable = NULL,
-  tickers = "all",
-  dates = "all",
+  tickers = NULL,
+  dates = NULL,
   calc_stat = NULL,
   custom_filter = NULL,
   filter_values = NULL,
   dep_y = NULL,
-  numeric_aggregation = "decile"
+  numeric_aggregation = "decile",
+  palette = "cyberpunk"
 )
 }
 \arguments{
@@ -47,6 +48,8 @@ and bivariate metrics such as \code{"cor"}, \code{"beta"}, \code{"beta_tstat"}, 
 
 \item{numeric_aggregation}{A character string defining how to discretize numeric \code{clustering_variables}.
 Options include: \code{"decile"}, \code{"quartile"}, \code{"tercile"}, \code{"median"}. Default is \code{"decile"}.}
+
+\item{palette}{A character string specifying the color palette for the plot. Options include \code{"cyberpunk"} (default) and \code{"br"}.}
 }
 \value{
 A \code{ggplot} object or base R plot (in the case of radar plots), visualizing the requested output.

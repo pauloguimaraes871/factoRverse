@@ -4,7 +4,14 @@
 \alias{plot,sb_backtest_results,ANY-method}
 \title{Plot Signal Blending Walk-Forward Validation Results}
 \usage{
-\S4method{plot}{sb_backtest_results,ANY}(x, plot_id = NULL, features_m_df = NULL)
+\S4method{plot}{sb_backtest_results,ANY}(
+  x,
+  plot_id = NULL,
+  features_m_df = NULL,
+  palette = "cyberpunk",
+  ticker_to_explain = NULL,
+  date_to_explain = NULL
+)
 }
 \arguments{
 \item{x}{An object of class \code{sb_backtest_results} containing the results of the walk-forward validation.}
@@ -27,6 +34,12 @@ If \code{NULL} (default), the method lists available plots.
 }}
 
 \item{features_m_df}{A \code{meta_dataframe} containing features used in the backtest. Required for plots like \code{"Explain Prediction"}.}
+
+\item{palette}{Character. Color palette to use for the plot. Options include "cyberpunk" and "br". Default is "cyberpunk".}
+
+\item{ticker_to_explain}{Character. Ticker symbol to explain in the "Explain Prediction" plot.}
+
+\item{date_to_explain}{Date. Date to explain in the "Explain Prediction" plot.}
 }
 \value{
 Invisibly returns the input \code{x}.

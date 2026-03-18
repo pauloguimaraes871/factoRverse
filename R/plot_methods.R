@@ -26,6 +26,7 @@
 #'   (e.g., `"cor"`, `"beta"`, `"alpha"`). Required when `calc_stat` involves regression or correlation.
 #' @param numeric_aggregation A character string defining how to discretize numeric `clustering_variables`.
 #'   Options include: `"decile"`, `"quartile"`, `"tercile"`, `"median"`. Default is `"decile"`.
+#' @param palette A character string specifying the color palette for the plot. Options include `"cyberpunk"` (default) and `"br"`.
 #'
 #' @return A `ggplot` object or base R plot (in the case of radar plots), visualizing the requested output.
 #'         The plot is printed as a side effect.
@@ -43,13 +44,17 @@
 setMethod(
   "plot",
   signature(x = "meta_dataframe", y = "missing"),
-  function(x, type = NULL, clustering_variables = NULL, variable = NULL, tickers = "all", dates = "all", calc_stat = NULL,
-           custom_filter = NULL, filter_values = NULL, dep_y = NULL, numeric_aggregation = "decile") {
+  function(x, type = NULL, clustering_variables = "auto", variable = NULL, tickers = NULL, dates = NULL, calc_stat = NULL,
+           custom_filter = NULL, filter_values = NULL, dep_y = NULL, numeric_aggregation = "decile", palette = "cyberpunk") {
 
     # Check for required packages for plotting
     required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
 
     missing_pkgs <- required_plot_pkgs[!vapply(required_plot_pkgs, requireNamespace, FUN.VALUE = logical(1), quietly = TRUE)]
+
+    df <- x@data
+    date_range_text <- ""
+    tickers_text <- ""
 
     if (length(missing_pkgs) > 0) {
       stop(
@@ -121,7 +126,7 @@ setMethod(
 
 
     # Prompt for 'clustering_variables' if not specified
-    if (is.null(clustering_variables) && !type %in% c("composition")) {
+    if (identical(clustering_variables, "auto") && !type %in% c("composition")) {
       available_clustering_vars <- setdiff(names(x@data), c("id", variable))
       cat("\nPlease choose clustering variables (separated by commas, or press Enter to skip):\n")
       for (i in seq_along(available_clustering_vars)) {
@@ -134,20 +139,33 @@ setMethod(
           stop("Invalid selection for clustering variables.")
         }
         clustering_variables <- available_clustering_vars[indices]
+      } else {
+
+        # user pressed Enter: no clustering
+        clustering_variables <- NULL
+
       }
     }
 
+    if (type %in% c("histogram", "boxplot", "regression", "correlogram", "radar") &&
+        length(clustering_variables) > 1) {
+      stop("This plot type currently supports only one clustering variable.")
+    }
+
     # Prompt for 'tickers' if not specified
-    if (identical(tickers, "all")) {
+    if (is.null(tickers)) {
       cat("\nDo you want to include all tickers or select specific ones? (Type 'all' or enter tickers separated by commas):\n")
       selection <- readline(prompt = "Enter your choice: ")
       if (nzchar(selection) && selection != "all") {
         tickers <- strsplit(selection, ",")[[1]]
       }
     }
+    if (is.null(tickers)) {
+      tickers <- "all"
+    }
 
     # Prompt for 'dates' if not specified
-    if (identical(dates, "all")) {
+    if (is.null(dates)) {
       cat("\nDo you want to include all dates or select a date range? (Type 'all' or enter range in 'YYYY-MM-DD,YYYY-MM-DD' format):\n")
       selection <- readline(prompt = "Enter your choice: ")
       if (nzchar(selection) && selection != "all") {
@@ -155,29 +173,49 @@ setMethod(
         if (length(date_range) > 2 || any(!grepl("^\\d{4}-\\d{2}-\\d{2}$", date_range))) {
           stop("Invalid date range format. Use 'YYYY-MM-DD,YYYY-MM-DD'.")
         }
-        if(length(dates) == 1){
+        if (length(date_range) == 1) {
           dates <- as.Date(date_range)
         } else {
           dates <- seq.Date(as.Date(date_range[1]), as.Date(date_range[2]), by = "day")
         }
       }
     }
+    if (is.null(dates)) {
+      dates <- sort(unique(df$dates))
+    }
 
     # Prompt for 'calc_stat' if not specified
-    if (is.null(calc_stat) && type %in% c("cross_sectional", "time_series", "waterfall")) {
-      available_stats <- c("mean", "sd", "median", "min", "max", "sum", "n", "q05", "q10", "q25", "q75", "q90", "q95", "cor", "beta", "beta_tstat", "alpha", "alpha_tstat")
-      cat("\nPlease choose a calculation statistic (calc_stat):\n")
-      for (i in seq_along(available_stats)) {
-        cat(paste0(i, ": ", available_stats[i], "\n"))
+    if (is.null(calc_stat)) {
+
+      if (type %in% c("cross_sectional", "time_series", "waterfall")) {
+
+        available_stats <- c(
+          "mean","sd","median","min","max","sum","n",
+          "q05","q10","q25","q75","q90","q95",
+          "cor","beta","beta_tstat","alpha","alpha_tstat"
+        )
+
+        cat("\nPlease choose a calculation statistic (calc_stat):\n")
+
+        for (i in seq_along(available_stats)) {
+          cat(paste0(i, ": ", available_stats[i], "\n"))
+        }
+
+        selection <- readline(prompt = "Enter the number of your choice: ")
+        selection <- as.numeric(selection)
+
+        if (is.na(selection) || selection < 1 || selection > length(available_stats)) {
+          stop("Invalid selection for calc_stat.")
+        }
+
+        calc_stat <- available_stats[selection]
+
+      } else {
+
+        calc_stat <- if(type %in% c("waterfall","signal_evolution")) "sum" else "mean"
+
       }
-      selection <- readline(prompt = "Enter the number of your choice: ")
-      selection <- as.numeric(selection)
-      if (is.na(selection) || selection < 1 || selection > length(available_stats)) {
-        stop("Invalid selection for calc_stat.")
-      }
-      calc_stat <- available_stats[selection]
-    } else {
-      calc_stat <- if(type %in% c("waterfall", "signal_evolution")) "sum" else "mean"
+
     }
 
     # Prompt for 'dep_y' if applicable
@@ -208,10 +246,11 @@ setMethod(
     #Treatment for composition plot
     if(type == "composition"){
       if(!is.null(clustering_variables)){
-        stop("Composition plot does not support clustering variables.")
-        if(calc_stat != "mean"){
-          stop("Composition plot does not support custom calc_stat.")
-        }
+        clustering_variables <- NULL
+      }
+
+      if(calc_stat != "mean"){
+        stop("Composition plot does not support custom calc_stat.")
       }
     }
 
@@ -240,22 +279,87 @@ setMethod(
 
     }
 
+    if (!palette %in% c("cyberpunk","br")) {
+      stop("palette must be 'cyberpunk' or 'br'")
+    }
+
     # Define colors for plotting
-    deep_navy <- "#000033"
     black <- "#000000"
     white <- "#FFFFFF"
-    vibrant_purple <- "#6A0DAD"
-    neon_green <- "#39FF14"
-    neon_orange <- "#FF5F1F"
-    blue_bg <- "#001f3f"
-    neon_yellow <- "#FFDC00"
-    neon_pink <- "#FF007F"
-    cyan <- "#7FDBFF"
-    neon_red <- "#FF4136"
 
-    df <- x@data
-    date_range_text <- ""
-    tickers_text <- ""
+    if (palette == "cyberpunk") {
+
+      deep_navy      <- "#000033"
+      black          <- "#000000"
+      white          <- "#FFFFFF"
+      vibrant_purple <- "#6A0DAD"
+      neon_green     <- "#39FF14"
+      neon_orange    <- "#FF5F1F"
+      blue_bg        <- "#001f3f"
+      neon_yellow    <- "#FFDC00"
+      neon_pink      <- "#FF007F"
+      cyan           <- "#7FDBFF"
+      neon_red       <- "#FF4136"
+
+      col_primary   <- "#6A0DAD"
+      col_positive  <- "#39FF14"
+      col_negative  <- "#FF5F1F"
+      col_background <- "#001f3f"
+      col_text      <- "#FFFFFF"
+
+      neon_palete <- c(vibrant_purple, neon_green, neon_orange, neon_yellow, neon_pink, cyan, neon_red)
+
+    }
+
+    if (palette == "br") {
+
+      br_palette <- c(
+        "#94E1D6",
+        "#49479D",
+        "#7DB61C",
+        "#003641",
+        "#00C9B8",
+        "#2F2D6F",
+        "#FF5F1F",
+        "#39FF14",
+        "#C9D200",
+        "#00A091",
+        "#3FB7C4",
+        "#EBEEF1",
+        "#98B2B6",
+        "#6E8B91",
+        "#4C7C83",
+        "#A8A600",
+        "#3E3C8A",
+        "#5A58B5",
+        "#6E6CC4",
+        "#002C33",
+        "#004F57",
+        "#8E9400",
+        "#EBEEA8",
+        "#D6E266",
+        "#CEE2A2",
+        "#B6B300",
+        "#A5CD5C",
+        "#0A3D62",
+        "#006D77",
+        "#1B8A9B",
+        "#0F4C81",
+        "#1B4F8C",
+        "#2E6F95",
+        "#3A7CA5",
+        "#4A90C2"
+      )
+
+      col_primary   <- "#00A091"
+      col_positive  <- "#7DB61C"
+      col_negative  <- "#C2185B"
+      col_background <- "#FFFFFF"
+      col_text      <- "#002C33"
+
+    }
+
+
 
     # Define statistic function based on user choice
     FUN <- switch(calc_stat,
@@ -286,7 +390,7 @@ setMethod(
                   },
                   alpha = function(x, dep_y) {
                     if (missing(dep_y)) stop("dep_y is required for alpha calculation")
-                    stats::lm(y ~ x)$coefficients[1]
+                    stats::lm(dep_y ~ x)$coefficients[1]
                   },
                   alpha_tstat = function(x, dep_y) {
                     if (missing(dep_y)) stop("dep_y is required for alpha t-stat calculation")
@@ -306,7 +410,8 @@ setMethod(
 
     # Filter based on dates
     if (!identical(dates, "all")) {
-      df <- df %>% dplyr::filter(dates %in% !!dates)
+      selected_dates <- dates
+      df <- df %>% dplyr::filter(dates %in% selected_dates)
     }
     date_range_text <- paste("Dates:", paste(unique(range(dates)), collapse = " - "))
 
@@ -390,10 +495,10 @@ setMethod(
 
       # Group by clustering variable and calculate the statistic
       if (calc_stat %in% c("cor", "beta", "beta_tstat", "alpha", "alpha_tstat")) {
-        if (is.null(y)) stop(paste(calc_stat, "requires a secondary variable 'y'."))
+        if (is.null(dep_y)) stop(paste(calc_stat, "requires dependent variable 'dep_y'."))
         df_fun <- df %>%
           dplyr::group_by(dplyr::across(dplyr::all_of(clustering_variables))) %>%
-          dplyr::summarize(Calc_Stat = FUN(!!rlang::sym(variable), !!rlang::sym(y))) %>%
+          dplyr::summarize(Calc_Stat = FUN(!!rlang::sym(variable), !!rlang::sym(dep_y))) %>%
           dplyr::ungroup()
       } else {
         df_fun <- df %>%
@@ -411,18 +516,18 @@ setMethod(
       # Cross-sectional bar plot
       p <-
         ggplot2::ggplot(df_fun, ggplot2::aes(x = interaction(!!!rlang::syms(clustering_variables)), y = Calc_Stat)) +
-        ggplot2::geom_bar(stat = "identity", fill = vibrant_purple, color = black) +
-        ggplot2::geom_text(ggplot2::aes(label = scales::scientific(Calc_Stat, digits = 2)), vjust = -0.5, color = white) +
+        ggplot2::geom_bar(stat = "identity", fill = col_primary, color = col_text) +
+        ggplot2::geom_text(ggplot2::aes(label = scales::scientific(Calc_Stat, digits = 2)), vjust = -0.5, color = col_text) +
         ggplot2::theme_minimal() +
         ggplot2::theme(
-          plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+          panel.background = ggplot2::element_rect(fill = col_background, color = NA),
           panel.grid.major = ggplot2::element_blank(),
           panel.grid.minor = ggplot2::element_blank(),
-          axis.text = ggplot2::element_text(color = white),
-          axis.title = ggplot2::element_text(color = white),
-          plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-          plot.subtitle = ggplot2::element_text(color = white, size = 8, face = "italic")
+          axis.text = ggplot2::element_text(color = col_text),
+          axis.title = ggplot2::element_text(color = col_text),
+          plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+          plot.subtitle = ggplot2::element_text(color = col_text, size = 8, face = "italic")
         ) +
         ggplot2::labs(
           title = paste("Cross-section of", variable, "by", paste(clustering_variables, collapse = ", ")),
@@ -444,10 +549,10 @@ setMethod(
 
       # Calculate the statistic based on user-specified function
       if (calc_stat %in% c("cor", "beta", "beta_tstat", "alpha", "alpha_tstat")) {
-        if (is.null(y)) stop(paste(calc_stat, "requires a secondary variable 'y'."))
+        if (is.null(dep_y)) stop(paste(calc_stat, "requires a secondary variable 'dep_y'."))
         df_fun <- df %>%
           dplyr::group_by(dplyr::across(dplyr::all_of(clustering_variables))) %>%
-          dplyr::summarize(Calc_Stat = FUN(!!rlang::sym(variable), !!rlang::sym(y)), .groups = "drop")
+          dplyr::summarize(Calc_Stat = FUN(!!rlang::sym(variable), !!rlang::sym(dep_y)), .groups = "drop")
       } else {
         df_fun <- df %>%
           dplyr::group_by(dplyr::across(dplyr::all_of(clustering_variables))) %>%
@@ -471,11 +576,19 @@ setMethod(
 
         # Choose a color palette (e.g., "Set3" for distinct colors) or any other palette with enough colors
         num_series <- ncol(df_wide) - 1  # Number of unique time series (columns in df_wide excluding 'dates')
-        color_palette <- suppressWarnings(RColorBrewer::brewer.pal(min(num_series, 12), "Set3"))  # Adjust palette size to number of series
+        if (palette == "br") {
+          color_palette <- br_palette
+        } else {
+          color_palette <- suppressWarnings(RColorBrewer::brewer.pal(min(num_series, 12), "Set3"))  # Adjust palette size to number of series
+        }
 
         # If more than 12 series, extend the palette by repeating colors (or use a larger palette if available)
         if (num_series > 12) {
-          color_palette <- grDevices::colorRampPalette(RColorBrewer::brewer.pal(12, "Set3"))(num_series)
+          if (palette == "br"){
+            color_palette <- rep(br_palette, length.out = num_series)
+          } else {
+            color_palette <- grDevices::colorRampPalette(RColorBrewer::brewer.pal(12, "Set3"))(num_series)
+          }
         }
 
         # Pivot df_wide to long format for easier plotting with legend
@@ -491,22 +604,22 @@ setMethod(
 
         p <-
           ggplot2::ggplot(df_long, ggplot2::aes(x = dates, y = Calc_Stat, color = Group, group = Group)) +
-          ggplot2::geom_line(size = 1) +
+          ggplot2::geom_line(size = 1.25) +
           ggplot2::scale_y_continuous(labels = scales::scientific) +
           ggplot2::scale_color_manual(values = color_palette) +  # Apply custom color palette
           ggplot2::theme_minimal() +
           ggplot2::theme(
-            plot.background = ggplot2::element_rect(fill = deep_navy, color = NA),
-            panel.background = ggplot2::element_rect(fill = deep_navy, color = NA),
+            plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+            panel.background = ggplot2::element_rect(fill = col_background, color = NA),
             panel.grid.major = ggplot2::element_blank(),
             panel.grid.minor = ggplot2::element_blank(),
-            axis.text = ggplot2::element_text(color = white),
-            axis.title = ggplot2::element_text(color = white),
-            plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-            plot.subtitle = ggplot2::element_text(color = white, size = 8, face = "italic"),
+            axis.text = ggplot2::element_text(color = col_text),
+            axis.title = ggplot2::element_text(color = col_text),
+            plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+            plot.subtitle = ggplot2::element_text(color = col_text, size = 8, face = "italic"),
             legend.position = "bottom",
-            legend.title = ggplot2::element_text(color = white),
-            legend.text = ggplot2::element_text(color = white)
+            legend.title = ggplot2::element_text(color = col_text),
+            legend.text = ggplot2::element_text(color = col_text)
           ) +
           ggplot2::labs(
             title = custom_title,
@@ -521,18 +634,18 @@ setMethod(
         # Single time series line plot for Calc_Stat over dates
         p <-
           ggplot2::ggplot(df_fun, ggplot2::aes(x = dates, y = Calc_Stat)) +
-          ggplot2::geom_line(size = 1, color = vibrant_purple) +
+          ggplot2::geom_line(size = 1, color = col_primary) +
           ggplot2::scale_y_continuous(labels = scales::scientific) +
           ggplot2::theme_minimal() +
           ggplot2::theme(
-            plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-            panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+            plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+            panel.background = ggplot2::element_rect(fill = col_background, color = NA),
             panel.grid.major = ggplot2::element_blank(),
             panel.grid.minor = ggplot2::element_blank(),
-            axis.text = ggplot2::element_text(color = white),
-            axis.title = ggplot2::element_text(color = white),
-            plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-            plot.subtitle = ggplot2::element_text(color = white, size = 8, face = "italic")
+            axis.text = ggplot2::element_text(color = col_text),
+            axis.title = ggplot2::element_text(color = col_text),
+            plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+            plot.subtitle = ggplot2::element_text(color = col_text, size = 8, face = "italic")
           ) +
           ggplot2::labs(
             title = paste("Time Series of", calc_stat, variable),
@@ -557,17 +670,17 @@ setMethod(
         # Single histogram plot with classic histogram
         p <-
           ggplot2::ggplot(df, ggplot2::aes_string(x = variable)) +
-          ggplot2::geom_histogram(bins = 30, fill = vibrant_purple, color = black, alpha = 0.7) +
+          ggplot2::geom_histogram(bins = 30, fill = col_primary, color = black, alpha = 0.7) +
           ggplot2::theme_minimal() +
           ggplot2::theme(
-            plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-            panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+            plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+            panel.background = ggplot2::element_rect(fill = col_background, color = NA),
             panel.grid.major = ggplot2::element_blank(),
             panel.grid.minor = ggplot2::element_blank(),
-            axis.text = ggplot2::element_text(color = white),
-            axis.title = ggplot2::element_text(color = white),
-            plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-            plot.subtitle = ggplot2::element_text(color = white, size = 8, face = "italic")
+            axis.text = ggplot2::element_text(color = col_text),
+            axis.title = ggplot2::element_text(color = col_text),
+            plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+            plot.subtitle = ggplot2::element_text(color = col_text, size = 8, face = "italic")
           ) +
           ggplot2::labs(
             title = paste("histogram of", variable),
@@ -580,9 +693,17 @@ setMethod(
 
         # Generate color palette based on the number of unique categories
         num_categories <- length(unique(df[[clustering_variables]]))
-        base_palette <- suppressWarnings(RColorBrewer::brewer.pal(min(num_categories, 12), "Set3"))
+        if (palette == "br"){
+          base_palette <- br_palette
+        } else {
+          base_palette <- suppressWarnings(RColorBrewer::brewer.pal(min(num_categories, 12), "Set3"))
+        }
         color_palette <- if (num_categories > 12) {
-          grDevices::colorRampPalette(base_palette)(num_categories)
+          if (palette == "br"){
+           rep(br_palette, length.out = num_categories)
+          } else {
+            grDevices::colorRampPalette(base_palette)(num_categories)
+          }
         } else {
           base_palette
         }
@@ -595,15 +716,15 @@ setMethod(
           ggplot2::scale_fill_manual(values = color_palette) +  # Apply custom color palette
           ggplot2::theme_minimal() +
           ggplot2::theme(
-            plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-            panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+            plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+            panel.background = ggplot2::element_rect(fill = col_background, color = NA),
             panel.grid.major = ggplot2::element_blank(),
             panel.grid.minor = ggplot2::element_blank(),
-            axis.text = ggplot2::element_text(color = white),
-            axis.title = ggplot2::element_text(color = white),
-            plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-            plot.subtitle = ggplot2::element_text(color = white, size = 8, face = "italic"),
-            strip.text = ggplot2::element_text(color = white),  # Set facet label color to white
+            axis.text = ggplot2::element_text(color = col_text),
+            axis.title = ggplot2::element_text(color = col_text),
+            plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+            plot.subtitle = ggplot2::element_text(color = col_text, size = 8, face = "italic"),
+            strip.text = ggplot2::element_text(color = col_text),  # Set facet label color to white
             legend.position = "none" #Exclude legend
           ) +
           ggplot2::labs(
@@ -628,27 +749,40 @@ setMethod(
 
       # Generate color palette based on the number of unique categories
       num_categories <- length(unique(df[[clustering_variables]]))
-      base_palette <- RColorBrewer::brewer.pal(min(num_categories, 12), "Set3")
+      if (palette == "br"){
+        base_palette <- br_palette
+      } else {
+        base_palette <- neon_palete
+      }
+
       color_palette <- if (num_categories > 12) {
-        grDevices::colorRampPalette(base_palette)(num_categories)
+        if (palette == "br"){
+          rep(br_palette, length.out = num_categories)
+        } else {
+          rep(neon_palete, length.out = num_categories)
+        }
       } else {
         base_palette
       }
 
       # Create the boxplot
+      if (!is.factor(df[[clustering_variables]])) {
+        df[[clustering_variables]] <- as.factor(df[[clustering_variables]])
+      }
+
       p <- ggplot2::ggplot(df, ggplot2::aes_string(x = clustering_variables, y = variable, fill = clustering_variables)) +
         ggplot2::geom_boxplot() +
         ggplot2::scale_fill_manual(values = color_palette) +
         ggplot2::theme_minimal() +
         ggplot2::theme(
-          plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+          panel.background = ggplot2::element_rect(fill = col_background, color = NA),
           panel.grid.major = ggplot2::element_blank(),
           panel.grid.minor = ggplot2::element_blank(),
-          axis.text = ggplot2::element_text(color = white),
-          axis.title = ggplot2::element_text(color = white),
-          plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-          plot.subtitle = ggplot2::element_text(color = white, size = 8, face = "italic"),
+          axis.text = ggplot2::element_text(color = col_text),
+          axis.title = ggplot2::element_text(color = col_text),
+          plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+          plot.subtitle = ggplot2::element_text(color = col_text, size = 8, face = "italic"),
           legend.position = "none"
         ) +
         ggplot2::labs(
@@ -705,9 +839,17 @@ setMethod(
 
       # Generate color palette based on the number of unique categories
       num_categories <- length(unique(df_fun$Composition_Group))
-      base_palette <- RColorBrewer::brewer.pal(min(num_categories, 3), "Set3")
+      if (palette == "br"){
+        base_palette <- br_palette
+      } else {
+        base_palette <- RColorBrewer::brewer.pal(min(num_categories, 3), "Set3")
+      }
       color_palette <- if (num_categories > 3) {
-        grDevices::colorRampPalette(base_palette)(num_categories)
+        if (palette == "br"){
+          rep(br_palette, length.out = num_categories)
+        } else {
+          grDevices::colorRampPalette(base_palette)(num_categories)
+        }
       } else {
         base_palette
       }
@@ -719,17 +861,17 @@ setMethod(
         ggplot2::scale_fill_manual(values = color_palette) +
         ggplot2::theme_minimal() +
         ggplot2::theme(
-          plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+          panel.background = ggplot2::element_rect(fill = col_background, color = NA),
           panel.grid.major = ggplot2::element_blank(),
           panel.grid.minor = ggplot2::element_blank(),
-          axis.text = ggplot2::element_text(color = white),
-          axis.title = ggplot2::element_text(color = white),
-          plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-          plot.subtitle = ggplot2::element_text(color = white, size = 8, face = "italic"),
+          axis.text = ggplot2::element_text(color = col_text),
+          axis.title = ggplot2::element_text(color = col_text),
+          plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+          plot.subtitle = ggplot2::element_text(color = col_text, size = 8, face = "italic"),
           legend.position = "bottom",
-          legend.title = ggplot2::element_text(color = white),
-          legend.text = ggplot2::element_text(color = white)
+          legend.title = ggplot2::element_text(color = col_text),
+          legend.text = ggplot2::element_text(color = col_text)
         ) +
         ggplot2::labs(
           title = paste("Composition of", variable, "by", paste(clustering_variables, collapse = ", ")),
@@ -745,25 +887,25 @@ setMethod(
     # Regression plot
     if (type == "regression") {
       # Ensure that y is provided
-      if (missing(dep_y)) stop("Please provide a dependent variable (dep_y) for the regression plot.")
+      if (is.null(dep_y)) stop("Please provide a dependent variable (dep_y) for the regression plot.")
 
 
       # Check if clustering variables are provided
       if (is.null(clustering_variables)) {
         # Single regression line
         p <- ggplot2::ggplot(df, ggplot2::aes_string(x = variable, y = dep_y)) +
-          ggplot2::geom_point(color = neon_green, alpha = 0.8) +
-          ggplot2::geom_smooth(method = "lm", se = FALSE, color = vibrant_purple, size = 1.2) +
+          ggplot2::geom_point(color = col_positive, alpha = 0.8) +
+          ggplot2::geom_smooth(method = "lm", se = FALSE, formula = y ~ x, color = col_primary, size = 1.2) +
           ggplot2::theme_minimal() +
           ggplot2::theme(
-            plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-            panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+            plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+            panel.background = ggplot2::element_rect(fill = col_background, color = NA),
             panel.grid.major = ggplot2::element_blank(),
             panel.grid.minor = ggplot2::element_blank(),
-            axis.text = ggplot2::element_text(color = white),
-            axis.title = ggplot2::element_text(color = white, face = "bold"),
-            plot.title = ggplot2::element_text(color = white, size = 18, face = "bold", hjust = 0), # Left-aligned title
-            plot.subtitle = ggplot2::element_text(color = white, size = 10, face = "italic", hjust = 0) # Left-aligned subtitle
+            axis.text = ggplot2::element_text(color = col_text),
+            axis.title = ggplot2::element_text(color = col_text, face = "bold"),
+            plot.title = ggplot2::element_text(color = col_text, size = 18, face = "bold", hjust = 0), # Left-aligned title
+            plot.subtitle = ggplot2::element_text(color = col_text, size = 10, face = "italic", hjust = 0) # Left-aligned subtitle
           ) +
           ggplot2::labs(
             title = paste("Regression of", variable, "on", dep_y),
@@ -777,20 +919,21 @@ setMethod(
         p <- ggplot2::ggplot(df, ggplot2::aes_string(x = variable, y = dep_y, color = clustering_variables)) +
           ggplot2::geom_point(alpha = 0.8) +
           ggplot2::geom_smooth(method = "lm", se = FALSE, size = 1.2) +
-          ggplot2::scale_color_manual(values = grDevices::colorRampPalette(c(neon_green, vibrant_purple, neon_orange))(length(unique(df[[clustering_variables]])))) +
+          ggplot2::scale_color_manual(values = grDevices::colorRampPalette(
+            c(col_positive, col_primary, col_negative))(length(unique(df[[clustering_variables]])))) +
           ggplot2::theme_minimal() +
           ggplot2::theme(
-            plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-            panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+            plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+            panel.background = ggplot2::element_rect(fill = col_background, color = NA),
             panel.grid.major = ggplot2::element_blank(),
             panel.grid.minor = ggplot2::element_blank(),
-            axis.text = ggplot2::element_text(color = white),
-            axis.title = ggplot2::element_text(color = white, face = "bold"),
-            plot.title = ggplot2::element_text(color = white, size = 18, face = "bold", hjust = 0),
-            plot.subtitle = ggplot2::element_text(color = white, size = 10, face = "italic", hjust = 0),
+            axis.text = ggplot2::element_text(color = col_text),
+            axis.title = ggplot2::element_text(color = col_text, face = "bold"),
+            plot.title = ggplot2::element_text(color = col_text, size = 18, face = "bold", hjust = 0),
+            plot.subtitle = ggplot2::element_text(color = col_text, size = 10, face = "italic", hjust = 0),
             legend.position = "bottom",
-            legend.title = ggplot2::element_text(color = white),
-            legend.text = ggplot2::element_text(color = white)
+            legend.title = ggplot2::element_text(color = col_text),
+            legend.text = ggplot2::element_text(color = col_text)
           ) +
           ggplot2::labs(
             title = paste("Regression of", variable, "on", dep_y, "by", paste(clustering_variables, collapse = ", ")),
@@ -819,22 +962,22 @@ setMethod(
       if (is.null(clustering_variables)) {
         # Single 2D density plot without faceting
         p <- ggplot2::ggplot(df, ggplot2::aes(x = !!rlang::sym(x_1), y = !!rlang::sym(x_2))) +
-          ggplot2::geom_point(color = neon_green, alpha = 0.6) +
-          ggplot2::geom_density_2d_filled(alpha = 0.7, contour_var = "ndensity") +
+          ggplot2::geom_point(color = col_positive, alpha = 0.6) +
+          ggplot2::geom_density_2d(color = col_primary, linewidth = 0.7) +
           ggplot2::scale_fill_viridis_d(option = "plasma") +
           ggplot2::theme_minimal() +
           ggplot2::theme(
-            plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-            panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+            plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+            panel.background = ggplot2::element_rect(fill = col_background, color = NA),
             panel.grid.major = ggplot2::element_blank(),
             panel.grid.minor = ggplot2::element_blank(),
-            axis.text = ggplot2::element_text(color = white),
-            axis.title = ggplot2::element_text(color = white, face = "bold"),
-            plot.title = ggplot2::element_text(color = white, size = 18, face = "bold", hjust = 0),
-            plot.subtitle = ggplot2::element_text(color = white, size = 10, face = "italic", hjust = 0),
+            axis.text = ggplot2::element_text(color = col_text),
+            axis.title = ggplot2::element_text(color = col_text, face = "bold"),
+            plot.title = ggplot2::element_text(color = col_text, size = 18, face = "bold", hjust = 0),
+            plot.subtitle = ggplot2::element_text(color = col_text, size = 10, face = "italic", hjust = 0),
             legend.position = "bottom",                     # Place legend at the bottom
-            legend.title = ggplot2::element_text(color = white),
-            legend.text = ggplot2::element_text(color = white)  # Set legend text color to white
+            legend.title = ggplot2::element_text(color = col_text),
+            legend.text = ggplot2::element_text(color = col_text)  # Set legend text color to white
           ) +
           ggplot2::labs(
             title = paste("2D Density Plot of", x_1, "and", x_2),
@@ -845,24 +988,24 @@ setMethod(
       } else {
         # Faceted 2D density plot by each category in clustering_variables
         p <- ggplot2::ggplot(df, ggplot2::aes(x = !!rlang::sym(x_1), y = !!rlang::sym(x_2))) +
-          ggplot2::geom_point(color = neon_green, alpha = 0.6) +
-          ggplot2::geom_density_2d_filled(alpha = 0.7, contour_var = "ndensity") +
+          ggplot2::geom_point(color = col_positive, alpha = 0.6) +
+          ggplot2::geom_density_2d(color = col_primary, linewidth = 0.7) +
           ggplot2::facet_wrap(ggplot2::vars(!!!rlang::syms(clustering_variables)), scales = "free") +
           ggplot2::scale_fill_viridis_d(option = "plasma") +
           ggplot2::theme_minimal() +
           ggplot2::theme(
-            plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-            panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+            plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+            panel.background = ggplot2::element_rect(fill = col_background, color = NA),
             panel.grid.major = ggplot2::element_blank(),
             panel.grid.minor = ggplot2::element_blank(),
-            axis.text = ggplot2::element_text(color = white),
-            axis.title = ggplot2::element_text(color = white, face = "bold"),
-            plot.title = ggplot2::element_text(color = white, size = 18, face = "bold", hjust = 0),
-            plot.subtitle = ggplot2::element_text(color = white, size = 10, face = "italic", hjust = 0),
+            axis.text = ggplot2::element_text(color = col_text),
+            axis.title = ggplot2::element_text(color = col_text, face = "bold"),
+            plot.title = ggplot2::element_text(color = col_text, size = 18, face = "bold", hjust = 0),
+            plot.subtitle = ggplot2::element_text(color = col_text, size = 10, face = "italic", hjust = 0),
             legend.position = "bottom",                       # Place legend at the bottom
-            legend.title = ggplot2::element_text(color = white),
-            legend.text = ggplot2::element_text(color = white), # Set legend text color to white
-            strip.text = ggplot2::element_text(color = white)  # Facet label text color
+            legend.title = ggplot2::element_text(color = col_text),
+            legend.text = ggplot2::element_text(color = col_text), # Set legend text color to white
+            strip.text = ggplot2::element_text(color = col_text)  # Facet label text color
           ) +
           ggplot2::labs(
             title = paste("2D Density Plot of", x_1, "and", x_2, "by", paste(clustering_variables, collapse = ", ")),
@@ -884,6 +1027,7 @@ setMethod(
 
       # Check for clustering variables and adapt accordingly
       if (!is.null(clustering_variables)) {
+
         unique_clusters <- unique(df[[clustering_variables]])
 
         # Initialize a list to store correlation data
@@ -911,39 +1055,54 @@ setMethod(
 
         # Plotting with facet_wrap for each cluster
         if (nrow(corr_data_all) > 0) {
+
           p <- ggplot2::ggplot(data = corr_data_all) +
             ggplot2::geom_tile(
               ggplot2::aes(x = Var1, y = Var2, fill = Correlation),
-              color = "white"
+              color = col_text
             ) +
             ggplot2::geom_text(
               ggplot2::aes(x = Var1, y = Var2, label = sprintf("%.2f", Correlation)),
-              color = "white", size = 4
+              color = col_text, size = 4
             ) +
             ggplot2::scale_fill_gradient2(
-              low = "#D68EEB", mid = "#8A03C9", high = "#000033", midpoint = 0,
+              low = col_negative,
+              mid = if (palette == "br") "#EBEEF1" else "#8A03C9",
+              high = col_positive, midpoint = 0,
               limits = c(-1, 1), guide = ggplot2::guide_colorbar(title = "Correlation")
             ) +
             ggplot2::theme_minimal() +
             ggplot2::theme(
-              plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-              panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+              plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+              panel.background = ggplot2::element_rect(fill = col_background, color = NA),
               panel.grid = ggplot2::element_blank(),
-              axis.text = ggplot2::element_text(color = white),
-              axis.title = ggplot2::element_text(color = white, face = "bold"),
-              plot.title = ggplot2::element_text(color = white, size = 20, face = "bold", hjust = 0),
-              plot.subtitle = ggplot2::element_text(color = white, size = 12, face = "italic"),
+              axis.text = ggplot2::element_text(color = col_text),
+              axis.title = ggplot2::element_text(color = col_text, face = "bold"),
+              plot.title = ggplot2::element_text(color = col_text, size = 20, face = "bold", hjust = 0),
+              plot.subtitle = ggplot2::element_text(color = col_text, size = 12, face = "italic"),
               legend.position = "bottom",
-              legend.title = ggplot2::element_text(color = white),
-              legend.text = ggplot2::element_text(color = white),
-              strip.text = ggplot2::element_text(color = white, size = 9, face = "bold")  # Smaller titles for each facet
+              legend.title = ggplot2::element_text(color = col_text),
+              legend.text = ggplot2::element_text(color = col_text),
+              strip.text = ggplot2::element_text(color = col_text, size = 9, face = "bold")  # Smaller titles for each facet
             ) +
             ggplot2::labs(
               title = "Correlogram",
               subtitle = paste(date_range_text, ifelse(tickers_text != "", paste("|", tickers_text), "")),
               x = NULL, y = NULL
             ) +
-            ggplot2::facet_wrap(~ Cluster, scales = "free", labeller = ggplot2::labeller(Cluster = stats::setNames(unique_clusters, unique_clusters)))  # Custom labels for each cluster
+            ggplot2::facet_wrap(
+              ~ Cluster,
+              scales = "free",
+              labeller = ggplot2::labeller(
+                Cluster = function(x) {
+                  if (clustering_variables == "dates") {
+                    format(as.Date(as.numeric(x), origin = "1970-01-01"), "%b %Y")
+                  } else {
+                    x
+                  }
+                }
+              )
+            )  # Custom labels for each cluster
 
           print(p)
         } else {
@@ -961,28 +1120,30 @@ setMethod(
         p <- ggplot2::ggplot(data = corr_data) +
           ggplot2::geom_tile(
             ggplot2::aes(x = Var1, y = Var2, fill = Correlation),
-            color = "white"
+            color = col_text
           ) +
           ggplot2::geom_text(
             ggplot2::aes(x = Var1, y = Var2, label = sprintf("%.2f", Correlation)),
-            color = "white", size = 4
+            color = col_text, size = 4
           ) +
           ggplot2::scale_fill_gradient2(
-            low = "#D68EEB", mid = "#8A03C9", high = "#000033", midpoint = 0,
+            low = col_negative,
+            mid = if (palette == "br") "#EBEEF1" else "#8A03C9",
+            high = col_positive, midpoint = 0,
             limits = c(-1, 1), guide = ggplot2::guide_colorbar(title = "Correlation")
           ) +
           ggplot2::theme_minimal() +
           ggplot2::theme(
-            plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-            panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+            plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+            panel.background = ggplot2::element_rect(fill = col_background, color = NA),
             panel.grid = ggplot2::element_blank(),
-            axis.text = ggplot2::element_text(color = white),
-            axis.title = ggplot2::element_text(color = white, face = "bold"),
-            plot.title = ggplot2::element_text(color = white, size = 18, face = "bold", hjust = 0),
-            plot.subtitle = ggplot2::element_text(color = white, size = 12, face = "italic"),
+            axis.text = ggplot2::element_text(color = col_text),
+            axis.title = ggplot2::element_text(color = col_text, face = "bold"),
+            plot.title = ggplot2::element_text(color = col_text, size = 18, face = "bold", hjust = 0),
+            plot.subtitle = ggplot2::element_text(color = col_text, size = 12, face = "italic"),
             legend.position = "bottom",
-            legend.title = ggplot2::element_text(color = white),
-            legend.text = ggplot2::element_text(color = white)
+            legend.title = ggplot2::element_text(color = col_text),
+            legend.text = ggplot2::element_text(color = col_text)
           ) +
           ggplot2::labs(
             title = "Correlogram",
@@ -1009,8 +1170,13 @@ setMethod(
       old_par <- graphics::par(no.readonly = TRUE)
 
       # Set global graphical parameters for your plot
-      graphics::par(fg = "white", col.axis = "white", col.lab = "white",
-                    col.main = "white", col.sub = "white", bg = "#001f3f")
+      if (palette == "br"){
+        graphics::par(fg = "#003641", col.axis = "#003641", col.lab = "#003641",
+                      col.main = "#003641", col.sub = "#003641", bg = col_background)
+      } else {
+        graphics::par(fg = "white", col.axis = "white", col.lab = "white",
+                      col.main = "white", col.sub = "white", bg = col_background)
+      }
 
       # Prepare the data for the radar plot
       df_radar <- df %>%
@@ -1051,10 +1217,18 @@ setMethod(
 
       # Set the colors for each row (example: generate colors)
       num_rows <- nrow(actual_data)
-      colors <- scales::hue_pal()(num_rows)  # Generate distinct colors for each row
+      colors <- if (palette == "br") {
+
+        br_palette[seq_len(num_rows)]
+
+      } else {
+
+        scales::hue_pal()(num_rows)
+
+      }  # Generate distinct colors for each row
 
       # Set background color
-      graphics::par(bg = "#001f3f")  # Set background color to blue_bg
+      graphics::par(bg = col_background)  # Set background color to col_background
 
       # Create the radar plot using fmsb
       if (!requireNamespace("fmsb", quietly = TRUE)) {
@@ -1063,23 +1237,23 @@ setMethod(
 
       fmsb::radarchart(df_radar_chart, axistype = 1,
                        pcol = colors, pfcol = scales::alpha(colors, 0.5), plwd = 2, plty = 1,
-                       axislabcol = "white"
+                       axislabcol = col_text
                        # Set the main title color to white
       )
 
       # Title
       graphics::mtext(side = 3, line = 2.5, adj = 0, cex = 1.25,  # Align to the left
                       paste("Radar Plot of", paste(variable, collapse = ", "), "by", clustering_variables),
-                      font = 2, col = "white")
+                      font = 2, col = col_text)
 
       # Subtitle
       graphics::mtext(side = 3, line = 1, adj = 0, cex = 0.75,  # Align to the left
                       paste(date_range_text, ifelse(tickers_text != "", paste("|", tickers_text), "")),
-                      font = 2, col = "white")
+                      font = 2, col = col_text)
 
 
       # Add legend with white text color at the bottom
-      graphics::legend("bottomleft", legend = df_radar[[clustering_variables]], col = colors, pch = 16, bty = "n", text.col = "white")
+      graphics::legend("bottomleft", legend = df_radar[[clustering_variables]], col = colors, pch = 16, bty = "n", text.col = col_text)
 
       # Restore the original graphical parameters
       graphics::par(old_par)
@@ -1157,8 +1331,8 @@ setMethod(
         dplyr::ungroup()
 
       # Choose colors for positive and negative contributions
-      pos_color <- neon_green
-      neg_color <- neon_orange
+      pos_color <- col_positive
+      neg_color <- col_negative
 
       # If we have more than one clustering variable, we facet by them
       # If we have just one, it's still a single facet but shows a single plot
@@ -1170,21 +1344,21 @@ setMethod(
           color = black
         ) +
         ggplot2::scale_fill_manual(values = c(Positive = pos_color, Negative = neg_color)) +
-        ggplot2::geom_hline(yintercept = 0, color = white, linetype = "dashed") +
+        ggplot2::geom_hline(yintercept = 0, color = col_text, linetype = "dashed") +
         ggplot2::theme_minimal() +
         ggplot2::theme(
-          plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+          panel.background = ggplot2::element_rect(fill = col_background, color = NA),
           panel.grid.major = ggplot2::element_blank(),
           panel.grid.minor = ggplot2::element_blank(),
-          axis.text = ggplot2::element_text(color = white),
-          axis.title = ggplot2::element_text(color = white),
-          plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-          plot.subtitle = ggplot2::element_text(color = white, size = 8, face = "italic"),
+          axis.text = ggplot2::element_text(color = col_text),
+          axis.title = ggplot2::element_text(color = col_text),
+          plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+          plot.subtitle = ggplot2::element_text(color = col_text, size = 8, face = "italic"),
           legend.position = "bottom",
-          legend.title = ggplot2::element_text(color = white),
-          legend.text = ggplot2::element_text(color = white),
-          strip.text = ggplot2::element_text(color = white)
+          legend.title = ggplot2::element_text(color = col_text),
+          legend.text = ggplot2::element_text(color = col_text),
+          strip.text = ggplot2::element_text(color = col_text)
         ) +
         ggplot2::labs(
           title = paste("Waterfall Plot of", paste(variable, collapse = ", "), "Components"),
@@ -1285,27 +1459,32 @@ setMethod(
           dplyr::ungroup()
 
         # Color palette for bins
-        color_palette <- c(vibrant_purple, cyan, neon_green, neon_yellow, neon_yellow, neon_yellow, neon_orange, neon_red, neon_pink)
+        if (palette == "br"){
+          color_palette <- c("#49479D", "#4C7C83", "#00C9B8", "#00AE9D", "#94E1D6", "#EBEEA8", "#EBEEA8", "#D6E266", "#A5CD5C", "#7DB61C")
+        } else {
+          color_palette <- c(vibrant_purple, cyan, neon_green, neon_yellow, neon_yellow, neon_yellow, neon_orange, neon_red, neon_pink, "#E75480")
+        }
 
         # Create the plot
+        color_palette <- rep(color_palette, length.out = bins)
         p <- ggplot2::ggplot(df_summary, ggplot2::aes(x = dates, y = Cluster, fill = bin_label)) +
-          ggplot2::geom_tile(color = white) +
+          ggplot2::geom_tile(color = col_text) +
           ggplot2::scale_fill_manual(
-            values = stats::setNames(color_palette[1:bins], label_list),
+            values = setNames(color_palette, label_list),
             na.value = "grey50"
           ) +
           ggplot2::theme_minimal() +
           ggplot2::theme(
-            plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-            panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-            axis.text.x = ggplot2::element_text(color = white, angle = 45, hjust = 1),
-            axis.text.y = ggplot2::element_text(color = white),
-            axis.title = ggplot2::element_text(color = white),
-            plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-            plot.subtitle = ggplot2::element_text(color = white, size = 12, face = "italic"),
+            plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+            panel.background = ggplot2::element_rect(fill = col_background, color = NA),
+            axis.text.x = ggplot2::element_text(color = col_text, angle = 45, hjust = 1),
+            axis.text.y = ggplot2::element_text(color = col_text),
+            axis.title = ggplot2::element_text(color = col_text),
+            plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+            plot.subtitle = ggplot2::element_text(color = col_text, size = 12, face = "italic"),
             legend.position = "bottom",
-            legend.title = ggplot2::element_text(color = white),
-            legend.text = ggplot2::element_text(color = white),
+            legend.title = ggplot2::element_text(color = col_text),
+            legend.text = ggplot2::element_text(color = col_text),
             panel.grid = ggplot2::element_blank()
           ) +
           ggplot2::labs(
@@ -1319,30 +1498,40 @@ setMethod(
         #Treatment for character
         df_summary <- df %>% dplyr::select(Cluster, dates, !!rlang::sym(variable)) %>% dplyr::rename(bin_label = !!rlang::sym(variable))
         # Color palette for bins
-        color_palette <- c(cyan, neon_green, vibrant_purple, neon_pink, vibrant_purple)
-        unique_labels <- unique(df_summary$bin_label)
-        theme_colors <- stats::setNames(color_palette[seq_along(unique_labels)], unique_labels)
+        if (palette == "br"){
+          color_palette <- c("#7DB61C", "#A5CD5C",  "#EBEEA8","#94E1D6", "#00C9B8")
+        } else {
+          color_palette <- c(cyan, neon_green, vibrant_purple, neon_pink, vibrant_purple)
+        }
+        # Define theme colors based on common labels for character variables
+        if (all(df_summary$bin_label %in% c("elected", "not_elected"))){
+          theme_colors <- c("not_elected" = col_negative, "elected" = col_positive)
+        } else {
+          unique_labels <- unique(df_summary$bin_label)
+          theme_colors <- stats::setNames(color_palette[seq_along(unique_labels)], unique_labels)
+        }
+
 
         # Create the plot
         p <-
           ggplot2::ggplot(df_summary, ggplot2::aes(x = dates, y = Cluster, fill = bin_label)) +
-          ggplot2::geom_tile(color = "white") +
+          ggplot2::geom_tile(color = col_text) +
           ggplot2::scale_fill_manual(
             values = theme_colors,
             na.value = "grey50"
           ) +
           ggplot2::theme_minimal() +
           ggplot2::theme(
-            plot.background = ggplot2::element_rect(fill = "#001f3f", color = NA),
-            panel.background = ggplot2::element_rect(fill = "#001f3f", color = NA),
-            axis.text.x = ggplot2::element_text(color = "white", angle = 45, hjust = 1),
-            axis.text.y = ggplot2::element_text(color = "white"),
-            axis.title = ggplot2::element_text(color = "white"),
-            plot.title = ggplot2::element_text(color = "white", size = 16, face = "bold"),
-            plot.subtitle = ggplot2::element_text(color = "white", size = 12, face = "italic"),
+            plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+            panel.background = ggplot2::element_rect(fill = col_background, color = NA),
+            axis.text.x = ggplot2::element_text(color = col_text, angle = 45, hjust = 1),
+            axis.text.y = ggplot2::element_text(color = col_text),
+            axis.title = ggplot2::element_text(color = col_text),
+            plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+            plot.subtitle = ggplot2::element_text(color = col_text, size = 12, face = "italic"),
             legend.position = "bottom",
-            legend.title = ggplot2::element_text(color = "white"),
-            legend.text = ggplot2::element_text(color = "white"),
+            legend.title = ggplot2::element_text(color = col_text),
+            legend.text = ggplot2::element_text(color = col_text),
             panel.grid = ggplot2::element_blank()
           ) +
           ggplot2::labs(
@@ -1372,19 +1561,19 @@ setMethod(
 
           # Create a bar plot using the specified colors
           plot <- ggplot2::ggplot(freq_table, ggplot2::aes(x = stats::reorder(Category, -Frequency), y = Frequency)) +
-            ggplot2::geom_bar(stat = "identity", fill = vibrant_purple, color = white, size = 0.5) +
-            ggplot2::geom_text(ggplot2::aes(label = Frequency), vjust = -0.5, color = white, size = 4) +
+            ggplot2::geom_bar(stat = "identity", fill = col_primary, color = col_text, size = 0.5) +
+            ggplot2::geom_text(ggplot2::aes(label = Frequency), vjust = -0.5, color = col_text, size = 4) +
             ggplot2::theme_minimal() +
             ggplot2::theme(
-              plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),    # Deep Navy background outside plot area
-              panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),   # Blue background inside plot area
+              plot.background = ggplot2::element_rect(fill = col_background, color = NA),    # Deep Navy background outside plot area
+              panel.background = ggplot2::element_rect(fill = col_background, color = NA),   # Blue background inside plot area
               panel.grid.major = ggplot2::element_blank(),                              # Remove major grid lines
               panel.grid.minor = ggplot2::element_blank(),                              # Remove minor grid lines
-              axis.text = ggplot2::element_text(color = white),
-              axis.title = ggplot2::element_text(color = white),
+              axis.text = ggplot2::element_text(color = col_text),
+              axis.title = ggplot2::element_text(color = col_text),
               axis.text.x = ggplot2::element_text(angle = 45, hjust = 1),
-              plot.title = ggplot2::element_text(size = 16, face = "bold", color = white, hjust = 0.5),
-              plot.caption = ggplot2::element_text(color = white),
+              plot.title = ggplot2::element_text(size = 16, face = "bold", color = col_text, hjust = 0.5),
+              plot.caption = ggplot2::element_text(color = col_text),
               legend.position = "none"
             ) +
             ggplot2::labs(
@@ -1437,6 +1626,9 @@ setMethod(
 #' @param plot_perf_metric Logical. For `returns_meta_xts` only. If `TRUE`, plots bar chart of selected performance metric instead of time series. If `NULL`, user is prompted.
 #' @param benchmark_returns_m_xts Optional `meta_xts` object (single-column) with benchmark returns. Required if `active_returns = TRUE`.
 #' @param active_returns Logical or `"yes"/"no"` string. Whether to compute active returns relative to the benchmark when `plot_perf_metric = TRUE`.
+#' @param variable Variable to plot. If `NULL`, user is prompted to select from available columns.
+#' @param chosen_metric Character. Performance metric to plot when `plot_perf_metric = TRUE`. Options include "CAGR", "Volatility", "Sharpe Ratio", etc. If `NULL`, user is prompted.
+#' @param palette Character. Color palette to use for the plots.
 #' @param ... Currently unused.
 #'
 #' @return Invisibly returns the generated `ggplot` object.
@@ -1446,9 +1638,11 @@ setMethod(
 #' @rdname plot_meta_xts
 #' @export
 setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
-          function(x, y, clustering_list = NULL, facet_by_year = NULL,
+          function(x, y, variable = NULL, clustering_list = NULL, facet_by_year = NULL,
                    add_overall_means = NULL, vertical_lines = NULL, cumulative = NULL,
-                   plot_perf_metric = NULL, benchmark_returns_m_xts = NULL, active_returns = FALSE, ...) {
+                   plot_perf_metric = NULL, benchmark_returns_m_xts = NULL, active_returns = FALSE,
+                   chosen_metric = NULL,
+                   palette = "cyberpunk", ...) {
 
             # Check for required packages for plotting
             required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
@@ -1465,6 +1659,51 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
               )
             }
 
+            # Palette
+            black <- "#000000"
+            white <- "#FFFFFF"
+
+            if (palette == "cyberpunk") {
+
+              light_gray <- "#003641"
+
+              col_background <- "#001f3f"
+              col_text       <- "#FFFFFF"
+              col_primary    <- "#6A0DAD"
+              col_positive   <- "#39FF14"
+              col_negative   <- "#FF5F1F"
+              vertical_line_color <- "#FF69B4"
+
+              palette_colors  <- c(
+                "#00BFFF", "#FF1493", "#FFFF00", "#8A2BE2",
+                "#FF4500", "#39FF14", "#FF69B4", "#32CD32", "#FFA500"
+              )
+
+            }
+            if (palette == "br") {
+
+              light_gray <- "#EBEEF1"
+
+              col_background <- "#FFFFFF"
+              col_text       <- "#003641"
+              col_primary   <- "#00A091"
+              col_positive   <- "#7DB61C"
+              col_negative   <- "#C2185B"
+              vertical_line_color <- "#003641"
+
+              palette_colors  <- c(
+                "#94E1D6","#49479D","#7DB61C",
+                "#00C9B8", "#98B2B6","#C9D200",
+                "#003641", "#00A091", "#4C7C83",
+                "#FF5F1F", "#EBEEA8", "#A5CD5C",
+                "#8A03C9", "#00AE9D", "#EBEEA8",
+                "#D6E266", "#00C9B8", "#7DB61C",
+                "#A5CD5C", "#003641", "#00A091",
+                "#4C7C83", "#FF5F1F"
+              )
+
+            }
+
 
             #Prompt for column selection
             # Get available column names
@@ -1475,40 +1714,61 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
             message("Available columns:\n", crayon::white(paste(numbered_cols, collapse = "\n")))
 
             # Prompt the user interactively
-            input <- readline(prompt = "Enter column names or numbers separated by commas or 'all' for all columns: ")
+            if (is.null(variable)){
+              input <- readline(prompt = "Enter column names or numbers separated by commas or 'all' for all columns: ")
 
-            # Remove any leading/trailing whitespace
-            input <- base::trimws(input)
+              # Remove any leading/trailing whitespace
+              input <- base::trimws(input)
 
-            # If user types 'all', return all columns
-            if (tolower(input) %in% c("all", "")) {
-              selected_cols <- cols
-            } else {
-              # Split the input by commas and trim whitespace on each token
-              tokens <- unlist(base::strsplit(input, split = ","))
-              tokens <- base::trimws(tokens)
+              # If user types 'all', return all columns
+              if (tolower(input) %in% c("all", "")) {
+                selected_cols <- cols
+              } else {
+                # Split the input by commas and trim whitespace on each token
+                tokens <- unlist(base::strsplit(input, split = ","))
+                tokens <- base::trimws(tokens)
 
-              # Initialize vector to store the selected column names
-              selected_cols <- character(0)
+                # Initialize vector to store the selected column names
+                selected_cols <- character(0)
 
-              for (token in tokens) {
-                # Try converting token to numeric. If it is numeric, use it as an index.
-                num_token <- suppressWarnings(as.numeric(token))
+                for (token in tokens) {
+                  # Try converting token to numeric. If it is numeric, use it as an index.
+                  num_token <- suppressWarnings(as.numeric(token))
 
-                if (!is.na(num_token)) {
-                  # Check if the index is within the valid range.
-                  if (num_token < 1 || num_token > base::length(cols)) {
-                    stop("The column index ", token, " is out of range. Available indices are 1 to ", base::length(cols), ".")
+                  if (!is.na(num_token)) {
+                    # Check if the index is within the valid range.
+                    if (num_token < 1 || num_token > base::length(cols)) {
+                      stop("The column index ", token, " is out of range. Available indices are 1 to ", base::length(cols), ".")
+                    }
+                    selected_cols <- c(selected_cols, cols[num_token])
+                  } else {
+                    # If not numeric, assume token is a column name.
+                    if (!(token %in% cols)) {
+                      stop("The column name '", token, "' does not exist in the data.")
+                    }
+                    selected_cols <- c(selected_cols, token)
                   }
-                  selected_cols <- c(selected_cols, cols[num_token])
-                } else {
-                  # If not numeric, assume token is a column name.
-                  if (!(token %in% cols)) {
-                    stop("The column name '", token, "' does not exist in the data.")
-                  }
-                  selected_cols <- c(selected_cols, token)
                 }
               }
+            } else {
+              selected_cols <- variable
+            }
+
+            # Ask user if they want to facet by year if the argument is not provided
+            if (is.null(facet_by_year)) {
+              if (is.null(vertical_lines)) {
+                response_facet <- readline(prompt = "Do you want to facet the plot by year? (yes/no): ")
+                facet_by_year <- tolower(response_facet) == "yes"
+              } else {
+                message("Faceting by year is disabled when vertical lines are specified to avoid clutter.")
+                facet_by_year <- FALSE
+              }
+            }
+
+            #Check if there is more than one year in the data. If not, go back to FALSE if user said TRUE
+            if (facet_by_year && length(unique(lubridate::year(zoo::index(x@data)))) <= 1) {
+              message("Faceting by year is not possible because there is only one year in the data. Disabling faceting.")
+              facet_by_year <- FALSE
             }
 
            #Filter xts
@@ -1534,121 +1794,257 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
               }
 
               # Prompt for active_returns
-              active_returns <- readline(prompt = "Compute active returns relative to the benchmark? (yes/no): ")
-              if (active_returns == "yes") {
-                if (is.null(benchmark_returns_m_xts)){
-                  stop("You must provide a 'benchmark_returns_m_xts' object to compute active returns.")
+              if (is.null(active_returns)){
+                active_returns <- readline(prompt = "Compute active returns relative to the benchmark? (yes/no): ")
+                if (active_returns == "yes") {
+                  if (is.null(benchmark_returns_m_xts)){
+                    stop("You must provide a 'benchmark_returns_m_xts' object to compute active returns.")
+                  }
+                  if (ncol(benchmark_returns_m_xts@data) > 1){
+                    stop("The 'benchmark_returns_m_xts' object must have only one column.")
+                  }
+                  active_returns <- TRUE
+                } else {
+                  active_returns <- FALSE
                 }
-                if (ncol(benchmark_returns_m_xts@data) > 1){
-                  stop("The 'benchmark_returns_m_xts' object must have only one column.")
+              }
+
+              #Full sample performance metric
+              if (!isTRUE(facet_by_year)){
+
+                # Generate performance data
+                performance_df <- create_performance_m_df(
+                  selected_backtest_returns_corrected_positions_m_xts_upd_ref = x@data,
+                  selected_market_factor_proxy_m_xts_upd_ref = if (is.null(benchmark_returns_m_xts)) NULL else benchmark_returns_m_xts@data,
+                  active_returns = active_returns,
+                  verbose = TRUE
+                )
+
+                # Identify the unique tickers
+                unique_tickers <- unique(performance_df$tickers)
+                # Create a map from ticker -> integer
+                ticker_map <- stats::setNames(seq_along(unique_tickers), unique_tickers)
+                # Replace each ticker in performance_df with its numeric code
+                performance_df$tickers <- ticker_map[performance_df$tickers]
+
+                # Pivot to wide (tickers = columns), ignoring 'id'/'dates'
+                perf_wide <- performance_df %>%
+                  dplyr::select(-id, -dates) %>%
+                  tidyr::pivot_longer(
+                    cols = -tickers,
+                    names_to = "metric",
+                    values_to = "value"
+                  ) %>%
+                  tidyr::pivot_wider(
+                    names_from = tickers,
+                    values_from = value
+                  )
+
+                # Prompt user to pick a metric
+                if (is.null(chosen_metric)){
+                  all_metrics <- unique(perf_wide$metric)
+                  cat("\nAvailable performance metrics:\n")
+                  for (i in seq_along(all_metrics)) {
+                    cat(i, ":", all_metrics[i], "\n")
+                  }
+                  sel <- readline(prompt = "Enter the number of your choice: ")
+                  sel_num <- as.numeric(sel)
+                  if (is.na(sel_num) || sel_num < 1 || sel_num > length(all_metrics)) {
+                    stop("Invalid selection.")
+                  }
+                  chosen_metric <- all_metrics[sel_num]
+                } else {
+                  chosen_metric <- as.character(chosen_metric)
+                  if (!chosen_metric %in% perf_wide$metric) {
+                    stop("The specified 'chosen_metric' is not available in the performance data.")
+                  }
                 }
-                active_returns <- TRUE
+
+                # Subset data for that single metric
+                metric_data <- perf_wide %>%
+                  dplyr::filter(metric == chosen_metric) %>%
+                  dplyr::select(-metric)
+
+                # Convert to numeric vector with ticker columns
+                #    One row, multiple columns
+                # Ticker columns might be in alphabetical or original order
+                # Gather them into a data.frame for ggplot
+                metric_data_long <- metric_data %>%
+                  tidyr::pivot_longer(
+                    cols = -character(0),
+                    names_to = "ticker",
+                    values_to = "val"
+                  )
+
+                # Round data to 4 decimals
+                metric_data_long$val <- round(metric_data_long$val, 4)
+
+                # If there are more tickers than colors, repeat as needed
+                color_mapping <- rep(palette_colors , length.out = nrow(metric_data_long))
+
+                # ggplot bar chart
+                #    x = ticker, y = val
+                p <- ggplot2::ggplot(metric_data_long, ggplot2::aes(x = ticker, y = val, fill = ticker)) +
+                  ggplot2::geom_bar(stat = "identity", color = col_text) +
+                  ggplot2::scale_fill_manual(values = rep(palette_colors , length.out = length(unique(metric_data_long$ticker)))) +
+                  ggplot2::theme_minimal() +
+                  ggplot2::labs(
+                    title = paste("Performance Metric:", chosen_metric),
+                    x = "Series",
+                    y = chosen_metric,
+                    fill = "Series"
+                  ) +
+                  ggplot2::theme(
+                    plot.background  = ggplot2::element_rect(fill = col_background, color = NA),
+                    panel.background = ggplot2::element_rect(fill = col_background, color = NA),
+                    plot.title       = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+                    axis.text        = ggplot2::element_text(color = col_text),
+                    axis.title       = ggplot2::element_text(color = col_text),
+                    legend.position  = "none",
+                    panel.grid.major = ggplot2::element_line(color = light_gray, size = 0.2),
+                    panel.grid.minor = ggplot2::element_line(color = light_gray, size = 0.1)
+                  )
+
+                # Print plot
+                print(p)
+                # Print the mapping for reference
+                cat("Legend:\n")
+                for (original_name in names(ticker_map)) {
+                  cat(ticker_map[original_name], ":", original_name, "\n")
+                }
+                return(invisible(p))
+
+
               } else {
-                active_returns <- FALSE
+
+                ##Facet by year
+                years_available <- sort(unique(lubridate::year(zoo::index(x@data))))
+
+                performance_list <- lapply(years_available, function(curr_year) {
+
+                  year_idx <- lubridate::year(zoo::index(x@data)) == curr_year
+                  x_year <- x@data[year_idx, , drop = FALSE]
+
+                  if (nrow(x_year) == 0) {
+                    return(NULL)
+                  }
+
+                  benchmark_year <- NULL
+                  if (!is.null(benchmark_returns_m_xts)) {
+                    benchmark_idx <- lubridate::year(zoo::index(benchmark_returns_m_xts@data)) == curr_year
+                    benchmark_year <- benchmark_returns_m_xts@data[benchmark_idx, , drop = FALSE]
+                  }
+
+                  perf_year <- create_performance_m_df(
+                    selected_backtest_returns_corrected_positions_m_xts_upd_ref = x_year,
+                    selected_market_factor_proxy_m_xts_upd_ref = benchmark_year,
+                    active_returns = active_returns,
+                    verbose = FALSE
+                  )
+
+                  perf_year$year <- curr_year
+                  perf_year
+                })
+
+                performance_df <- dplyr::bind_rows(performance_list)
+
+                if (nrow(performance_df) == 0) {
+                  stop("No yearly performance data could be computed.")
+                }
+
+                # Identify the unique tickers
+                unique_tickers <- unique(performance_df$tickers)
+
+                # Create a map from ticker -> integer
+                ticker_map <- stats::setNames(seq_along(unique_tickers), unique_tickers)
+
+                # Replace each ticker in performance_df with its numeric code
+                performance_df$tickers <- ticker_map[performance_df$tickers]
+
+                # Pivot to wide (tickers = columns), ignoring 'id'/'dates'
+                perf_wide <- performance_df %>%
+                  dplyr::select(-id, -dates) %>%
+                  tidyr::pivot_longer(
+                    cols = -c(tickers, year),
+                    names_to = "metric",
+                    values_to = "value"
+                  ) %>%
+                  tidyr::pivot_wider(
+                    names_from = tickers,
+                    values_from = value
+                  )
+
+                # Prompt user to pick a metric
+                if (is.null(chosen_metric)) {
+                  all_metrics <- unique(perf_wide$metric)
+                  cat("\nAvailable performance metrics:\n")
+                  for (i in seq_along(all_metrics)) {
+                    cat(i, ":", all_metrics[i], "\n")
+                  }
+                  sel <- readline(prompt = "Enter the number of your choice: ")
+                  sel_num <- as.numeric(sel)
+                  if (is.na(sel_num) || sel_num < 1 || sel_num > length(all_metrics)) {
+                    stop("Invalid selection.")
+                  }
+                  chosen_metric <- all_metrics[sel_num]
+                } else {
+                  chosen_metric <- as.character(chosen_metric)
+                  if (!chosen_metric %in% perf_wide$metric) {
+                    stop("The specified 'chosen_metric' is not available in the performance data.")
+                  }
+                }
+
+                # Subset data for that single metric
+                metric_data <- perf_wide %>%
+                  dplyr::filter(metric == chosen_metric) %>%
+                  dplyr::select(-metric)
+
+                # Convert to long format while keeping year
+                metric_data_long <- metric_data %>%
+                  tidyr::pivot_longer(
+                    cols = -year,
+                    names_to = "ticker",
+                    values_to = "val"
+                  )
+
+                # Round data to 4 decimals
+                metric_data_long$val <- round(metric_data_long$val, 4)
+
+                # ggplot bar chart with yearly facets
+                p <- ggplot2::ggplot(metric_data_long, ggplot2::aes(x = ticker, y = val, fill = ticker)) +
+                  ggplot2::geom_bar(stat = "identity", color = col_text) +
+                  ggplot2::scale_fill_manual(values = rep(palette_colors, length.out = length(unique(metric_data_long$ticker)))) +
+                  ggplot2::facet_wrap(~year, scales = "free_y") +
+                  ggplot2::theme_minimal() +
+                  ggplot2::labs(
+                    title = paste("Performance Metric:", chosen_metric),
+                    x = "Series",
+                    y = chosen_metric,
+                    fill = "Series"
+                  ) +
+                  ggplot2::theme(
+                    plot.background  = ggplot2::element_rect(fill = col_background, color = NA),
+                    panel.background = ggplot2::element_rect(fill = col_background, color = NA),
+                    plot.title       = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+                    axis.text        = ggplot2::element_text(color = col_text),
+                    axis.title       = ggplot2::element_text(color = col_text),
+                    strip.text       = ggplot2::element_text(color = col_text, face = "bold"),
+                    legend.position  = "none",
+                    panel.grid.major = ggplot2::element_line(color = light_gray, size = 0.2),
+                    panel.grid.minor = ggplot2::element_line(color = light_gray, size = 0.1)
+                  )
+
+                # Print plot
+                print(p)
+
+                # Print the mapping for reference
+                cat("Legend:\n")
+                for (original_name in names(ticker_map)) {
+                  cat(ticker_map[original_name], ":", original_name, "\n")
+                }
+
+                return(invisible(p))
               }
-
-
-              # Generate performance data
-              performance_df <- create_performance_m_df(
-                selected_backtest_returns_corrected_positions_m_xts_upd_ref = x@data,
-                selected_market_factor_proxy_m_xts_upd_ref = if (is.null(benchmark_returns_m_xts)) NULL else benchmark_returns_m_xts@data,
-                active_returns = active_returns,
-                verbose = TRUE
-              )
-
-              # Identify the unique tickers
-              unique_tickers <- unique(performance_df$tickers)
-              # Create a map from ticker -> integer
-              ticker_map <- stats::setNames(seq_along(unique_tickers), unique_tickers)
-              # Replace each ticker in performance_df with its numeric code
-              performance_df$tickers <- ticker_map[performance_df$tickers]
-
-              # Pivot to wide (tickers = columns), ignoring 'id'/'dates'
-              perf_wide <- performance_df %>%
-                dplyr::select(-id, -dates) %>%
-                tidyr::pivot_longer(
-                  cols = -tickers,
-                  names_to = "metric",
-                  values_to = "value"
-                ) %>%
-                tidyr::pivot_wider(
-                  names_from = tickers,
-                  values_from = value
-                )
-
-              # Prompt user to pick a metric
-              all_metrics <- unique(perf_wide$metric)
-              cat("\nAvailable performance metrics:\n")
-              for (i in seq_along(all_metrics)) {
-                cat(i, ":", all_metrics[i], "\n")
-              }
-              sel <- readline(prompt = "Enter the number of your choice: ")
-              sel_num <- as.numeric(sel)
-              if (is.na(sel_num) || sel_num < 1 || sel_num > length(all_metrics)) {
-                stop("Invalid selection.")
-              }
-              chosen_metric <- all_metrics[sel_num]
-
-              # Subset data for that single metric
-              metric_data <- perf_wide %>%
-                dplyr::filter(metric == chosen_metric) %>%
-                dplyr::select(-metric)
-
-              # Convert to numeric vector with ticker columns
-              #    One row, multiple columns
-              # Ticker columns might be in alphabetical or original order
-              # Gather them into a data.frame for ggplot
-              metric_data_long <- metric_data %>%
-                tidyr::pivot_longer(
-                  cols = -character(0),
-                  names_to = "ticker",
-                  values_to = "val"
-                )
-
-              # Round data to 4 decimals
-              metric_data_long$val <- round(metric_data_long$val, 4)
-
-              # Use the same neon palette
-              neon_colors <- c(
-                "#00BFFF", "#FF1493", "#FFFF00", "#8A2BE2",
-                "#FF4500", "#39FF14", "#FF69B4", "#32CD32", "#FFA500"
-              )
-              # If there are more tickers than colors, repeat as needed
-              color_mapping <- rep(neon_colors, length.out = nrow(metric_data_long))
-
-              # ggplot bar chart
-              #    x = ticker, y = val
-              p <- ggplot2::ggplot(metric_data_long, ggplot2::aes(x = ticker, y = val, fill = ticker)) +
-                ggplot2::geom_bar(stat = "identity", color = "#FFFFFF") +
-                ggplot2::scale_fill_manual(values = rep(neon_colors, length.out = length(unique(metric_data_long$ticker)))) +
-                ggplot2::theme_minimal() +
-                ggplot2::labs(
-                  title = paste("Performance Metric:", chosen_metric),
-                  x = "Series",
-                  y = chosen_metric,
-                  fill = "Series"
-                ) +
-                ggplot2::theme(
-                  plot.background  = ggplot2::element_rect(fill = "#001f3f", color = NA),
-                  panel.background = ggplot2::element_rect(fill = "#001f3f", color = NA),
-                  plot.title       = ggplot2::element_text(color = "#FFFFFF", size = 16, face = "bold"),
-                  axis.text        = ggplot2::element_text(color = "#FFFFFF"),
-                  axis.title       = ggplot2::element_text(color = "#FFFFFF"),
-                  legend.position  = "none",
-                  panel.grid.major = ggplot2::element_line(color = "#4d4d4d", size = 0.2),
-                  panel.grid.minor = ggplot2::element_line(color = "#4d4d4d", size = 0.1)
-                )
-
-              # Print plot
-              print(p)
-              # Print the mapping for reference
-              cat("Legend:\n")
-              for (original_name in names(ticker_map)) {
-                cat(ticker_map[original_name], ":", original_name, "\n")
-              }
-              return(invisible(p))
-
-
 
             } else {
 
@@ -1664,40 +2060,17 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
                 cumulative <- FALSE
               }
 
-              # Ask user if they want to facet by year if the argument is not provided
-              if (is.null(facet_by_year) && is.null(vertical_lines)) {
-                response_facet <- readline(prompt = "Do you want to facet the plot by year? (yes/no): ")
-                facet_by_year <- tolower(response_facet) == "yes"
-              } else {
-                facet_by_year <- FALSE
-              }
-
               # Ask user if they want to add overall mean lines if the argument is not provided
-              if (is.null(add_overall_means) && !cumulative) {
-                response_means <- readline(prompt = "Do you want to add overall mean lines? (yes/no): ")
-                add_overall_means <- tolower(response_means) == "yes"
-              } else {
-                add_overall_means <- FALSE
+              if (is.null(add_overall_means)) {
+                if (!cumulative) {
+                  response_means <- readline(prompt = "Do you want to add overall mean lines? (yes/no): ")
+                  add_overall_means <- tolower(response_means) == "yes"
+                } else {
+                  message("Overall mean lines are not meaningful when plotting cumulative returns, so they will not be added.")
+                  add_overall_means <- FALSE
+                }
               }
 
-
-              # Define the neon color palette
-              neon_colors <- c(
-                "#00BFFF",  # Neon Blue
-                "#FF1493",  # Neon Pink
-                "#FFFF00",  # Neon Yellow
-                "#8A2BE2",  # Neon Purple
-                "#FF4500",  # Neon Orange
-                "#39FF14",  # Neon Green
-                "#FF69B4",  # Hot Pink
-                "#32CD32",  # Lime Green
-                "#FFA500"   # Bright Orange
-              )
-
-              blue_bg <- "#001f3f"
-              faint_blue <- "#003366"
-              white <- "#FFFFFF"
-              vertical_line_color <- "#CCCC00"  # Dark Neon Yellow
 
               # Extract slots
               frequency <- x@frequency
@@ -1738,16 +2111,63 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
                 dplyr::filter(non_na_count > 1) %>%
                 dplyr::pull(series)
 
+              # Print series filtering
+              if (length(multi_obs_series) < length(unique(long_data$series))) {
+                warning(
+                  sprintf(
+                    "The following series have only one or zero non-NA observations and will be excluded from the plot: %s",
+                    paste(setdiff(unique(long_data$series), multi_obs_series), collapse = ", ")
+                  )
+                )
+              }
+
               plot_data_multi <- dplyr::filter(long_data, series %in% multi_obs_series & !is.na(value))
 
               # If cumulative = TRUE and x is returns_meta_xts, compute cumulative returns
               if (cumulative && methods::is(x, "returns_meta_xts")) {
-                # Transform each series by cumulative product
-                plot_data_multi <- plot_data_multi %>%
-                  dplyr::group_by(series) %>%
-                  dplyr::arrange(dates) %>%
-                  dplyr::mutate(value = (cumprod(1 + value/100) - 1)*100) %>%
-                  dplyr::ungroup()
+
+                if (isTRUE(facet_by_year)){
+                  # Restart cumulative returns from zero inside each year
+                  plot_data_multi <- plot_data_multi %>%
+                    dplyr::group_by(series, year) %>%
+                    dplyr::arrange(dates, .by_group = TRUE) %>%
+                    dplyr::mutate(value = (cumprod(1 + value/100) - 1) * 100) %>%
+                    dplyr::ungroup()
+
+                  # Add an anchor row at 0 for the start of each year
+                  zero_rows <- plot_data_multi %>%
+                    dplyr::group_by(series, year) %>%
+                    dplyr::summarise(
+                      dates = as.Date(paste0(dplyr::first(year), "-01-01")),
+                      value = 0,
+                      .groups = "drop"
+                    )
+
+                  plot_data_multi <- dplyr::bind_rows(plot_data_multi, zero_rows) %>%
+                    dplyr::arrange(series, dates)
+
+                } else {
+                  # Transform each series by cumulative product
+                  plot_data_multi <- plot_data_multi %>%
+                    dplyr::group_by(series) %>%
+                    dplyr::arrange(dates) %>%
+                    dplyr::mutate(value = (cumprod(1 + value/100) - 1)*100) %>%
+                    dplyr::ungroup()
+
+                  # Add a zero anchor just before the first observed date of each series
+                  zero_rows <- plot_data_multi %>%
+                    dplyr::group_by(series) %>%
+                    dplyr::summarise(
+                      dates = dplyr::first(dates) - 1,
+                      year  = lubridate::year(dplyr::first(dates) - 1),
+                      value = 0,
+                      .groups = "drop"
+                    )
+
+                  plot_data_multi <- dplyr::bind_rows(plot_data_multi, zero_rows) %>%
+                    dplyr::arrange(series, dates)
+                }
+
                 # Also rename the y-label so user sees it's cumulative
                 metric_name <- paste0("cumulative ", metric_name)
               }
@@ -1784,7 +2204,7 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
 
               # Assign colors to series
               unique_series <- unique(plot_data_multi$series)
-              color_mapping <- stats::setNames(rep(neon_colors, length.out = length(unique_series)), unique_series)
+              color_mapping <- stats::setNames(rep(palette_colors, length.out = length(unique_series)), unique_series)
 
               # Create a mapping from unique series to numbers
               series_mapping <- stats::setNames(seq_along(unique(plot_data_multi$series)), unique(plot_data_multi$series))
@@ -1810,15 +2230,15 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
                 ggplot2::scale_color_manual(values = color_mapping) +
                 ggplot2::theme_minimal() +
                 ggplot2::theme(
-                  plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
-                  panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-                  plot.title       = ggplot2::element_text(color = white, size = 16, face = "bold"),
-                  axis.text        = ggplot2::element_text(color = white),
-                  axis.title       = ggplot2::element_text(color = white),
-                  legend.title     = ggplot2::element_text(color = white),
-                  legend.text      = ggplot2::element_text(color = white),
-                  panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
-                  panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
+                  plot.background  = ggplot2::element_rect(fill = col_background, color = NA),
+                  panel.background = ggplot2::element_rect(fill = col_background, color = NA),
+                  plot.title       = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+                  axis.text        = ggplot2::element_text(color = col_text),
+                  axis.title       = ggplot2::element_text(color = col_text),
+                  legend.title     = ggplot2::element_text(color = col_text),
+                  legend.text      = ggplot2::element_text(color = col_text),
+                  panel.grid.major = ggplot2::element_line(color = col_background, size = 0.2),
+                  panel.grid.minor = ggplot2::element_line(color = col_background, size = 0.1)
                 ) +
                 ggplot2::scale_x_date(labels = scales::date_format("%b-%y"))
 
@@ -1827,7 +2247,7 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
                 plot_obj <- plot_obj +
                   ggplot2::facet_wrap(~year, scales = "free") +
                   ggplot2::theme(
-                    strip.text = ggplot2::element_text(color = white, face = "bold"),
+                    strip.text = ggplot2::element_text(color = col_text, face = "bold"),
                     legend.position = "right"
                   )
               }
@@ -1891,9 +2311,10 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
 #' @description Plot the values selected for each hyperparameter in `hyper_grid_domain` for grid search strategy.
 #' @param x An object of class `grid_search_strategy`.
 #' @param y Unused. Included for consistency with the generic `plot` method.
+#' @param palette Character. Color palette to use for the plot. Options include "cyberpunk" and "br". Default is "cyberpunk".
 #' @return A `ggplot` object visualizing the hyperparameter grid and possible limits.
 #' @export
-setMethod("plot", signature(x = "grid_search_strategy", y = "missing"), function(x, y) {
+setMethod("plot", signature(x = "grid_search_strategy", y = "missing"), function(x, y, palette = "cyberpunk") {
 
   # Check for required packages for plotting
   required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
@@ -1911,15 +2332,52 @@ setMethod("plot", signature(x = "grid_search_strategy", y = "missing"), function
   }
 
   # Define colors for plotting
-  deep_navy <- "#000033"
+  # Palette
   black <- "#000000"
   white <- "#FFFFFF"
-  vibrant_purple <- "#6A0DAD"
-  neon_green <- "#39FF14"
-  neon_orange <- "#FF5F1F"
-  blue_bg <- "#001f3f"
-  light_gray <- "#B0B0B0"  # Lighter shade for grid lines
-  neon_cyan <- "#00FFFF"
+  cyan <- "#00FFFF"
+
+
+  if (palette == "cyberpunk") {
+
+    light_gray <- "#003641"
+
+    col_background <- "#001f3f"
+    col_text       <- "#FFFFFF"
+    col_primary    <- "#00FFFF"
+    col_positive   <- "#39FF14"
+    col_negative   <- "#FF1493"
+    vertical_line_color <- "#FF69B4"
+
+    palette_colors  <- c(
+      "#00BFFF", "#FF1493", "#FFFF00", "#8A2BE2", "#00FFFF",
+      "#FF4500", "#39FF14", "#FF69B4", "#32CD32", "#FFA500"
+    )
+
+  }
+  if (palette == "br") {
+
+    light_gray <- "#EBEEF1"
+
+    col_background <- "#FFFFFF"
+    col_text       <- "#003641"
+    col_primary   <- "#00A091"
+    col_positive   <- "#7DB61C"
+    col_negative   <- "#C2185B"
+    vertical_line_color <- "#003641"
+
+    palette_colors  <- c(
+      "#94E1D6", "#49479D", "#7DB61C",
+      "#00C9B8", "#98B2B6", "#C9D200",
+      "#00FFFF", "#003641", "#00A091",
+      "#4C7C83", "#FF5F1F", "#EBEEA8",
+      "#A5CD5C", "#8A03C9", "#00AE9D",
+      "#EBEEA8", "#D6E266", "#00C9B8",
+      "#7DB61C", "#A5CD5C", "#003641",
+      "#00A091", "#4C7C83", "#FF5F1F"
+    )
+
+  }
 
   # Extract the hyperparameters and grid values
   hyper_list <- x@hyper_grid_domain@hyperparameter_list
@@ -2008,27 +2466,26 @@ setMethod("plot", signature(x = "grid_search_strategy", y = "missing"), function
   }
 
   # Create the plot with hyperparameters on the y-axis
-  p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = Value, y = Hyperparameter, color = Hyperparameter)) +
-    ggplot2::geom_point(size = 4, colour = neon_green, shape = 4) +  # Points for actual grid values in white
-    ggplot2::geom_point(data = predefined_data, ggplot2::aes(x = MinAllowed, y = Hyperparameter), shape = 124, size = 5, color = neon_cyan) +  # Min always closed
-    ggplot2::geom_point(data = predefined_data, ggplot2::aes(x = MaxAllowed, y = Hyperparameter), shape = 124, size = 5, color = neon_cyan) +  # Max always closed
+   p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = Value, y = Hyperparameter, color = Hyperparameter)) +
+    ggplot2::geom_point(size = 4, colour = col_primary, shape = 4) +  # Points for actual grid values in white
+    ggplot2::geom_point(data = predefined_data, ggplot2::aes(x = MinAllowed, y = Hyperparameter), shape = 124, size = 5, color = col_negative) +  # Min always closed
+    ggplot2::geom_point(data = predefined_data, ggplot2::aes(x = MaxAllowed, y = Hyperparameter), shape = 124, size = 5, color = col_positive) +  # Max always closed
     ggplot2::labs(title = "Grid Search: Hyperparameter Grid Values",
                   y = "Hyperparameter",
                   x = "Selected Values") +
     ggplot2::theme_minimal() +
     ggplot2::theme(
-      plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-      panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-      plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-      axis.text = ggplot2::element_text(color = white),
-      axis.title = ggplot2::element_text(color = white),
+      plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+      panel.background = ggplot2::element_rect(fill = col_background, color = NA),
+      plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+      axis.text = ggplot2::element_text(color = col_text),
+      axis.title = ggplot2::element_text(color = col_text),
       legend.position = "bottom",  # Adjust legend position if needed
-      legend.title = ggplot2::element_text(color = white),
-      legend.text = ggplot2::element_text(color = white),
+      legend.title = ggplot2::element_text(color = col_text),
+      legend.text = ggplot2::element_text(color = col_text),
       panel.grid.major = ggplot2::element_line(color = light_gray),  # Set major grid lines to light gray
       panel.grid.minor = ggplot2::element_line(color = light_gray)   # Set minor grid lines to light gray
     ) +
-    ggplot2::scale_color_manual(values = c(vibrant_purple, neon_green, neon_orange, deep_navy)) +  # Use defined colors
     ggplot2::guides(fill = ggplot2::guide_none(), shape = ggplot2::guide_none())  # Remove legend for color and shape
 
   print(p)
@@ -2039,9 +2496,10 @@ setMethod("plot", signature(x = "grid_search_strategy", y = "missing"), function
 #' @description Generate a sample for each hyperparameter and plot the histogram for random search.
 #' @param x An object of class `random_search_strategy`.
 #' @param y Unused. Included for consistency with the generic `plot` method.
+#' @param palette Character. Color palette to use for the plot. Options include "cyberpunk" and "br". Default is "cyberpunk".
 #' @return A `ggplot` object visualizing the hyperparameter histograms with possible limits.
 #' @export
-setMethod("plot", signature(x = "random_search_strategy", y = "missing"), function(x, y) {
+setMethod("plot", signature(x = "random_search_strategy", y = "missing"), function(x, y, palette = "cyberpunk") {
 
   # Check for required packages for plotting
   required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
@@ -2059,19 +2517,52 @@ setMethod("plot", signature(x = "random_search_strategy", y = "missing"), functi
   }
 
   # Define colors for plotting
-  deep_navy <- "#000033"
+  # Palette
   black <- "#000000"
   white <- "#FFFFFF"
-  vibrant_purple <- "#6A0DAD"
-  neon_green <- "#39FF14"
-  neon_orange <- "#FF5F1F"
-  blue_bg <- "#001f3f"
-  light_gray <- "#B0B0B0"  # Lighter shade for grid lines
-  neon_blue <- "#00BFFF"
-  neon_pink <- "#FF1493"   # Added a light pink color
-  neon_cyan <- "#00FFFF"
-  neon_yellow <- "#FFFF00"
-  neon_purple <- "#8A2BE2"
+
+  if (palette == "cyberpunk") {
+
+    light_gray <- "#003641"
+
+    col_background <- "#001f3f"
+    col_text       <- "#FFFFFF"
+    col_primary    <- "#00FFFF"
+    col_positive   <- "#39FF14"
+    col_negative   <- "#FF1493"
+    vertical_line_color <- "#FF69B4"
+    cyan <- "#00FFFF"
+
+    palette_colors  <- c(
+      "#00BFFF", "#FF1493", "#FFFF00", "#8A2BE2", "#00FFFF",
+      "#FF4500", "#39FF14", "#FF69B4", "#32CD32", "#FFA500"
+    )
+
+  }
+  if (palette == "br") {
+
+    light_gray <- "#EBEEF1"
+
+    col_background <- "#FFFFFF"
+    col_text       <- "#003641"
+    col_primary   <- "#00A091"
+    col_positive   <- "#7DB61C"
+    col_negative   <- "#C2185B"
+    vertical_line_color <- "#003641"
+    cyan <- "#94E1D6"
+
+    palette_colors  <- c(
+      "#94E1D6", "#49479D", "#7DB61C",
+      "#00C9B8", "#98B2B6", "#C9D200",
+      "#00FFFF", "#003641", "#00A091",
+      "#4C7C83", "#FF5F1F", "#EBEEA8",
+      "#A5CD5C", "#8A03C9", "#00AE9D",
+      "#EBEEA8", "#D6E266", "#00C9B8",
+      "#7DB61C", "#A5CD5C", "#003641",
+      "#00A091", "#4C7C83", "#FF5F1F"
+    )
+
+  }
 
   # Extract n_iter from the object
   n_iter <- x@n_iter
@@ -2185,29 +2676,32 @@ setMethod("plot", signature(x = "random_search_strategy", y = "missing"), functi
   }
 
   # Create the plot with hyperparameters on the y-axis
-  p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = Value, y = Hyperparameter, fill = Hyperparameter)) +
-    ggplot2::geom_violin(data = plot_data[plot_data$histogram != "constant", ], alpha = 0.7, color = neon_cyan) +  # Violin for non-constant histograms
-    ggplot2::geom_point(data = plot_data[plot_data$histogram == "constant", ], size = 3, color = neon_purple, shape = 4) +  # Points for constant in white
-    ggplot2::geom_point(data = predefined_data, ggplot2::aes(x = MinAllowed, y = Hyperparameter), shape = 124, size = 5, color = neon_green) +  # Min always closed
-    ggplot2::geom_point(data = predefined_data, ggplot2::aes(x = MaxAllowed, y = Hyperparameter), shape = 124, size = 5, color = neon_green) +  # Max always closed
+  hp_levels <- sort(unique(plot_data$Hyperparameter))
+  colors_used <- rep(palette_colors, length.out = length(hp_levels))
+  fill_map <- stats::setNames(colors_used, hp_levels)
+
+  p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = Value, y = Hyperparameter)) +
+    ggplot2::geom_violin(data = plot_data[plot_data$histogram != "constant", ], alpha = 0.7, color = cyan) +  # Violin for non-constant histograms
+    ggplot2::geom_point(data = plot_data[plot_data$histogram == "constant", ], size = 3, color = col_primary, shape = 4) +  # Points for constant in white
+    ggplot2::geom_point(data = predefined_data, ggplot2::aes(x = MinAllowed, y = Hyperparameter), shape = 124, size = 5, color = col_negative) +  # Min always closed
+    ggplot2::geom_point(data = predefined_data, ggplot2::aes(x = MaxAllowed, y = Hyperparameter), shape = 124, size = 5, color = col_positive) +  # Max always closed
     ggplot2::labs(title = "Random Search: Hyperparameter histograms",
                   y = "Hyperparameter",
                   x = "Sampled Values") +
     ggplot2::theme_minimal() +
     ggplot2::theme(
-      plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-      panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-      plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-      axis.text = ggplot2::element_text(color = white),
-      axis.title = ggplot2::element_text(color = white),
+      plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+      panel.background = ggplot2::element_rect(fill = col_background, color = NA),
+      plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+      axis.text = ggplot2::element_text(color = col_text),
+      axis.title = ggplot2::element_text(color = col_text),
       legend.position = "bottom",  # Adjust legend position if needed
-      legend.title = ggplot2::element_text(color = white),
-      legend.text = ggplot2::element_text(color = white),
+      legend.title = ggplot2::element_text(color = col_text),
+      legend.text = ggplot2::element_text(color = col_text),
       panel.grid.major = ggplot2::element_line(color = light_gray),  # Set major grid lines to light gray
       panel.grid.minor = ggplot2::element_line(color = light_gray)   # Set minor grid lines to light gray
     ) +
-    ggplot2::scale_fill_manual(values = c(neon_cyan, neon_blue, white, vibrant_purple, neon_green, neon_orange, neon_pink, neon_yellow,
-                                          neon_purple)) +  # Use defined colors
+    #ggplot2::scale_fill_manual(values = fill_map) +  # Use defined colors
     ggplot2::guides(fill = ggplot2::guide_none())  # Remove legend for fill and shape
 
   print(p)
@@ -2218,10 +2712,11 @@ setMethod("plot", signature(x = "random_search_strategy", y = "missing"), functi
 #' @description Plot the bounds for each hyperparameter in `bayesian_opt_strategy`.
 #' @param x An object of class `bayesian_opt_strategy`.
 #' @param y Unused. Included for consistency with the generic `plot` method.
+#' @param palette Character. Color palette to use for the plot. Options include "cyberpunk" and "br". Default is "cyberpunk".
 #' @param ... Additional arguments passed to the plotting method (currently unused).
 #' @return A `ggplot` object visualizing the bounds.
 #' @export
-setMethod("plot", signature(x = "bayesian_opt_strategy", y = "missing"), function(x, y, ...) {
+setMethod("plot", signature(x = "bayesian_opt_strategy", y = "missing"), function(x, y, palette = "cyberpunk", ...) {
 
   # Check for required packages for plotting
   required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
@@ -2239,17 +2734,55 @@ setMethod("plot", signature(x = "bayesian_opt_strategy", y = "missing"), functio
   }
 
 
-  # Define neon colors for plotting
-  neon_blue <- "#00BFFF"
-  neon_pink <- "#FF1493"
-  neon_yellow <- "#FFFF00"
-  neon_purple <- "#8A2BE2"
-  neon_orange <- "#FF4500"
-  neon_green <- "#39FF14"
-  blue_bg <- "#001f3f"
-  light_gray <- "#B0B0B0"
+  # Define colors for plotting
+  # Palette
   black <- "#000000"
   white <- "#FFFFFF"
+
+
+
+  if (palette == "cyberpunk") {
+
+    light_gray <- "#003641"
+
+    col_background <- "#001f3f"
+    col_text       <- "#FFFFFF"
+    col_primary    <- "#00FFFF"
+    col_positive   <- "#39FF14"
+    col_negative   <- "#FF1493"
+    vertical_line_color <- "#FF69B4"
+    cyan <- "#00FFFF"
+
+    palette_colors  <- c(
+      "#00BFFF", "#FF1493", "#FFFF00", "#8A2BE2", "#00FFFF",
+      "#FF4500", "#39FF14", "#FF69B4", "#32CD32", "#FFA500"
+    )
+
+  }
+  if (palette == "br") {
+
+    light_gray <- "#EBEEF1"
+
+    col_background <- "#FFFFFF"
+    col_text       <- "#003641"
+    col_primary   <- "#00A091"
+    col_positive   <- "#7DB61C"
+    col_negative   <- "#C2185B"
+    vertical_line_color <- "#003641"
+    cyan <- "#94E1D6"
+
+    palette_colors  <- c(
+      "#94E1D6", "#49479D", "#7DB61C",
+      "#00C9B8", "#98B2B6", "#C9D200",
+      "#00FFFF", "#003641", "#00A091",
+      "#4C7C83", "#FF5F1F", "#EBEEA8",
+      "#A5CD5C", "#8A03C9", "#00AE9D",
+      "#EBEEA8", "#D6E266", "#00C9B8",
+      "#7DB61C", "#A5CD5C", "#003641",
+      "#00A091", "#4C7C83", "#FF5F1F"
+    )
+
+  }
 
 
 
@@ -2345,13 +2878,13 @@ setMethod("plot", signature(x = "bayesian_opt_strategy", y = "missing"), functio
   # Create the ggplot
   p <- ggplot2::ggplot(plot_data, ggplot2::aes(y = hyperparameter)) +
     # Add segments for bounds with neon blue lines
-    ggplot2::geom_segment(ggplot2::aes(x = lower, xend = upper, yend = hyperparameter), color = neon_blue, size = 0.8) +
+    ggplot2::geom_segment(ggplot2::aes(x = lower, xend = upper, yend = hyperparameter), color = col_primary, size = 0.8) +
     # Add points for bounds
-    ggplot2::geom_point(ggplot2::aes(x = lower), size = 3, color = neon_green, shape = 16) +  # Closed for lower bounds
-    ggplot2::geom_point(ggplot2::aes(x = upper), size = 3, color = neon_green, shape = 16) +  # Closed for upper bounds
+    ggplot2::geom_point(ggplot2::aes(x = lower), size = 3, color = col_negative, shape = 16) +  # Closed for lower bounds
+    ggplot2::geom_point(ggplot2::aes(x = upper), size = 3, color = col_positive, shape = 16) +  # Closed for upper bounds
     # Add predefined limits (min and max)
-    ggplot2::geom_point(data = plot_data[!is.na(plot_data$min_val), ], ggplot2::aes(x = min_val, y = hyperparameter), size = 5, color = neon_pink, shape = 124) +  # Neon pink for predefined min
-    ggplot2::geom_point(data = plot_data[!is.na(plot_data$max_val), ], ggplot2::aes(x = max_val, y = hyperparameter), size = 5, color = neon_pink, shape = 124) +  # Neon pink for predefined max
+    ggplot2::geom_point(data = plot_data[!is.na(plot_data$min_val), ], ggplot2::aes(x = min_val, y = hyperparameter), size = 5, color = col_negative, shape = 124) +  # Neon pink for predefined min
+    ggplot2::geom_point(data = plot_data[!is.na(plot_data$max_val), ], ggplot2::aes(x = max_val, y = hyperparameter), size = 5, color = col_positive, shape = 124) +  # Neon pink for predefined max
     # Adjust plot labels
     ggplot2::labs(
       title = "Bayesian Optimization: Hyperparameter Bounds",
@@ -2360,14 +2893,14 @@ setMethod("plot", signature(x = "bayesian_opt_strategy", y = "missing"), functio
     ) +
     ggplot2::theme_minimal() +
     ggplot2::theme(
-      plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-      panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-      plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-      axis.text = ggplot2::element_text(color = white),
-      axis.title = ggplot2::element_text(color = white),
+      plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+      panel.background = ggplot2::element_rect(fill = col_background, color = NA),
+      plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+      axis.text = ggplot2::element_text(color = col_text),
+      axis.title = ggplot2::element_text(color = col_text),
       legend.position = "bottom",  # Adjust legend position if needed
-      legend.title = ggplot2::element_text(color = white),
-      legend.text = ggplot2::element_text(color = white),
+      legend.title = ggplot2::element_text(color = col_text),
+      legend.text = ggplot2::element_text(color = col_text),
       panel.grid.major = ggplot2::element_line(color = light_gray),  # Set major grid lines to light gray
       panel.grid.minor = ggplot2::element_line(color = light_gray)   # Set minor grid lines to light gray
     )
@@ -2380,9 +2913,10 @@ setMethod("plot", signature(x = "bayesian_opt_strategy", y = "missing"), functio
 #' @description Calls the appropriate plot method for `tuning_strategy`.
 #' @param x An object of class `sb_backtest_config`.
 #' @param y Unused. Included for consistency with the generic `plot` method.
+#' @param palette Character. Color palette to use for the plot. Options include "cyberpunk" and "br". Default is "cyberpunk".
 #' @return A `ggplot` object visualizing the hyperparameter histograms with possible limits.
 #' @export
-setMethod("plot", signature(x = "sb_backtest_config", y = "missing"), function(x, y){
+setMethod("plot", signature(x = "sb_backtest_config", y = "missing"), function(x, y, palette = "cyberpunk"){
 
   # Check for required packages for plotting
   required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
@@ -2400,242 +2934,12 @@ setMethod("plot", signature(x = "sb_backtest_config", y = "missing"), function(x
   }
 
   if(!x@sb_algorithm %in% c("ols", "sw", "ew", "rp", "mvo", "custom_weights")){
-    plot(x@tuning_strategy)
+    plot(x@tuning_strategy, palette = palette)
   } else {
     message("Plot method not avaiable for `ols`, `sw`, `ew`, `rp` or `mvo` sb_algorithm.")
   }
 
 })
-
-
-#' @title Plot Method for `sb_metabacktest_config`
-#' @description Allows the user to plot either the base learners or the meta learner configurations.
-#' If `base_sb_backtest_results` is provided, it extracts the configurations using `get_sb_backtest_config`.
-#'
-#' @param x An object of class `sb_metabacktest_config`.
-#' @param y Unused. Included for consistency with the generic `plot` method.
-#' @param plot_id A character string or numeric value specifying which plot to display.
-#'   If `NULL`, the user is prompted to select one from an interactive menu.
-#' @param ... Additional arguments (currently unused).
-#'
-#' @return A combined `ggplot` object visualizing the hyperparameter histograms for the selected configurations.
-#' @export
-setMethod("plot", signature(x = "sb_metabacktest_config", y = "missing"), function(x, y, plot_id = NULL, ...) {
-
-  # Check for required packages for plotting
-  required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
-
-  missing_pkgs <- required_plot_pkgs[!vapply(required_plot_pkgs, requireNamespace, FUN.VALUE = logical(1), quietly = TRUE)]
-
-  if (length(missing_pkgs) > 0) {
-    stop(
-      sprintf(
-        "The following packages are required to generate plots but are not installed: %s.\nPlease install them using install.packages().",
-        paste(missing_pkgs, collapse = ", ")
-      ),
-      call. = FALSE
-    )
-  }
-
-  # List of available plots
-  available_plots <- c(
-    "Combined and Consolidated OOS Testing Metrics - All Dates",
-    "Combined and Averaged OOS Testing Metrics - Common Dates",
-    "Time Series OOS Testing Metrics",
-    "Mean Validation Metrics Comparison",
-    "Time Series Validation Metrics",
-    "Prediction Error Correlation",
-    "Base and Meta Learners Hyperparameters"
-  )
-
-  # Display the available plots and prompt the user if plot_id is NULL
-  if (is.null(plot_id)) {
-    cat("\nPlease choose a plot to display:\n")
-    for (i in seq_along(available_plots)) {
-      cat(paste0(i, ": ", available_plots[i], "\n"))
-    }
-    selection <- readline(prompt = "Enter the number of your choice: ")
-    plot_id <- as.numeric(selection)
-    if (is.na(plot_id) || plot_id < 1 || plot_id > length(available_plots)) {
-      stop("Invalid selection.")
-    }
-  }
-
-  # Determine if plot_id is numeric (index) or character (name)
-  if (is.numeric(plot_id)) {
-    if (plot_id >= 1 && plot_id <= length(available_plots)) {
-      plot_name <- available_plots[plot_id]
-    } else {
-      stop("Invalid plot number. Please select a number between 1 and ", length(available_plots), ".")
-    }
-  } else if (is.character(plot_id)) {
-    if (plot_id %in% available_plots) {
-      plot_name <- plot_id
-    } else {
-      stop("Invalid 'plot_id' specified. Available options are:\n",
-           paste(available_plots, collapse = ", "))
-    }
-  } else {
-    stop("'plot_id' must be either a string or a number corresponding to the plot.")
-  }
-
-
-  if (plot_name %in% available_plots[c(1:6)]){
-
-    if (is.null(x@base_sb_backtest_results)){
-      stop("The selected plot depends on the existence of base sb backtest results")
-    }
-
-    #Get base sb backtest results
-    all_sb_backtest_results <- x@base_sb_backtest_results
-    base_sb_names <- sapply(all_sb_backtest_results, function(x) x@backtest_identifier)
-
-    #Consolidate them as in create_sb_metabacktest_results
-    results <- consolidate_sb_metabacktest_results(
-      all_sb_backtest_results = all_sb_backtest_results,
-      meta_sb_name = NULL,
-      base_sb_names = base_sb_names
-    )
-
-    #Call inner plot method
-    plot_consolidated_sb_backtest_results(
-      combined_metrics = list(all_dates_oos_testing_metrics = results$all_dates_oos_testing_metrics,
-                              common_dates_oos_testing_metrics = results$common_dates_oos_testing_metrics),
-      mean_validation_metrics = results$mean_validation_metrics,
-      time_series_oos_testing_metrics = results$time_series_oos_testing_metrics,
-      time_series_validation_metrics = results$time_series_validation_metrics,
-      base_learners = all_sb_backtest_results,
-      plot_name = plot_name
-    )
-
-
-    #Plot base and meta learners hyperparameters
-  } else if (plot_name == "Base and Meta Learners Hyperparameters") {
-    cat("\nPlease choose what to plot:\n")
-    cat("1: Base Learners\n")
-    cat("2: Meta Learner\n")
-    cat("3: Both\n")
-    selection <- readline(prompt = "Enter the number of your choice: ")
-    selection <- as.numeric(selection)
-    if (selection == 1) {
-      which <- "base"
-    } else if (selection == 2) {
-      which <- "meta"
-    } else if (selection == 3) {
-      which <- "both"
-    } else {
-      stop("Invalid selection.")
-    }
-
-    # Initialize a list to hold plots
-    plot_list <- list()
-
-    # Plot base learners if requested
-    if (which %in% c("base", "both")) {
-      # Determine whether to use configs or results
-      if (!is.null(x@base_sb_backtest_configs)) {
-        base_configs <- x@base_sb_backtest_configs
-      } else if (!is.null(x@base_sb_backtest_results)) {
-        # Use get_sb_backtest_config to extract configs from results
-        base_configs <- lapply(x@base_sb_backtest_results, get_sb_backtest_config)
-      } else {
-        stop("No base_sb_backtest_configs or base_sb_backtest_results found in the object.")
-      }
-
-      # Loop through each sb_backtest_config in the base_configs
-      for (config in base_configs) {
-        # Check if the algorithm is not OLS
-        if (config@sb_algorithm != "ols") {
-          # Create the plot using the existing plot method for sb_backtest_config
-          p <- plot(config)  # Call the existing plot method
-
-          # Store the plot in the list and add a centered subtitle
-          plot_list[[length(plot_list) + 1]] <- p +
-            ggplot2::ggtitle(paste("Algorithm:", config@sb_algorithm,
-                                   if(config@sb_algorithm == "nn") paste("with", length(config@keras_architecture_parameters@units), "layers"),
-                                   "  | Custom Obj:", config@custom_objective,
-                                   "\nTuning Strategy:", config@tuning_strategy@tuning_method,
-                                   "  |  Chosen Eval Metric:", config@tuning_strategy@chosen_eval_metric,
-                                   "  |  Val Sample Size:", config@tuning_strategy@validation_sample_size)
-            ) +  # Combined title
-            ggplot2::theme(
-              plot.title = ggplot2::element_text(size = 10),
-              plot.subtitle = ggplot2::element_text(hjust = 0.5, color = "white", size = 9),
-              panel.border = ggplot2::element_rect(color = "white", fill = NA, size = 1)  # Add white border
-            )
-        } else {
-          message("Skipping plotting for `ols` sb_algorithm in one of the configs.")
-        }
-      }
-    }
-
-    # Plot meta learner if requested
-    if (which %in% c("meta", "both")) {
-      meta_config <- x@meta_sb_backtest_config
-      # Check if the algorithm is not OLS
-      if (meta_config@sb_algorithm != "ols") {
-        # Create the plot using the existing plot method for sb_backtest_config
-        p <- plot(meta_config)  # Call the existing plot method
-
-        # Store the plot in the list and add a centered subtitle
-        plot_list[[length(plot_list) + 1]] <- p +
-          ggplot2::ggtitle(paste("Meta Learner - Algorithm:", meta_config@sb_algorithm,
-                                 if(meta_config@sb_algorithm == "nn") paste("with", length(meta_config@keras_architecture_parameters@units), "layers"),
-                                 "  | Custom Obj:", meta_config@custom_objective,
-                                 "\nTuning Strategy:", meta_config@tuning_strategy@tuning_method,
-                                 "  |  Chosen Eval Metric:", meta_config@tuning_strategy@chosen_eval_metric,
-                                 "  |  Val Sample Size:", meta_config@tuning_strategy@validation_sample_size)
-          ) +  # Combined title
-          ggplot2::theme(
-            plot.title = ggplot2::element_text(size = 10),
-            plot.subtitle = ggplot2::element_text(hjust = 0.5, color = "white", size = 9),
-            panel.border = ggplot2::element_rect(color = "white", fill = NA, size = 1)  # Add white border
-          )
-      } else {
-        message("Skipping plotting for `ols` sb_algorithm in the meta learner config.")
-      }
-    }
-
-    # Check if there are any plots to display
-    if (length(plot_list) > 0) {
-      # Create an empty plot for the main title with the blue background
-      title_text <- switch(which,
-                           "base" = "SB Metabacktest Base Learner Tuning Strategies",
-                           "meta" = "SB Metabacktest Meta Learner Tuning Strategy",
-                           "both" = "SB Metabacktest Tuning Strategies"
-      )
-
-      title_plot <- ggplot2::ggplot() +
-        ggplot2::theme_void() +  # No grid lines or axes
-        ggplot2::annotate("text", x = 0.5, y = 0.5,  # Centered position
-                          label = title_text,
-                          size = 6.25, color = "white", fontface = "bold", hjust = 0.5) +  # Centered title
-        ggplot2::theme(plot.background = ggplot2::element_rect(fill = "#001f3f"))  # Set background to blue_bg
-
-      # Determine the number of columns in the layout
-      ncol_layout <- ifelse(length(plot_list) > 1, 2, 1)
-
-      # Combine all individual plots into a single grid layout
-      combined_plot <- gridExtra::grid.arrange(
-        title_plot,
-        do.call(gridExtra::arrangeGrob, c(plot_list, ncol = ncol_layout)),
-        nrow = 2,
-        heights = c(0.1, 0.9)  # Adjust height ratios for title and plots
-      )
-
-      # Display the combined plot
-      grid::grid.newpage()
-      grid::grid.draw(combined_plot)
-
-    }
-
-
-  } else {
-    stop("No valid plots available to display.")
-  }
-
-})
-
 
 
 
@@ -2644,15 +2948,28 @@ setMethod("plot", signature(x = "sb_metabacktest_config", y = "missing"), functi
 #'
 #' @param x An object of class \code{sb_model}.
 #' @param type Currently unused. Included for compatibility with other plot methods.
+#' @param palette Character. Color palette to use for the plot. Options include "cyberpunk" and "br". Default is "cyberpunk". This will be passed to the underlying model's plot method if applicable.
 #' @param ... Additional arguments passed to the plot method of the underlying model.
 #'
 #' @export
 setMethod(
   "plot",
   signature(x = "sb_model", y = "missing"),
-  function(x, type = NULL, ...) {
+  function(x, type = NULL, palette = "cyberpunk", ...) {
 
-    plot(x@model)
+    ##Try to get sb_algorithm slot in x
+     sb_algorithm <- tryCatch({
+      x@sb_algorithm
+    }, error = function(e) {
+      NULL
+    })
+
+    ##If the algo is one of 'rp', 'ew', 'sw', 'cs', 'mmaf', 'mvo', 'hrp', pass palette
+    if (!is.null(sb_algorithm) && sb_algorithm %in% c("rp", "ew", "sw", "cs", "mmaf", "mvo", "hrp")) {
+      return(plot(x@model, palette = palette, ...))
+    } else {
+      plot(x@model)
+    }
 
   }
 )
@@ -2679,11 +2996,13 @@ setMethod(
 #'   - By number: Provide a number corresponding to the plot (as listed when `plot_id` is `NULL`).
 #'   If `NULL` (default), the method lists available plots.
 #' @param features_m_df A \code{meta_dataframe} containing features used in the backtest. Required for plots like `"Explain Prediction"`.
-#'
+#' @param palette Character. Color palette to use for the plot. Options include "cyberpunk" and "br". Default is "cyberpunk".
+#' @param ticker_to_explain Character. Ticker symbol to explain in the "Explain Prediction" plot.
+#' @param date_to_explain Date. Date to explain in the "Explain Prediction" plot.
 #' @return Invisibly returns the input \code{x}.
 #' @export
 
-setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_df = NULL) {
+setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_df = NULL, palette = "cyberpunk", ticker_to_explain = NULL, date_to_explain = NULL) {
 
   # Check for required packages for plotting
   required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
@@ -2784,27 +3103,65 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
   sb_algorithm <- sb_backtest_workflow$sb_algorithm
   rebalance_dates <- sb_backtest_workflow$rebalance_dates
 
-  # Define color palette
-  neon_blue <- "#00BFFF"
-  neon_pink <- "#FF1493"
-  neon_yellow <- "#FFFF00"
-  neon_purple <- "#8A2BE2"
-  neon_orange <- "#FF4500"
-  neon_green <- "#39FF14"
-  blue_bg <- "#001f3f"
-  faint_blue <- "#003366"
-  light_gray <- "#B0B0B0"
+  # Define colors for plotting
+  # Palette
   black <- "#000000"
   white <- "#FFFFFF"
-  neon_hot_pink <- "#FF69B4"      # Hot Pink
-  neon_lime_green <- "#32CD32"    # Lime Green
-  neon_bright_orange <- "#FFA500" # Bright Orange
 
-  # Extended neon palette with 9 colors
-  extended_neon_palette <- c(
-    neon_blue, neon_pink, neon_yellow, neon_green, neon_orange, neon_purple,
-    neon_hot_pink, neon_lime_green, neon_bright_orange
-  )
+  if (palette == "cyberpunk") {
+
+    light_gray <- "#003641"
+
+    col_background <- "#001f3f"
+    col_text       <- "#FFFFFF"
+    col_primary    <- "#00FFFF"
+    col_secondary <- "#FF69B4"      # Hot Pink
+    col_terciary <-  "#FF1493" # Lime Green
+    col_quarternary <-  "#FFA500"
+    col_quinternary <- "#FF4500"
+    col_sextenary <- "#32CD32"
+    col_positive   <- "#39FF14"
+    col_negative   <- "#FF1493"
+    vertical_line_color <- "#FF69B4"
+    cyan <- "#00FFFF"
+
+    palette_colors  <- c(
+      "#00BFFF", "#FF1493", "#FFFF00",  "#00FFFF", "#8A2BE2",
+      "#FF4500", "#39FF14", "#FF69B4", "#32CD32", "#FFA500"
+    )
+
+  }
+  if (palette == "br") {
+
+    light_gray <- "#EBEEF1"
+
+    col_background <- "#FFFFFF"
+    col_text       <- "#003641"
+    col_primary   <- "#00A091"
+    col_secondary  <- "#4C7C83"
+    col_terciary   <- "#49479D"
+    col_quarternary <- "#7DB61C"
+    col_quinternary <- "#003641"
+    col_sextenary  <- "#D6E266"
+    col_positive   <- "#7DB61C"
+    col_negative   <- "#C2185B"
+    vertical_line_color <- "#003641"
+    cyan <- "#94E1D6"
+
+    palette_colors  <- c(
+      "#94E1D6", "#49479D", "#FF5F1F",
+      "#7DB61C", "#98B2B6", "#8A03C9",
+      "#00C9B8", "#C9D200", "#C2185B",
+      "#00FFFF", "#003641", "#00A091",
+      "#4C7C83", "#FF5F1F", "#EBEEA8",
+      "#A5CD5C", "#00AE9D",
+      "#EBEEA8", "#D6E266", "#00C9B8",
+      "#7DB61C", "#A5CD5C", "#003641",
+      "#00A091", "#4C7C83"
+    )
+
+  }
+
 
   # Define global variables to pass R CMD check
   dates <- value <- year <- overall_mean <- yearly_mean <- quantile <- concatenation <- median <- lambda.min.ratio <- alpha <- q75 <- median_chosen_eval_metric <-
@@ -2899,8 +3256,8 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
       chosen_eval_testing_data,
       ggplot2::aes(x = dates, y = value, color = paste(chosen_eval_metric))
     ) +
-      ggplot2::geom_line(color = neon_blue, alpha = 0.7) +  # Neon cyan line
-      ggplot2::geom_point(color = neon_green) +  # Neon green points
+      ggplot2::geom_line(color = col_primary, alpha = 0.7) +  # Neon cyan line
+      ggplot2::geom_point(color = col_positive) +  # Neon green points
       ggplot2::labs(x = "Date", y = chosen_eval_metric) +
       ggplot2::ggtitle(paste("Test", chosen_eval_metric, "over time")) +
       ggplot2::facet_wrap(~year, scales = "free") +
@@ -2910,7 +3267,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
           dplyr::select(year, overall_mean, yearly_mean) %>%
           dplyr::distinct(),
         ggplot2::aes(yintercept = overall_mean),
-        color = neon_pink,
+        color = col_secondary,
         linetype = "dashed"
       ) +
       ggplot2::geom_hline(
@@ -2918,24 +3275,24 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
           dplyr::select(year, overall_mean, yearly_mean) %>%
           dplyr::distinct(),
         ggplot2::aes(yintercept = yearly_mean),
-        color = neon_purple,
+        color = col_terciary,
         linetype = "dashed"
       ) +
       #ggplot2::scale_color_manual(values = c("Metric" = neon_blue)) +
       ggplot2::guides(color = ggplot2::guide_legend(title = "")) +
       ggplot2::theme_minimal() +
       ggplot2::theme(
-        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-        plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-        axis.text = ggplot2::element_text(color = white),
-        axis.title = ggplot2::element_text(color = white),
-        strip.text = ggplot2::element_text(color = white, face = "bold"),  # White facet labels
+        plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+        panel.background = ggplot2::element_rect(fill = col_background, color = NA),
+        plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+        axis.text = ggplot2::element_text(color = col_text),
+        axis.title = ggplot2::element_text(color = col_text),
+        strip.text = ggplot2::element_text(color = col_text, face = "bold"),  # White facet labels
         legend.position = "bottom",
-        legend.title = ggplot2::element_text(color = white),
-        legend.text = ggplot2::element_text(color = white),
-        panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),  # Blended blue for major grid
-        panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)   # Blended blue for minor grid
+        legend.title = ggplot2::element_text(color = col_text),
+        legend.text = ggplot2::element_text(color = col_text),
+        panel.grid.major = ggplot2::element_line(color = light_gray, size = 0.2),  # Blended blue for major grid
+        panel.grid.minor = ggplot2::element_line(color = light_gray, size = 0.1)   # Blended blue for minor grid
       )
 
     print(plots_list$chosen_eval_metric_over_time)
@@ -2952,40 +3309,41 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
         data = chosen_eval_testing_data,
         ggplot2::aes(x = dates, y = value, color = "Test"),
         size = 2,
-        color = neon_green
+        color = col_positive
       ) +
       ggplot2::geom_point(
         data = chosen_eval_validation_data,
         ggplot2::aes(x = dates, y = value, color = "Validation"),
-        size = 3
+        size = 3,
+        color = col_negative
       ) +
       ggplot2::geom_text(
         data = chosen_eval_validation_data,
         ggplot2::aes(x = dates, y = value, label = dates),
-        vjust = -0.5, hjust = 0, size = 3, color = neon_yellow
+        vjust = -0.5, hjust = 0, size = 3, color = col_negative
       ) +  # Display dates next to validation points
       ggplot2::labs(x = "Date", y = chosen_eval_metric, color = "") +
       ggplot2::ggtitle(paste("Test and Validation", chosen_eval_metric, "over time")) +
-      ggplot2::scale_color_manual(values = c("Test" = neon_blue, "Validation" = neon_yellow)) +
+      ggplot2::scale_color_manual(values = c("Test" = col_primary, "Validation" = col_secondary)) +
       ggplot2::geom_vline(
         data = chosen_eval_validation_data,
         ggplot2::aes(xintercept = dates),
         linetype = "dashed",
-        color = neon_orange
+        color = col_terciary
       ) +
       ggplot2::theme_minimal() +
       ggplot2::theme(
-        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-        plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-        axis.text = ggplot2::element_text(color = white),
-        axis.title = ggplot2::element_text(color = white),
-        strip.text = ggplot2::element_text(color = white, face = "bold"),
+        plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+        panel.background = ggplot2::element_rect(fill = col_background, color = NA),
+        plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+        axis.text = ggplot2::element_text(color = col_text),
+        axis.title = ggplot2::element_text(color = col_text),
+        strip.text = ggplot2::element_text(color = col_text, face = "bold"),
         legend.position = "bottom",
-        legend.title = ggplot2::element_text(color = white),
-        legend.text = ggplot2::element_text(color = white),
-        panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),  # Blended grid lines
-        panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
+        legend.title = ggplot2::element_text(color = col_text),
+        legend.text = ggplot2::element_text(color = col_text),
+        panel.grid.major = ggplot2::element_line(color = light_gray, size = 0.2),  # Blended grid lines
+        panel.grid.minor = ggplot2::element_line(color = light_gray, size = 0.1)
       )
 
     print(plots_list$test_vs_val_chosen_eval_metric_over_time)
@@ -3003,30 +3361,31 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
       ggplot2::aes(x = dates, y = value, color = variable)
     ) +
       ggplot2::geom_line(alpha = 0.5) +
-      ggplot2::geom_point(color = neon_green) +  # Neon green points
+      ggplot2::geom_point(color = col_positive) +  # Neon green points
       ggplot2::geom_text(
         ggplot2::aes(label = round(value, 2)),
-        vjust = -0.5, size = 3, color = white
+        vjust = -0.5, size = 3, color = col_text
       ) +  # Display values next to points
       ggplot2::labs(x = "Date", y = "Best Hyperparameter") +
       ggplot2::ggtitle("Best Hyperparameters Over Time") +
       ggplot2::facet_wrap(~variable, scales = "free") +  # Create subplots for each hyperparameter
       ggplot2::scale_x_date(labels = scales::date_format("%b-%y")) +
-      ggplot2::scale_color_manual(values = extended_neon_palette) +
+      ggplot2::scale_color_manual(values = palette_colors) +
       ggplot2::guides(color = ggplot2::guide_legend(title = "")) +
       ggplot2::theme_minimal() +
+      ggplot2::coord_cartesian(clip = "off") +
       ggplot2::theme(
-        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-        plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-        axis.text = ggplot2::element_text(color = white),
-        axis.title = ggplot2::element_text(color = white),
-        strip.text = ggplot2::element_text(color = white, face = "bold"),  # White facet labels
+        plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+        panel.background = ggplot2::element_rect(fill = col_background, color = NA),
+        plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+        axis.text = ggplot2::element_text(color = col_text),
+        axis.title = ggplot2::element_text(color = col_text),
+        strip.text = ggplot2::element_text(color = col_text, face = "bold"),  # col_text facet labels
         legend.position = "bottom",
-        legend.title = ggplot2::element_text(color = white),
-        legend.text = ggplot2::element_text(color = white),
-        panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),  # Blended grid lines
-        panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
+        legend.title = ggplot2::element_text(color = col_text),
+        legend.text = ggplot2::element_text(color = col_text),
+        panel.grid.major = ggplot2::element_line(color = light_gray, size = 0.2),  # Blended grid lines
+        panel.grid.minor = ggplot2::element_line(color = light_gray, size = 0.1)
       )
 
     # Print the plot
@@ -3122,7 +3481,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
     if (sb_algorithm == "glmnet") {
       # Ensure there are enough colors
       num_alphas <- length(unique(chosen_eval_metric_validation_last_tuning$alpha))
-      fill_colors <- extended_neon_palette[1:num_alphas]
+      fill_colors <- palette_colors[1:num_alphas]
 
       plots_list$hyper_vs_error <- ggplot2::ggplot(
         chosen_eval_metric_validation_last_tuning,
@@ -3132,27 +3491,27 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
         ggplot2::facet_grid(rows = ggplot2::vars(alpha)) +
         ggplot2::geom_point(
           ggplot2::aes(y = max),
-          color = neon_yellow,
+          color = col_quarternary,
           size = 2
         ) +
         ggplot2::geom_point(
           ggplot2::aes(y = q75),
-          color = neon_orange,
+          color = col_terciary,
           size = 2
         ) +
         ggplot2::geom_point(
           ggplot2::aes(y = median_chosen_eval_metric),
-          color = neon_green,
+          color = col_positive,
           size = 2
         ) +
         ggplot2::geom_point(
           ggplot2::aes(y = q25),
-          color = neon_purple,
+          color = col_secondary,
           size = 2
         ) +
         ggplot2::geom_point(
           ggplot2::aes(y = min),
-          color = neon_blue,
+          color = col_quintenary,
           size = 2
         ) +
         ggplot2::ggtitle(paste("Validation", chosen_eval_metric, "by alpha and lambda.min.ratio")) +
@@ -3160,18 +3519,18 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
         ggplot2::guides(fill = ggplot2::guide_legend(title = NULL)) +  # Remove legend title
         ggplot2::theme_minimal() +
         ggplot2::theme(
-          plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-          plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-          axis.text = ggplot2::element_text(color = white),
-          axis.title = ggplot2::element_text(color = white),
-          strip.text = ggplot2::element_text(color = white, face = "bold"),
+          plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+          panel.background = ggplot2::element_rect(fill = col_background, color = NA),
+          plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+          axis.text = ggplot2::element_text(color = col_text),
+          axis.title = ggplot2::element_text(color = col_text),
+          strip.text = ggplot2::element_text(color = col_text, face = "bold"),
           legend.position = "bottom",
-          legend.title = ggplot2::element_text(color = white),
-          legend.text = ggplot2::element_text(color = white),
-          panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
-          panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1),
-          plot.caption = ggplot2::element_text(color = white, hjust = 0)
+          legend.title = ggplot2::element_text(color = col_text),
+          legend.text = ggplot2::element_text(color = col_text),
+          panel.grid.major = ggplot2::element_line(color = light_gray, size = 0.2),
+          panel.grid.minor = ggplot2::element_line(color = light_gray, size = 0.1),
+          plot.caption = ggplot2::element_text(color = col_text, hjust = 0)
         ) +
         ggplot2::labs(caption = "Dots represent quantiles (min, Q25, Q50, Q75, max) of all rebalancing periods.")
 
@@ -3182,7 +3541,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
     if (sb_algorithm == "rf") {
       # Ensure there are enough colors
       num_mtrys <- length(unique(chosen_eval_metric_validation_last_tuning$mtry))
-      fill_colors <- extended_neon_palette[1:num_mtrys]
+      fill_colors <- palette_colors[1:num_mtrys]
 
       plots_list$hyper_vs_error <- ggplot2::ggplot(
         chosen_eval_metric_validation_last_tuning,
@@ -3192,27 +3551,27 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
         ggplot2::facet_grid(rows = ggplot2::vars(max.depth), cols = ggplot2::vars(min.bucket)) +
         ggplot2::geom_point(
           ggplot2::aes(y = max),
-          color = neon_yellow,
+          color = col_quarternary,
           size = 2
         ) +
         ggplot2::geom_point(
           ggplot2::aes(y = q75),
-          color = neon_orange,
+          color = col_terciary,
           size = 2
         ) +
         ggplot2::geom_point(
           ggplot2::aes(y = median_chosen_eval_metric),
-          color = neon_green,
+          color = col_positive,
           size = 2
         ) +
         ggplot2::geom_point(
           ggplot2::aes(y = q25),
-          color = neon_purple,
+          color = col_secondary,
           size = 2
         ) +
         ggplot2::geom_point(
           ggplot2::aes(y = min),
-          color = neon_pink,
+          color = col_sextenary,
           size = 2
         ) +
         ggplot2::ggtitle(paste("Validation", chosen_eval_metric, "by max.depth and min.bucket")) +
@@ -3220,18 +3579,18 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
         ggplot2::guides(fill = ggplot2::guide_legend(title = NULL)) +  # Remove legend title
         ggplot2::theme_minimal() +
         ggplot2::theme(
-          plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-          plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-          axis.text = ggplot2::element_text(color = white),
-          axis.title = ggplot2::element_text(color = white),
-          strip.text = ggplot2::element_text(color = white, face = "bold"),
+          plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+          panel.background = ggplot2::element_rect(fill = col_background, color = NA),
+          plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+          axis.text = ggplot2::element_text(color = col_text),
+          axis.title = ggplot2::element_text(color = col_text),
+          strip.text = ggplot2::element_text(color = col_text, face = "bold"),
           legend.position = "bottom",
-          legend.title = ggplot2::element_text(color = white),
-          legend.text = ggplot2::element_text(color = white),
-          panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
-          panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1),
-          plot.caption = ggplot2::element_text(color = white, hjust = 0)
+          legend.title = ggplot2::element_text(color = col_text),
+          legend.text = ggplot2::element_text(color = col_text),
+          panel.grid.major = ggplot2::element_line(color = light_gray, size = 0.2),
+          panel.grid.minor = ggplot2::element_line(color = light_gray, size = 0.1),
+          plot.caption = ggplot2::element_text(color = col_text, hjust = 0)
         ) +
         ggplot2::labs(caption = "Dots represent quantiles (min, Q25, Q50, Q75, max) of all rebalancing periods.")
 
@@ -3242,7 +3601,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
     if (sb_algorithm == "xgb") {
       # Ensure there are enough colors
       num_etas <- length(unique(chosen_eval_metric_validation_last_tuning$eta))
-      fill_colors <- extended_neon_palette[1:num_etas]
+      fill_colors <- palette_colors[1:num_etas]
 
       plots_list$hyper_vs_error <- ggplot2::ggplot(
         chosen_eval_metric_validation_last_tuning,
@@ -3252,27 +3611,27 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
         ggplot2::facet_grid(rows = ggplot2::vars(max_depth), cols = ggplot2::vars(colsample_bytree)) +
         ggplot2::geom_point(
           ggplot2::aes(y = max),
-          color = neon_yellow,
+          color = col_quarternary,
           size = 2
         ) +
         ggplot2::geom_point(
           ggplot2::aes(y = q75),
-          color = neon_orange,
+          color = col_terciary,
           size = 2
         ) +
         ggplot2::geom_point(
           ggplot2::aes(y = median_chosen_eval_metric),
-          color = neon_green,
+          color = col_positive,
           size = 2
         ) +
         ggplot2::geom_point(
           ggplot2::aes(y = q25),
-          color = neon_purple,
+          color = col_secondary,
           size = 2
         ) +
         ggplot2::geom_point(
           ggplot2::aes(y = min),
-          color = neon_blue,
+          color = col_quintenary,
           size = 2
         ) +
         ggplot2::ggtitle(paste("Validation", chosen_eval_metric, "by max_depth and colsample_bytree")) +
@@ -3280,18 +3639,18 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
         ggplot2::guides(fill = ggplot2::guide_legend(title = NULL)) +  # Remove legend title
         ggplot2::theme_minimal() +
         ggplot2::theme(
-          plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-          plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-          axis.text = ggplot2::element_text(color = white),
-          axis.title = ggplot2::element_text(color = white),
-          strip.text = ggplot2::element_text(color = white, face = "bold"),
+          plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+          panel.background = ggplot2::element_rect(fill = col_background, color = NA),
+          plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+          axis.text = ggplot2::element_text(color = col_text),
+          axis.title = ggplot2::element_text(color = col_text),
+          strip.text = ggplot2::element_text(color = col_text, face = "bold"),
           legend.position = "bottom",
-          legend.title = ggplot2::element_text(color = white),
-          legend.text = ggplot2::element_text(color = white),
-          panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
-          panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1),
-          plot.caption = ggplot2::element_text(color = white, hjust = 0)
+          legend.title = ggplot2::element_text(color = col_text),
+          legend.text = ggplot2::element_text(color = col_text),
+          panel.grid.major = ggplot2::element_line(color = light_gray, size = 0.2),
+          panel.grid.minor = ggplot2::element_line(color = light_gray, size = 0.1),
+          plot.caption = ggplot2::element_text(color = col_text, hjust = 0)
         ) +
         ggplot2::labs(caption = "Dots represent quantiles (min, Q25, Q50, Q75, max) of all rebalancing periods.")
 
@@ -3302,7 +3661,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
     if (sb_algorithm == "nn") {
       # Ensure there are enough colors
       num_lrs <- length(unique(chosen_eval_metric_validation_last_tuning$lr))
-      fill_colors <- extended_neon_palette[1:num_lrs]
+      fill_colors <- palette_colors[1:num_lrs]
 
       plots_list$hyper_vs_error <- ggplot2::ggplot(
         chosen_eval_metric_validation_last_tuning,
@@ -3312,27 +3671,27 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
         ggplot2::facet_grid(rows = ggplot2::vars(droprate), cols = ggplot2::vars(regularizer_l1)) +
         ggplot2::geom_point(
           ggplot2::aes(y = max),
-          color = neon_yellow,
+          color = col_quarternary,
           size = 2
         ) +
         ggplot2::geom_point(
           ggplot2::aes(y = q75),
-          color = neon_orange,
+          color = col_terciary,
           size = 2
         ) +
         ggplot2::geom_point(
           ggplot2::aes(y = median_chosen_eval_metric),
-          color = neon_green,
+          color = col_positive,
           size = 2
         ) +
         ggplot2::geom_point(
           ggplot2::aes(y = q25),
-          color = neon_purple,
+          color = col_secondary,
           size = 2
         ) +
         ggplot2::geom_point(
           ggplot2::aes(y = min),
-          color = neon_blue,
+          color = col_quintenary,
           size = 2
         ) +
         ggplot2::ggtitle(paste("Validation", chosen_eval_metric, "by droprate and regularizer_l1")) +
@@ -3340,18 +3699,18 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
         ggplot2::guides(fill = ggplot2::guide_legend(title = NULL)) +  # Remove legend title
         ggplot2::theme_minimal() +
         ggplot2::theme(
-          plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-          plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-          axis.text = ggplot2::element_text(color = white),
-          axis.title = ggplot2::element_text(color = white),
-          strip.text = ggplot2::element_text(color = white, face = "bold"),
+          plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+          panel.background = ggplot2::element_rect(fill = col_background, color = NA),
+          plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+          axis.text = ggplot2::element_text(color = col_text),
+          axis.title = ggplot2::element_text(color = col_text),
+          strip.text = ggplot2::element_text(color = col_text, face = "bold"),
           legend.position = "bottom",
-          legend.title = ggplot2::element_text(color = white),
-          legend.text = ggplot2::element_text(color = white),
-          panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
-          panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1),
-          plot.caption = ggplot2::element_text(color = white, hjust = 0)
+          legend.title = ggplot2::element_text(color = col_text),
+          legend.text = ggplot2::element_text(color = col_text),
+          panel.grid.major = ggplot2::element_line(color = light_gray, size = 0.2),
+          panel.grid.minor = ggplot2::element_line(color = light_gray, size = 0.1),
+          plot.caption = ggplot2::element_text(color = col_text, hjust = 0)
         ) +
         ggplot2::labs(caption = "Dots represent quantiles (min, Q25, Q50, Q75, max) of all rebalancing periods.")
 
@@ -3377,24 +3736,24 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
       ggplot2::ggtitle("All Evaluation Metrics Over Time") +
       ggplot2::facet_wrap(~variable, scales = "free") +  # Create subplots for each metric with simplified titles
       ggplot2::scale_x_date(labels = scales::date_format("%b-%y")) +
-      ggplot2::scale_color_manual(values = extended_neon_palette) +
-      ggplot2::geom_vline(xintercept = as.numeric(rebalance_dates), color = neon_yellow, linetype = "dashed") +
+      ggplot2::scale_color_manual(values = palette_colors) +
+      ggplot2::geom_vline(xintercept = as.numeric(rebalance_dates), color = col_quarternary, linetype = "dashed") +
       ggplot2::geom_text(
         data = data.frame(x = rebalance_dates, y = -Inf, label = rebalance_dates),
         ggplot2::aes(x = x, y = y, label = label),
-        vjust = -0.5, hjust = -0.5, size = 3, color = white
+        vjust = -0.5, hjust = -0.5, size = 3, color = col_text
       ) +
       ggplot2::theme_minimal() +
       ggplot2::theme(
-        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-        plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-        axis.text = ggplot2::element_text(color = white),
-        axis.title = ggplot2::element_text(color = white),
-        strip.text = ggplot2::element_text(color = white, face = "bold"),
+        plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+        panel.background = ggplot2::element_rect(fill = col_background, color = NA),
+        plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+        axis.text = ggplot2::element_text(color = col_text),
+        axis.title = ggplot2::element_text(color = col_text),
+        strip.text = ggplot2::element_text(color = col_text, face = "bold"),
         legend.position = "none",
-        panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
-        panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
+        panel.grid.major = ggplot2::element_line(color = light_gray, size = 0.2),
+        panel.grid.minor = ggplot2::element_line(color = light_gray, size = 0.1)
       )
 
     # Add horizontal lines for variable means
@@ -3421,18 +3780,6 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
 
   } else if (plot_name == "Consolidated OOS Testing Metrics") {
 
-    #Palette
-    my_colors <- c(
-      neon_blue,
-      neon_pink,
-      neon_yellow,
-      neon_purple,
-      neon_orange,
-      neon_green,
-      neon_hot_pink,
-      neon_lime_green,
-      neon_bright_orange
-    )
 
     # Add an ID column
     consolidated_oos_testing_metrics$id <- "Consolidated OOS"
@@ -3465,7 +3812,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
       ggplot2::geom_bar(stat = "identity", alpha = 0.9) +
       ggplot2::facet_wrap(
         ~ Metric,
-        scales = "free_y",
+        scales = "fixed",
         strip.position = "bottom"
       ) +
       ggplot2::labs(
@@ -3475,21 +3822,21 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
         fill = "Metric"
       ) +
       # Manual color scale with your neon palette
-      ggplot2::scale_fill_manual(values = my_colors) +
+      ggplot2::scale_fill_manual(values = palette_colors) +
       ggplot2::theme_minimal() +
       ggplot2::theme(
         strip.placement = "outside",  # Put metric labels below the facets
-        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-        plot.title = ggplot2::element_text(color = white, size = 16, face = "bold", hjust = 0.5),
-        axis.text = ggplot2::element_text(color = white),
-        axis.title = ggplot2::element_text(color = white),
-        legend.title = ggplot2::element_text(color = white),
-        legend.text = ggplot2::element_text(color = white),
+        plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+        panel.background = ggplot2::element_rect(fill = col_background, color = NA),
+        plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold", hjust = 0.5),
+        axis.text = ggplot2::element_text(color = col_text),
+        axis.title = ggplot2::element_text(color = col_text),
+        legend.title = ggplot2::element_text(color = col_text),
+        legend.text = ggplot2::element_text(color = col_text),
         legend.position = "bottom",
-        strip.text = ggplot2::element_text(color = white, face = "bold"),
-        panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
-        panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
+        strip.text = ggplot2::element_text(color = col_text, face = "bold"),
+        panel.grid.major = ggplot2::element_line(color = light_gray, size = 0.2),
+        panel.grid.minor = ggplot2::element_line(color = light_gray, size = 0.1)
       )
 
     print(plots_list$consolidated_oos_faceted)
@@ -3508,10 +3855,10 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
         stop("Please choose between error, target and pred.")
       }
       #Plot scatter
-      plot(x@oos_sb_outputs_m_df, dep_y = dep_y, type = "regression")
+      plot(x@oos_sb_outputs_m_df, dep_y = dep_y, type = "regression", palette = palette)
     } else {
       #Plot others
-      plot(x@oos_sb_outputs_m_df, dep_y = NULL)
+      plot(x@oos_sb_outputs_m_df, dep_y = NULL, palette = palette)
     }
 
 
@@ -3575,7 +3922,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
         ) +
         ggplot2::scale_fill_manual(
           # Adjust to your custom color palette:
-          values = extended_neon_palette[1:2]
+          values = c(col_negative, col_positive)
         ) +
         ggplot2::theme_minimal() +
         ggplot2::theme(
@@ -3583,22 +3930,22 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
           strip.placement = "outside",
 
           # Keep your existing background and text coloring:
-          plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+          panel.background = ggplot2::element_rect(fill = col_background, color = NA),
           plot.title = ggplot2::element_text(
-            color = white,
+            color = col_text,
             size = 16,
             face = "bold",
             hjust = 0.5
           ),
-          axis.text = ggplot2::element_text(color = white),
-          axis.title = ggplot2::element_text(color = white),
-          legend.title = ggplot2::element_text(color = white),
-          legend.text = ggplot2::element_text(color = white),
+          axis.text = ggplot2::element_text(color = col_text),
+          axis.title = ggplot2::element_text(color = col_text),
+          legend.title = ggplot2::element_text(color = col_text),
+          legend.text = ggplot2::element_text(color = col_text),
           legend.position = "bottom",
-          strip.text = ggplot2::element_text(color = white, face = "bold"),
-          panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
-          panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
+          strip.text = ggplot2::element_text(color = col_text, face = "bold"),
+          panel.grid.major = ggplot2::element_line(color = light_gray, size = 0.2),
+          panel.grid.minor = ggplot2::element_line(color = light_gray, size = 0.1)
         )
 
       print(plots_list$comparison_avg_val_oos_faceted)
@@ -3607,7 +3954,19 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
 
     tryCatch(
       {
-        plot(x@final_sb_model@model)
+        tryCatch(
+          sb_algo <- x@final_sb_model@sb_algorithm,
+          error = function(e){
+            #Assign as null
+            sb_algo <- NULL
+          }
+        )
+        if (is.null(sb_algo) %in% c("rp", "hrp", "mvo", "mmaf", "sw", "ew", "cs")){
+          plot(x@final_sb_model@model, palette = palette)
+        } else {
+          plot(x@final_sb_model@model)
+        }
+
       }, error = function(e){
         warning("Error when plotting subjacent final signal-blending model. The following message was displayed by subjacent function: \n",
                 e$message, "\n")
@@ -3622,7 +3981,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
     calc_stat <- "mean"
     variable <- "normalized_importance"
 
-    plot(x@feature_importance_m_df, variable = variable, type = plot_type, clustering_variables = clustering_variables)
+    plot(x@feature_importance_m_df, variable = variable, type = plot_type, clustering_variables = clustering_variables, palette = palette)
 
   } else if (plot_name == "Average Time-Series Feature Importance by Theme"){
 
@@ -3635,7 +3994,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
     calc_stat <- "mean"
     variable <- "normalized_importance"
 
-    plot(x@feature_importance_m_df, variable = variable, type = plot_type, clustering_variables = clustering_variables)
+    plot(x@feature_importance_m_df, variable = variable, type = plot_type, clustering_variables = clustering_variables, palette = palette)
 
   } else if (plot_name == "Compare Feature Importance Side-by-Side by Signal"){
 
@@ -3644,7 +4003,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
     calc_stat <- "mean"
     variable <- "normalized_importance"
 
-    plot(x@final_feature_importance_m_d_ref, variable = variable, type = plot_type, clustering_variables = clustering_variables, calc_stat = calc_stat)
+    plot(x@final_feature_importance_m_d_ref, variable = variable, type = plot_type, clustering_variables = clustering_variables, calc_stat = calc_stat, palette = palette)
 
   } else if (plot_name == "Compare Feature Importance Side-by-Side by Theme"){
 
@@ -3657,7 +4016,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
     calc_stat <- "mean"
     variable <- "normalized_importance"
 
-    plot(x@final_feature_importance_m_d_ref, variable = variable, type = plot_type, clustering_variables = clustering_variables, calc_stat = calc_stat)
+    plot(x@final_feature_importance_m_d_ref, variable = variable, type = plot_type, clustering_variables = clustering_variables, calc_stat = calc_stat, palette = palette)
 
   } else if (plot_name == "Feature Importance Box-Plot by Signal"){
 
@@ -3665,7 +4024,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
     clustering_variables <- "tickers"
     variable <- "normalized_importance"
 
-    plot(x@feature_importance_m_df, variable = variable, type = plot_type, clustering_variables = clustering_variables)
+    plot(x@feature_importance_m_df, variable = variable, type = plot_type, clustering_variables = clustering_variables, palette = palette)
 
   } else if (plot_name == "Feature Importance Box-Plot by Theme"){
 
@@ -3677,7 +4036,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
     clustering_variables <- "theme"
     variable <- "normalized_importance"
 
-    plot(x@final_feature_importance_m_d_ref, variable = variable, type = plot_type, clustering_variables = clustering_variables)
+    plot(x@final_feature_importance_m_d_ref, variable = variable, type = plot_type, clustering_variables = clustering_variables, palette = palette)
 
   } else if (plot_name == "Feature Importance Heatmap by Signal"){
 
@@ -3686,7 +4045,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
     variable <- "normalized_importance"
     calc_stat <- "mean"
 
-    plot(x@feature_importance_m_df, variable = variable, type = plot_type, clustering_variables = clustering_variables, calc_stat = calc_stat)
+    plot(x@feature_importance_m_df, variable = variable, type = plot_type, clustering_variables = clustering_variables, calc_stat = calc_stat, palette = palette)
 
   } else if (plot_name == "Feature Importance Heatmap by Theme"){
 
@@ -3699,7 +4058,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
     variable <- "normalized_importance"
     calc_stat <- "mean"
 
-    plot(x@feature_importance_m_df, variable = variable, type = plot_type, clustering_variables = clustering_variables, calc_stat = calc_stat)
+    plot(x@feature_importance_m_df, variable = variable, type = plot_type, clustering_variables = clustering_variables, calc_stat = calc_stat, palette = palette)
 
   } else if (plot_name == "Explain Prediction"){
 
@@ -3713,28 +4072,49 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
     }
 
     # Prompt for 'ticker'
-    cat("Which ticker predictions do you want to explain? (Please select just one) \n")
-    selection <- readline(prompt = "Enter your choice: ")
-    if (length(selection) == 1 && nzchar(selection)) {
-      selected_ticker <- selection
+    if (is.null(ticker_to_explain)){
+      cat("Which ticker predictions do you want to explain? (Please select just one) \n")
+      selection <- readline(prompt = "Enter your choice: ")
+      if (length(selection) == 1 && nzchar(selection)) {
+        selected_ticker <- selection
+      } else {
+        stop("Invalid ticker selection. Please select just one ticker. \n")
+      }
     } else {
-      stop("Invalid ticker selection. Please select just one ticker. \n")
+      ticker_to_explain <- as.character(ticker_to_explain)
+      if (length(ticker_to_explain) == 1 && nzchar(ticker_to_explain)) {
+        selected_ticker <- ticker_to_explain
+      } else {
+        stop("Invalid 'ticker_to_explain' argument. Please provide a single ticker as a character string. \n")
+      }
     }
 
+
     # Prompt for 'date'
-    cat("Which date? (Please select just one in format YYYY-MM-DD) \n")
-    selection <- readline(prompt = "Enter your choice: ")
-    if (!grepl("^\\d{4}-\\d{2}-\\d{2}$", selection)) {
-      stop("Invalid date format. Use 'YYYY-MM-DD'.")
-    }
-    if (length(selection) == 1 && nzchar(selection)) {
-      selected_date <- as.Date(selection)
+    if (is.null(date_to_explain)){
+      cat("Which date? (Please select just one in format YYYY-MM-DD) \n")
+      selection <- readline(prompt = "Enter your choice: ")
+      if (!grepl("^\\d{4}-\\d{2}-\\d{2}$", selection)) {
+        stop("Invalid date format. Use 'YYYY-MM-DD'.")
+      }
+      if (length(selection) == 1 && nzchar(selection)) {
+        selected_date <- as.Date(selection)
+      } else {
+        stop("Invalid date selection. Please select just one date. \n")
+      }
     } else {
-      stop("Invalid date selection. Please select just one date. \n")
+      if (!grepl("^\\d{4}-\\d{2}-\\d{2}$", date_to_explain)) {
+        stop("Invalid 'date_to_explain' format. Use 'YYYY-MM-DD'.")
+      }
+      if (length(date_to_explain) == 1 && nzchar(date_to_explain)) {
+        selected_date <- as.Date(date_to_explain)
+      } else {
+        stop("Invalid 'date_to_explain' argument. Please provide a single date in 'YYYY-MM-DD' format. \n")
+      }
     }
 
     #Explain
-    explain_prediction(x, features_m_df = features_m_df, selected_ticker = selected_ticker, selected_date = selected_date)
+    explain_prediction(x, features_m_df = features_m_df, selected_ticker = selected_ticker, selected_date = selected_date, palette = palette)
 
   }
 
@@ -3759,9 +4139,16 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
 #'     - `"Base Learners vs Meta Learners Over Time"`
 #'   - By number: Provide a number corresponding to the plot (as listed when `plot_id` is `NULL`).
 #'   If `NULL` (default), the method lists available plots.
+#' @param palette Character. Color palette to use for the plot. Options include "cyberpunk" and "br". Default is "cyberpunk".
+#' @param chosen_metric Character. The specific metric to plot (e.g., "rmse", "mae"). Required for certain plots.
+#' @param chosen_backtests Character vector. Specific backtests to include in the plot.
+#' @param top_n Numeric. If specified, limits the plot to the top N backtests based on the chosen metric.
+#' @param facet_by_year Logical. If `TRUE`, facets the plot by year.
+#' @param add_overall_means Logical. If `TRUE`, adds horizontal lines representing
 #' @return Invisibly returns the input \code{x}.
 #' @export
-setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
+setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL, palette = "cyberpunk", chosen_metric = NULL, chosen_backtests = NULL, top_n = NULL,
+                                                      facet_by_year = NULL, add_overall_means = NULL) {
 
   # Check for required packages for plotting
   required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
@@ -3821,36 +4208,64 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
     stop("'plot_id' must be either a string or a number corresponding to the plot.")
   }
 
-  # Define color palette
-  neon_blue <- "#00BFFF"
-  neon_pink <- "#FF1493"
-  neon_yellow <- "#FFFF00"
-  neon_purple <- "#8A2BE2"
-  neon_orange <- "#FF4500"
-  neon_green <- "#39FF14"
-  blue_bg <- "#001f3f"
-  faint_blue <- "#003366"
+  # Palette
   black <- "#000000"
   white <- "#FFFFFF"
-  neon_hot_pink <- "#FF69B4"      # Hot Pink
-  neon_lime_green <- "#32CD32"    # Lime Green
-  neon_bright_orange <- "#FFA500" # Bright Orange
-  neon_turquoise    <- "#30D5C8" # Bright blue-green
-  neon_magenta      <- "#FF00FF" # Classic magenta
-  neon_red          <- "#FF073A" # Intense red
-  neon_cyan         <- "#00FFFF" # Aqua/cyan
-  neon_chartreuse   <- "#7FFF00" # Between yellow and green
-  neon_violet       <- "#EE82EE" # Lighter purple
-  neon_aqua         <- "#00FFEF" # Bright cyan variation
-  neon_gold         <- "#FFD700" # Bright metallic yellow
-  neon_sky_blue     <- "#87CEFA" # Bright pastel blue
 
-  # Extended neon palette with 9 colors
-  extended_neon_palette <- c(
-    neon_blue, neon_pink, neon_yellow, neon_green, neon_orange, neon_purple,
-    neon_hot_pink, neon_lime_green, neon_bright_orange, neon_turquoise, neon_magenta,
-    neon_red, neon_cyan, neon_chartreuse, neon_violet, neon_aqua, neon_gold, neon_sky_blue
-  )
+  if (palette == "cyberpunk") {
+
+    light_gray <- "#003641"
+
+    col_background <- "#001f3f"
+    col_text       <- "#FFFFFF"
+    col_primary    <- "#6A0DAD"
+    col_positive   <- "#39FF14"
+    col_negative   <- "#FF5F1F"
+    col_secondary <- "#FF69B4"      # Hot Pink
+    col_terciary <-  "#FF1493" # Lime Green
+    col_quarternary <-  "#FFA500"
+    col_quinternary <- "#FF4500"
+    col_sextenary <- "#32CD32"
+    vertical_line_color <- "#FF69B4"
+
+    palette_colors <- c(
+      "#00BFFF", "#FF1493", "#FFFF00", "#8A2BE2",
+      "#FF4500", "#39FF14", "#FF69B4", "#32CD32", "#FFA500",
+      "#30D5C8", "#FF00FF", "#FF073A", "#00FFFF",
+      "#7FFF00", "#EE82EE", "#00FFEF", "#FFD700", "#87CEFA"
+    )
+
+
+  }
+  if (palette == "br") {
+
+    light_gray <- "#EBEEF1"
+
+    col_background <- "#FFFFFF"
+    col_text       <- "#003641"
+    col_primary   <- "#00A091"
+    col_secondary  <- "#4C7C83"
+    col_terciary   <- "#49479D"
+    col_quarternary <- "#7DB61C"
+    col_quinternary <- "#003641"
+    col_sextenary  <- "#D6E266"
+    col_positive   <- "#7DB61C"
+    col_negative   <- "#C2185B"
+    vertical_line_color <- "#003641"
+
+    palette_colors  <- c(
+      "#94E1D6","#49479D","#7DB61C",
+      "#00C9B8", "#98B2B6","#C9D200",
+      "#003641", "#00A091", "#4C7C83",
+      "#FF5F1F", "#EBEEA8", "#A5CD5C",
+      "#8A03C9", "#00AE9D", "#EBEEA8",
+      "#D6E266", "#00C9B8", "#7DB61C",
+      "#A5CD5C", "#003641", "#00A091",
+      "#4C7C83", "#FF5F1F"
+    )
+
+  }
+
 
   # Extract data from the sb_metabacktest_results object
   combined_metrics <- x@combined_oos_testing_metrics
@@ -3865,8 +4280,8 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
     #Call method to general consolidate sb_backtest_results plots
     plot_consolidated_sb_backtest_results(combined_metrics = combined_metrics, mean_validation_metrics = mean_validation_metrics,
                                           time_series_oos_testing_metrics = time_series_oos_testing_metrics, time_series_validation_metrics = time_series_validation_metrics,
-                                          base_learners = base_learners,
-                                          plot_name = plot_name
+                                          base_learners = base_learners, plot_name = plot_name, chosen_backtests = chosen_backtests,
+                                          palette = palette
     )
 
   } else if (plot_name == "Base Learners vs Meta Learners Over Time") {
@@ -3874,16 +4289,25 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
 
     # Prompt user to select a metric
     available_metrics <- names(time_series_oos_testing_metrics)
-    cat("\nAvailable metrics:\n")
-    for (i in seq_along(available_metrics)) {
-      cat(paste0(i, ": ", available_metrics[i], "\n"))
+    if (is.null(chosen_metric)){
+      cat("\nAvailable metrics:\n")
+      for (i in seq_along(available_metrics)) {
+        cat(paste0(i, ": ", available_metrics[i], "\n"))
+      }
+      metric_selection <- readline(prompt = "Please select a metric by number: ")
+      metric_selection <- as.numeric(metric_selection)
+      if (is.na(metric_selection) || metric_selection < 1 || metric_selection > length(available_metrics)) {
+        stop("Invalid metric selection.")
+      }
+      metric_name <- available_metrics[metric_selection]
+    } else {
+      if (chosen_metric %in% available_metrics) {
+        metric_name <- chosen_metric
+      } else {
+        stop("Invalid 'chosen_metric' specified. Available options are:\n",
+             paste(available_metrics, collapse = ", "))
+      }
     }
-    metric_selection <- readline(prompt = "Please select a metric by number: ")
-    metric_selection <- as.numeric(metric_selection)
-    if (is.na(metric_selection) || metric_selection < 1 || metric_selection > length(available_metrics)) {
-      stop("Invalid metric selection.")
-    }
-    metric_name <- available_metrics[metric_selection]
 
     # Prepare data
     meta_xts <- time_series_oos_testing_metrics[[metric_name]]
@@ -3898,30 +4322,57 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
 
     clustering_list <- list("meta_learner" = meta_learner_id, "base_learners" = base_learner_ids)
 
+    # Use all names in meta_xts if chosen_backtests is "all"
+    if (chosen_backtests == "all") {
+      chosen_backtests <- names(meta_xts@data)
+    }
+
     # Use meta_xts plot method
-    plot(x = meta_xts, clustering_list = clustering_list)
+    plot(x = meta_xts, clustering_list = clustering_list, palette = palette, facet_by_year = facet_by_year,
+         add_overall_means = add_overall_means, variable = chosen_backtests)
 
   }  else if (plot_name == "Hierarchical Feature Importance"){
 
     # Prompt User for Number of Top Features**
-    num_features <- as.integer(readline(prompt = "Enter the number of top features to display: "))
+    if (is.null(top_n)){
+      num_features <- as.integer(readline(prompt = "Enter the number of top features to display: "))
+    } else {
+      num_features <- as.integer(top_n)
+    }
 
     # Ensure valid input
     if (is.na(num_features) || num_features <= 0) {
       stop("Invalid input. Please enter a positive integer.")
     }
 
-    # **1. Extract Meta-Learner Feature Importances**
+    # Extract Meta-Learner Feature Importances**
     meta_importance_df <- x@meta_sb_backtest_results@final_feature_importance_m_d_ref@data
 
-    # **NEW: Filter Meta-Learner Features Based on Importance**
+    # Filter Meta-Learner Features Based on Importance**
     meta_importance_df <- meta_importance_df %>%
       dplyr::slice_max(order_by = abs(importance), n = num_features)
-
-    # **2. Extract Base Learners' Feature Importances**
+    ##Change tickers for backtest id with config_name
     # Get the list of base learners
     base_learners_feature_imp_list <- x@base_sb_backtest_results_list
-    base_model_ids <- names(base_learners_feature_imp_list)
+    base_model_configs <- sapply(base_learners_feature_imp_list, function(x) x@sb_backtest_config@config_name)
+    meta_importance_df <- meta_importance_df %>%
+      dplyr::mutate(
+        tickers = ifelse(
+          tickers %in% names(base_model_configs),
+          base_model_configs[tickers],
+          tickers
+        ),
+        id = paste0(tickers, "-", dates)
+      )
+    base_model_configs <- unname(base_model_configs)
+    # **2. Extract Base Learners' Feature Importances**
+    # Check if we have repeated configs
+    if (any(duplicated(base_model_configs))) {
+      warning("There are repeated base model configurations. Base learner IDs will be assigned as 'model_1', 'model_2', etc. to ensure uniqueness.")
+      base_model_ids <- paste0("model_", seq_along(base_learners_feature_imp_list))
+    } else {
+      base_model_ids <- base_model_configs
+    }
 
     # If base_model_ids are NULL or empty, assign default names
     if (is.null(base_model_ids) || any(base_model_ids == "")) {
@@ -4000,12 +4451,12 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
         TRUE ~ "Other"
       ))
 
-    # **11. Define Custom Vibrant Neon Color Palette**
+    # Get colors
     type_colors <- c(
-      "Feature" = "#39FF14",      # Neon Green
-      "Base Learner" = "#FF5F1F", # Neon Orange
-      "Meta Learner" = "#FFDC00", # Neon Yellow
-      "Other" = "#FF007F"          # Neon Pink
+      "Feature" = col_primary,
+      "Base Learner" = col_secondary,
+      "Meta Learner" = col_terciary,
+      "Other" = col_quarternary
     )
 
     # **12. Create the Graph Object with igraph**
@@ -4022,12 +4473,6 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
                                     base_model_mapping[igraph::V(graph)$name],
                                     igraph::V(graph)$name)
 
-    # Print the mapping correspondence
-    cat("\nLegend:\n")
-    for (i in seq_along(base_model_mapping)) {
-      cat(paste0(base_model_mapping[i], ": ", names(base_model_mapping)[i], "\n"))
-    }
-
     # **13. Adjust Layout to Position Meta-Learner Below Base Models**
     layout <- ggraph::create_layout(graph, layout = "tree")
     layout$y <- ifelse(layout$name == "meta_learner", min(layout$y) - 1, layout$y)
@@ -4042,17 +4487,17 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
       ggraph::geom_node_point(ggplot2::aes(color = type), size = 5) +
       ggraph::geom_node_text(
         ggplot2::aes(label = name),
-        color = "white",
-        hjust = -0.1,
-        vjust = 0.5,
-        size = 3,
+        color = col_text,
+        hjust = 0.5,
+        vjust = -1.2,
+        size = 2,
         fontface = "bold"
       ) +
       ggraph::scale_edge_width(range = c(0.5, 3)) +
       ggplot2::scale_color_manual(values = type_colors) +
       ggraph::scale_edge_color_continuous(
-        low = "red",
-        high = "blue",
+        low = col_negative,
+        high = col_positive,
         name = "Importance",
         guide = ggraph::guide_edge_colorbar()
       ) +
@@ -4061,16 +4506,16 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
       ggplot2::theme(
         legend.position = "bottom",
         plot.margin = ggplot2::margin(5, 40, 5, 5),
-        plot.background = ggplot2::element_rect(fill = "#001f3f", color = NA),
-        panel.background = ggplot2::element_rect(fill = "#001f3f", color = NA),
+        plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+        panel.background = ggplot2::element_rect(fill = col_background, color = NA),
         panel.grid = ggplot2::element_blank(),
         axis.text = ggplot2::element_blank(),
         axis.title = ggplot2::element_blank(),
         axis.ticks = ggplot2::element_blank(),
-        plot.title = ggplot2::element_text(color = "white", size = 16, face = "bold"),
-        plot.subtitle = ggplot2::element_text(color = "white", size = 12, face = "italic"),
-        legend.text = ggplot2::element_text(color = "white"),
-        legend.title = ggplot2::element_text(color = "white")
+        plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+        plot.subtitle = ggplot2::element_text(color = col_text, size = 12, face = "italic"),
+        legend.text = ggplot2::element_text(color = col_text),
+        legend.title = ggplot2::element_text(color = col_text)
       ) +
       ggplot2::labs(
         title = "Hierarchical Feature Importance",
@@ -4093,11 +4538,11 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL) {
 #' @title Plot Priors from ss_backtest_config
 #' @description Plots the distribution curves for each prior in the `bayesian_model_parameters` inside a `ss_backtest_config` object.
 #' @param x An object of class `ss_backtest_config` with a `bayesian_alpha_test_strategy` alpha test strategy.
-#' @param y Not used. Included for S4 method compatibility.
+#' @param palette A character string specifying the color palette to use for the plots. Default is "cyberpunk". Supported options include "cyberpunk", "neon", and "extended_neon".
 #' @param ... Additional arguments (currently unused).
 #' @rdname plot_ss_backtest_config
 #' @export
-setMethod("plot", "ss_backtest_config", function(x, ...) {
+setMethod("plot", "ss_backtest_config", function(x, palette = "cyberpunk", ...) {
 
   # Check for required packages for plotting
   required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
@@ -4130,11 +4575,28 @@ setMethod("plot", "ss_backtest_config", function(x, ...) {
   priors_df <- as.data.frame(user_priors, stringsAsFactors = FALSE)
 
   # Define color palette
-  class_colors <- c(
-    b = "#FF1493",  # Neon Pink
-    sd = "#FFFF00", # Neon Yellow
-    sigma = "#8A2BE2" # Neon Purple
-  )
+  if (palette == "cyberpunk"){
+    col_background <- "#001f3f"
+    col_text       <- "#FFFFFF"
+    light_gray <- "#003641"
+
+    class_colors <- c(
+      b = "#FF1493",  # Neon Pink
+      sd = "#FFFF00", # Neon Yellow
+      sigma = "#8A2BE2" # Neon Purple
+    )
+  } else {
+
+    col_background <- "#FFFFFF"
+    light_gray <- "#EBEEF1"
+    col_text      <- "#002C33"
+
+    class_colors <- c(
+      b = "#003641",
+      sd =  "#7DB61C",
+      sigma = "#49479D"
+    )
+  }
 
   # Helper function to parse prior strings
   parse_prior_string <- function(prior_str) {
@@ -4228,14 +4690,14 @@ setMethod("plot", "ss_backtest_config", function(x, ...) {
       ) +
       ggplot2::theme_minimal() +
       ggplot2::theme(
-        plot.background = ggplot2::element_rect(fill = "#001f3f", color = NA),
-        panel.background = ggplot2::element_rect(fill = "#001f3f", color = NA),
-        plot.title = ggplot2::element_text(color = "#FFFFFF", size = 14, face = "bold"),
-        axis.text = ggplot2::element_text(color = "#FFFFFF"),
-        axis.title = ggplot2::element_text(color = "#FFFFFF"),
+        plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+        panel.background = ggplot2::element_rect(fill = col_background, color = NA),
+        plot.title = ggplot2::element_text(color = col_text, size = 14, face = "bold"),
+        axis.text = ggplot2::element_text(color = col_text),
+        axis.title = ggplot2::element_text(color = col_text),
         legend.position = "none",
-        panel.grid.major = ggplot2::element_line(color = "#003366", size = 0.2),
-        panel.grid.minor = ggplot2::element_line(color = "#003366", size = 0.1)
+        panel.grid.major = ggplot2::element_line(color = light_gray, size = 0.2),
+        panel.grid.minor = ggplot2::element_line(color = light_gray, size = 0.1)
       )
 
     # Store the plot in the list
@@ -4294,9 +4756,11 @@ setMethod("plot", "bayesian_alpha_test_strategy", function(x, ...) {
 #' Users can select which plot to display by specifying the `plot_id` parameter.
 #' @param x An object of class `ss_backtest_results`.
 #' @param plot_id A character string or numeric value specifying which plot to display.
+#' @param palette A character string specifying the color palette to use for the plots. Default is "cyberpunk". Supported options include "cyberpunk", "neon", and "extended_neon".
+#' @param variable A character string specifying the variable to plot (used for certain plot types). Default is NULL.
 #' @return Invisibly returns the input object.
 #' @export
-setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
+setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL, palette = "cyberpunk", variable = NULL) {
 
   # Check for required packages for plotting
   required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
@@ -4314,20 +4778,92 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
   }
 
   # Define colors for plotting
-  deep_navy <- "#000033"
+  # Palette
   black <- "#000000"
   white <- "#FFFFFF"
-  vibrant_purple <- "#6A0DAD"
-  neon_green <- "#39FF14"
-  neon_orange <- "#FF5F1F"
-  blue_bg <- "#001f3f"
-  neon_yellow <- "#FFDC00"
-  neon_pink <- "#FF007F"
-  cyan <- "#7FDBFF"
 
-  # Ensure Contribution_Type uses "Positive" and "Negative" for consistency
-  pos_color <- neon_green    # Define positive contribution color
-  neg_color <- "red"         # Define negative contribution color
+  if (palette == "cyberpunk") {
+
+    light_gray <- "#003641"
+
+    col_background <- "#001f3f"
+    col_text       <- "#FFFFFF"
+    col_primary    <- "#FF1493"
+    col_secondary <- "#FF69B4"      # Hot Pink
+    col_terciary <-  "#00FFFF" # Lime Green
+    col_quarternary <-  "#FFA500"
+    col_quinternary <- "#FF4500"
+    col_sextenary <- "#32CD32"
+    pos_color   <- "#39FF14"
+    neg_color   <- "#FF1493"
+    vertical_line_color <- "#FF69B4"
+    cyan <- "#00FFFF"
+
+    palette_colors  <- c(
+      "#00BFFF", "#FF1493", "#FFFF00",  "#00FFFF", "#8A2BE2",
+      "#FF4500", "#39FF14", "#FF69B4", "#32CD32", "#FFA500",
+      "#FF10F0", "#00FFF7", "#FF4500",  "#FF1493",  "#00CED1",
+      "#00FA9A",  "#DC143C", "#FF69B4"
+    )
+
+
+  }
+  if (palette == "br") {
+
+    light_gray <- "#EBEEF1"
+
+    col_background <- "#FFFFFF"
+    col_text       <- "#003641"
+    col_primary   <- "#00A091"
+    col_secondary  <- "#4C7C83"
+    col_terciary   <- "#49479D"
+    col_quarternary <- "#39FF14"
+    col_quinternary <- "#003641"
+    col_sextenary  <- "#D6E266"
+    pos_color   <- "#7DB61C"
+    neg_color   <- "#C2185B"
+    vertical_line_color <- "#003641"
+    cyan <- "#94E1D6"
+
+    palette_colors  <- c(
+      "#94E1D6",
+      "#49479D",
+      "#7DB61C",
+      "#003641",
+      "#00C9B8",
+      "#2F2D6F",
+      "#FF5F1F",
+      "#39FF14",
+      "#C9D200",
+      "#00A091",
+      "#3FB7C4",
+      "#EBEEF1",
+      "#98B2B6",
+      "#6E8B91",
+      "#4C7C83",
+      "#A8A600",
+      "#3E3C8A",
+      "#5A58B5",
+      "#6E6CC4",
+      "#002C33",
+      "#004F57",
+      "#8E9400",
+      "#EBEEA8",
+      "#D6E266",
+      "#CEE2A2",
+      "#B6B300",
+      "#A5CD5C",
+      "#0A3D62",
+      "#006D77",
+      "#1B8A9B",
+      "#0F4C81",
+      "#1B4F8C",
+      "#2E6F95",
+      "#3A7CA5",
+      "#4A90C2"
+    )
+
+  }
 
   # SS Workflow
   ss_backtest_workflow <- x@ss_backtest_workflow[[length(x@ss_backtest_workflow)]]
@@ -4443,7 +4979,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     clustering_variables <- "tickers"
     calc_stat <- "mean"
 
-    plot(signal_universe_m_df, type = plot_type, clustering_variables = clustering_variables)
+    plot(signal_universe_m_df, type = plot_type, clustering_variables = clustering_variables, palette = palette)
 
 
   } else if (plot_name == "Average Time-Series Metrics by Theme") {
@@ -4453,7 +4989,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     clustering_variables <- "theme"
     calc_stat <- "mean"
 
-    plot(signal_universe_m_df, type = plot_type, clustering_variables = clustering_variables)
+    plot(signal_universe_m_df, type = plot_type, clustering_variables = clustering_variables, palette = palette)
 
 
   } else if (plot_name == "Compare Metrics Side-by-Side by Signals") {
@@ -4463,7 +4999,8 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     clustering_variables <- "tickers"
     calc_stat <- "mean"
 
-    plot(final_signal_universe_m_d_ref, type = plot_type, clustering_variables = clustering_variables, calc_stat = calc_stat)
+    plot(final_signal_universe_m_d_ref, type = plot_type, clustering_variables = clustering_variables,
+         calc_stat = calc_stat, palette = palette)
 
   } else if (plot_name == "Compare Metrics Side-by-Side by Theme") {
     # Plot 4: Compare Metrics Side-by-Side by Theme
@@ -4471,7 +5008,8 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     plot_type <- "cross_sectional"
     clustering_variables <- "theme"
     calc_stat <- "mean"
-    plot(final_signal_universe_m_d_ref, type = plot_type, clustering_variables = clustering_variables, calc_stat = calc_stat)
+    plot(final_signal_universe_m_d_ref, type = plot_type, clustering_variables = clustering_variables, calc_stat = calc_stat,
+         palette = palette)
 
 
   } else if (plot_name == "Box-Plot by Theme") {
@@ -4480,7 +5018,8 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     plot_type <- "boxplot"
     clustering_variables <- "theme"
 
-    plot(final_signal_universe_m_d_ref, type = plot_type, clustering_variables = clustering_variables)
+    plot(final_signal_universe_m_d_ref, type = plot_type, clustering_variables = clustering_variables,
+         palette = palette)
 
   } else if (plot_name == "Box-Plot by Eligibility") {
     # Plot 6: Box-Plot by Eligibility
@@ -4489,7 +5028,8 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     plot_type <- "boxplot"
     clustering_variables <- "eligibility"
 
-    plot(final_signal_universe_m_d_ref, type = plot_type, clustering_variables = clustering_variables)
+    plot(final_signal_universe_m_d_ref, type = plot_type, clustering_variables = clustering_variables,
+         palette = palette)
 
   } else if (plot_name == "Waterfall Plot by Signal") {
 
@@ -4512,7 +5052,8 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     variables <- c("alpha", "beta_x_mean_market_factor_proxy", "residual")
     calc_stat <- "mean"
 
-    plot(final_signal_universe_m_d_ref, type = plot_type, clustering_variables = clustering_variables, variable = variables, calc_stat = calc_stat)
+    plot(final_signal_universe_m_d_ref, type = plot_type, clustering_variables = clustering_variables,
+         variable = variables, calc_stat = calc_stat, palette = palette)
 
 
   } else if (plot_name == "Waterfall Plot by Theme") {
@@ -4535,7 +5076,8 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     variables <- c("alpha", "beta_x_mean_market_factor_proxy", "residual")
     calc_stat <- "mean"
 
-    plot(final_signal_universe_m_d_ref, type = plot_type, clustering_variables = clustering_variables, variable = variables, calc_stat = calc_stat)
+    plot(final_signal_universe_m_d_ref, type = plot_type,
+         clustering_variables = clustering_variables, variable = variables, calc_stat = calc_stat, palette = palette)
 
 
   } else if (plot_name == "Eligibility by Theme") {
@@ -4548,7 +5090,8 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     variables <- "eligibility"
     calc_stat <- "mean"
 
-    plot(signal_universe_m_df, type = plot_type, clustering_variables = clustering_variables, variable = variables, calc_stat = calc_stat)
+    plot(signal_universe_m_df, type = plot_type, clustering_variables = clustering_variables,
+         variable = variables, calc_stat = calc_stat, palette = palette)
 
   }
 
@@ -4557,29 +5100,38 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
   ###############
 
   else if (plot_name == "Posterior Individual Alphas"){
-
     #Plot 10
     tidy_posterior_draws_intercept <- tidy_posteriors_list$tidy_posterior_draws_intercept
-    # Prompt the user to select tickers
+
     available_tickers <- unique(tidy_posterior_draws_intercept$tickers)
 
-    # Display available tickers with numbers
-    cat("Available tickers:\n")
-    for (i in seq_along(available_tickers)) {
-      cat(i, ":", available_tickers[i], "\n")
+    if (is.null(variable)){
+      # Prompt the user to select tickers
+      # Display available tickers with numbers
+      cat("Available tickers:\n")
+      for (i in seq_along(available_tickers)) {
+        cat(i, ":", available_tickers[i], "\n")
+      }
+
+      # Ask user for input
+      selected_numbers <- readline(prompt = "Enter the numbers corresponding to the tickers you want to plot, separated by commas: ")
+
+      # Convert input to numeric and validate
+      selected_numbers <- as.numeric(strsplit(selected_numbers, ",")[[1]])
+      if (any(is.na(selected_numbers)) || !all(selected_numbers %in% seq_along(available_tickers))) {
+        stop("Invalid input. Please enter valid numbers corresponding to the tickers.")
+      }
+
+      # Match the selected numbers to tickers
+      selected_tickers <- available_tickers[selected_numbers]
+    } else {
+      # Validate the provided variable against available tickers
+      if (!all(variable %in% available_tickers)) {
+        stop("Invalid 'variable' specified. Available tickers are:\n",
+             paste(available_tickers, collapse = ", "))
+      }
+      selected_tickers <- variable
     }
-
-    # Ask user for input
-    selected_numbers <- readline(prompt = "Enter the numbers corresponding to the tickers you want to plot, separated by commas: ")
-
-    # Convert input to numeric and validate
-    selected_numbers <- as.numeric(strsplit(selected_numbers, ",")[[1]])
-    if (any(is.na(selected_numbers)) || !all(selected_numbers %in% seq_along(available_tickers))) {
-      stop("Invalid input. Please enter valid numbers corresponding to the tickers.")
-    }
-
-    # Match the selected numbers to tickers
-    selected_tickers <- available_tickers[selected_numbers]
 
     # Filter the data based on user selection
     filtered_data <- tidy_posterior_draws_intercept %>%
@@ -4601,13 +5153,13 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
         dplyr::filter(class == "Intercept") %>%
         dplyr::rowwise() %>%
         dplyr::mutate(
-          mean = as.numeric(stringr::str_extract(prior, "(?<=\\().+?(?=,)")), # Extract mean
-          sd = as.numeric(stringr::str_extract(prior, "(?<=, ).+?(?=\\))"))   # Extract sd
+          mean_var = as.numeric(stringr::str_extract(prior, "(?<=\\().+?(?=,)")), # Extract mean
+          sd_var = as.numeric(stringr::str_extract(prior, "(?<=, ).+?(?=\\))"))   # Extract sd
         ) %>%
         dplyr::ungroup() %>%
-        dplyr::select(mean, sd)
+        dplyr::select(mean_var, sd_var)
 
-      prior_data <- data.frame(theme = unique(theme_ticker_key$theme), mean = prior_data$mean, sd = prior_data$sd)
+      prior_data <- data.frame(theme = unique(theme_ticker_key$theme), mean = prior_data$mean_var, sd = prior_data$sd_var)
 
     }
 
@@ -4618,17 +5170,17 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
         dplyr::mutate(theme = stringr::str_remove(coef, "^theme")) %>%
         dplyr::rowwise() %>%
         dplyr::mutate(
-          mean = as.numeric(stringr::str_extract(prior, "(?<=\\().+?(?=,)")), # Extract mean
-          sd = as.numeric(stringr::str_extract(prior, "(?<=, ).+?(?=\\))"))   # Extract sd
+          mean_var = as.numeric(stringr::str_extract(prior, "(?<=\\().+?(?=,)")), # Extract mean
+          sd_var = as.numeric(stringr::str_extract(prior, "(?<=, ).+?(?=\\))"))   # Extract sd
         ) %>%
         dplyr::ungroup() %>%
-        dplyr::select(theme, mean, sd)
+        dplyr::select(theme, mean_var, sd_var)
     }
 
     # Generate draws for each theme and convert to long format
     long_draws_data <- prior_data %>%
       dplyr::mutate(
-        draws = purrr::map2(mean, stats::sd, ~ stats::rnorm(length(unique(filtered_data$.draw)), mean = .x, sd = .y))
+        draws = purrr::map2(mean_var, sd_var, ~ stats::rnorm(length(unique(filtered_data$.draw)), mean = .x, sd = .y))
       ) %>%
       tidyr::unnest(draws) %>%                # Expand the list column into long format
       dplyr::group_by(theme) %>%              # Group by theme
@@ -4653,8 +5205,8 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
 
     # Define custom colors for the variables
     custom_colors <- c(
-      "posterior_individual_alpha" = "#39FF14",  # Neon green
-      "draws" = "#FF5F1F"                        # Neon orange
+      "posterior_individual_alpha" = col_primary,  # Neon green
+      "draws" = col_secondary                        # Neon orange
     )
 
     # Create the plot
@@ -4666,22 +5218,22 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
         alpha = 0.7,
         position = ggplot2::position_identity()
       ) +
-      ggplot2::geom_vline(xintercept = 0, linetype = "dashed", color = "#FFFFFF") + # White dashed line
+      ggplot2::geom_vline(xintercept = 0, linetype = "dashed", color = light_gray) + # col_text dashed line
       ggplot2::scale_fill_manual(values = custom_colors,
                                  labels = c("Prior Alpha", "Posterior Alpha")) + # Neon green for posterior, neon orange for draws
       ggplot2::theme_minimal() +
       ggplot2::theme(
-        plot.background = ggplot2::element_rect(fill = "#001f3f", color = NA), # Deep navy background
-        panel.background = ggplot2::element_rect(fill = "#001f3f", color = NA),
-        panel.grid.major = ggplot2::element_line(color = "#B0B0B0"), # Light gray grid lines
+        plot.background = ggplot2::element_rect(fill = col_background, color = NA), # Deep navy background
+        panel.background = ggplot2::element_rect(fill = col_background, color = NA),
+        panel.grid.major = ggplot2::element_line(color = light_gray), # Light gray grid lines
         panel.grid.minor = ggplot2::element_blank(), # No minor grid lines
-        axis.text = ggplot2::element_text(color = "#FFFFFF"), # White axis text
-        axis.title = ggplot2::element_text(color = "#FFFFFF"), # White axis title
-        plot.title = ggplot2::element_text(color = "#FFFFFF", size = 16, face = "bold"), # White title
-        plot.subtitle = ggplot2::element_text(color = "#FFFFFF", size = 10, face = "italic"), # White subtitle
+        axis.text = ggplot2::element_text(color = col_text), # col_text axis text
+        axis.title = ggplot2::element_text(color = col_text), # col_text axis title
+        plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"), # col_text title
+        plot.subtitle = ggplot2::element_text(color = col_text, size = 10, face = "italic"), # col_text subtitle
         legend.position = "bottom", # Legend at the bottom
-        legend.text = ggplot2::element_text(color = "#FFFFFF"), # White legend text
-        legend.title = ggplot2::element_text(color = "#FFFFFF") # White legend title
+        legend.text = ggplot2::element_text(color = col_text), # col_text legend text
+        legend.title = ggplot2::element_text(color = col_text) # col_text legend title
       ) +
       ggplot2::labs(
         title = "Posterior and Prior Distributions per Ticker",
@@ -4697,26 +5249,35 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
 
     #Plot 11
     tidy_posterior_draws_slope <- tidy_posteriors_list$tidy_posterior_draws_slope
-    # Prompt the user to select tickers
     available_tickers <- unique(tidy_posterior_draws_slope$tickers)
 
-    # Display available tickers with numbers
-    cat("Available tickers:\n")
-    for (i in seq_along(available_tickers)) {
-      cat(i, ":", available_tickers[i], "\n")
+    if (is.null(variable)){
+      # Prompt the user to select tickers
+      # Display available tickers with numbers
+      cat("Available tickers:\n")
+      for (i in seq_along(available_tickers)) {
+        cat(i, ":", available_tickers[i], "\n")
+      }
+
+      # Ask user for input
+      selected_numbers <- readline(prompt = "Enter the numbers corresponding to the tickers you want to plot, separated by commas: ")
+
+      # Convert input to numeric and validate
+      selected_numbers <- as.numeric(strsplit(selected_numbers, ",")[[1]])
+      if (any(is.na(selected_numbers)) || !all(selected_numbers %in% seq_along(available_tickers))) {
+        stop("Invalid input. Please enter valid numbers corresponding to the tickers.")
+      }
+
+      # Match the selected numbers to tickers
+      selected_tickers <- available_tickers[selected_numbers]
+    } else {
+      # Validate the provided variable against available tickers
+      if (!all(variable %in% available_tickers)) {
+        stop("Invalid 'variable' specified. Available tickers are:\n",
+             paste(available_tickers, collapse = ", "))
+      }
+      selected_tickers <- variable
     }
-
-    # Ask user for input
-    selected_numbers <- readline(prompt = "Enter the numbers corresponding to the tickers you want to plot, separated by commas: ")
-
-    # Convert input to numeric and validate
-    selected_numbers <- as.numeric(strsplit(selected_numbers, ",")[[1]])
-    if (any(is.na(selected_numbers)) || !all(selected_numbers %in% seq_along(available_tickers))) {
-      stop("Invalid input. Please enter valid numbers corresponding to the tickers.")
-    }
-
-    # Match the selected numbers to tickers
-    selected_tickers <- available_tickers[selected_numbers]
 
     # Filter the data based on user selection
     filtered_data <- tidy_posterior_draws_slope %>%
@@ -4727,7 +5288,8 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     }
 
     #Get theme column
-    theme_ticker_key <- data.frame(tickers = paste0(selected_signal_themes_m_d_ref$theme, "_", selected_signal_themes_m_d_ref$tickers), theme = selected_signal_themes_m_d_ref$theme)
+    theme_ticker_key <- data.frame(tickers = paste0(selected_signal_themes_m_d_ref$theme, "_", selected_signal_themes_m_d_ref$tickers),
+                                   theme = selected_signal_themes_m_d_ref$theme)
     filtered_data <- filtered_data %>% dplyr::left_join(theme_ticker_key, by = c("tickers" = "tickers"))
 
     # Extract themes from `elected_priors`
@@ -4738,13 +5300,13 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
         dplyr::filter(class == "b" & coef == "market_factor_proxy") %>%
         dplyr::rowwise() %>%
         dplyr::mutate(
-          mean = as.numeric(stringr::str_extract(prior, "(?<=\\().+?(?=,)")), # Extract mean
-          sd = as.numeric(stringr::str_extract(prior, "(?<=, ).+?(?=\\))"))   # Extract sd
+          mean_var = as.numeric(stringr::str_extract(prior, "(?<=\\().+?(?=,)")), # Extract mean
+          sd_var = as.numeric(stringr::str_extract(prior, "(?<=, ).+?(?=\\))"))   # Extract sd
         ) %>%
         dplyr::ungroup() %>%
-        dplyr::select(mean, sd)
+        dplyr::select(mean_var, sd_var)
 
-      prior_data <- data.frame(theme = unique(theme_ticker_key$theme), mean = prior_data$mean, sd = prior_data$sd)
+      prior_data <- data.frame(theme = unique(theme_ticker_key$theme), mean = prior_data$mean_var, sd = prior_data$sd_var)
 
     }
 
@@ -4755,17 +5317,17 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
         dplyr::mutate(theme = stringr::str_extract(coef, "(?<=^theme).*?(?=:)")) %>%
         dplyr::rowwise() %>%
         dplyr::mutate(
-          mean = as.numeric(stringr::str_extract(prior, "(?<=\\().+?(?=,)")), # Extract mean
-          sd = as.numeric(stringr::str_extract(prior, "(?<=, ).+?(?=\\))"))   # Extract sd
+          mean_var = as.numeric(stringr::str_extract(prior, "(?<=\\().+?(?=,)")), # Extract mean
+          sd_var = as.numeric(stringr::str_extract(prior, "(?<=, ).+?(?=\\))"))   # Extract sd
         ) %>%
         dplyr::ungroup() %>%
-        dplyr::select(theme, mean, sd)
+        dplyr::select(theme, mean_var, sd_var)
     }
 
     # Generate draws for each theme and convert to long format
     long_draws_data <- prior_data %>%
       dplyr::mutate(
-        draws = purrr::map2(mean, stats::sd, ~ stats::rnorm(length(unique(filtered_data$.draw)), mean = .x, sd = .y))
+        draws = purrr::map2(mean_var, sd_var, ~ stats::rnorm(length(unique(filtered_data$.draw)), mean = .x, sd = .y))
       ) %>%
       tidyr::unnest(draws) %>%                # Expand the list column into long format
       dplyr::group_by(theme) %>%              # Group by theme
@@ -4790,8 +5352,8 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
 
     # Define custom colors for the variables
     custom_colors <- c(
-      "posterior_individual_beta" = "#39FF14",  # Neon green
-      "draws" = "#FF5F1F"                        # Neon orange
+      "posterior_individual_beta" = col_primary,  # Neon green
+      "draws" = col_secondary                       # Neon orange
     )
 
     # Create the plot
@@ -4803,22 +5365,22 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
         alpha = 0.7,
         position = ggplot2::position_identity()
       ) +
-      ggplot2::geom_vline(xintercept = 0, linetype = "dashed", color = "#FFFFFF") + # White dashed line
+      ggplot2::geom_vline(xintercept = 0, linetype = "dashed", color = col_text) + # col_text dashed line
       ggplot2::scale_fill_manual(values = custom_colors,
                                  labels = c("Prior Beta", "Posterior Beta")) + # Neon green for posterior, neon orange for draws
       ggplot2::theme_minimal() +
       ggplot2::theme(
-        plot.background = ggplot2::element_rect(fill = "#001f3f", color = NA), # Deep navy background
-        panel.background = ggplot2::element_rect(fill = "#001f3f", color = NA),
-        panel.grid.major = ggplot2::element_line(color = "#B0B0B0"), # Light gray grid lines
+        plot.background = ggplot2::element_rect(fill = col_background, color = NA), # Deep navy background
+        panel.background = ggplot2::element_rect(fill = col_background, color = NA),
+        panel.grid.major = ggplot2::element_line(color = light_gray), # Light gray grid lines
         panel.grid.minor = ggplot2::element_blank(), # No minor grid lines
-        axis.text = ggplot2::element_text(color = "#FFFFFF"), # White axis text
-        axis.title = ggplot2::element_text(color = "#FFFFFF"), # White axis title
-        plot.title = ggplot2::element_text(color = "#FFFFFF", size = 16, face = "bold"), # White title
-        plot.subtitle = ggplot2::element_text(color = "#FFFFFF", size = 10, face = "italic"), # White subtitle
+        axis.text = ggplot2::element_text(color = col_text), # col_text axis text
+        axis.title = ggplot2::element_text(color = col_text), # col_text axis title
+        plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"), # col_text title
+        plot.subtitle = ggplot2::element_text(color = col_text, size = 10, face = "italic"), # col_text subtitle
         legend.position = "bottom", # Legend at the bottom
-        legend.text = ggplot2::element_text(color = "#FFFFFF"), # White legend text
-        legend.title = ggplot2::element_text(color = "#FFFFFF") # White legend title
+        legend.text = ggplot2::element_text(color = col_text), # col_text legend text
+        legend.title = ggplot2::element_text(color = col_text) # col_text legend title
       ) +
       ggplot2::labs(
         title = "Posterior and Prior Distributions per Ticker",
@@ -4847,33 +5409,34 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
         values_to = "sd_value"
       ) %>%
       # Create the plot
-      ggplot2::ggplot(ggplot2::aes(y = parameter, x = sd_value, fill = parameter)) +
-      ggdist::stat_halfeye(
-        show.legend = FALSE,              # Hide legend if not needed
-        adjust = 0.5,                     # Adjust the bandwidth of the density estimate
-        width = 0.6,                      # Width of the half-eye plot
-        alpha = 0.8                       # Transparency for better visibility
-      ) +
+        ggplot2::ggplot(ggplot2::aes(y = parameter, x = sd_value)) +
+          ggdist::stat_halfeye(
+            fill = col_primary,
+            show.legend = FALSE,              # Hide legend if not needed
+            adjust = 0.5,                     # Adjust the bandwidth of the density estimate
+            width = 0.6,                      # Width of the half-eye plot
+            alpha = 0.8                       # Transparency for better visibility
+          ) +
       ggplot2::geom_vline(
         xintercept = 0,
         linetype = "dashed",
-        color = "#FFFFFF",                # White dashed line for consistency
+        color = col_text,                # col_text dashed line for consistency
         size = 1
       ) +
       # Customize the theme to match other plots
       ggplot2::theme_minimal() +
       ggplot2::theme(
-        plot.background = ggplot2::element_rect(fill = "#001f3f", color = NA),    # Deep navy background
-        panel.background = ggplot2::element_rect(fill = "#001f3f", color = NA),   # Deep navy panel
-        panel.grid.major = ggplot2::element_line(color = "#B0B0B0"),             # Light gray major grid lines
+        plot.background = ggplot2::element_rect(fill = col_background, color = NA),    # Deep navy background
+        panel.background = ggplot2::element_rect(fill = col_background, color = NA),   # Deep navy panel
+        panel.grid.major = ggplot2::element_line(color = light_gray),             # Light gray major grid lines
         panel.grid.minor = ggplot2::element_blank(),                             # Remove minor grid lines
-        axis.text = ggplot2::element_text(color = "#FFFFFF"),                    # White axis text
-        axis.title = ggplot2::element_text(color = "#FFFFFF"),                   # White axis titles
-        plot.title = ggplot2::element_text(color = "#FFFFFF", size = 16, face = "bold"),       # White bold title
-        plot.subtitle = ggplot2::element_text(color = "#FFFFFF", size = 10, face = "italic"),  # White italic subtitle
+        axis.text = ggplot2::element_text(color = col_text),                    # col_text axis text
+        axis.title = ggplot2::element_text(color = col_text),                   # col_text axis titles
+        plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"),       # col_text bold title
+        plot.subtitle = ggplot2::element_text(color = col_text, size = 10, face = "italic"),  # col_text italic subtitle
         legend.position = "bottom",                                             # Position legend at the bottom
-        legend.text = ggplot2::element_text(color = "#FFFFFF"),                # White legend text
-        legend.title = ggplot2::element_text(color = "#FFFFFF")                # White legend title
+        legend.text = ggplot2::element_text(color = col_text),                # col_text legend text
+        legend.title = ggplot2::element_text(color = col_text)                # col_text legend title
       ) +
       # Add labels
       ggplot2::labs(
@@ -4990,7 +5553,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
           ),
           vjust = ifelse(waterfall_data$Variance >= 0, -0.5, 1.5),
           size = 3,
-          color = white  # Ensure text is visible against the background
+          color = col_text  # Ensure text is visible against the background
         ) +
         ggplot2::scale_fill_manual(
           values = c("Positive" = pos_color, "Negative" = neg_color)
@@ -5003,18 +5566,18 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
         ) +
         ggplot2::theme_minimal() +
         ggplot2::theme(
-          plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+          panel.background = ggplot2::element_rect(fill = col_background, color = NA),
           panel.grid.major = ggplot2::element_blank(),
           panel.grid.minor = ggplot2::element_blank(),
-          axis.text = ggplot2::element_text(color = white, angle = 45, hjust = 1),
-          axis.title = ggplot2::element_text(color = white),
-          plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-          plot.subtitle = ggplot2::element_text(color = white, size = 8, face = "italic"),
+          axis.text = ggplot2::element_text(color = col_text, angle = 45, hjust = 1),
+          axis.title = ggplot2::element_text(color = col_text),
+          plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+          plot.subtitle = ggplot2::element_text(color = col_text, size = 8, face = "italic"),
           legend.position = "bottom",
-          legend.title = ggplot2::element_text(color = white),
-          legend.text = ggplot2::element_text(color = white),
-          strip.text = ggplot2::element_text(color = white)
+          legend.title = ggplot2::element_text(color = col_text),
+          legend.text = ggplot2::element_text(color = col_text),
+          strip.text = ggplot2::element_text(color = col_text)
         )
 
       print(p)
@@ -5115,7 +5678,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
           ),
           vjust = ifelse(waterfall_data$Variance >= 0, -0.5, 1.5),
           size = 3,
-          color = white  # Ensure text is visible against the background
+          color = col_text  # Ensure text is visible against the background
         ) +
         ggplot2::scale_fill_manual(
           values = c("Positive" = pos_color, "Negative" = neg_color)
@@ -5128,18 +5691,18 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
         ) +
         ggplot2::theme_minimal() +
         ggplot2::theme(
-          plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+          panel.background = ggplot2::element_rect(fill = col_background, color = NA),
           panel.grid.major = ggplot2::element_blank(),
           panel.grid.minor = ggplot2::element_blank(),
-          axis.text = ggplot2::element_text(color = white, angle = 45, hjust = 1),
-          axis.title = ggplot2::element_text(color = white),
-          plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-          plot.subtitle = ggplot2::element_text(color = white, size = 8, face = "italic"),
+          axis.text = ggplot2::element_text(color = col_text, angle = 45, hjust = 1),
+          axis.title = ggplot2::element_text(color = col_text),
+          plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+          plot.subtitle = ggplot2::element_text(color = col_text, size = 8, face = "italic"),
           legend.position = "bottom",
-          legend.title = ggplot2::element_text(color = white),
-          legend.text = ggplot2::element_text(color = white),
-          strip.text = ggplot2::element_text(color = white)
+          legend.title = ggplot2::element_text(color = col_text),
+          legend.text = ggplot2::element_text(color = col_text),
+          strip.text = ggplot2::element_text(color = col_text)
         )
 
       print(p)
@@ -5151,46 +5714,36 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     tidy_posterior_draws_intercept <- tidy_posteriors_list$tidy_posterior_draws_intercept
     tidy_posterior_draws_slope <- tidy_posteriors_list$tidy_posterior_draws_slope
 
-    # Prompt the user to select tickers
     available_tickers <- unique(tidy_posterior_draws_slope$tickers)
 
-    # Display available tickers with numbers
-    cat("Available tickers:\n")
-    for (i in seq_along(available_tickers)) {
-      cat(i, ":", available_tickers[i], "\n")
+    if (is.null(variable)){
+      # Prompt the user to select tickers
+      # Display available tickers with numbers
+      cat("Available tickers:\n")
+      for (i in seq_along(available_tickers)) {
+        cat(i, ":", available_tickers[i], "\n")
+      }
+
+      # Ask user for input
+      selected_numbers <- readline(prompt = "Enter the numbers corresponding to the tickers you want to plot, separated by commas: ")
+
+      # Convert input to numeric and validate
+      selected_numbers <- as.numeric(strsplit(selected_numbers, ",")[[1]])
+      if (any(is.na(selected_numbers)) || !all(selected_numbers %in% seq_along(available_tickers))) {
+        stop("Invalid input. Please enter valid numbers corresponding to the tickers.")
+      }
+
+      # Match the selected numbers to tickers
+      selected_tickers <- available_tickers[selected_numbers]
+    } else {
+      # Validate the provided variable against available tickers
+      if (!all(variable %in% available_tickers)) {
+        stop("Invalid 'variable' specified. Available tickers are:\n",
+             paste(available_tickers, collapse = ", "))
+      }
+      selected_tickers <- variable
     }
-
-    # Ask user for input
-    selected_numbers <- readline(prompt = "Enter the numbers corresponding to the tickers you want to plot, separated by commas: ")
-
-    # Convert input to numeric and validate
-    selected_numbers <- as.numeric(strsplit(selected_numbers, ",")[[1]])
-    if (any(is.na(selected_numbers)) || !all(selected_numbers %in% seq_along(available_tickers))) {
-      stop("Invalid input. Please enter valid numbers corresponding to the tickers.")
-    }
-
-    # Match the selected numbers to tickers
-    selected_tickers <- available_tickers[selected_numbers]
     num_selected <- length(selected_tickers)
-
-    #Define colors
-    neon_colors <- c(
-      "#FF10F0",  # Neon Pink
-      "#00FFFF",  # Neon Cyan
-      "#39FF14",  # Neon Green
-      "#FF00FF",  # Neon Magenta
-      "#FF5F1F",  # Neon Orange
-      "#FFFF00",  # Neon Yellow
-      "#00FFF7",  # Neon Light Blue
-      "#FF1493",  # Deep Pink
-      "#ADFF2F",  # Green Yellow
-      "#FF69B4",  # Hot Pink
-      "#7FFF00",  # Chartreuse
-      "#DC143C",  # Crimson
-      "#00CED1",  # Dark Turquoise
-      "#FF4500",  # Orange Red
-      "#00FA9A"   # Medium Spring Green
-    )
 
     # Join intercept and slope data, filter for selected tickers, and convert tickers to factor
     tidy_posterior_draws_intercept_and_slope <- dplyr::left_join(
@@ -5203,7 +5756,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
       dplyr::mutate(tickers = as.factor(tickers))
 
     # Get market_factor_proxy
-    x_values <- x@selected_market_factor_proxy_m_xts %>% as.vector()
+    x_values <- x@selected_market_factor_proxy_m_xts@data %>% as.vector()
     x_values <- sort(x_values)
 
     # Sample a subset of posterior draws to avoid overplotting
@@ -5220,13 +5773,13 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
       dplyr::mutate(y = posterior_individual_alpha + posterior_individual_beta * x)
 
     # Generate the plot
-    if (num_selected > length(neon_colors)) {
+    if (num_selected > length(palette_colors)) {
       warning("Number of selected tickers exceeds the number of predefined colors. Colors will be recycled.")
     }
 
     regression_plot <- ggplot2::ggplot(plot_data, ggplot2::aes(x = x, y = y, group = .draw, color = tickers)) +
       ggplot2::geom_line(alpha = 0.6, size = 1) +  # Increased alpha and line size for better visibility
-      ggplot2::scale_color_manual(values = neon_colors[1:num_selected]) +  # Assign neon colors
+      ggplot2::scale_color_manual(values = palette_colors[1:num_selected]) +  # Assign neon colors
       ggplot2::labs(
         title = "Posterior Regression Lines by Signal",
         subtitle = "Using Posterior Individual Alpha and Beta",
@@ -5236,17 +5789,17 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
       ) +
       ggplot2::theme_minimal() +
       ggplot2::theme(
-        plot.background = ggplot2::element_rect(fill = "#001f3f", color = NA),  # Dark blue background
-        panel.background = ggplot2::element_rect(fill = "#001f3f", color = NA),
+        plot.background = ggplot2::element_rect(fill = col_background, color = NA),  # Dark blue background
+        panel.background = ggplot2::element_rect(fill = col_background, color = NA),
         panel.grid.major = ggplot2::element_blank(),
         panel.grid.minor = ggplot2::element_blank(),
-        axis.text = ggplot2::element_text(color = "#FFFFFF", angle = 45, hjust = 1),  # White axis text
-        axis.title = ggplot2::element_text(color = "#FFFFFF"),  # White axis titles
-        plot.title = ggplot2::element_text(color = "#FFFFFF", size = 16, face = "bold"),
-        plot.subtitle = ggplot2::element_text(color = "#FFFFFF", size = 10, face = "italic"),
+        axis.text = ggplot2::element_text(color = col_text, angle = 45, hjust = 1),  # col_text axis text
+        axis.title = ggplot2::element_text(color = col_text),  # col_text axis titles
+        plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+        plot.subtitle = ggplot2::element_text(color = col_text, size = 10, face = "italic"),
         legend.position = "bottom",
-        legend.title = ggplot2::element_text(color = "#FFFFFF"),
-        legend.text = ggplot2::element_text(color = "#FFFFFF")
+        legend.title = ggplot2::element_text(color = col_text),
+        legend.text = ggplot2::element_text(color = col_text)
       )
 
     # Display the Plot
@@ -5261,23 +5814,33 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     # Prompt the user to select tickers
     available_tickers <- unique(tidy_posterior_draws_slope$tickers)
 
-    # Display available tickers with numbers
-    cat("Available tickers:\n")
-    for (i in seq_along(available_tickers)) {
-      cat(i, ":", available_tickers[i], "\n")
+    if (is.null(variable)){
+      # Prompt the user to select tickers
+      # Display available tickers with numbers
+      cat("Available tickers:\n")
+      for (i in seq_along(available_tickers)) {
+        cat(i, ":", available_tickers[i], "\n")
+      }
+
+      # Ask user for input
+      selected_numbers <- readline(prompt = "Enter the numbers corresponding to the tickers you want to plot, separated by commas: ")
+
+      # Convert input to numeric and validate
+      selected_numbers <- as.numeric(strsplit(selected_numbers, ",")[[1]])
+      if (any(is.na(selected_numbers)) || !all(selected_numbers %in% seq_along(available_tickers))) {
+        stop("Invalid input. Please enter valid numbers corresponding to the tickers.")
+      }
+
+      # Match the selected numbers to tickers
+      selected_tickers <- available_tickers[selected_numbers]
+    } else {
+      # Validate the provided variable against available tickers
+      if (!all(variable %in% available_tickers)) {
+        stop("Invalid 'variable' specified. Available tickers are:\n",
+             paste(available_tickers, collapse = ", "))
+      }
+      selected_tickers <- variable
     }
-
-    # Ask user for input
-    selected_numbers <- readline(prompt = "Enter the numbers corresponding to the tickers you want to plot, separated by commas: ")
-
-    # Convert input to numeric and validate
-    selected_numbers <- as.numeric(strsplit(selected_numbers, ",")[[1]])
-    if (any(is.na(selected_numbers)) || !all(selected_numbers %in% seq_along(available_tickers))) {
-      stop("Invalid input. Please enter valid numbers corresponding to the tickers.")
-    }
-
-    # Match the selected numbers to tickers
-    selected_tickers <- available_tickers[selected_numbers]
     num_selected <- length(selected_tickers)
 
     #Get Expectations
@@ -5423,10 +5986,10 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
         ),
         vjust = ifelse(waterfall_data$Mean_Contribution >= 0, -0.5, 1.5),
         size = 3,
-        color = "white"
+        color = col_text
       ) +
       ggplot2::scale_fill_manual(
-        values = c("Positive" = "#39FF14", "Negative" = "#FF5F1F")
+        values = c("Positive" = pos_color, "Negative" = neg_color)
       ) +
       ggplot2::labs(
         title = "Waterfall Plot of Return Decomposition by Signal",
@@ -5435,25 +5998,25 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
       ) +
       ggplot2::theme_minimal() +
       ggplot2::theme(
-        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+        panel.background = ggplot2::element_rect(fill = col_background, color = NA),
         panel.grid.major = ggplot2::element_blank(),
         panel.grid.minor = ggplot2::element_blank(),
-        axis.text = ggplot2::element_text(color = white, angle = 45, hjust = 1),
-        axis.title = ggplot2::element_text(color = white),
-        plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-        plot.subtitle = ggplot2::element_text(color = white, size = 8, face = "italic"),
+        axis.text = ggplot2::element_text(color = col_text, angle = 45, hjust = 1),
+        axis.title = ggplot2::element_text(color = col_text),
+        plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+        plot.subtitle = ggplot2::element_text(color = col_text, size = 8, face = "italic"),
         legend.position = "bottom",
-        legend.title = ggplot2::element_text(color = white),
-        legend.text = ggplot2::element_text(color = white),
-        strip.text = ggplot2::element_text(color = white)
+        legend.title = ggplot2::element_text(color = col_text),
+        legend.text = ggplot2::element_text(color = col_text),
+        strip.text = ggplot2::element_text(color = col_text)
       ) +
       ggplot2::facet_wrap(~ tickers, scales = "free_y")
 
 
     print(p)
 
-  } else if (plot_name == "Posterior Individual Alpha Distributions by Theme and Ticker"){
+  } else if (plot_name == "Posterior Individual Alpha Distributions by Theme and Signal"){
 
     # Get alpha and beta
     tidy_posterior_draws_intercept <- tidy_posteriors_list$tidy_posterior_draws_intercept
@@ -5462,26 +6025,37 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
     # Prompt the user to select tickers
     available_tickers <- unique(tidy_posterior_draws_slope$tickers)
 
-    # Display available tickers with numbers
-    cat("Available tickers:\n")
-    for (i in seq_along(available_tickers)) {
-      cat(i, ":", available_tickers[i], "\n")
+    if (is.null(variable)){
+      # Prompt the user to select tickers
+      # Display available tickers with numbers
+      cat("Available tickers:\n")
+      for (i in seq_along(available_tickers)) {
+        cat(i, ":", available_tickers[i], "\n")
+      }
+
+      # Ask user for input
+      selected_numbers <- readline(prompt = "Enter the numbers corresponding to the tickers you want to plot, separated by commas: ")
+
+      # Convert input to numeric and validate
+      selected_numbers <- as.numeric(strsplit(selected_numbers, ",")[[1]])
+      if (any(is.na(selected_numbers)) || !all(selected_numbers %in% seq_along(available_tickers))) {
+        stop("Invalid input. Please enter valid numbers corresponding to the tickers.")
+      }
+
+      # Match the selected numbers to tickers
+      selected_tickers <- available_tickers[selected_numbers]
+    } else {
+      # Validate the provided variable against available tickers
+      if (!all(variable %in% available_tickers)) {
+        stop("Invalid 'variable' specified. Available tickers are:\n",
+             paste(available_tickers, collapse = ", "))
+      }
+      selected_tickers <- variable
     }
-
-    # Ask user for input
-    selected_numbers <- readline(prompt = "Enter the numbers corresponding to the tickers you want to plot, separated by commas: ")
-
-    # Convert input to numeric and validate
-    selected_numbers <- as.numeric(strsplit(selected_numbers, ",")[[1]])
-    if (any(is.na(selected_numbers)) || !all(selected_numbers %in% seq_along(available_tickers))) {
-      stop("Invalid input. Please enter valid numbers corresponding to the tickers.")
-    }
-
-    # Match the selected numbers to tickers
-    selected_tickers <- available_tickers[selected_numbers]
 
     # Prepare the data
-    theme_ticker_key <- data.frame(tickers = paste0(selected_signal_themes_m_d_ref$theme, "_", selected_signal_themes_m_d_ref$tickers), theme = selected_signal_themes_m_d_ref$theme)
+    theme_ticker_key <- data.frame(tickers = paste0(selected_signal_themes_m_d_ref$theme, "_", selected_signal_themes_m_d_ref$tickers),
+                                   theme = selected_signal_themes_m_d_ref$theme)
 
     plot_data <- tidy_posterior_draws_intercept %>%
       dplyr::ungroup() %>%  # Ensure the data is not grouped
@@ -5491,8 +6065,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
 
     # Automatically generate distinct colors for tickers
     num_tickers <- length(unique(plot_data$tickers))
-    palette <- suppressWarnings(RColorBrewer::brewer.pal(min(max(num_tickers, 3), 12), "Set3"))  # Adjust palette as needed
-    ticker_colors <- stats::setNames(palette, unique(plot_data$tickers))
+    ticker_colors <- stats::setNames(palette_colors, unique(plot_data$tickers))
 
     # Create the boxplot with consistent aesthetics
     p <- ggplot2::ggplot(plot_data, ggplot2::aes(
@@ -5518,26 +6091,26 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
       ggplot2::theme_minimal() +
       ggplot2::theme(
         # Set the overall plot background
-        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        plot.background = ggplot2::element_rect(fill = col_background, color = NA),
         # Set the panel background
-        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+        panel.background = ggplot2::element_rect(fill = col_background, color = NA),
         # Remove major and minor grid lines
         panel.grid.major = ggplot2::element_blank(),
         panel.grid.minor = ggplot2::element_blank(),
         # Customize axis text
-        axis.text.x = ggplot2::element_text(color = white, angle = 45, hjust = 1),
-        axis.text.y = ggplot2::element_text(color = white),
+        axis.text.x = ggplot2::element_text(color = col_text, angle = 45, hjust = 1),
+        axis.text.y = ggplot2::element_text(color = col_text),
         # Customize axis titles
-        axis.title = ggplot2::element_text(color = white, size = 12, face = "bold"),
+        axis.title = ggplot2::element_text(color = col_text, size = 12, face = "bold"),
         # Customize plot title
-        plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
+        plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
         # Customize legend
         legend.position = "bottom",
-        legend.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-        legend.title = ggplot2::element_text(color = white, face = "bold"),
-        legend.text = ggplot2::element_text(color = white),
+        legend.background = ggplot2::element_rect(fill = col_background, color = NA),
+        legend.title = ggplot2::element_text(color = col_text, face = "bold"),
+        legend.text = ggplot2::element_text(color = col_text),
         # Customize plot subtitle if present
-        plot.subtitle = ggplot2::element_text(color = white, size = 10, face = "italic")
+        plot.subtitle = ggplot2::element_text(color = col_text, size = 10, face = "italic")
       )
 
     print(p)
@@ -5561,7 +6134,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
 #'
 #' @param x A \code{port_backtest_config} object containing liquidity floor cutoffs data in the
 #'   \code{liquidity_floor_cutoffs} slot.
-#' @param y Not used. Required for S4 method consistency.
+#' @param palette A character string specifying the color palette to use for the bars. Default is "cyberpunk".
 #' @param ... Additional arguments (currently not used).
 #'
 #' @return A \code{ggplot} object representing the faceted liquidity floor cutoffs plot.
@@ -5570,7 +6143,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL) {
 setMethod(
   "plot",
   signature(x = "port_backtest_config", y = "missing"),
-  function(x, ...) {
+  function(x, palette = "cyberpunk", ...) {
 
     # Check for required packages for plotting
     required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
@@ -5625,31 +6198,79 @@ setMethod(
       dplyr::ungroup()
 
     # Define custom colors following the stylistic guidelines
-    deep_navy      <- "#000033"
-    black          <- "#000000"
-    white          <- "#FFFFFF"
-    vibrant_purple <- "#6A0DAD"
-    blue_bg        <- "#001f3f"
+    if (palette == "cyberpunk") {
+
+      light_gray <- "#003641"
+
+      col_background <- "#001f3f"
+      col_text       <- "#FFFFFF"
+      col_primary    <- "#00FFFF"
+      col_secondary <- "#FF69B4"      # Hot Pink
+      col_terciary <-  "#FF1493" # Lime Green
+      col_quarternary <-  "#FFA500"
+      col_quinternary <- "#FF4500"
+      col_sextenary <- "#32CD32"
+      col_positive   <- "#39FF14"
+      col_negative   <- "#FF1493"
+      vertical_line_color <- "#FF69B4"
+      cyan <- "#00FFFF"
+
+      palette_colors  <- c(
+        "#00BFFF", "#FF1493", "#FFFF00",  "#00FFFF", "#8A2BE2",
+        "#FF4500", "#39FF14", "#FF69B4", "#32CD32", "#FFA500"
+      )
+
+    }
+    if (palette == "br") {
+
+      light_gray <- "#EBEEF1"
+
+      col_background <- "#FFFFFF"
+      col_text       <- "#003641"
+      col_primary   <- "#00A091"
+      col_secondary  <- "#4C7C83"
+      col_terciary   <- "#49479D"
+      col_quarternary <- "#39FF14"
+      col_quinternary <- "#003641"
+      col_sextenary  <- "#D6E266"
+      col_positive   <- "#7DB61C"
+      col_negative   <- "#C2185B"
+      vertical_line_color <- "#003641"
+      cyan <- "#94E1D6"
+
+      palette_colors  <- c(
+        "#94E1D6", "#49479D", "#FF5F1F",
+        "#7DB61C", "#98B2B6", "#8A03C9",
+        "#00C9B8", "#C9D200", "#C2185B",
+        "#00FFFF", "#003641", "#00A091",
+        "#4C7C83", "#FF5F1F", "#EBEEA8",
+        "#A5CD5C", "#00AE9D",
+        "#EBEEA8", "#D6E266", "#00C9B8",
+        "#7DB61C", "#A5CD5C", "#003641",
+        "#00A091", "#4C7C83"
+      )
+
+    }
 
     # Create the faceted bar plot: each facet corresponds to a numeric metric.
     # Within each facet, the x-axis uses new_group which is ordered by Value.
     p <- ggplot2::ggplot(df_long, ggplot2::aes(x = new_group, y = Value)) +
-      ggplot2::geom_bar(stat = "identity", fill = vibrant_purple, color = black) +
+      ggplot2::geom_bar(stat = "identity", fill = col_primary, color = col_primary) +
       ggplot2::geom_text(ggplot2::aes(label = scales::scientific(Value, digits = 2)),
-                         vjust = -0.5, color = white, size = 3.5) +
+                         vjust = -0.5, color = col_text, size = 3.5) +
       ggplot2::facet_wrap(ggplot2::vars(Metric), scales = "free_y") +
       ggplot2::theme_minimal() +
       ggplot2::theme(
-        plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
-        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-        axis.text        = ggplot2::element_text(color = white),
-        axis.title       = ggplot2::element_text(color = white),
-        plot.title       = ggplot2::element_text(color = white, size = 16, face = "bold"),
-        plot.subtitle    = ggplot2::element_text(color = white, size = 10, face = "italic"),
+        plot.background  = ggplot2::element_rect(fill = col_background, color = NA),
+        panel.background = ggplot2::element_rect(fill = col_background, color = NA),
+        axis.text        = ggplot2::element_text(color = col_text),
+        axis.title       = ggplot2::element_text(color = col_text),
+        plot.title       = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+        plot.subtitle    = ggplot2::element_text(color = col_text, size = 10, face = "italic"),
         legend.position  = "bottom",
-        legend.title     = ggplot2::element_text(color = white),
-        legend.text      = ggplot2::element_text(color = white),
-        strip.text       = ggplot2::element_text(color = white)  # Facet titles in white
+        legend.title     = ggplot2::element_text(color = col_text),
+        legend.text      = ggplot2::element_text(color = col_text),
+        strip.text       = ggplot2::element_text(color = col_text)  # Facet titles in white
       ) +
       ggplot2::labs(
         title    = "Liquidity Floor Cutoffs",
@@ -5685,6 +6306,17 @@ setMethod(
 #'
 #' @param x An object of class \code{"port"}.
 #' @param type A character string specifying the type of plot to generate. If \code{NULL}, the user will be prompted.
+#' @param palette A character string specifying the color palette to use for the plots. Default is "cyberpunk". Supported options include "cyberpunk" and "br".
+#' @param chosen_weights A character vector of asset names to include in the weights plot (if \code{type = "weights"}). If \code{NULL}, all assets are included.
+#' @param chosen_risk_metrics A character vector of risk metrics to include in the risk plots (if applicable). If \code{NULL}, all risk metrics are included.
+#' @param add_bench A logical indicating whether to add benchmark weights to the weights plot (if \code{type = "weights"}). Default is \code{FALSE}.
+#' @param tickers A character vector of asset tickers to include in the plot (if applicable). If \code{NULL}, all tickers are included.
+#' @param level A character string specifying the grouping variable for the group composition plot (if type = "group_composition").#' @param by_group A logical indicating whether to facet the group composition plot by the grouping.
+#' @param groups A character vector of group names to include in the group composition plot (if \code{type = "group_composition"}). If \code{NULL}, all groups are included.
+#' @param micro_port A logical indicating the micro portfolio to plot.
+#' @param active_weights A logical indicating whether to plot active weights instead of total weights
+#' @param top_n An integer specifying the number of top assets to include in the weights plot (if \code{type = "weights"}). If \code{NULL}, all assets are included.
+#' @param by_group A logical indicating whether to facet the group composition plot by the grouping variable (if \code{type = "group_composition"}). Default is \code{FALSE}.
 #' @param ... Additional arguments for future extensions (currently unused).
 #'
 #' @return A \code{ggplot} object (invisibly). The function also prints the plot.
@@ -5692,7 +6324,10 @@ setMethod(
 setMethod(
   "plot",
   signature(x = "port", y = "missing"),
-  function(x, type = NULL, ...) {
+  function(x, type = NULL, palette = "cyberpunk", chosen_weights = NULL, chosen_risk_metrics = NULL,
+           add_bench = NULL, tickers = NULL, level = NULL, by_group = NULL, groups = NULL, micro_port = NULL,
+           active_weights = NULL, top_n = NULL,
+           ...) {
 
     ## ---- dependencies ----
     required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
@@ -5706,17 +6341,94 @@ setMethod(
     }
 
     ## ---- palette ----
-    vibrant_purple <- "#6A0DAD"; black <- "#000000"; white <- "#FFFFFF"; blue_bg <- "#001f3f"
-    neon_green <- "#39FF14"; neon_orange <- "#FF5F1F"; neon_cyan <- "#00FFFF"; neon_blue <- "#1F51FF"
-    neon_yellow <- "#FFFF33"; neon_red <- "#FF073A"; neon_turquoise <- "#40E0D0"; neon_lime <- "#BFFF00"
-    neon_magenta <- "#FF00FF"; neon_hotpink <- "#FF69B4"; neon_pink <- "#FF007F"; neon_purple <- "#7F00FF"
+    # Define colors for plotting
+    # Palette
+    black <- "#000000"
+    white <- "#FFFFFF"
 
-    neon_palette <- c(
-      neon_green, neon_orange, neon_cyan, neon_blue,
-      neon_yellow, neon_red, neon_turquoise, neon_lime,
-      neon_magenta, neon_hotpink, neon_pink, neon_purple,
-      vibrant_purple, black, white
-    )
+    if (palette == "cyberpunk") {
+
+      light_gray <- "#003641"
+
+      col_background <- "#001f3f"
+      col_text       <- "#FFFFFF"
+      col_primary    <- "#FF1493"
+      col_secondary <- "#FF69B4"      # Hot Pink
+      col_terciary <-  "#00FFFF" # Lime Green
+      col_quarternary <-  "#FFA500"
+      col_quinternary <- "#FF4500"
+      col_sextenary <- "#32CD32"
+      pos_color <- col_positive  <- "#39FF14"
+      neg_color <- col_negative <- "#FF1493"
+      vertical_line_color <- "#FF69B4"
+      cyan <- "#00FFFF"
+
+      palette_colors  <- c(
+        "#00BFFF", "#FF1493", "#FFFF00",  "#00FFFF", "#8A2BE2",
+        "#FF4500", "#39FF14", "#FF69B4", "#32CD32", "#FFA500",
+        "#FF10F0", "#00FFF7", "#FF4500",  "#FF1493",  "#00CED1",
+        "#00FA9A",  "#DC143C", "#FF69B4"
+      )
+
+
+    }
+    if (palette == "br") {
+
+      light_gray <- "#EBEEF1"
+
+      col_background <- "#FFFFFF"
+      col_text       <- "#003641"
+      col_primary   <- "#00A091"
+      col_secondary  <- "#4C7C83"
+      col_terciary   <- "#49479D"
+      col_quarternary <- "#39FF14"
+      col_quinternary <- "#003641"
+      col_sextenary  <- "#D6E266"
+      pos_color  <- col_positive <- "#7DB61C"
+      neg_color <- col_negative  <- "#C2185B"
+      vertical_line_color <- "#003641"
+      cyan <- "#94E1D6"
+
+      palette_colors  <- c(
+        "#94E1D6",
+        "#49479D",
+        "#7DB61C",
+        "#003641",
+        "#00C9B8",
+        "#2F2D6F",
+        "#FF5F1F",
+        "#39FF14",
+        "#C9D200",
+        "#00A091",
+        "#3FB7C4",
+        "#EBEEF1",
+        "#98B2B6",
+        "#6E8B91",
+        "#4C7C83",
+        "#A8A600",
+        "#3E3C8A",
+        "#5A58B5",
+        "#6E6CC4",
+        "#002C33",
+        "#004F57",
+        "#8E9400",
+        "#EBEEA8",
+        "#D6E266",
+        "#CEE2A2",
+        "#B6B300",
+        "#A5CD5C",
+        "#0A3D62",
+        "#006D77",
+        "#1B8A9B",
+        "#0F4C81",
+        "#1B4F8C",
+        "#2E6F95",
+        "#3A7CA5",
+        "#4A90C2"
+      )
+
+    }
+
 
     ## ---- pull slots ----
     U <- if (methods::is(x@universe_m_d_ref, "meta_dataframe")) x@universe_m_d_ref@data else NULL
@@ -5762,14 +6474,14 @@ setMethod(
     .gg_dark <- function(base_size = 12) {
       ggplot2::theme_minimal(base_size = base_size) +
         ggplot2::theme(
-          plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
-          panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
+          plot.background  = ggplot2::element_rect(fill = col_background, color = NA),
+          panel.background = ggplot2::element_rect(fill = col_background, color = NA),
           panel.grid       = ggplot2::element_blank(),
-          axis.text        = ggplot2::element_text(color = white),
-          axis.title       = ggplot2::element_text(color = white),
-          plot.title       = ggplot2::element_text(color = white, face = "bold"),
-          legend.title     = ggplot2::element_text(color = white),
-          legend.text      = ggplot2::element_text(color = white)
+          axis.text        = ggplot2::element_text(color = col_text),
+          axis.title       = ggplot2::element_text(color = col_text),
+          plot.title       = ggplot2::element_text(color = col_text, face = "bold"),
+          legend.title     = ggplot2::element_text(color = col_text),
+          legend.text      = ggplot2::element_text(color = col_text)
         )
     }
 
@@ -5842,22 +6554,30 @@ setMethod(
     if (length(level_opts) == 1L) {
       pick_label <- "Portfolio"
     } else {
+      if (is.null(level)){
       raw_pick <- .menu(level_opts, "Plot level (Portfolio / Macro / Micro)")
 
-      ## Accept both label or index; also guard 0/NA
-      if (is.character(raw_pick)) {
-        pick_label <- trimws(raw_pick)
-        if (!nzchar(pick_label) || !(pick_label %in% level_opts)) stop("Invalid level selection.")
+        ## Accept both label or index; also guard 0/NA
+        if (is.character(raw_pick)) {
+          pick_label <- trimws(raw_pick)
+          if (!nzchar(pick_label) || !(pick_label %in% level_opts)) stop("Invalid level selection.")
+        } else {
+          idx <- suppressWarnings(as.integer(raw_pick))
+          if (is.na(idx) || idx <= 0L || idx > length(level_opts)) stop("Invalid level selection.")
+          pick_label <- level_opts[idx]
+        }
       } else {
-        idx <- suppressWarnings(as.integer(raw_pick))
-        if (is.na(idx) || idx <= 0L || idx > length(level_opts)) stop("Invalid level selection.")
-        pick_label <- level_opts[idx]
+        if (!level %in% level_opts) stop("Invalid 'level' specified.")
+        pick_label <- level
       }
     }
 
     ## Dispatch by label
     if (identical(pick_label, "Macro")) {
-      plot(x@macro, ...)
+      plot(x@macro, palette = palette, chosen_weights = chosen_weights, add_bench = add_bench,
+           tickers = groups, type = type, chosen_risk_metrics = chosen_risk_metrics,
+           active_weights = active_weights, top_n = top_n,
+           by_group = FALSE, groups = NULL, ...)
       return(invisible())
     }
 
@@ -5867,18 +6587,36 @@ setMethod(
       micro_names <- names(micro_list)
       if (is.null(micro_names)) micro_names <- as.character(seq_along(micro_list))
 
-      cat("\nAvailable micro portfolios:\n")
-      for (i in seq_along(micro_names)) cat(i, ": ", micro_names[i], "\n", sep = "")
+      if (is.null(micro_port)){
+        cat("\nAvailable micro portfolios:\n")
+        for (i in seq_along(micro_names)) cat(i, ": ", micro_names[i], "\n", sep = "")
 
-      m_idx <- suppressWarnings(as.integer(readline(prompt = "Select micro index: ")))
+        m_idx <- suppressWarnings(as.integer(readline(prompt = "Select micro index: ")))
+      } else {
+        if (is.character(micro_port)) {
+          m_idx <- which(micro_names == micro_port)
+          if (length(m_idx) == 0L) stop("Specified micro_port name not found.")
+        } else {
+          m_idx <- suppressWarnings(as.integer(micro_port))
+          if (is.na(m_idx) || m_idx < 1L || m_idx > length(micro_list)) stop("Invalid micro_port index.")
+        }
+      }
+
       if (is.na(m_idx) || m_idx < 1L || m_idx > length(micro_list)) stop("Invalid micro selection.")
 
-      plot(micro_list[[m_idx]], ...)
+      plot(micro_list[[m_idx]],, palette = palette, chosen_weights = chosen_weights, add_bench = add_bench,
+           tickers = tickers, type = type, chosen_risk_metrics = chosen_risk_metrics,
+           by_group = by_group, groups = groups, active_weights = active_weights, top_n = top_n, ...)
+
       return(invisible())
     }
 
     ## Portfolio level continues: now ask the plot type
-    type <- .menu(available_types, "Choose plot type")
+    if (is.null(type)){
+      type <- .menu(available_types, "Choose plot type")
+    } else {
+      if (!type %in% available_types) stop("Invalid plot type specified.")
+    }
 
     ## =========================================================================================
     ## Weights
@@ -5890,13 +6628,19 @@ setMethod(
       has_act <- "act_weights" %in% colnames(U)
       bench_col <- .get_bench_col(U)  # may be NULL
 
-      metric_choices <- c("weights")
-      if (has_act) metric_choices <- c(metric_choices, "act_weights")
-      chosen_metrics <- .select_from_vector(metric_choices, "Metrics to include (choose names or 'all')")
-      add_bench <- if (!is.null(bench_col)) {
-        ans <- tolower(readline(prompt = sprintf("Add benchmark (%s) to plot? (y/n): ", bench_col)))
-        ans %in% c("y","yes")
-      } else FALSE
+      if (is.null(chosen_weights)){
+        metric_choices <- c("weights")
+        if (has_act) metric_choices <- c(metric_choices, "act_weights")
+        chosen_metrics <- .select_from_vector(metric_choices, "Metrics to include (choose names or 'all')")
+      } else {
+        chosen_metrics <- chosen_weights
+      }
+      if (is.null(add_bench)){
+        add_bench <- if (!is.null(bench_col)) {
+          ans <- tolower(readline(prompt = sprintf("Add benchmark (%s) to plot? (y/n): ", bench_col)))
+          ans %in% c("y","yes")
+        } else FALSE
+      }
 
       df <- data.frame(tickers = asset_names, weights = weights, stringsAsFactors = FALSE) |>
         dplyr::left_join(U[, c("tickers", intersect(c("act_weights", bench_col), colnames(U))), drop = FALSE], by = "tickers")
@@ -5908,16 +6652,20 @@ setMethod(
       }
 
       ## subset choice
-      mode <- suppressWarnings(as.integer(readline(prompt = "\n1: Top x by |weights|  2: Pick names/indices\nChoice: ")))
-      if (!mode %in% c(1L,2L)) stop("Invalid choice.")
-      keep <- asset_names
-      if (mode == 1L) {
-        n_choice <- suppressWarnings(as.integer(readline(prompt = "How many assets? ")))
-        if (is.na(n_choice) || n_choice < 1L) n_choice <- min(length(asset_names), 20L)
-        ord <- order(-abs(df$weights))
-        keep <- df$tickers[ord][seq_len(min(n_choice, length(ord)))]
+      if (is.null(tickers)){
+        mode <- suppressWarnings(as.integer(readline(prompt = "\n1: Top x by |weights|  2: Pick names/indices\nChoice: ")))
+        if (!mode %in% c(1L,2L)) stop("Invalid choice.")
+        keep <- asset_names
+        if (mode == 1L) {
+          n_choice <- suppressWarnings(as.integer(readline(prompt = "How many assets? ")))
+          if (is.na(n_choice) || n_choice < 1L) n_choice <- min(length(asset_names), 20L)
+          ord <- order(-abs(df$weights))
+          keep <- df$tickers[ord][seq_len(min(n_choice, length(ord)))]
+        } else {
+          keep <- .select_from_vector(asset_names, "Pick assets")
+        }
       } else {
-        keep <- .select_from_vector(asset_names, "Pick assets")
+        keep <- tickers
       }
       df <- df[df$tickers %in% keep, , drop = FALSE]
 
@@ -5926,8 +6674,8 @@ setMethod(
       dfl$Metric <- pretty_names[dfl$Metric]
 
       p <- ggplot2::ggplot(dfl, ggplot2::aes(x = stats::reorder(tickers, -abs(Value)), y = Value, fill = Metric)) +
-        ggplot2::geom_bar(stat = "identity", position = "dodge", color = white, size = 0.4) +
-        ggplot2::scale_fill_manual(values = c("Weight" = vibrant_purple, "Active Weight" = neon_green, "Benchmark" = neon_blue)) +
+        ggplot2::geom_bar(stat = "identity", position = "dodge", color = col_text, size = 0.4) +
+        ggplot2::scale_fill_manual(values = c("Weight" = col_primary, "Active Weight" = col_secondary, "Benchmark" = col_terciary)) +
         .gg_dark() +
         ggplot2::labs(title = paste("Portfolio Weights:", if (port_name == "") "not_identified" else port_name),
                       x = "Assets", y = "Weight", fill = NULL)
@@ -5940,20 +6688,25 @@ setMethod(
     if (type == "Expected Return Score") {
       if (is.null(exp_ret_score) || length(exp_ret_score) != length(asset_names)) stop("exp_ret_score/eligible_assets mismatch.")
       df <- data.frame(Asset = asset_names, ExpRet = exp_ret_score, stringsAsFactors = FALSE)
-      mode <- suppressWarnings(as.integer(readline(prompt = "\n1: Top x by |ExpRet|  2: Pick names/indices\nChoice: ")))
-      if (!mode %in% c(1L,2L)) stop("Invalid choice.")
-      if (mode == 1L) {
-        n_choice <- suppressWarnings(as.integer(readline(prompt = "How many assets? ")))
-        n_choice <- if (is.na(n_choice) || n_choice < 1L) min(20L, nrow(df)) else min(n_choice, nrow(df))
-        df <- dplyr::arrange(df, dplyr::desc(abs(.data$ExpRet))) |> dplyr::slice_head(n = n_choice)
+      if (is.null(tickers)){
+        mode <- suppressWarnings(as.integer(readline(prompt = "\n1: Top x by |ExpRet|  2: Pick names/indices\nChoice: ")))
+        if (!mode %in% c(1L,2L)) stop("Invalid choice.")
+        if (mode == 1L) {
+          n_choice <- suppressWarnings(as.integer(readline(prompt = "How many assets? ")))
+          n_choice <- if (is.na(n_choice) || n_choice < 1L) min(20L, nrow(df)) else min(n_choice, nrow(df))
+          df <- dplyr::arrange(df, dplyr::desc(abs(.data$ExpRet))) |> dplyr::slice_head(n = n_choice)
+        } else {
+          keep <- .select_from_vector(asset_names, "Pick assets")
+          df <- df[df$Asset %in% keep, , drop = FALSE]
+        }
       } else {
-        keep <- .select_from_vector(asset_names, "Pick assets")
-        df <- df[df$Asset %in% keep, , drop = FALSE]
+        df <- df[df$Asset %in% tickers, , drop = FALSE]
       }
 
+
       p <- ggplot2::ggplot(df, ggplot2::aes(x = Asset, y = ExpRet, fill = Asset)) +
-        ggplot2::geom_bar(stat = "identity", color = black, alpha = 0.85) +
-        ggplot2::scale_fill_manual(values = rep(neon_palette, length.out = nrow(df))) +
+        ggplot2::geom_bar(stat = "identity", color = col_background, alpha = 0.85) +
+        ggplot2::scale_fill_manual(values = rep(palette_colors, length.out = nrow(df))) +
         .gg_dark() +
         ggplot2::theme(legend.position = "none") +
         ggplot2::labs(title = paste("Expected Return Scores:", if (port_name == "") "not_identified" else port_name),
@@ -5967,10 +6720,18 @@ setMethod(
     if (type == "Risk-Return Trade-off") {
       if (is.null(cov_mat)) stop("covariance_matrix required.")
       if (is.null(U) || !"tickers" %in% colnames(U)) stop("universe data required.")
-      x_choices <- c("risk")
-      if ("rel_risk_contr" %in% colnames(U)) x_choices <- c(x_choices, "rel_risk_contr")
-      if ("act_rel_risk_contr" %in% colnames(U)) x_choices <- c(x_choices, "act_rel_risk_contr")
-      x_pick <- .menu(x_choices, "X-axis: choose risk or (active) RRC")
+
+        x_choices <- c("risk")
+        if ("rel_risk_contr" %in% colnames(U)) x_choices <- c(x_choices, "rel_risk_contr")
+        if ("act_rel_risk_contr" %in% colnames(U)) x_choices <- c(x_choices, "act_rel_risk_contr")
+
+        if (is.null(chosen_risk_metrics)){
+          x_pick <- .menu(x_choices, "X-axis: choose risk or (active) RRC")
+        } else {
+          x_pick <- chosen_risk_metrics
+          if (!any(x_pick %in% x_choices)) stop("Invalid chosen_risk_metrics specified.")
+        }
+
 
       diag_risk <- sqrt(diag(cov_mat))
       base_df <- data.frame(Asset = asset_names,
@@ -5990,21 +6751,26 @@ setMethod(
       df <- base_df
       names(df)[names(df) == x_pick] <- "X"
 
-      mode <- suppressWarnings(as.integer(readline(prompt = "\n1: Top x by |exp_ret_score|  2: Pick names/indices\nChoice: ")))
-      if (!mode %in% c(1L,2L)) stop("Invalid choice.")
-      if (mode == 1L) {
-        n_choice <- suppressWarnings(as.integer(readline(prompt = "How many assets? ")))
-        n_choice <- if (is.na(n_choice) || n_choice < 1L) min(20L, nrow(df)) else min(n_choice, nrow(df))
-        df <- dplyr::arrange(df, dplyr::desc(abs(.data$ExpRet))) |>
-          dplyr::slice_head(n = n_choice)
+      if (is.null(tickers)){
+        mode <- suppressWarnings(as.integer(readline(prompt = "\n1: Top x by |exp_ret_score|  2: Pick names/indices\nChoice: ")))
+        if (!mode %in% c(1L,2L)) stop("Invalid choice.")
+        if (mode == 1L) {
+          n_choice <- suppressWarnings(as.integer(readline(prompt = "How many assets? ")))
+          n_choice <- if (is.na(n_choice) || n_choice < 1L) min(20L, nrow(df)) else min(n_choice, nrow(df))
+          df <- dplyr::arrange(df, dplyr::desc(abs(.data$ExpRet))) |>
+            dplyr::slice_head(n = n_choice)
+        } else {
+          keep <- .select_from_vector(asset_names, "Pick assets")
+          df <- df[df$Asset %in% keep, , drop = FALSE]
+        }
       } else {
-        keep <- .select_from_vector(asset_names, "Pick assets")
-        df <- df[df$Asset %in% keep, , drop = FALSE]
+        df <- df[df$Asset %in% tickers, , drop = FALSE]
       }
 
+
       p <- ggplot2::ggplot(df, ggplot2::aes(x = X, y = ExpRet, label = Asset)) +
-        ggplot2::geom_point(color = vibrant_purple, size = 3) +
-        ggrepel::geom_text_repel(color = white, size = 3.5, box.padding = 0.3, segment.color = white) +
+        ggplot2::geom_point(color = col_primary, size = 3) +
+        ggrepel::geom_text_repel(color = col_text, size = 3.5, box.padding = 0.3, segment.color = col_text) +
         .gg_dark() +
         ggplot2::labs(title = sprintf("Risk-Return: X = %s, Y = exp_ret_score", x_pick),
                         x = x_pick, y = "Expected Return Score")
@@ -6015,17 +6781,32 @@ setMethod(
     ## Correlation  (assets or groups)
     ## =========================================================================================
     if (type == "Correlation") {
-      mode <- .menu(c("Assets", "Groups"), "Correlation heatmap for")
+      if (is.null(by_group)){
+        mode <- .menu(c("Assets", "Groups"), "Correlation heatmap for")
+      } else {
+        if (isTRUE(by_group)) mode <- "Groups" else mode <- "Assets"
+      }
+
       if (mode == "Assets") {
         C <- if (!is.null(corr_mat)) corr_mat else .safe_cor_from_cov(cov_mat)
         if (is.null(C)) stop("Need correlation or covariance matrix.")
-        keep <- .select_from_vector(asset_names, "Pick assets or 'all'")
+        if (is.null(tickers)){
+          keep <- .select_from_vector(asset_names, "Pick assets or 'all'")
+        } else {
+          keep <- tickers
+        }
         sub_mat <- C[keep, keep, drop = FALSE]
       } else {
         if (is.null(x@group_cov_matrix)) stop("group_cov_matrix required for group correlation.")
         G <- x@group_cov_matrix
         Gc <- stats::cov2cor(G)
-        keep <- .select_from_vector(colnames(Gc), "Pick groups or 'all'")
+        if (is.null(groups)){
+          keep <- .select_from_vector(colnames(Gc), "Pick groups or 'all'")
+        } else {
+          group_names <- colnames(Gc)
+          if (!all(groups %in% group_names)) stop("groups not all present in group_cov_matrix.")
+          keep <- groups
+        }
         sub_mat <- Gc[keep, keep, drop = FALSE]
       }
 
@@ -6037,9 +6818,9 @@ setMethod(
       p <- ggplot2::ggplot(dl, ggplot2::aes(x = factor(Col, levels = keep),
                                             y = factor(Row, levels = rev(keep)),
                                             fill = Correlation)) +
-        ggplot2::geom_tile(color = "white") +
-        ggplot2::geom_text(ggplot2::aes(label = round(Correlation, 2)), color = "black", na.rm = TRUE, size = 3) +
-        ggplot2::scale_fill_gradient2(low = neon_pink, mid = white, high = neon_green, midpoint = 0, limits = c(-1,1)) +
+        ggplot2::geom_tile(color = col_text) +
+        ggplot2::geom_text(ggplot2::aes(label = round(Correlation, 2)), color = col_text, na.rm = TRUE, size = 3) +
+        ggplot2::scale_fill_gradient2(low = col_negative, mid = light_gray, high = col_positive, midpoint = 0, limits = c(-1,1)) +
         .gg_dark() +
         ggplot2::theme(axis.title = ggplot2::element_blank()) +
         ggplot2::labs(title = "Correlation Heatmap")
@@ -6050,11 +6831,24 @@ setMethod(
     ## Relative Risk Contribution
     ## =========================================================================================
     if (type == "Relative Risk Contribution") {
+
       if (is.null(U) || !"tickers" %in% colnames(U)) stop("universe data required.")
       cols <- c("rel_risk_contr", "act_rel_risk_contr")
       cols <- cols[cols %in% colnames(U)]
       if (length(cols) == 0) stop("No rel_risk_contr columns found in universe data.")
-      pick <- .menu(cols, "Choose RRC measure to plot")
+
+      if (is.null(chosen_risk_metrics)){
+        pick <- .menu(cols, "Choose RRC measure to plot")
+      } else {
+        pick <- chosen_risk_metrics
+        if (!any(pick %in% cols)) stop("Invalid chosen_risk_metrics specified.")
+      }
+
+      ##Only one chosen risk metric allowed
+      if (length(chosen_risk_metrics) > 1){
+        stop("Please choose only one risk metric for this plot type.")
+      }
+
       is_active_rrc <- identical(pick, "act_rel_risk_contr")
 
       df <- data.frame(tickers = asset_names, stringsAsFactors = FALSE) |>
@@ -6062,22 +6856,26 @@ setMethod(
       names(df)[names(df) == pick] <- "RRC"
       df$Weight <- weights
 
-      mode <- suppressWarnings(as.integer(readline(prompt = "\n1: Top x by |RRC|  2: Pick names/indices\nChoice: ")))
-      if (!mode %in% c(1L,2L)) stop("Invalid choice.")
-      if (mode == 1L) {
-        n_choice <- suppressWarnings(as.integer(readline(prompt = "How many assets? ")))
-        n_choice <- if (is.na(n_choice) || n_choice < 1L) min(20L, nrow(df)) else min(n_choice, nrow(df))
-        df <- dplyr::arrange(df, dplyr::desc(abs(.data$RRC))) |> dplyr::slice_head(n = n_choice)
+      if (is.null(tickers)){
+        mode <- suppressWarnings(as.integer(readline(prompt = "\n1: Top x by |RRC|  2: Pick names/indices\nChoice: ")))
+        if (!mode %in% c(1L,2L)) stop("Invalid choice.")
+        if (mode == 1L) {
+          n_choice <- suppressWarnings(as.integer(readline(prompt = "How many assets? ")))
+          n_choice <- if (is.na(n_choice) || n_choice < 1L) min(20L, nrow(df)) else min(n_choice, nrow(df))
+          df <- dplyr::arrange(df, dplyr::desc(abs(.data$RRC))) |> dplyr::slice_head(n = n_choice)
+        } else {
+          keep <- .select_from_vector(asset_names, "Pick assets")
+          df <- df[df$tickers %in% keep, , drop = FALSE]
+        }
       } else {
-        keep <- .select_from_vector(asset_names, "Pick assets")
-        df <- df[df$tickers %in% keep, , drop = FALSE]
+        df <- df[df$tickers %in% tickers, , drop = FALSE]
       }
 
       dfl <- tidyr::pivot_longer(df, cols = c("Weight","RRC"), names_to = "Metric", values_to = "Value")
 
       p <- ggplot2::ggplot(dfl, ggplot2::aes(x = tickers, y = Value, fill = Metric)) +
-        ggplot2::geom_bar(stat = "identity", position = "dodge", color = black, alpha = 0.9) +
-        ggplot2::scale_fill_manual(values = c("Weight" = vibrant_purple, "RRC" = neon_green)) +
+        ggplot2::geom_bar(stat = "identity", position = "dodge", color = col_background, alpha = 0.9) +
+        ggplot2::scale_fill_manual(values = c("Weight" = col_secondary, "RRC" = col_terciary)) +
         .gg_dark() +
         ggplot2::labs(
           title = paste0("Relative Risk Contribution",
@@ -6122,10 +6920,10 @@ setMethod(
 
       p <- ggplot2::ggplot(frontier_df, ggplot2::aes(x = Risk, y = Return, color = Sharpe)) +
         ggplot2::geom_point(size = 3, alpha = 0.7) +
-        ggplot2::scale_color_gradient(low = neon_pink, high = neon_green) +
+        ggplot2::scale_color_gradient(low = col_negative, high = col_positive) +
         ggplot2::annotate("point", x = opt_risk, y = opt_ret, color = "red", size = 4, shape = 17) +
-        { if (!is.na(base_risk) && !is.na(base_return)) ggplot2::annotate("point", x = base_risk, y = base_return, color = neon_blue, size = 4, shape = 15) } +
-        { if (!is.na(target_risk) && !is.na(target_return)) ggplot2::annotate("point", x = target_risk, y = target_return, color = neon_orange, size = 4, shape = 18) } +
+        { if (!is.na(base_risk) && !is.na(base_return)) ggplot2::annotate("point", x = base_risk, y = base_return, color = col_primary, size = 4, shape = 15) } +
+        { if (!is.na(target_risk) && !is.na(target_return)) ggplot2::annotate("point", x = target_risk, y = target_return, color = col_secondary, size = 4, shape = 18) } +
         .gg_dark() +
         ggplot2::labs(title = paste("Efficient Frontier:", if (port_name == "") "not_identified" else port_name),
                       x = "Risk (stdev)", y = "Expected Return", color = "Sharpe")
@@ -6139,6 +6937,7 @@ setMethod(
     ## Random Weights Distribution
     ## =========================================================================================
     if (type == "Random Weights Distribution") {
+
       if (is.null(random_port_wt) || is.null(x@ind_max_weights) || is.null(x@ind_min_weights))
         stop("random_port_weights and individual constraints required.")
       W <- as.data.frame(t(random_port_wt[, -1, drop = FALSE])); colnames(W) <- random_port_wt$tickers
@@ -6149,27 +6948,33 @@ setMethod(
                                 stringsAsFactors = FALSE)
       plot_data <- dplyr::left_join(dl, constraints, by = "assets")
 
-      mode <- suppressWarnings(as.integer(readline(prompt = "\n1: Top x by avg |random weight|  2: Pick names/indices\nChoice: ")))
-      if (!mode %in% c(1L,2L)) stop("Invalid choice.")
-      if (mode == 1L) {
-        av <- plot_data |> dplyr::group_by(.data$assets) |>
-          dplyr::summarize(avg_abs = mean(abs(.data$weights), na.rm = TRUE), .groups = "drop") |>
-          dplyr::arrange(dplyr::desc(.data$avg_abs))
-        n_choice <- suppressWarnings(as.integer(readline(prompt = "How many assets? ")))
-        n_choice <- if (is.na(n_choice) || n_choice < 1L) min(20L, nrow(av)) else min(n_choice, nrow(av))
-        keep <- av$assets[seq_len(n_choice)]
-        plot_data <- dplyr::filter(plot_data, .data$assets %in% keep)
-        constraints <- dplyr::filter(constraints, .data$assets %in% keep)
+      if (is.null(tickers)){
+        mode <- suppressWarnings(as.integer(readline(prompt = "\n1: Top x by avg |random weight|  2: Pick names/indices\nChoice: ")))
+        if (!mode %in% c(1L,2L)) stop("Invalid choice.")
+        if (mode == 1L) {
+          av <- plot_data |> dplyr::group_by(.data$assets) |>
+            dplyr::summarize(avg_abs = mean(abs(.data$weights), na.rm = TRUE), .groups = "drop") |>
+            dplyr::arrange(dplyr::desc(.data$avg_abs))
+          n_choice <- suppressWarnings(as.integer(readline(prompt = "How many assets? ")))
+          n_choice <- if (is.na(n_choice) || n_choice < 1L) min(20L, nrow(av)) else min(n_choice, nrow(av))
+          keep <- av$assets[seq_len(n_choice)]
+          plot_data <- dplyr::filter(plot_data, .data$assets %in% keep)
+          constraints <- dplyr::filter(constraints, .data$assets %in% keep)
+        } else {
+          keep <- .select_from_vector(asset_names, "Pick assets")
+          plot_data <- dplyr::filter(plot_data, .data$assets %in% keep)
+          constraints <- dplyr::filter(constraints, .data$assets %in% keep)
+        }
       } else {
-        keep <- .select_from_vector(asset_names, "Pick assets")
-        plot_data <- dplyr::filter(plot_data, .data$assets %in% keep)
-        constraints <- dplyr::filter(constraints, .data$assets %in% keep)
+        plot_data <- dplyr::filter(plot_data, .data$assets %in% tickers)
+        constraints <- dplyr::filter(constraints, .data$assets %in% tickers)
       }
 
+
       p <- ggplot2::ggplot(plot_data, ggplot2::aes(x = assets, y = weights)) +
-        ggplot2::geom_jitter(width = 0.2, color = vibrant_purple, alpha = 0.5, size = 2) +
-        ggplot2::geom_point(data = constraints, ggplot2::aes(x = assets, y = ind_max_weights), color = neon_orange, size = 3, shape = 17) +
-        ggplot2::geom_point(data = constraints, ggplot2::aes(x = assets, y = ind_min_weights), color = neon_green, size = 3, shape = 17) +
+        ggplot2::geom_jitter(width = 0.2, color = col_primary, alpha = 0.5, size = 2) +
+        ggplot2::geom_point(data = constraints, ggplot2::aes(x = assets, y = ind_max_weights), color = col_secondary, size = 3, shape = 17) +
+        ggplot2::geom_point(data = constraints, ggplot2::aes(x = assets, y = ind_min_weights), color = col_terciary, size = 3, shape = 17) +
         .gg_dark() +
         ggplot2::labs(title = "Weight Distribution with Constraints", x = "Assets", y = "Weights")
       print(p); return(invisible(p))
@@ -6192,8 +6997,12 @@ setMethod(
 
       ## prompt once for active version vs bench_weights
       bench_col <- .get_bench_col(Um)  ## auto-detect *_bench_weights
-      active_ans <- tolower(readline(prompt = "Plot active version (vs bench_weights)? (y/n): "))
-      plot_active <- active_ans %in% c("y", "yes")
+      if (is.null(active_weights)){
+        active_ans <- tolower(readline(prompt = "Plot active version (vs bench_weights)? (y/n): "))
+        plot_active <- active_ans %in% c("y", "yes")
+      } else {
+        plot_active <- isTRUE(active_weights)
+      }
 
       ## assemble base df
       keep_cols <- c("tickers", intersect(c("weights","rel_risk_contr", bench_col), colnames(Um)))
@@ -6237,7 +7046,8 @@ setMethod(
       dfl$Metric <- pretty[dfl$Metric]
 
       p <- ggplot2::ggplot(dfl, ggplot2::aes(x = tickers, y = Value, fill = Metric)) +
-        ggplot2::geom_bar(stat = "identity", position = "dodge", color = black) +
+        ggplot2::geom_bar(stat = "identity", position = "dodge", color = col_text) +
+        ggplot2::scale_fill_manual(values = palette_colors) +
         .gg_dark() +
         ggplot2::labs(
           title = paste0("Group Allocation (macro)", if (plot_active) " - Active" else ""),
@@ -6254,19 +7064,26 @@ setMethod(
     ## Hierarchical Clustering
     ## =========================================================================================
     if (type == "Hierarchical Clustering") {
+
       if (is.null(x@clusters) || !inherits(x@clusters, "hclust")) stop("clusters (hclust) required.")
       if (length(asset_names) == 0L || is.null(weights) || length(weights) != length(asset_names))
         stop("eligible_assets/weights required.")
       weights_df <- data.frame(assets = asset_names, weights = weights)
-      mode <- suppressWarnings(as.integer(readline(prompt = "\n1: Top x by |weight|  2: Pick names/indices\nChoice: ")))
-      if (!mode %in% c(1L,2L)) stop("Invalid choice.")
-      if (mode == 1L) {
-        weights_df <- dplyr::arrange(weights_df, dplyr::desc(abs(.data$weights)))
-        n_choice <- suppressWarnings(as.integer(readline(prompt = "How many? ")))
-        if (is.na(n_choice) || n_choice < 2L) n_choice <- min(12L, nrow(weights_df))
-        sel_assets <- weights_df$assets[seq_len(n_choice)]
+
+      if (is.null(tickers)){
+        mode <- suppressWarnings(as.integer(readline(prompt = "\n1: Top x by |weight|  2: Pick names/indices\nChoice: ")))
+        if (!mode %in% c(1L,2L)) stop("Invalid choice.")
+        if (mode == 1L) {
+          weights_df <- dplyr::arrange(weights_df, dplyr::desc(abs(.data$weights)))
+          n_choice <- suppressWarnings(as.integer(readline(prompt = "How many? ")))
+          if (is.na(n_choice) || n_choice < 2L) n_choice <- min(12L, nrow(weights_df))
+          sel_assets <- weights_df$assets[seq_len(n_choice)]
+        } else {
+          sel_assets <- .select_from_vector(asset_names, "Pick assets")
+          if (length(sel_assets) < 2L) stop("Need at least two assets.")
+        }
       } else {
-        sel_assets <- .select_from_vector(asset_names, "Pick assets")
+        sel_assets <- tickers
         if (length(sel_assets) < 2L) stop("Need at least two assets.")
       }
 
@@ -6282,12 +7099,16 @@ setMethod(
 
       op <- graphics::par(no.readonly = TRUE)
       on.exit(graphics::par(op), add = TRUE)
-      graphics::par(bg = blue_bg, col.axis = white, col.lab = white, col.main = white, col.sub = white, fg = white)
+      graphics::par(bg = col_background, col.axis = col_text, col.lab = col_text, col.main = col_text, col.sub = col_text, fg = col_text)
       graphics::plot(hc_sub, main = paste("Hierarchical Clustering:", if (port_name == "") "not_identified" else port_name),
                      xlab = "", sub = "", hang = -1, labels = hc_sub$labels)
-      graphics::box(col = neon_blue)
-      k_in <- suppressWarnings(as.integer(readline(prompt = "Highlight k clusters (0=skip): ")))
-      if (!is.na(k_in) && k_in > 0L) stats::rect.hclust(hc_sub, k = k_in, border = neon_green)
+      graphics::box(col = col_primary)
+      if (is.null(top_n)){
+        k_in <- suppressWarnings(as.integer(readline(prompt = "Highlight k clusters (0=skip): ")))
+      } else {
+        k_in <- top_n
+      }
+      if (!is.na(k_in) && k_in > 0L) stats::rect.hclust(hc_sub, k = k_in, border = col_secondary)
       return(invisible(hc_sub))
     }
 
@@ -6295,6 +7116,7 @@ setMethod(
     ## Allocation Flow (Groups -> Assets)
     ## =========================================================================================
     if (type == "Allocation Flow (Groups -> Assets)") {
+
       gc <- .resolve_group_col()
       if (length(x@eligible_assets) == 0L || length(x@weights) == 0L) stop("eligible_assets/weights required.")
       if (is.null(U)) stop("universe data required.")
@@ -6310,11 +7132,22 @@ setMethod(
         dplyr::summarize(group_w_signed = sum(.data$w), group_w_abs = sum(abs(.data$w)), .groups = "drop") |>
         dplyr::arrange(dplyr::desc(.data$group_w_abs))
 
-      g_choice <- suppressWarnings(as.integer(readline(prompt = "Top how many groups (by |weight|)? ")))
-      if (is.na(g_choice) || g_choice < 1L) g_choice <- min(nrow(macro_tbl), 10L)
-      keep_groups <- macro_tbl[[gc]][seq_len(g_choice)]
+      if (is.null(groups)){
+        g_choice <- suppressWarnings(as.integer(readline(prompt = "Top how many groups (by |weight|)? ")))
+        if (is.na(g_choice) || g_choice < 1L) g_choice <- min(nrow(macro_tbl), 10L)
+        keep_groups <- macro_tbl[[gc]][seq_len(g_choice)]
+      } else {
+        group_names <- macro_tbl[[gc]]
+        if (!all(groups %in% group_names)) stop("groups not all present in universe data.")
+        keep_groups <- groups
+      }
 
-      n_choice <- suppressWarnings(as.integer(readline(prompt = "Top how many assets per group (by |weight|)? ")))
+      if (is.null(top_n)){
+        n_choice <- suppressWarnings(as.integer(readline(prompt = "Top how many assets per group (by |weight|)? ")))
+      } else {
+        n_choice <- top_n
+      }
+
       if (is.na(n_choice) || n_choice < 1L) n_choice <- 8L
 
       final_df <- final_df |>
@@ -6367,6 +7200,7 @@ setMethod(
                                 by = "name")
       edges <- data.frame(from = paste0("G:", final_df[[gc]]), to = paste0("A:", final_df$tickers),
                           weight = final_df$w, stringsAsFactors = FALSE)
+
       g <- igraph::graph_from_data_frame(edges, directed = TRUE, vertices = nodes)
       igraph::V(g)$x <- nodes$x[match(igraph::V(g)$name, nodes$name)]
       igraph::V(g)$y <- nodes$y[match(igraph::V(g)$name, nodes$name)]
@@ -6377,22 +7211,22 @@ setMethod(
       p <- ggraph::ggraph(g, layout = "manual", x = igraph::V(g)$x, y = igraph::V(g)$y) +
         ggraph::geom_edge_link(ggplot2::aes(edge_width = pmax(abs(weight), 1e-9),
                                             edge_alpha = pmax(abs(weight), 1e-9)),
-                               colour = neon_blue, lineend = "round") +
+                               colour = col_primary, lineend = "round") +
         ggraph::scale_edge_width(range = c(0.5, 6), guide = "none") +
         ggraph::scale_edge_alpha(range = c(0.35, 0.9), guide = "none") +
         ggraph::geom_node_point(data = group_nodes_plot, mapping = ggplot2::aes(x = x, y = y, size = pmax(abs(size), 1e-9)),
-                                colour = neon_green) +
+                                colour = col_positive) +
         ggraph::geom_node_point(data = asset_nodes_plot, mapping = ggplot2::aes(x = x, y = y, size = pmax(abs(size), 1e-9)),
-                                colour = neon_magenta) +
+                                colour = col_terciary) +
         ggplot2::scale_size_continuous(range = c(2, 10), guide = "none") +
         ggraph::geom_node_text(data = group_nodes_plot,
                                mapping = ggplot2::aes(x = x, y = y,
                                                       label = paste0(label, " (", scales::percent(size, accuracy = 0.1), ")")),
-                               colour = white, fontface = 2, hjust = 1, nudge_x = -left_pad * 0.4) +
+                               colour = col_text, fontface = 2, hjust = 1, nudge_x = -left_pad * 0.4) +
         ggraph::geom_node_text(data = asset_nodes_plot,
                                mapping = ggplot2::aes(x = x, y = y,
                                                       label = paste0(label, " (", scales::percent(size, accuracy = 0.1), ")")),
-                               colour = white, size = 3, hjust = 0, nudge_x = right_pad * 0.4) +
+                               colour = col_text, size = 3, hjust = 0, nudge_x = right_pad * 0.4) +
         ggplot2::scale_x_continuous(limits = c(0 - left_pad, 1 + right_pad)) +
         ggplot2::coord_cartesian(clip = "off") +
         .gg_dark() +
@@ -6407,17 +7241,36 @@ setMethod(
     ## =========================================================================================
     if (type == "Within-Group Composition") {
       gc <- .resolve_group_col()
+
       df <- data.frame(tickers = x@eligible_assets, weight = x@weights, stringsAsFactors = FALSE) |>
         dplyr::left_join(groups_df[, c("tickers", gc)], by = "tickers")
       if (any(is.na(df[[gc]]))) stop("Missing group mapping.")
 
-      metric_choice <- suppressWarnings(as.integer(readline(prompt = "\n1: Weight/Active Weight  2: Relative Risk Contribution\nChoice: ")))
+      if (!is.null(chosen_risk_metrics) && !is.null(chosen_weights)){
+        stop ("Cannot specify both chosen_risk_metrics and chosen_weights. Please choose one or the other.")
+      }
+
+      if (!is.null(chosen_risk_metrics) || !is.null(chosen_weights)){
+        if (!is.null(chosen_risk_metrics)){
+          metric_choice <- 2
+        } else {
+          metric_choice <- 1
+        }
+      } else {
+        metric_choice <- suppressWarnings(as.integer(readline(prompt = "\n1: Weight/Active Weight  2: Relative Risk Contribution\nChoice: ")))
+      }
       if (!metric_choice %in% c(1L,2L)) stop("Invalid choice.")
 
       plot_title_suffix <- ""; y_lab <- "Final Weight"
       if (metric_choice == 1L) {
         if (!is.null(U) && "act_weights" %in% colnames(U)) {
-          ans <- tolower(readline(prompt = "Use active weights? (y/n): "))
+          if (!is.null(chosen_weights)){
+            #chosen_weights must be exactly one of weights or act_weights
+            if (!chosen_weights %in% c("weights", "act_weights")) stop("Invalid chosen_weights specified.")
+            if (grepl("act", chosen_weights)) ans <- "yes" else ans <- "no"
+          } else {
+            ans <- tolower(readline(prompt = "Use active weights? (y/n): "))
+          }
           if (ans %in% c("y","yes")) {
             df <- dplyr::left_join(df, U[, c("tickers","act_weights")], by = "tickers")
             df$plot_value <- df$act_weights; y_lab <- "Active Weight"; plot_title_suffix <- " (Active)"
@@ -6430,8 +7283,19 @@ setMethod(
         rrc_cols <- c("rel_risk_contr","act_rel_risk_contr")
         rrc_cols <- rrc_cols[rrc_cols %in% colnames(U)]
         if (!all(c("rel_risk_contr") %in% rrc_cols)) stop("RRC columns missing in universe data.")
-        ans_act <- tolower(readline(prompt = "Use active RRC? (y/n): "))
-        use_active_rrc <- ans_act %in% c("y","yes") && "act_rel_risk_contr" %in% rrc_cols
+        if (!is.null(chosen_risk_metrics)){
+          #chosen_risk_metrics must be exactly one of rel_risk_contribution or act_rel_risk_contribution
+          if (!chosen_risk_metrics %in% c("rel_risk_contr", "act_rel_risk_contr")) stop("Invalid chosen_risk_metrics specified.")
+          if (grepl("act", chosen_risk_metrics)) {
+            use_active_rrc <- "act_rel_risk_contr" %in% rrc_cols
+            if (!use_active_rrc) stop("Chosen active RRC not found in universe data.")
+          } else {
+            use_active_rrc <- FALSE
+          }
+        } else {
+          ans_act <- tolower(readline(prompt = "Use active RRC? (y/n): "))
+          use_active_rrc <- ans_act %in% c("y","yes") && "act_rel_risk_contr" %in% rrc_cols
+        }
         chosen_rrc <- if (use_active_rrc) "act_rel_risk_contr" else "rel_risk_contr"
 
         df <- dplyr::left_join(df, U[, c("tickers", chosen_rrc)], by = "tickers")
@@ -6444,10 +7308,19 @@ setMethod(
         dplyr::group_by(.data[[gc]]) |>
         dplyr::summarize(group_value = sum(.data$plot_value), .groups = "drop") |>
         dplyr::arrange(dplyr::desc(.data$group_value))
-      g_choice <- suppressWarnings(as.integer(readline(prompt = "Top how many groups (by |value|)? ")))
+      if (is.null(top_n)){
+        g_choice <- suppressWarnings(as.integer(readline(prompt = "Top how many groups (by |value|)? ")))
+      } else {
+        g_choice <- top_n
+      }
       if (is.na(g_choice) || g_choice < 1L || g_choice > nrow(gsum)) g_choice <- min(nrow(gsum), 9L)
       keep_groups <- gsum[[gc]][seq_len(g_choice)]
-      n_choice <- suppressWarnings(as.integer(readline(prompt = "Top how many assets per group (by |value|)? ")))
+      if (is.null(top_n)){
+        n_choice <- suppressWarnings(as.integer(readline(prompt = "Top how many assets per group (by |value|)? ")))
+      } else {
+        n_choice <- top_n
+      }
+
       if (is.na(n_choice) || n_choice < 1L) n_choice <- 10L
 
       dfp <- df |>
@@ -6459,12 +7332,12 @@ setMethod(
       p <- ggplot2::ggplot(dfp, ggplot2::aes(x = stats::reorder(tickers, -abs(.data$plot_value)),
                                              y = .data$plot_value,
                                              fill = .data$plot_value > 0)) +
-        ggplot2::geom_bar(stat = "identity", color = white, size = 0.3) +
-        ggplot2::scale_fill_manual(values = c("TRUE" = vibrant_purple, "FALSE" = neon_pink), guide = "none") +
+        ggplot2::geom_bar(stat = "identity", color = col_text, size = 0.3) +
+        ggplot2::scale_fill_manual(values = c("TRUE" = col_positive, "FALSE" = col_negative), guide = "none") +
         ggplot2::facet_wrap(stats::reformulate(gc), scales = "free_y") +
         ggplot2::coord_flip() +
         .gg_dark() +
-        ggplot2::theme(strip.text = ggplot2::element_text(color = white)) +
+        ggplot2::theme(strip.text = ggplot2::element_text(color = col_text)) +
         ggplot2::labs(title = paste0("Within-Group Composition", plot_title_suffix, ": ",
                                      if (x@port_name == "") "not_identified" else x@port_name),
                       x = "Asset (ordered by |value|)", y = y_lab)
@@ -6480,7 +7353,12 @@ setMethod(
       cols <- c("rel_risk_contr", "act_rel_risk_contr")
       cols <- cols[cols %in% colnames(U)]
       if (length(cols) == 0) stop("No RRC columns in universe data.")
-      pick <- .menu(cols, "Choose RRC column (portfolio or active)")
+      if (is.null(chosen_risk_metrics)){
+        pick <- .menu(cols, "Choose RRC column (portfolio or active)")
+      } else {
+        if (!chosen_risk_metrics %in% cols) stop("chosen_risk_metrics not found in universe data.")
+        pick <- chosen_risk_metrics
+      }
       df_rc <- data.frame(tickers = asset_names, stringsAsFactors = FALSE) |>
         dplyr::left_join(U[, c("tickers", pick)], by = "tickers") |>
         dplyr::left_join(groups_df[, c("tickers", gc)], by = "tickers")
@@ -6491,12 +7369,16 @@ setMethod(
         dplyr::group_by(.data[[gc]]) |>
         dplyr::summarize(group_rrc = sum(.data$rrc, na.rm = TRUE), .groups = "drop") |>
         dplyr::arrange(dplyr::desc(.data$group_rrc))
-      g_choice <- suppressWarnings(as.integer(readline(prompt = "Top how many groups to highlight? ")))
+      if (is.null(top_n)){
+        g_choice <- suppressWarnings(as.integer(readline(prompt = "Top how many groups to highlight? ")))
+      } else {
+        g_choice <- top_n
+      }
       if (is.na(g_choice) || g_choice < 1L || g_choice > nrow(g_rc)) g_choice <- min(nrow(g_rc), 8L)
       keep_groups <- g_rc[[gc]][seq_len(g_choice)]
 
       pA <- ggplot2::ggplot(g_rc, ggplot2::aes(x = stats::reorder(.data[[gc]], .data$group_rrc), y = .data$group_rrc)) +
-        ggplot2::geom_bar(stat = "identity", fill = vibrant_purple, color = white) +
+        ggplot2::geom_bar(stat = "identity", fill = col_primary, color = col_text) +
         ggplot2::coord_flip() +
         .gg_dark() +
         ggplot2::labs(title = "Groups Relative Risk Contribution", x = "Group", y = "RRC")
@@ -6506,9 +7388,11 @@ setMethod(
         dplyr::group_by(.data[[gc]], .data$tickers) |>
         dplyr::summarize(rrc = sum(.data$rrc, na.rm = TRUE), .groups = "drop")
 
-      print_choice <- tolower(readline(prompt = "Print asset rankings per group to console? (y/n): "))
-      if (print_choice %in% c("y","yes")) {
-        k_in <- suppressWarnings(as.integer(readline(prompt = "Top k per group (0 = all): ")))
+      if (is.null(top_n)){
+          k_in <- suppressWarnings(as.integer(readline(prompt = "Top k per group (0 = all): ")))
+        } else {
+          k_in <- top_n
+        }
         for (g in unique(df_rc_f[[gc]])) {
           sub <- df_rc_f[df_rc_f[[gc]] == g, , drop = FALSE]
           sub <- sub[order(-sub$rrc), ]
@@ -6517,10 +7401,10 @@ setMethod(
           for (i in seq_len(nrow(sub))) cat(sprintf("%2d. %-15s  RRC: %.6f\n", i, sub$tickers[i], sub$rrc[i]))
         }
         cat("\n")
-      }
+
 
       pB <- ggplot2::ggplot(df_rc_f, ggplot2::aes(x = .data[[gc]], y = .data$rrc, fill = .data$tickers)) +
-        ggplot2::geom_bar(stat = "identity", position = "fill", color = black, alpha = 0.6) +
+        ggplot2::geom_bar(stat = "identity", position = "fill", color = col_text, alpha = 0.6) +
         ggplot2::scale_y_continuous(labels = scales::percent) +
         .gg_dark() + ggplot2::theme(legend.position = "none") +
         ggplot2::labs(title = "Within-Group RRC (stacked to 100%)", x = "Group", y = "Share")
@@ -6559,6 +7443,7 @@ setMethod(
       )
       pA <- ggplot2::ggplot(dfA, ggplot2::aes(x = Metric, y = Value, fill = Metric)) +
         ggplot2::geom_col(color = black, width = 0.7) +
+        ggplot2::scale_fill_manual(values = palette_colors) +
         .gg_dark() +
         ggplot2::theme(legend.position = "none",
                        plot.title = ggplot2::element_text(color = white)) +
@@ -6580,10 +7465,11 @@ setMethod(
         stringsAsFactors = FALSE
       )
       pB <- ggplot2::ggplot(dfB, ggplot2::aes(x = Metric, y = Value, fill = Metric)) +
-        ggplot2::geom_col(color = black, width = 0.7) +
+        ggplot2::geom_col(color = col_text, width = 0.7) +
+        ggplot2::scale_fill_manual(values = palette_colors) +
         .gg_dark() +
         ggplot2::theme(legend.position = "none",
-                       plot.title = ggplot2::element_text(color = white)) +
+                       plot.title = ggplot2::element_text(color = col_text)) +
         ggplot2::labs(title = "Concentration - Weights", x = NULL, y = NULL)
 
 
@@ -6598,10 +7484,11 @@ setMethod(
         stringsAsFactors = FALSE
       )
       pC <- ggplot2::ggplot(dfC, ggplot2::aes(x = Metric, y = Value, fill = Metric)) +
-        ggplot2::geom_col(color = black, width = 0.7) +
+        ggplot2::geom_col(color = col_text, width = 0.7) +
+        ggplot2::scale_fill_manual(values = palette_colors) +
         .gg_dark() +
         ggplot2::theme(legend.position = "none",
-                       plot.title = ggplot2::element_text(color = white)) +
+                       plot.title = ggplot2::element_text(color = col_text)) +
         ggplot2::labs(title = "Concentration - RRC", x = NULL, y = NULL)
 
       # D) group-level metrics
@@ -6623,9 +7510,10 @@ setMethod(
       )
       pD <- ggplot2::ggplot(dfD, ggplot2::aes(x = Metric, y = Value, fill = Metric)) +
         ggplot2::geom_col(color = black, width = 0.7) +
+        ggplot2::scale_fill_manual(values = palette_colors) +
         .gg_dark() +
         ggplot2::theme(legend.position = "none",
-                       plot.title = ggplot2::element_text(color = white)) +
+                       plot.title = ggplot2::element_text(color = col_text)) +
         ggplot2::labs(title = "Group Metrics", x = NULL, y = NULL)
 
 
@@ -6647,7 +7535,7 @@ setMethod(
     ## =========================================================================================
     if (type == "Universe Data") {
       if (!methods::is(x@universe_m_d_ref, "meta_dataframe")) stop("universe_m_d_ref is not meta_dataframe.")
-      plot(x@universe_m_d_ref, ...)
+      plot(x@universe_m_d_ref, ..., palette = palette)
       return(invisible(TRUE))
     }
 
@@ -6664,10 +7552,12 @@ setMethod(
 #' @param x An object of class `port_backtest_results`.
 #' @param plot_id A character string or numeric value specifying which plot to display. If `NULL`, the user will be prompted.
 #' @param vertical_lines Optional. A vector of `Date` objects indicating vertical lines to display in time-series plots (e.g., rebalance dates). If `NULL`, the user will be prompted.
-#'
+#' @param palette A character string specifying the color palette to use for the plots. Options are "cyberpunk" (default) and "br". If an invalid option is provided, it will default to "cyberpunk".
+#' @param group_col Optional. A character string specifying the column name in the backtest results to use for grouping in certain plots. If `NULL`, the user will be prompted to select from available columns.
+#' @param facet_by_year Logical. If `TRUE`, time-series plots will be faceted by year. Default is `FALSE`.
 #' @return Invisibly returns the input object.
 #' @export
-setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_lines = NULL) {
+setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_lines = NULL, palette = "cyberpunk", group_col = NULL, facet_by_year = NULL) {
 
   # Check for required packages for plotting
   required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
@@ -6684,21 +7574,59 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_
     )
   }
 
-  # Define colors for plotting
-  deep_navy <- "#000033"
-  black <- "#000000"
-  white <- "#FFFFFF"
-  vibrant_purple <- "#6A0DAD"
-  neon_green <- "#39FF14"
-  neon_orange <- "#FF5F1F"
-  blue_bg <- "#001f3f"
-  neon_yellow <- "#FFDC00"
-  neon_pink <- "#FF007F"
-  cyan <- "#7FDBFF"
+  if (palette == "cyberpunk") {
 
-  # Ensure Contribution_Type uses "Positive" and "Negative" for consistency
-  pos_color <- neon_green    # Define positive contribution color
-  neg_color <- "red"         # Define negative contribution color
+    light_gray <- "#003641"
+
+    col_background <- "#001f3f"
+    col_text       <- "#FFFFFF"
+    col_primary    <- "#00FFFF"
+    col_secondary <- "#FF69B4"      # Hot Pink
+    col_terciary <-  "#FF1493" # Lime Green
+    col_quarternary <-  "#FFA500"
+    col_quinternary <- "#FF4500"
+    col_sextenary <- "#32CD32"
+    col_positive   <- "#39FF14"
+    col_negative   <- "#FF1493"
+    vertical_line_color <- "#FF69B4"
+    cyan <- "#00FFFF"
+
+    palette_colors  <- c(
+      "#00BFFF", "#FF1493", "#FFFF00",  "#00FFFF", "#8A2BE2",
+      "#FF4500", "#39FF14", "#FF69B4", "#32CD32", "#FFA500"
+    )
+
+  }
+  if (palette == "br") {
+
+    light_gray <- "#EBEEF1"
+
+    col_background <- "#FFFFFF"
+    col_text       <- "#003641"
+    col_primary   <- "#00A091"
+    col_secondary  <- "#4C7C83"
+    col_terciary   <- "#49479D"
+    col_quarternary <- "#39FF14"
+    col_quinternary <- "#003641"
+    col_sextenary  <- "#D6E266"
+    col_positive   <- "#7DB61C"
+    col_negative   <- "#C2185B"
+    vertical_line_color <- "#003641"
+    cyan <- "#94E1D6"
+
+    palette_colors  <- c(
+      "#94E1D6", "#49479D", "#FF5F1F",
+      "#7DB61C", "#98B2B6", "#8A03C9",
+      "#00C9B8", "#C9D200", "#C2185B",
+      "#00FFFF", "#003641", "#00A091",
+      "#4C7C83", "#FF5F1F", "#EBEEA8",
+      "#A5CD5C", "#00AE9D",
+      "#EBEEA8", "#D6E266", "#00C9B8",
+      "#7DB61C", "#A5CD5C", "#003641",
+      "#00A091", "#4C7C83"
+    )
+
+  }
 
   # List of available plots
   available_plots <- c(
@@ -6763,14 +7691,6 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_
   final_stock_port <- x@final_stock_port
   port_stats_m_df <- x@port_stats_m_df
 
-  #Prompt the user if he wants to plot rebalance dates
-  if (is.null(vertical_lines) && plot_name != "Plot Subjacent Final Port"){
-    rebalance_dates <- readline(prompt = "Do you want to plot rebalance dates? (yes/no): ")
-    if (rebalance_dates %in% c("y", "yes")) {
-      vertical_lines <- as.Date(x@port_backtest_workflow[[length(x@port_backtest_workflow)]]$rebalance_dates)
-    }
-  }
-
   #Select Group if plot_name contains "Group"
   if (grepl("Group", plot_name)) {
 
@@ -6782,32 +7702,35 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_
       stop("No character columns found in the stock universe data.")
     }
 
-    # Display available columns with numbers
-    cat(crayon::white("\nPlease choose a column to consider as group:\n"))
-    for (i in seq_along(char_cols)) {
-      cat(crayon::white(paste0(i, ": ", char_cols[i], "\n")))
-    }
-
-    # Prompt user input
-    selection <- readline(prompt = crayon::white("Enter the column name or number: "))
-
-    # Check if the input is numeric (choosing by index) or a name
-    if (nzchar(selection)) {
-      if (grepl("^[0-9]+$", selection)) {  # If input is numeric
-        selection <- as.numeric(selection)
-        if (selection < 1 || selection > length(char_cols)) {
-          stop("Invalid selection. Please enter a valid number from the list.")
-        }
-        group_col <- char_cols[selection]
-      } else {  # If input is a column name
-        if (!(selection %in% char_cols)) {
-          stop("Invalid selection. Please enter a valid column name from the list.")
-        }
-        group_col <- selection
+    if (is.null(group_col)){
+      # Display available columns with numbers
+      cat(crayon::white("\nPlease choose a column to consider as group:\n"))
+      for (i in seq_along(char_cols)) {
+        cat(crayon::white(paste0(i, ": ", char_cols[i], "\n")))
       }
-    } else {
-      stop("No input provided. Please enter a valid selection.")
+
+      # Prompt user input
+      selection <- readline(prompt = crayon::white("Enter the column name or number: "))
+
+      # Check if the input is numeric (choosing by index) or a name
+      if (nzchar(selection)) {
+        if (grepl("^[0-9]+$", selection)) {  # If input is numeric
+          selection <- as.numeric(selection)
+          if (selection < 1 || selection > length(char_cols)) {
+            stop("Invalid selection. Please enter a valid number from the list.")
+          }
+          group_col <- char_cols[selection]
+        } else {  # If input is a column name
+          if (!(selection %in% char_cols)) {
+            stop("Invalid selection. Please enter a valid column name from the list.")
+          }
+          group_col <- selection
+        }
+      } else {
+        stop("No input provided. Please enter a valid selection.")
+      }
     }
+
 
     #Check if the column is in the dataframe
     if (!(group_col %in% names(stock_universe_m_df@data))){
@@ -6824,7 +7747,7 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_
     clustering_variables <- "tickers"
     calc_stat <- "mean"
 
-    plot(port_weights_m_df, type = plot_type, calc_stat = calc_stat, clustering_variables = clustering_variables)
+    plot(port_weights_m_df, type = plot_type, calc_stat = calc_stat, clustering_variables = clustering_variables, palette = palette)
 
 
   } else if (plot_name == "Time-Series Weights by Stock Group") {
@@ -6833,7 +7756,7 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_
     clustering_variables <- group_col
     variable <- "weights"
 
-    plot(stock_universe_m_df, type = plot_type, variable = variable, clustering_variables = clustering_variables)
+    plot(stock_universe_m_df, type = plot_type, variable = variable, clustering_variables = clustering_variables, palette = palette)
 
 
   } else if (plot_name == "Cross-Sectional Weights Statistic by Tickers"){
@@ -6841,7 +7764,7 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_
     plot_type <- "cross_sectional"
     clustering_variables <- "tickers"
 
-    plot(port_weights_m_df, type = plot_type, clustering_variables = clustering_variables)
+    plot(port_weights_m_df, type = plot_type, clustering_variables = clustering_variables, palette = palette)
 
 
   } else if (plot_name == "Cross-Sectional Weights Statistic by Stock Group"){
@@ -6850,7 +7773,7 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_
     clustering_variables <- group_col
     variable <- "weights"
 
-    plot(stock_universe_m_df, type = plot_type, clustering_variables = clustering_variables, variable = variable)
+    plot(stock_universe_m_df, type = plot_type, clustering_variables = clustering_variables, variable = variable, palette = palette)
 
 
 
@@ -6859,7 +7782,7 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_
     plot_type <- "tile_heatmap"
     clustering_variables <- "tickers"
 
-    plot(port_weights_m_df, type = plot_type, clustering_variables = clustering_variables)
+    plot(port_weights_m_df, type = plot_type, clustering_variables = clustering_variables, palette = palette)
 
   } else if (plot_name == "Tile Heatmap of Weights by Stock Group"){
 
@@ -6867,13 +7790,13 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_
     clustering_variables <- group_col
     variable <- "weights"
 
-    plot(stock_universe_m_df, type = plot_type, clustering_variables = clustering_variables, variable = variable)
+    plot(stock_universe_m_df, type = plot_type, clustering_variables = clustering_variables, variable = variable, palette = palette)
 
   } else if (plot_name == "Time-Series of Groups Composition"){
 
     plot_type <- "composition"
 
-    plot(stock_universe_m_df, type = plot_type, variable = group_col)
+    plot(stock_universe_m_df, type = plot_type, variable = group_col, palette = palette)
 
 
   } else if (plot_name == "Time-Series of Expected Return Score by Tickers"){
@@ -6883,7 +7806,7 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_
     variable <- "exp_ret_score"
     calc_stat <- "mean"
 
-    plot(stock_universe_m_df, type = plot_type, clustering_variables = clustering_variables, variable = variable, calc_stat = calc_stat)
+    plot(stock_universe_m_df, type = plot_type, clustering_variables = clustering_variables, variable = variable, calc_stat = calc_stat, palette = palette)
 
 
   } else if (plot_name == "Time-Series of Expected Return Score by Stock Group"){
@@ -6893,7 +7816,7 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_
     variable <- "exp_ret_score"
     calc_stat <- "mean"
 
-    plot(stock_universe_m_df, type = plot_type, clustering_variables = clustering_variables, variable = variable, calc_stat = calc_stat)
+    plot(stock_universe_m_df, type = plot_type, clustering_variables = clustering_variables, variable = variable, calc_stat = calc_stat, palette = palette)
 
   } else if (plot_name == "Time-Series of Expected Return Score by Eligibility"){
 
@@ -6904,7 +7827,7 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_
     variable <- "exp_ret_score"
     calc_stat <- "mean"
 
-    plot(stock_universe_m_df, type = plot_type, clustering_variables = clustering_variables, variable = variable, calc_stat = calc_stat)
+    plot(stock_universe_m_df, type = plot_type, clustering_variables = clustering_variables, variable = variable, calc_stat = calc_stat, palette = palette)
 
 
   } else if (plot_name == "Box-plot of Expected Return Score by Stock Group"){
@@ -6914,7 +7837,7 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_
     variable <- "exp_ret_score"
     calc_stat <- "mean"
 
-    plot(stock_universe_m_df, type = plot_type, clustering_variables = clustering_variables, variable = variable, calc_stat = calc_stat)
+    plot(stock_universe_m_df, type = plot_type, clustering_variables = clustering_variables, variable = variable, calc_stat = calc_stat, palette = palette)
 
 
   } else if (plot_name == "Box-plot of Expected Return Score by Eligibility"){
@@ -6926,12 +7849,12 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_
     variable <- "exp_ret_score"
     calc_stat <- "mean"
 
-    plot(stock_universe_m_df, type = plot_type, clustering_variables = clustering_variables, variable = variable, calc_stat = calc_stat)
+    plot(stock_universe_m_df, type = plot_type, clustering_variables = clustering_variables, variable = variable, calc_stat = calc_stat, palette = palette)
 
 
   } else if (plot_name == "Plot Subjacent Final Port"){
 
-    plot(final_stock_port)
+    plot(final_stock_port, palette = palette)
 
 
   } else if (plot_name == "Time-Series of Port Returns"){
@@ -6964,8 +7887,27 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_
       )
     }
 
+    #Prompt the user if he wants to plot rebalance dates
+    if (is.null(vertical_lines) && plot_name != "Plot Subjacent Final Port"){
+      rebalance_dates <- readline(prompt = "Do you want to plot rebalance dates? (yes/no): ")
+      if (rebalance_dates %in% c("y", "yes")) {
+        vertical_lines <- as.Date(x@port_backtest_workflow[[length(x@port_backtest_workflow)]]$rebalance_dates)
+      }
+    }
+
+    #Promp the user if he wants to facet by year
+    if (is.null(facet_by_year)){
+      facet_by_year <- readline(prompt = "Do you want to facet by year? (yes/no): ")
+      if (facet_by_year %in% c("y", "yes")) {
+        facet_by_year <- TRUE
+      } else {
+        facet_by_year <- FALSE
+      }
+    }
+
+
     plot(port_returns_m_xts, benchmark_returns_m_xts = bench_returns_m_xts, cumulative = TRUE, plot_perf_metric = plot_perf_metric,
-         vertical_lines = vertical_lines)
+         vertical_lines = vertical_lines, palette = palette, facet_by_year = facet_by_year)
 
   } else if (plot_name == "Cross-Sectional Performance Metric Plot"){
 
@@ -6980,23 +7922,49 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_
     port_returns_m_xts <- port_returns_m_xts
     port_returns_m_xts@data <- port_returns_m_xts@data[, c("raw_return", "net_return", "raw_active_return", "net_active_return")]
 
-    plot(port_returns_m_xts,  benchmark_returns_m_xts = bench_returns_m_xts, plot_perf_metric = plot_perf_metric)
+    #Promp the user if he wants to facet by year
+    if (is.null(facet_by_year)){
+      facet_by_year <- readline(prompt = "Do you want to facet by year? (yes/no): ")
+      if (facet_by_year %in% c("y", "yes")) {
+        facet_by_year <- TRUE
+      } else {
+        facet_by_year <- FALSE
+      }
+    }
+
+    plot(port_returns_m_xts,  benchmark_returns_m_xts = bench_returns_m_xts, plot_perf_metric = plot_perf_metric, palette = palette, facet_by_year = facet_by_year)
 
   } else if (plot_name == "Time-Series of Transaction Costs"){
 
-    plot(port_costs_m_xts, vertical_lines = vertical_lines)
+    #Prompt the user if he wants to plot rebalance dates
+    if (is.null(vertical_lines) && plot_name != "Plot Subjacent Final Port"){
+      rebalance_dates <- readline(prompt = "Do you want to plot rebalance dates? (yes/no): ")
+      if (rebalance_dates %in% c("y", "yes")) {
+        vertical_lines <- as.Date(x@port_backtest_workflow[[length(x@port_backtest_workflow)]]$rebalance_dates)
+      }
+    }
+
+    plot(port_costs_m_xts, vertical_lines = vertical_lines, palette = palette)
 
   } else if (plot_name == "Time-Series of Port Metrics"){
 
+    #Prompt the user if he wants to plot rebalance dates
+    if (is.null(vertical_lines) && plot_name != "Plot Subjacent Final Port"){
+      rebalance_dates <- readline(prompt = "Do you want to plot rebalance dates? (yes/no): ")
+      if (rebalance_dates %in% c("y", "yes")) {
+        vertical_lines <- as.Date(x@port_backtest_workflow[[length(x@port_backtest_workflow)]]$rebalance_dates)
+      }
+    }
+
     if (!is.null(port_metrics_m_xts)){
-      plot(port_metrics_m_xts, vertical_lines = vertical_lines)
+      plot(port_metrics_m_xts, vertical_lines = vertical_lines, palette = palette)
     } else {
       stop("No port_metrics available to plot.")
     }
 
   } else if (plot_name == "Port Stats"){
     if (!is.null(port_stats_m_df)){
-      plot(port_stats_m_df)
+      plot(port_stats_m_df, palette = palette)
     } else {
       stop("No port_stats available to plot.")
     }
@@ -7015,10 +7983,11 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_
 #' @param x An object of class \code{port_backtest_cohort}.
 #' @param plot_id A character string or numeric value specifying which plot to display.
 #' @param vertical_lines Optional. A named list or vector specifying vertical lines to add to time-series plots. Used for highlighting events.
-#'
+#' @param palette A character string specifying the color palette to use for the plots. Options are "cyberpunk" (default) and "br". If an invalid option is provided, it will default to "cyberpunk".
+#' @param selected_metric Optional. A character string specifying a particular performance metric to focus on in the plots. If `NULL`, all available metrics will be plotted.
 #' @return Invisibly returns the input object.
 #' @export
-setMethod("plot", "port_backtest_cohort", function(x, plot_id = NULL, vertical_lines = NULL) {
+setMethod("plot", "port_backtest_cohort", function(x, plot_id = NULL, vertical_lines = NULL, palette = "cyberpunk", selected_metric = NULL) {
 
   # Check for required packages for plotting
   required_plot_pkgs <- c("gridExtra", "scales", "ggdist", "ggraph", "ggrepel", "igraph", "RColorBrewer")
@@ -7035,21 +8004,59 @@ setMethod("plot", "port_backtest_cohort", function(x, plot_id = NULL, vertical_l
     )
   }
 
-  # Define colors for plotting
-  deep_navy <- "#000033"
-  black <- "#000000"
-  white <- "#FFFFFF"
-  vibrant_purple <- "#6A0DAD"
-  neon_green <- "#39FF14"
-  neon_orange <- "#FF5F1F"
-  blue_bg <- "#001f3f"
-  neon_yellow <- "#FFDC00"
-  neon_pink <- "#FF007F"
-  cyan <- "#7FDBFF"
+  if (palette == "cyberpunk") {
 
-  # Ensure Contribution_Type uses "Positive" and "Negative" for consistency
-  pos_color <- neon_green    # Define positive contribution color
-  neg_color <- "red"         # Define negative contribution color
+    light_gray <- "#003641"
+
+    col_background <- "#001f3f"
+    col_text       <- "#FFFFFF"
+    col_primary    <- "#00FFFF"
+    col_secondary <- "#FF69B4"      # Hot Pink
+    col_terciary <-  "#FF1493" # Lime Green
+    col_quarternary <-  "#FFA500"
+    col_quinternary <- "#FF4500"
+    col_sextenary <- "#32CD32"
+    col_positive   <- "#39FF14"
+    col_negative   <- "#FF1493"
+    vertical_line_color <- "#FF69B4"
+    cyan <- "#00FFFF"
+
+    palette_colors  <- c(
+      "#00BFFF", "#FF1493", "#FFFF00",  "#00FFFF", "#8A2BE2",
+      "#FF4500", "#39FF14", "#FF69B4", "#32CD32", "#FFA500"
+    )
+
+  }
+  if (palette == "br") {
+
+    light_gray <- "#EBEEF1"
+
+    col_background <- "#FFFFFF"
+    col_text       <- "#003641"
+    col_primary   <- "#00A091"
+    col_secondary  <- "#4C7C83"
+    col_terciary   <- "#49479D"
+    col_quarternary <- "#39FF14"
+    col_quinternary <- "#003641"
+    col_sextenary  <- "#D6E266"
+    col_positive   <- "#7DB61C"
+    col_negative   <- "#C2185B"
+    vertical_line_color <- "#003641"
+    cyan <- "#94E1D6"
+
+    palette_colors  <- c(
+      "#94E1D6", "#49479D", "#FF5F1F",
+      "#7DB61C", "#98B2B6", "#8A03C9",
+      "#00C9B8", "#C9D200", "#C2185B",
+      "#00FFFF", "#003641", "#00A091",
+      "#4C7C83", "#FF5F1F", "#EBEEA8",
+      "#A5CD5C", "#00AE9D",
+      "#EBEEA8", "#D6E266", "#00C9B8",
+      "#7DB61C", "#A5CD5C", "#003641",
+      "#00A091", "#4C7C83"
+    )
+
+  }
 
   # List of available plots
   available_plots <- c(
@@ -7122,25 +8129,25 @@ setMethod("plot", "port_backtest_cohort", function(x, plot_id = NULL, vertical_l
     }
 
     #Add first date
-    first_return_date <- zoo::index(raw_returns_m_xts@data)[1]
+    #first_return_date <- zoo::index(raw_returns_m_xts@data)[1]
     ##Port Returns
-    init_df <- as.data.frame(matrix(0, ncol = ncol(raw_returns_m_xts@data), nrow = 1))
-    colnames(init_df) <- colnames(raw_returns_m_xts@data)
-    raw_returns_m_xts@data <- rbind(
-      xts::xts(init_df, order.by = lubridate::add_with_rollback(first_return_date, months(-1))), #Add a first row with 0 values
-      raw_returns_m_xts@data
-    )
+    #init_df <- as.data.frame(matrix(0, ncol = ncol(raw_returns_m_xts@data), nrow = 1))
+    #colnames(init_df) <- colnames(raw_returns_m_xts@data)
+    #raw_returns_m_xts@data <- rbind(
+    #  xts::xts(init_df, order.by = lubridate::add_with_rollback(first_return_date, months(-1))), #Add a first row with 0 values
+    #  raw_returns_m_xts@data
+    #)
     ##Bench Returns
-    if(!is.null(bench_returns_m_xts)){
-      bench_returns_m_xts@data <- rbind(
-        xts::xts(data.frame(selected_bench_return = 0),
-                 order.by = lubridate::add_with_rollback(first_return_date, months(-1))), #Add a first row with 0 values
-        bench_returns_m_xts@data
-      )
-    }
+    #if(!is.null(bench_returns_m_xts)){
+    #  bench_returns_m_xts@data <- rbind(
+    #    xts::xts(data.frame(selected_bench_return = 0),
+    #             order.by = lubridate::add_with_rollback(first_return_date, months(-1))), #Add a first row with 0 values
+    #    bench_returns_m_xts@data
+    #  )
+    #}
 
     plot(raw_returns_m_xts, benchmark_returns_m_xts = bench_returns_m_xts, cumulative = TRUE, plot_perf_metric = plot_perf_metric,
-         vertical_lines = vertical_lines)
+         vertical_lines = vertical_lines, palette = palette)
 
   }
 
@@ -7158,28 +8165,8 @@ setMethod("plot", "port_backtest_cohort", function(x, plot_id = NULL, vertical_l
       bench_returns_m_xts <- NULL
     }
 
-    #Add first date
-    first_return_date <- zoo::index(net_returns_m_xts@data)[1]
-    ##Port Returns
-    init_df <- as.data.frame(matrix(0, ncol = ncol(net_returns_m_xts@data), nrow = 1))
-    colnames(init_df) <- colnames(net_returns_m_xts@data)
-
-    net_returns_m_xts@data <- rbind(
-      xts::xts(init_df, order.by = lubridate::add_with_rollback(first_return_date, months(-1))), #Add a first row with 0 values
-
-      net_returns_m_xts@data
-    )
-    ##Bench Returns
-    if(!is.null(bench_returns_m_xts)){
-      bench_returns_m_xts@data <- rbind(
-        xts::xts(data.frame(selected_bench_return = 0),
-                 order.by = lubridate::add_with_rollback(first_return_date, months(-1))), #Add a first row with 0 values
-        bench_returns_m_xts@data
-      )
-    }
-
     plot(net_returns_m_xts, benchmark_returns_m_xts = bench_returns_m_xts, cumulative = TRUE, plot_perf_metric = plot_perf_metric,
-         vertical_lines = vertical_lines)
+         vertical_lines = vertical_lines, palette = palette)
 
   }
 
@@ -7193,19 +8180,8 @@ setMethod("plot", "port_backtest_cohort", function(x, plot_id = NULL, vertical_l
     plot_perf_metric <- FALSE
     raw_active_returns_m_xts <- port_returns_m_xts_list$raw_active_returns_m_xts
 
-    #Add first date
-    first_return_date <- zoo::index(raw_active_returns_m_xts@data)[1]
-    ##Port Returns
-    init_df <- as.data.frame(matrix(0, ncol = ncol(raw_active_returns_m_xts@data), nrow = 1))
-    colnames(init_df) <- colnames(raw_active_returns_m_xts@data)
 
-    raw_active_returns_m_xts@data <- rbind(
-      xts::xts(init_df, order.by = lubridate::add_with_rollback(first_return_date, months(-1))), #Add a first row with 0 values
-
-      raw_active_returns_m_xts@data
-    )
-
-    plot(raw_active_returns_m_xts, cumulative = TRUE, plot_perf_metric = plot_perf_metric, vertical_lines = vertical_lines)
+    plot(raw_active_returns_m_xts, cumulative = TRUE, plot_perf_metric = plot_perf_metric, vertical_lines = vertical_lines, palette = palette)
 
   }
 
@@ -7220,19 +8196,19 @@ setMethod("plot", "port_backtest_cohort", function(x, plot_id = NULL, vertical_l
     net_active_returns_m_xts <- port_returns_m_xts_list$net_active_returns_m_xts
 
     #Add first date
-    first_return_date <- zoo::index(net_active_returns_m_xts@data)[1]
+    #first_return_date <- zoo::index(net_active_returns_m_xts@data)[1]
     ##Port Returns
-    init_df <- as.data.frame(matrix(0, ncol = ncol(net_active_returns_m_xts@data), nrow = 1))
-    colnames(init_df) <- colnames(net_active_returns_m_xts@data)
+    #init_df <- as.data.frame(matrix(0, ncol = ncol(net_active_returns_m_xts@data), nrow = 1))
+    #colnames(init_df) <- colnames(net_active_returns_m_xts@data)
 
-    net_active_returns_m_xts@data <- rbind(
-      xts::xts(init_df, order.by = lubridate::add_with_rollback(first_return_date, months(-1))), #Add a first row with 0 values
+    #net_active_returns_m_xts@data <- rbind(
+    #  xts::xts(init_df, order.by = lubridate::add_with_rollback(first_return_date, months(-1))), #Add a first row with 0 values
+    #
+    #  net_active_returns_m_xts@data
+    #)
 
-      net_active_returns_m_xts@data
-    )
 
-
-    plot(net_active_returns_m_xts, cumulative = TRUE, plot_perf_metric = plot_perf_metric, vertical_lines = vertical_lines)
+    plot(net_active_returns_m_xts, cumulative = TRUE, plot_perf_metric = plot_perf_metric, vertical_lines = vertical_lines, palette = palette)
 
   }
 
@@ -7250,7 +8226,7 @@ setMethod("plot", "port_backtest_cohort", function(x, plot_id = NULL, vertical_l
       bench_returns_m_xts <- NULL
     }
 
-    plot(raw_returns_m_xts, benchmark_returns_m_xts = bench_returns_m_xts, plot_perf_metric = plot_perf_metric)
+    plot(raw_returns_m_xts, benchmark_returns_m_xts = bench_returns_m_xts, plot_perf_metric = plot_perf_metric, palette = palette)
 
   }
 
@@ -7268,7 +8244,7 @@ setMethod("plot", "port_backtest_cohort", function(x, plot_id = NULL, vertical_l
       bench_returns_m_xts <- NULL
     }
 
-    plot(net_returns_m_xts, benchmark_returns_m_xts = bench_returns_m_xts, plot_perf_metric = plot_perf_metric)
+    plot(net_returns_m_xts, benchmark_returns_m_xts = bench_returns_m_xts, plot_perf_metric = plot_perf_metric, palette = palette)
 
   }
 
@@ -7282,7 +8258,7 @@ setMethod("plot", "port_backtest_cohort", function(x, plot_id = NULL, vertical_l
     active_returns <- port_returns_m_xts_list$raw_active_returns_m_xts
     plot_perf_metric <- TRUE
 
-    plot(active_returns, plot_perf_metric = plot_perf_metric)
+    plot(active_returns, plot_perf_metric = plot_perf_metric, palette = palette)
 
   }
 
@@ -7296,7 +8272,7 @@ setMethod("plot", "port_backtest_cohort", function(x, plot_id = NULL, vertical_l
     active_returns <- port_returns_m_xts_list$net_active_returns_m_xts
     plot_perf_metric <- TRUE
 
-    plot(active_returns, plot_perf_metric = plot_perf_metric)
+    plot(active_returns, plot_perf_metric = plot_perf_metric, palette = palette)
 
   }
 
@@ -7304,7 +8280,7 @@ setMethod("plot", "port_backtest_cohort", function(x, plot_id = NULL, vertical_l
   if (plot_name == "Time-Series of Direct Costs"){
 
     direct_cost_m_xts <- port_costs_m_xts_list$direct_cost_m_xts
-    plot(direct_cost_m_xts, vertical_lines = vertical_lines)
+    plot(direct_cost_m_xts, vertical_lines = vertical_lines, palette = palette)
 
   }
 
@@ -7312,7 +8288,7 @@ setMethod("plot", "port_backtest_cohort", function(x, plot_id = NULL, vertical_l
   if (plot_name == "Time-Series of Market Impact Costs"){
 
     market_impact_cost_m_xts <- port_costs_m_xts_list$market_impact_cost_m_xts
-    plot(market_impact_cost_m_xts,  vertical_lines = vertical_lines)
+    plot(market_impact_cost_m_xts,  vertical_lines = vertical_lines, palette = palette)
 
   }
 
@@ -7320,7 +8296,7 @@ setMethod("plot", "port_backtest_cohort", function(x, plot_id = NULL, vertical_l
   if (plot_name == "Time-Series of Total Costs"){
 
     total_cost_m_xts <- port_costs_m_xts_list$total_cost_m_xts
-    plot(total_cost_m_xts, vertical_lines = vertical_lines)
+    plot(total_cost_m_xts, vertical_lines = vertical_lines, palette = palette)
 
   }
 
@@ -7328,7 +8304,7 @@ setMethod("plot", "port_backtest_cohort", function(x, plot_id = NULL, vertical_l
   if (plot_name == "Time-Series of Turnover"){
 
     turnover_m_xts <- port_costs_m_xts_list$turnover_m_xts
-    plot(turnover_m_xts, vertical_lines = vertical_lines)
+    plot(turnover_m_xts, vertical_lines = vertical_lines, palette = palette)
 
   }
   #Plot 13
@@ -7337,8 +8313,10 @@ setMethod("plot", "port_backtest_cohort", function(x, plot_id = NULL, vertical_l
     #Promp the user regarding the metrics to plot
     available_metrics <- names(port_metrics_m_xts_list) %>% stringr::str_remove("_m_xts")
 
-    selected_metric <- readline(prompt = paste("Please select the metric to plot from the following list: ",
-                                               paste(available_metrics, collapse = ", "), ": "))
+    if (is.null(selected_metric)){
+      selected_metric <- readline(prompt = paste("Please select the metric to plot from the following list: ",
+                                                 paste(available_metrics, collapse = ", "), ": "))
+    }
 
     if (!selected_metric %in% available_metrics){
       stop("Invalid metric selected")
@@ -7346,7 +8324,7 @@ setMethod("plot", "port_backtest_cohort", function(x, plot_id = NULL, vertical_l
 
     metric_m_xts <- port_metrics_m_xts_list[[paste0(selected_metric, "_m_xts")]]
 
-    plot(metric_m_xts,  vertical_lines = vertical_lines)
+    plot(metric_m_xts,  vertical_lines = vertical_lines, palette = palette)
 
   }
 
@@ -7402,7 +8380,7 @@ setMethod("plot", "port_backtest_cohort", function(x, plot_id = NULL, vertical_l
     stat_key  <- paste0(selected_stat, "_m_xts")
     stat_m_xts <- family_list[[stat_key]]
 
-    plot(stat_m_xts, vertical_lines = vertical_lines)
+    plot(stat_m_xts, vertical_lines = vertical_lines, palette = palette)
   }
 
   #Plot 15
@@ -7416,7 +8394,7 @@ setMethod("plot", "port_backtest_cohort", function(x, plot_id = NULL, vertical_l
   if (plot_name == "Weights Radar"){
 
     port_weights_m_df@data <- port_weights_m_df@data %>% dplyr::select(-dplyr::any_of(c("bench_weights")))
-    plot(port_weights_m_df, type = "radar")
+    plot(port_weights_m_df, type = "radar", palette = palette)
 
   }
 

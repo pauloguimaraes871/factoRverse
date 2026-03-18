@@ -9,7 +9,7 @@
 #' @param features_m_df An S4 object containing the features metadata used in the backtest. It must match the one stored in `sb_backtest_results`.
 #' @param selected_ticker A character string representing the ticker (e.g., `"AAPL"`) for which to explain the prediction.
 #' @param selected_date A Date object representing the prediction date.
-#'
+#' @param palette A character string indicating the color palette to use for the plot.
 #' @details
 #' The function operates in several stages:
 #'
@@ -41,7 +41,7 @@
 #' }
 #'
 #' @export
-setGeneric("explain_prediction", function(sb_backtest_results, features_m_df, selected_ticker, selected_date) {
+setGeneric("explain_prediction", function(sb_backtest_results, features_m_df, selected_ticker, selected_date, palette = "cyberpunk") {
   standardGeneric("explain_prediction")
 })
 
@@ -50,7 +50,7 @@ setGeneric("explain_prediction", function(sb_backtest_results, features_m_df, se
 #' @export
 setMethod("explain_prediction",
           signature(sb_backtest_results = "sb_backtest_results", features_m_df = "meta_dataframe", selected_ticker = "character", selected_date = "Date"),
-          function(sb_backtest_results, features_m_df, selected_ticker, selected_date) {
+          function(sb_backtest_results, features_m_df, selected_ticker, selected_date, palette = "cyberpunk") {
 
 
             # Extract objects
@@ -75,7 +75,8 @@ setMethod("explain_prediction",
             # Call the existing function
             explain_prediction_inner(sb_backtest_workflow = sb_backtest_workflow, oos_sb_outputs_m_df = oos_sb_outputs_m_df,
                                      feature_importance_m_df = feature_importance_m_df, gsm_algorithm = gsm_algorithm,
-                                     features_m_df = features_m_df, selected_ticker = selected_ticker, selected_date = selected_date)
+                                     features_m_df = features_m_df, selected_ticker = selected_ticker, selected_date = selected_date,
+                                     palette = palette)
           }
 )
 
@@ -84,7 +85,7 @@ setMethod("explain_prediction",
 #' @export
 setMethod("explain_prediction",
           signature(sb_backtest_results = "sb_metabacktest_results", features_m_df = "meta_dataframe", selected_ticker = "character", selected_date = "Date"),
-          function(sb_backtest_results, features_m_df, selected_ticker, selected_date) {
+          function(sb_backtest_results, features_m_df, selected_ticker, selected_date, palette = "cyberpunk") {
 
 
             ##Get Objects
@@ -159,7 +160,7 @@ setMethod("explain_prediction",
             # Step 4: Call the existing function
             explain_prediction_inner(sb_backtest_workflow = meta_sb_backtest_workflow, oos_sb_outputs_m_df = oos_sb_outputs_m_df,
                                      feature_importance_m_df = meta_feature_importance_decomposed_consolidated_m_df, gsm_algorithm = gsm_algorithm,
-                                     features_m_df = features_m_df, selected_ticker = selected_ticker, selected_date = selected_date)
+                                     features_m_df = features_m_df, selected_ticker = selected_ticker, selected_date = selected_date, palette = palette)
 
 
           }
@@ -191,6 +192,8 @@ setMethod("explain_prediction",
 #' @param selected_ticker A character string indicating the ticker to analyze.
 #'
 #' @param selected_date A `Date` object specifying the date for which the prediction is to be explained.
+#'
+#' @param palette A character string indicating the color palette to use for the plot.
 #'
 #' @return A `data.frame` with the following columns:
 #'   \itemize{
@@ -225,7 +228,7 @@ setMethod("explain_prediction",
 #'
 #' @keywords internal
 explain_prediction_inner <- function(sb_backtest_workflow, oos_sb_outputs_m_df, feature_importance_m_df, gsm_algorithm,
-                                     features_m_df, selected_ticker = selected_ticker, selected_date = selected_date){
+                                     features_m_df, selected_ticker, selected_date, palette = "cyberpunk"){
 
   #Initial Checks
   ##############
@@ -385,11 +388,51 @@ explain_prediction_inner <- function(sb_backtest_workflow, oos_sb_outputs_m_df, 
   #-----------------------------------------------------------------------
   # 2) Define colors
   #-----------------------------------------------------------------------
-  neon_green  <- "#39FF14"
-  neon_pink   <- "#FF1493"
-  blue_bg     <- "#001f3f"
-  faint_blue  <- "#003366"
-  white       <- "#FFFFFF"
+  # Palette
+  black <- "#000000"
+  white <- "#FFFFFF"
+
+  if (palette == "cyberpunk") {
+
+    light_gray <- "#003641"
+
+    col_background <- "#001f3f"
+    col_text       <- "#FFFFFF"
+    col_primary    <- "#6A0DAD"
+    col_positive   <- "#39FF14"
+    col_negative   <- "#FF5F1F"
+    vertical_line_color <- "#FF69B4"
+
+    palette_colors  <- c(
+      "#00BFFF", "#FF1493", "#FFFF00", "#8A2BE2",
+      "#FF4500", "#39FF14", "#FF69B4", "#32CD32", "#FFA500"
+    )
+
+  }
+  if (palette == "br") {
+
+    light_gray <- "#EBEEF1"
+
+    col_background <- "#FFFFFF"
+    col_text       <- "#003641"
+    col_primary   <- "#00A091"
+    col_positive   <- "#7DB61C"
+    col_negative   <- "#C2185B"
+    vertical_line_color <- "#003641"
+
+    palette_colors  <- c(
+      "#94E1D6","#49479D","#7DB61C",
+      "#00C9B8", "#98B2B6","#C9D200",
+      "#003641", "#00A091", "#4C7C83",
+      "#FF5F1F", "#EBEEA8", "#A5CD5C",
+      "#8A03C9", "#00AE9D", "#EBEEA8",
+      "#D6E266", "#00C9B8", "#7DB61C",
+      "#A5CD5C", "#003641", "#00A091",
+      "#4C7C83", "#FF5F1F"
+    )
+
+  }
+
 
   #-----------------------------------------------------------------------
   # 3) Build the waterfall plot with ggplot2
@@ -415,7 +458,7 @@ explain_prediction_inner <- function(sb_backtest_workflow, oos_sb_outputs_m_df, 
         y     = Midpoint,
         label = base::sprintf("%.4f", TotalContribution)
       ),
-      color    = white,
+      color    = col_text,
       fontface = "bold",
       size     = 3,
       vjust    = ifelse(plot_data_df$TotalContribution >= 0, -0.4, 1.4)
@@ -427,14 +470,14 @@ explain_prediction_inner <- function(sb_backtest_workflow, oos_sb_outputs_m_df, 
     ) +
     ggplot2::geom_hline(
       yintercept = 0,
-      color      = white,
+      color      = col_text,
       linewidth  = 0.3
     ) +
     # Add a dashed horizontal line at the final cumulative value:
     ggplot2::geom_hline(
       yintercept = utils::tail(plot_data_df$Cumulative, 1),
       linetype = "dashed",
-      color = "cyan",
+      color = col_primary,
       linewidth = 0.3
     ) +
     # Annotate the final cumulative value on the plot
@@ -443,12 +486,12 @@ explain_prediction_inner <- function(sb_backtest_workflow, oos_sb_outputs_m_df, 
       x = max(plot_data_df$x) + 0.5,
       y = utils::tail(plot_data_df$Cumulative, 1) - 0.001,
       label = base::sprintf("%.4f", utils::tail(plot_data_df$Cumulative, 1)),
-      color = "cyan",
+      color = col_primary,
       fontface = "bold",
       hjust = 0
     ) +
     ggplot2::scale_fill_manual(
-      values = c("Positive" = neon_green, "Negative" = neon_pink)
+      values = c("Positive" = col_positive, "Negative" = col_negative)
     ) +
     ggplot2::labs(
       x     = NULL,
@@ -459,17 +502,17 @@ explain_prediction_inner <- function(sb_backtest_workflow, oos_sb_outputs_m_df, 
     ) +
     ggplot2::theme_minimal() +
     ggplot2::theme(
-      plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
-      panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-      axis.text.x      = ggplot2::element_text(color = white, angle = 45, hjust = 1),
-      axis.text.y      = ggplot2::element_text(color = white),
-      axis.title.y     = ggplot2::element_text(color = white),
+      plot.background  = ggplot2::element_rect(fill = col_background, color = NA),
+      panel.background = ggplot2::element_rect(fill = col_background, color = NA),
+      axis.text.x      = ggplot2::element_text(color = col_text, angle = 45, hjust = 1),
+      axis.text.y      = ggplot2::element_text(color = col_text),
+      axis.title.y     = ggplot2::element_text(color = col_text),
       legend.position  = "none",
-      legend.title     = ggplot2::element_text(color = white),
-      legend.text      = ggplot2::element_text(color = white),
-      panel.grid.major = ggplot2::element_line(color = faint_blue, linewidth  = 0.2),
-      panel.grid.minor = ggplot2::element_line(color = faint_blue, linewidth  = 0.1),
-      plot.title       = ggplot2::element_text(color = white, size = 16, face = "bold")
+      legend.title     = ggplot2::element_text(color = col_text),
+      legend.text      = ggplot2::element_text(color = col_text),
+      panel.grid.major = ggplot2::element_line(color = light_gray, linewidth  = 0.2),
+      panel.grid.minor = ggplot2::element_line(color = light_gray, linewidth  = 0.1),
+      plot.title       = ggplot2::element_text(color = col_text, size = 16, face = "bold")
     )
 
   print(p)

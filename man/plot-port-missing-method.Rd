@@ -4,12 +4,49 @@
 \alias{plot,port,missing-method}
 \title{Plot Method for 'port' Objects}
 \usage{
-\S4method{plot}{port,missing}(x, type = NULL, ...)
+\S4method{plot}{port,missing}(
+  x,
+  type = NULL,
+  palette = "cyberpunk",
+  chosen_weights = NULL,
+  chosen_risk_metrics = NULL,
+  add_bench = NULL,
+  tickers = NULL,
+  level = NULL,
+  by_group = NULL,
+  groups = NULL,
+  micro_port = NULL,
+  active_weights = NULL,
+  top_n = NULL,
+  ...
+)
 }
 \arguments{
 \item{x}{An object of class \code{"port"}.}
 
 \item{type}{A character string specifying the type of plot to generate. If \code{NULL}, the user will be prompted.}
+
+\item{palette}{A character string specifying the color palette to use for the plots. Default is "cyberpunk". Supported options include "cyberpunk" and "br".}
+
+\item{chosen_weights}{A character vector of asset names to include in the weights plot (if \code{type = "weights"}). If \code{NULL}, all assets are included.}
+
+\item{chosen_risk_metrics}{A character vector of risk metrics to include in the risk plots (if applicable). If \code{NULL}, all risk metrics are included.}
+
+\item{add_bench}{A logical indicating whether to add benchmark weights to the weights plot (if \code{type = "weights"}). Default is \code{FALSE}.}
+
+\item{tickers}{A character vector of asset tickers to include in the plot (if applicable). If \code{NULL}, all tickers are included.}
+
+\item{level}{A character string specifying the grouping variable for the group composition plot (if type = "group_composition").#' @param by_group A logical indicating whether to facet the group composition plot by the grouping.}
+
+\item{by_group}{A logical indicating whether to facet the group composition plot by the grouping variable (if \code{type = "group_composition"}). Default is \code{FALSE}.}
+
+\item{groups}{A character vector of group names to include in the group composition plot (if \code{type = "group_composition"}). If \code{NULL}, all groups are included.}
+
+\item{micro_port}{A logical indicating the micro portfolio to plot.}
+
+\item{active_weights}{A logical indicating whether to plot active weights instead of total weights}
+
+\item{top_n}{An integer specifying the number of top assets to include in the weights plot (if \code{type = "weights"}). If \code{NULL}, all assets are included.}
 
 \item{...}{Additional arguments for future extensions (currently unused).}
 }

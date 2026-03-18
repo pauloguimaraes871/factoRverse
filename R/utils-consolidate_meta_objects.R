@@ -954,6 +954,8 @@ consolidate_sb_metabacktest_results <- function(all_sb_backtest_results, meta_sb
 #'     \item{\code{\"Prediction Error Correlation\"}}{Builds a correlation heatmap of
 #'       prediction errors among the selected backtest learners.}
 #'   }
+#' @param palette A character string indicating the color palette to use for the plots.
+#' @param chosen_backtests A vector of backtest identifiers (e.g., c("backtest1", "backtest2"))
 #'
 #' @details
 #' When creating each plot, the function re-labels lengthy backtest identifiers with numeric
@@ -994,81 +996,97 @@ consolidate_sb_metabacktest_results <- function(all_sb_backtest_results, meta_sb
 #'
 plot_consolidated_sb_backtest_results <- function(combined_metrics, mean_validation_metrics,
                                                   time_series_oos_testing_metrics, time_series_validation_metrics,
-                                                  base_learners,
-                                                  plot_name) {
+                                                  base_learners, plot_name, chosen_backtests, palette) {
 
   #Check for packages
   if (!requireNamespace("gridExtra", quietly = TRUE) || !requireNamespace("scales", quietly = TRUE)) {
     stop("Packages 'gridExtra' and 'scales' are required to generate plots. Please install them using install.packages().")
   }
 
-  # Define color palette
-  neon_blue <- "#00BFFF"
-  neon_pink <- "#FF1493"
-  neon_yellow <- "#FFFF00"
-  neon_purple <- "#8A2BE2"
-  neon_orange <- "#FF4500"
-  neon_green <- "#39FF14"
-  blue_bg <- "#001f3f"
-  faint_blue <- "#003366"
+  # Palette
   black <- "#000000"
   white <- "#FFFFFF"
-  neon_hot_pink <- "#FF69B4"
-  neon_lime_green <- "#32CD32"
-  neon_bright_orange <- "#FFA500"
-  neon_rose_pink        <- "#FF6EC7"
-  pastel_neon_peach     <- "#FFB347"
-  pastel_neon_mint      <- "#77DD77"
-  pastel_neon_sky_blue  <- "#AEC6CF"
-  pastel_lavender       <- "#CBAACB"
-  pastel_blush_pink     <- "#FFD1DC"
-  powder_neon_blue      <- "#B0E0E6"
-  pastel_neon_soft_yellow <- "#FDFD96"
-  lavender_mist         <- "#E6E6FA"
-  coral_neon            <- "#FF7F50"
-  turquoise_neon        <- "#40E0D0"
-  electric_cyan         <- "#7DF9FF"
-  bright_neon_green     <- "#66FF66"
-  vivid_magenta_pink    <- "#FF66CC"
-  soft_neon_orange      <- "#FF9966"
-  pastel_aqua_green     <- "#99FFCC"
-  pastel_violet         <- "#CC99FF"
-  luminous_yellow       <- "#FFFF66"
-  light_neon_fuchsia    <- "#FF99CC"
-  pastel_cyan           <- "#99FFFF"
 
-  # Extended neon palette
-  extended_neon_palette <- c(
-    neon_blue,
-    neon_pink,
-    neon_yellow,
-    neon_purple,
-    neon_orange,
-    neon_green,
-    neon_hot_pink,
-    neon_lime_green,
-    neon_bright_orange,
-    neon_rose_pink,
-    pastel_neon_peach,
-    pastel_neon_mint,
-    pastel_neon_sky_blue,
-    pastel_lavender,
-    pastel_blush_pink,
-    powder_neon_blue,
-    pastel_neon_soft_yellow,
-    lavender_mist,
-    coral_neon,
-    turquoise_neon,
-    electric_cyan,
-    bright_neon_green,
-    vivid_magenta_pink,
-    soft_neon_orange,
-    pastel_aqua_green,
-    pastel_violet,
-    luminous_yellow,
-    light_neon_fuchsia,
-    pastel_cyan
-  )
+  if (palette == "cyberpunk") {
+
+    light_gray <- "#003641"
+
+    col_background <- "#001f3f"
+    col_text       <- "#FFFFFF"
+    col_primary    <- "#6A0DAD"
+    col_positive   <- "#39FF14"
+    col_negative   <- "#FF5F1F"
+    vertical_line_color <- "#FF69B4"
+
+    palette_colors <- c(
+      # --- Core neon (strong anchors)
+      "#00BFFF", # neon_blue
+      "#FF1493", # neon_pink
+      "#FFFF00", # neon_yellow
+      "#8A2BE2", # neon_purple
+      "#FF4500", # neon_orange
+      "#39FF14", # neon_green
+
+      # --- Secondary neon (high saturation)
+      "#FF69B4", # neon_hot_pink
+      "#32CD32", # neon_lime_green
+      "#FFA500", # neon_bright_orange
+      "#FF6EC7", # neon_rose_pink
+      "#40E0D0", # turquoise_neon
+      "#7DF9FF", # electric_cyan
+      "#66FF66", # bright_neon_green
+      "#FF66CC", # vivid_magenta_pink
+
+      # --- Warm / soft neon transitions
+      "#FF7F50", # coral_neon
+      "#FF9966", # soft_neon_orange
+      "#FFB347", # pastel_neon_peach
+
+      # --- Cool pastel neon (good for overflow categories)
+      "#77DD77", # pastel_neon_mint
+      "#AEC6CF", # pastel_neon_sky_blue
+      "#B0E0E6", # powder_neon_blue
+      "#99FFCC", # pastel_aqua_green
+      "#99FFFF", # pastel_cyan
+
+      # --- Soft purple / pink range
+      "#CBAACB", # pastel_lavender
+      "#FFD1DC", # pastel_blush_pink
+      "#CC99FF", # pastel_violet
+      "#E6E6FA", # lavender_mist
+      "#FF99CC", # light_neon_fuchsia
+
+      # --- Yellow spectrum (careful but useful)
+      "#FDFD96", # pastel_neon_soft_yellow
+      "#FFFF66"  # luminous_yellow
+    )
+
+  }
+  if (palette == "br") {
+
+    light_gray <- "#EBEEF1"
+
+    col_background <- "#FFFFFF"
+    col_text       <- "#003641"
+    col_primary   <- "#00A091"
+    col_positive   <- "#7DB61C"
+    col_negative   <- "#C2185B"
+    vertical_line_color <- "#003641"
+
+    palette_colors <- c(
+      "#00AE9D", "#6C9A8B", "#C9D200", "#003641",
+      "#94E1D6", "#A29BFE", "#7DB61C", "#3CAEA3",
+      "#FF8C42", "#D0F0E0", "#4C7C83", "#FF5F1F",
+      "#70C1B3", "#98B2B6", "#6B8E23", "#00C9B8",
+      "#BFD833", "#2EC4B6", "#D6E266", "#B8E994",
+      "#FF7A3D", "#84A59D", "#8A03C9", "#CFE8EF",
+      "#5B5BD6", "#9ACD32", "#49479D", "#A5CD5C",
+      "#B39DDB", "#6A4C93", "#D4E157", "#E6F2E6",
+      "#00A091",  "#EBEEA8"
+    )
+
+  }
+
 
   # Generate the selected plot
   if (plot_name == "Combined and Consolidated OOS Testing Metrics - All Dates") {
@@ -1103,19 +1121,19 @@ plot_consolidated_sb_backtest_results <- function(combined_metrics, mean_validat
         y     = "Metric Value",
         fill  = "Backtest Label"
       ) +
-      ggplot2::scale_fill_manual(values = extended_neon_palette) +
+      ggplot2::scale_fill_manual(values = palette_colors) +
       ggplot2::theme_minimal() +
       ggplot2::theme(
-        plot.background       = ggplot2::element_rect(fill = blue_bg, color = NA),
-        panel.background      = ggplot2::element_rect(fill = blue_bg, color = NA),
-        plot.title            = ggplot2::element_text(color = white, size = 16, face = "bold"),
-        axis.text             = ggplot2::element_text(color = white),
-        axis.title            = ggplot2::element_text(color = white),
-        strip.text            = ggplot2::element_text(color = white, face = "bold"),
-        legend.title          = ggplot2::element_text(color = white),
-        legend.text           = ggplot2::element_text(color = white),
-        panel.grid.major      = ggplot2::element_line(color = faint_blue, size = 0.2),
-        panel.grid.minor      = ggplot2::element_line(color = faint_blue, size = 0.1)
+        plot.background       = ggplot2::element_rect(fill = col_background, color = NA),
+        panel.background      = ggplot2::element_rect(fill = col_background, color = NA),
+        plot.title            = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+        axis.text             = ggplot2::element_text(color = col_text),
+        axis.title            = ggplot2::element_text(color = col_text),
+        strip.text            = ggplot2::element_text(color = col_text, face = "bold"),
+        legend.title          = ggplot2::element_text(color = col_text),
+        legend.text           = ggplot2::element_text(color = col_text),
+        panel.grid.major      = ggplot2::element_line(color = light_gray, size = 0.2),
+        panel.grid.minor      = ggplot2::element_line(color = light_gray, size = 0.1)
       )
 
     # Print the legend mapping Backtest labels to identifiers
@@ -1162,19 +1180,19 @@ plot_consolidated_sb_backtest_results <- function(combined_metrics, mean_validat
         y     = "Metric Value",
         fill  = "Backtest Label"
       ) +
-      ggplot2::scale_fill_manual(values = extended_neon_palette) +
+      ggplot2::scale_fill_manual(values = palette_colors) +
       ggplot2::theme_minimal() +
       ggplot2::theme(
-        plot.background       = ggplot2::element_rect(fill = blue_bg, color = NA),
-        panel.background      = ggplot2::element_rect(fill = blue_bg, color = NA),
-        plot.title            = ggplot2::element_text(color = white, size = 16, face = "bold"),
-        axis.text             = ggplot2::element_text(color = white),
-        axis.title            = ggplot2::element_text(color = white),
-        strip.text            = ggplot2::element_text(color = white, face = "bold"),
-        legend.title          = ggplot2::element_text(color = white),
-        legend.text           = ggplot2::element_text(color = white),
-        panel.grid.major      = ggplot2::element_line(color = faint_blue, size = 0.2),
-        panel.grid.minor      = ggplot2::element_line(color = faint_blue, size = 0.1)
+        plot.background       = ggplot2::element_rect(fill = col_background, color = NA),
+        panel.background      = ggplot2::element_rect(fill = col_background, color = NA),
+        plot.title            = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+        axis.text             = ggplot2::element_text(color = col_text),
+        axis.title            = ggplot2::element_text(color = col_text),
+        strip.text            = ggplot2::element_text(color = col_text, face = "bold"),
+        legend.title          = ggplot2::element_text(color = col_text),
+        legend.text           = ggplot2::element_text(color = col_text),
+        panel.grid.major      = ggplot2::element_line(color = light_gray, size = 0.2),
+        panel.grid.minor      = ggplot2::element_line(color = light_gray, size = 0.1)
       )
 
     # Show a quick legend
@@ -1242,19 +1260,19 @@ plot_consolidated_sb_backtest_results <- function(combined_metrics, mean_validat
         y = "Metric Value",
         color = "Model (Backtest Label)"
       ) +
-      ggplot2::scale_color_manual(values = extended_neon_palette) +
+      ggplot2::scale_color_manual(values = palette_colors) +
       ggplot2::theme_minimal() +
       ggplot2::theme(
-        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-        plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-        axis.text = ggplot2::element_text(color = white),
-        axis.title = ggplot2::element_text(color = white),
-        strip.text = ggplot2::element_text(color = white, face = "bold"),
-        legend.title = ggplot2::element_text(color = white),
-        legend.text = ggplot2::element_text(color = white),
-        panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
-        panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
+        plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+        panel.background = ggplot2::element_rect(fill = col_background, color = NA),
+        plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+        axis.text = ggplot2::element_text(color = col_text),
+        axis.title = ggplot2::element_text(color = col_text),
+        strip.text = ggplot2::element_text(color = col_text, face = "bold"),
+        legend.title = ggplot2::element_text(color = col_text),
+        legend.text = ggplot2::element_text(color = col_text),
+        panel.grid.major = ggplot2::element_line(color = light_gray, size = 0.2),
+        panel.grid.minor = ggplot2::element_line(color = light_gray, size = 0.1)
       )
 
     # Print the legend mapping Backtest labels to identifiers
@@ -1318,19 +1336,19 @@ plot_consolidated_sb_backtest_results <- function(combined_metrics, mean_validat
         y = "Metric Value",
         fill = "Metric"
       ) +
-      ggplot2::scale_fill_manual(values = extended_neon_palette) +
+      ggplot2::scale_fill_manual(values = palette_colors) +
       ggplot2::theme_minimal() +
       ggplot2::theme(
-        plot.background       = ggplot2::element_rect(fill = blue_bg, color = NA),
-        panel.background      = ggplot2::element_rect(fill = blue_bg, color = NA),
-        plot.title            = ggplot2::element_text(color = white, size = 16, face = "bold"),
-        axis.text             = ggplot2::element_text(color = white),
-        axis.title            = ggplot2::element_text(color = white),
-        strip.text            = ggplot2::element_text(color = white, face = "bold"),
-        legend.title          = ggplot2::element_text(color = white),
-        legend.text           = ggplot2::element_text(color = white),
-        panel.grid.major      = ggplot2::element_line(color = faint_blue, size = 0.2),
-        panel.grid.minor      = ggplot2::element_line(color = faint_blue, size = 0.1)
+        plot.background       = ggplot2::element_rect(fill = col_background, color = NA),
+        panel.background      = ggplot2::element_rect(fill = col_background, color = NA),
+        plot.title            = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+        axis.text             = ggplot2::element_text(color = col_text),
+        axis.title            = ggplot2::element_text(color = col_text),
+        strip.text            = ggplot2::element_text(color = col_text, face = "bold"),
+        legend.title          = ggplot2::element_text(color = col_text),
+        legend.text           = ggplot2::element_text(color = col_text),
+        panel.grid.major      = ggplot2::element_line(color = light_gray, size = 0.2),
+        panel.grid.minor      = ggplot2::element_line(color = light_gray, size = 0.1)
       )
 
 
@@ -1406,19 +1424,19 @@ plot_consolidated_sb_backtest_results <- function(combined_metrics, mean_validat
         y = "Metric Value",
         color = "Model (Backtest Label)"
       ) +
-      ggplot2::scale_color_manual(values = extended_neon_palette) +
+      ggplot2::scale_color_manual(values = palette_colors) +
       ggplot2::theme_minimal() +
       ggplot2::theme(
-        plot.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-        plot.title = ggplot2::element_text(color = white, size = 16, face = "bold"),
-        axis.text = ggplot2::element_text(color = white),
-        axis.title = ggplot2::element_text(color = white),
-        strip.text = ggplot2::element_text(color = white, face = "bold"),
-        legend.title = ggplot2::element_text(color = white),
-        legend.text = ggplot2::element_text(color = white),
-        panel.grid.major = ggplot2::element_line(color = faint_blue, size = 0.2),
-        panel.grid.minor = ggplot2::element_line(color = faint_blue, size = 0.1)
+        plot.background = ggplot2::element_rect(fill = col_background, color = NA),
+        panel.background = ggplot2::element_rect(fill = col_background, color = NA),
+        plot.title = ggplot2::element_text(color = col_text, size = 16, face = "bold"),
+        axis.text = ggplot2::element_text(color = col_text),
+        axis.title = ggplot2::element_text(color = col_text),
+        strip.text = ggplot2::element_text(color = col_text, face = "bold"),
+        legend.title = ggplot2::element_text(color = col_text),
+        legend.text = ggplot2::element_text(color = col_text),
+        panel.grid.major = ggplot2::element_line(color = light_gray, size = 0.2),
+        panel.grid.minor = ggplot2::element_line(color = light_gray, size = 0.1)
       )
 
 
@@ -1456,24 +1474,38 @@ plot_consolidated_sb_backtest_results <- function(combined_metrics, mean_validat
     backtest_indices <- setNames(seq_along(backtest_names), backtest_names)
 
     # Selection
-    cat("\nEnter 'all' for all backtests,\nOR indices (e.g. '1,3'):\n")
-    selection <- readline(prompt = "Your choice: ")
+    if (is.null(chosen_backtests)){
+      cat("\nEnter 'all' for all backtests,\nOR indices (e.g. '1,3'):\n")
+      selection <- readline(prompt = "Your choice: ")
 
-    # Process user selection
-    if (nzchar(selection) && tolower(selection) != "all") {
-      parts <- strsplit(selection, ",")[[1]]
-      parts <- trimws(parts)
-      all_numeric <- suppressWarnings(!any(is.na(as.numeric(parts))))
-      if (all_numeric) {
-        indices <- as.numeric(parts)
-        if (any(indices < 1 | indices > length(backtest_names)))
-          stop("Some indices are out of range.")
-        backtests_to_plot <- backtest_names[indices]  # Convert indices to names
+      # Process user selection
+      if (nzchar(selection) && tolower(selection) != "all") {
+        parts <- strsplit(selection, ",")[[1]]
+        parts <- trimws(parts)
+        all_numeric <- suppressWarnings(!any(is.na(as.numeric(parts))))
+        if (all_numeric) {
+          indices <- as.numeric(parts)
+          if (any(indices < 1 | indices > length(backtest_names)))
+            stop("Some indices are out of range.")
+          backtests_to_plot <- backtest_names[indices]  # Convert indices to names
+        } else {
+          stop("Please enter numeric indices only.")
+        }
       } else {
-        stop("Please enter numeric indices only.")
+        backtests_to_plot <- backtest_names
       }
     } else {
-      backtests_to_plot <- backtest_names
+      if (is.character(chosen_backtests) && tolower(chosen_backtests) == "all") {
+        backtests_to_plot <- backtest_names
+      } else if (is.numeric(chosen_backtests)) {
+        if (any(chosen_backtests < 1 | chosen_backtests > length(backtest_names)))
+          stop("Some indices are out of range.")
+        backtests_to_plot <- backtest_names[chosen_backtests]  # Convert indices to names
+      } else if (chosen_backtests %in% backtest_names) {
+        backtests_to_plot <- chosen_backtests
+      } else {
+        stop("Invalid input for chosen_backtests. Please provide 'all', numeric indices, or valid backtest names.")
+      }
     }
 
     # Subset the Correlation Matrix
@@ -1503,7 +1535,7 @@ plot_consolidated_sb_backtest_results <- function(combined_metrics, mean_validat
         fill = .data$Correlation
       )
     ) +
-      ggplot2::geom_tile(color = "white") +
+      ggplot2::geom_tile(color = col_text) +
 
       # Add text labels
       ggplot2::geom_text(
@@ -1514,23 +1546,23 @@ plot_consolidated_sb_backtest_results <- function(combined_metrics, mean_validat
       ) +
 
       ggplot2::scale_fill_gradient2(
-        low      = neon_pink,
-        mid      = white,
-        high     = neon_green,
+        low      = col_negative,
+        mid      = light_gray,
+        high     = col_positive,
         midpoint = 0,
         limits   = c(-1, 1)
       ) +
       ggplot2::theme_minimal() +
       ggplot2::theme(
-        plot.background  = ggplot2::element_rect(fill = blue_bg, color = NA),
-        panel.background = ggplot2::element_rect(fill = blue_bg, color = NA),
-        axis.text.x      = ggplot2::element_text(angle = 45, vjust = 1, hjust = 1, color = white),
-        axis.text.y      = ggplot2::element_text(color = white),
+        plot.background  = ggplot2::element_rect(fill = col_background, color = NA),
+        panel.background = ggplot2::element_rect(fill = col_background, color = NA),
+        axis.text.x      = ggplot2::element_text(angle = 45, vjust = 1, hjust = 1, color = col_text),
+        axis.text.y      = ggplot2::element_text(color = col_text),
         axis.title       = ggplot2::element_blank(),
-        plot.title       = ggplot2::element_text(color = white, size = 14, face = "bold"),
+        plot.title       = ggplot2::element_text(color = col_text, size = 14, face = "bold"),
         legend.position  = "right",
-        legend.title     = ggplot2::element_text(color = white),
-        legend.text      = ggplot2::element_text(color = white)
+        legend.title     = ggplot2::element_text(color = col_text),
+        legend.text      = ggplot2::element_text(color = col_text)
       ) +
       ggplot2::labs(
         title = paste("Base Learners Backtest Correlation Heatmap")

@@ -4,7 +4,16 @@
 \alias{plot,sb_metabacktest_results,ANY-method}
 \title{Plot Method for sb_metabacktest_results Class}
 \usage{
-\S4method{plot}{sb_metabacktest_results,ANY}(x, plot_id = NULL)
+\S4method{plot}{sb_metabacktest_results,ANY}(
+  x,
+  plot_id = NULL,
+  palette = "cyberpunk",
+  chosen_metric = NULL,
+  chosen_backtests = NULL,
+  top_n = NULL,
+  facet_by_year = NULL,
+  add_overall_means = NULL
+)
 }
 \arguments{
 \item{x}{An object of class \code{sb_metabacktest_results} containing the results of the meta-learning backtests.}
@@ -22,6 +31,18 @@
 \item By number: Provide a number corresponding to the plot (as listed when \code{plot_id} is \code{NULL}).
 If \code{NULL} (default), the method lists available plots.
 }}
+
+\item{palette}{Character. Color palette to use for the plot. Options include "cyberpunk" and "br". Default is "cyberpunk".}
+
+\item{chosen_metric}{Character. The specific metric to plot (e.g., "rmse", "mae"). Required for certain plots.}
+
+\item{chosen_backtests}{Character vector. Specific backtests to include in the plot.}
+
+\item{top_n}{Numeric. If specified, limits the plot to the top N backtests based on the chosen metric.}
+
+\item{facet_by_year}{Logical. If \code{TRUE}, facets the plot by year.}
+
+\item{add_overall_means}{Logical. If \code{TRUE}, adds horizontal lines representing}
 }
 \value{
 Invisibly returns the input \code{x}.

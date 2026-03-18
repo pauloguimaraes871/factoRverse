@@ -10,21 +10,24 @@ explain_prediction(
   sb_backtest_results,
   features_m_df,
   selected_ticker,
-  selected_date
+  selected_date,
+  palette = "cyberpunk"
 )
 
 \S4method{explain_prediction}{sb_backtest_results,meta_dataframe,character,Date}(
   sb_backtest_results,
   features_m_df,
   selected_ticker,
-  selected_date
+  selected_date,
+  palette = "cyberpunk"
 )
 
 \S4method{explain_prediction}{sb_metabacktest_results,meta_dataframe,character,Date}(
   sb_backtest_results,
   features_m_df,
   selected_ticker,
-  selected_date
+  selected_date,
+  palette = "cyberpunk"
 )
 }
 \arguments{
@@ -35,6 +38,8 @@ explain_prediction(
 \item{selected_ticker}{A character string representing the ticker (e.g., \code{"AAPL"}) for which to explain the prediction.}
 
 \item{selected_date}{A Date object representing the prediction date.}
+
+\item{palette}{A character string indicating the color palette to use for the plot.}
 }
 \value{
 A \code{ggplot2} waterfall plot displaying the decomposition of the OOS prediction.

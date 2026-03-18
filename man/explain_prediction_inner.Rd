@@ -10,8 +10,9 @@ explain_prediction_inner(
   feature_importance_m_df,
   gsm_algorithm,
   features_m_df,
-  selected_ticker = selected_ticker,
-  selected_date = selected_date
+  selected_ticker,
+  selected_date,
+  palette = "cyberpunk"
 )
 }
 \arguments{
@@ -34,6 +35,8 @@ Must contain at least columns \code{id}, \code{tickers}, \code{dates}, and the f
 \item{selected_ticker}{A character string indicating the ticker to analyze.}
 
 \item{selected_date}{A \code{Date} object specifying the date for which the prediction is to be explained.}
+
+\item{palette}{A character string indicating the color palette to use for the plot.}
 }
 \value{
 A \code{data.frame} with the following columns:

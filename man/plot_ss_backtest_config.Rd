@@ -4,12 +4,12 @@
 \alias{plot,ss_backtest_config,ANY-method}
 \title{Plot Priors from ss_backtest_config}
 \usage{
-\S4method{plot}{ss_backtest_config,ANY}(x, y, ...)
+\S4method{plot}{ss_backtest_config,ANY}(x, palette = "cyberpunk", ...)
 }
 \arguments{
 \item{x}{An object of class \code{ss_backtest_config} with a \code{bayesian_alpha_test_strategy} alpha test strategy.}
 
-\item{y}{Not used. Included for S4 method compatibility.}
+\item{palette}{A character string specifying the color palette to use for the plots. Default is "cyberpunk". Supported options include "cyberpunk", "neon", and "extended_neon".}
 
 \item{...}{Additional arguments (currently unused).}
 }

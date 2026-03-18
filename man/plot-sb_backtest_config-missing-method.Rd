@@ -4,12 +4,14 @@
 \alias{plot,sb_backtest_config,missing-method}
 \title{Plot Method for \code{sb_backtest_config}}
 \usage{
-\S4method{plot}{sb_backtest_config,missing}(x, y)
+\S4method{plot}{sb_backtest_config,missing}(x, y, palette = "cyberpunk")
 }
 \arguments{
 \item{x}{An object of class \code{sb_backtest_config}.}
 
 \item{y}{Unused. Included for consistency with the generic \code{plot} method.}
+
+\item{palette}{Character. Color palette to use for the plot. Options include "cyberpunk" and "br". Default is "cyberpunk".}
 }
 \value{
 A \code{ggplot} object visualizing the hyperparameter histograms with possible limits.

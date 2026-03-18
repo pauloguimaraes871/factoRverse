@@ -4,7 +4,13 @@
 \alias{plot,port_backtest_cohort,ANY-method}
 \title{Plot Method for port_backtest_cohort Class}
 \usage{
-\S4method{plot}{port_backtest_cohort,ANY}(x, plot_id = NULL, vertical_lines = NULL)
+\S4method{plot}{port_backtest_cohort,ANY}(
+  x,
+  plot_id = NULL,
+  vertical_lines = NULL,
+  palette = "cyberpunk",
+  selected_metric = NULL
+)
 }
 \arguments{
 \item{x}{An object of class \code{port_backtest_cohort}.}
@@ -12,6 +18,10 @@
 \item{plot_id}{A character string or numeric value specifying which plot to display.}
 
 \item{vertical_lines}{Optional. A named list or vector specifying vertical lines to add to time-series plots. Used for highlighting events.}
+
+\item{palette}{A character string specifying the color palette to use for the plots. Options are "cyberpunk" (default) and "br". If an invalid option is provided, it will default to "cyberpunk".}
+
+\item{selected_metric}{Optional. A character string specifying a particular performance metric to focus on in the plots. If \code{NULL}, all available metrics will be plotted.}
 }
 \value{
 Invisibly returns the input object.

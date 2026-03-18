@@ -10,7 +10,9 @@ plot_consolidated_sb_backtest_results(
   time_series_oos_testing_metrics,
   time_series_validation_metrics,
   base_learners,
-  plot_name
+  plot_name,
+  chosen_backtests,
+  palette
 )
 }
 \arguments{
@@ -48,6 +50,10 @@ series format, if such data exist.}
 \item{\code{\"Prediction Error Correlation\"}}{Builds a correlation heatmap of
 prediction errors among the selected backtest learners.}
 }}
+
+\item{chosen_backtests}{A vector of backtest identifiers (e.g., c("backtest1", "backtest2"))}
+
+\item{palette}{A character string indicating the color palette to use for the plots.}
 }
 \value{
 Called for its side effects of displaying plots. For some cases, a ggplot2 plot object

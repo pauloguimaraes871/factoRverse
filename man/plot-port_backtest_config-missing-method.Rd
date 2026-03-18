@@ -4,13 +4,13 @@
 \alias{plot,port_backtest_config,missing-method}
 \title{Plot Method for port_backtest_config: Faceted Liquidity Floor Cutoffs (Ordered Within Facets)}
 \usage{
-\S4method{plot}{port_backtest_config,missing}(x, y, ...)
+\S4method{plot}{port_backtest_config,missing}(x, palette = "cyberpunk", ...)
 }
 \arguments{
 \item{x}{A \code{port_backtest_config} object containing liquidity floor cutoffs data in the
 \code{liquidity_floor_cutoffs} slot.}
 
-\item{y}{Not used. Required for S4 method consistency.}
+\item{palette}{A character string specifying the color palette to use for the bars. Default is "cyberpunk".}
 
 \item{...}{Additional arguments (currently not used).}
 }

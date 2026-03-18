@@ -4,12 +4,14 @@
 \alias{plot,random_search_strategy,missing-method}
 \title{Plot Method for \code{random_search_strategy}}
 \usage{
-\S4method{plot}{random_search_strategy,missing}(x, y)
+\S4method{plot}{random_search_strategy,missing}(x, y, palette = "cyberpunk")
 }
 \arguments{
 \item{x}{An object of class \code{random_search_strategy}.}
 
 \item{y}{Unused. Included for consistency with the generic \code{plot} method.}
+
+\item{palette}{Character. Color palette to use for the plot. Options include "cyberpunk" and "br". Default is "cyberpunk".}
 }
 \value{
 A \code{ggplot} object visualizing the hyperparameter histograms with possible limits.

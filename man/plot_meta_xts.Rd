@@ -7,6 +7,7 @@
 \S4method{plot}{meta_xts,missing}(
   x,
   y,
+  variable = NULL,
   clustering_list = NULL,
   facet_by_year = NULL,
   add_overall_means = NULL,
@@ -15,6 +16,8 @@
   plot_perf_metric = NULL,
   benchmark_returns_m_xts = NULL,
   active_returns = FALSE,
+  chosen_metric = NULL,
+  palette = "cyberpunk",
   ...
 )
 }
@@ -22,6 +25,8 @@
 \item{x}{A \code{meta_xts} or subclass object to be plotted.}
 
 \item{y}{Not used. Included for S4 method compatibility.}
+
+\item{variable}{Variable to plot. If \code{NULL}, user is prompted to select from available columns.}
 
 \item{clustering_list}{Optional named list assigning column names to cluster groups. Used to vary linetype by group.}
 
@@ -39,6 +44,10 @@ Only applies if \code{cumulative = FALSE}. If \code{NULL}, user is prompted.}
 \item{benchmark_returns_m_xts}{Optional \code{meta_xts} object (single-column) with benchmark returns. Required if \code{active_returns = TRUE}.}
 
 \item{active_returns}{Logical or \code{"yes"/"no"} string. Whether to compute active returns relative to the benchmark when \code{plot_perf_metric = TRUE}.}
+
+\item{chosen_metric}{Character. Performance metric to plot when \code{plot_perf_metric = TRUE}. Options include "CAGR", "Volatility", "Sharpe Ratio", etc. If \code{NULL}, user is prompted.}
+
+\item{palette}{Character. Color palette to use for the plots.}
 
 \item{...}{Currently unused.}
 }
