@@ -536,16 +536,6 @@ setMethod("create_target_m_df",
               cat(crayon::cyan(paste0("Processing date ", format(as.Date(current_date), "%Y-%m-%d"))))
               cat("\n")
 
-              ####Ensure current row is correctly assigned
-              if (nrow(selected_daily_returns_m_d_ref) == 0) {
-                stop("No data found for selected date: ", current_date)
-              }
-
-              ####Ensure there is at least one closest date in daily_returns_m_d_ref
-              if (length(closest_date_in_daily_returns_m_d_ref) == 0 | is.infinite(closest_date_in_daily_returns_m_d_ref) | is.na(closest_date_in_daily_returns_m_d_ref)) {
-                stop("No closest date found in daily_returns_m_df for selected date: ", current_date)
-              }
-
               ####Ensure all tickers for current_date in features_m_df exist in daily_returns_m_df
               current_features_tickers <- features_m_df@data %>% dplyr::filter(dates == current_date) %>% dplyr::pull(tickers)
               missing_tickers <- setdiff(current_features_tickers, current_tickers)
@@ -560,6 +550,7 @@ setMethod("create_target_m_df",
               seq_fwd_dates <- seq.Date(from = fwd_dates[1] + 1, to = fwd_dates[length(fwd_dates)], by = "days")
 
               ###If any of the dates in exceed current_date, return NA
+              ### We do this before checking for selected_daily_returns_m_d_ref rows in case day 15 is a holiday
               if (any(seq_fwd_dates > daily_returns_m_df@current_date)) {
                 out <- selected_daily_returns_m_d_ref %>%
                   dplyr::filter(tickers %in% current_features_tickers) %>%
@@ -570,6 +561,16 @@ setMethod("create_target_m_df",
                   dplyr::select(id, tickers, dates)
 
                 return(out)
+              }
+
+              ####Ensure current row is correctly assigned
+              if (nrow(selected_daily_returns_m_d_ref) == 0) {
+                stop("No data found for selected date: ", current_date)
+              }
+
+              ####Ensure there is at least one closest date in daily_returns_m_d_ref
+              if (length(closest_date_in_daily_returns_m_d_ref) == 0 | is.infinite(closest_date_in_daily_returns_m_d_ref) | is.na(closest_date_in_daily_returns_m_d_ref)) {
+                stop("No closest date found in daily_returns_m_df for selected date: ", current_date)
               }
 
               ###Retrieve all forward returns from selected_daily_returns_m_df and replace NAs with 0
