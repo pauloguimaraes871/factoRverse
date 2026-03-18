@@ -538,11 +538,17 @@ setMethod("create_target_m_df",
 
               ####Ensure all tickers for current_date in features_m_df exist in daily_returns_m_df
               current_features_tickers <- features_m_df@data %>% dplyr::filter(dates == current_date) %>% dplyr::pull(tickers)
+              #### If current date is the last date of selected_dates, we allow for the possibility of current_tickers being empty
+              if (current_date == max(selected_dates) && length(current_tickers) == 0) {
+                cat(crayon::yellow(paste0("Warning: No tickers found in daily_returns_m_df for the last date ",
+                                          format(as.Date(current_date), "%Y-%m-%d"), ". Check if it is a holiday.")))
+              } else {
               missing_tickers <- setdiff(current_features_tickers, current_tickers)
               if (length(missing_tickers) > 0L){
                 stop("The following tickers from features_m_df for date ", current_date,
                      " are missing in daily_returns_m_df: ",
                      paste(missing_tickers, collapse = ", "))
+                }
               }
 
               ###Compute forward dates
@@ -552,13 +558,11 @@ setMethod("create_target_m_df",
               ###If any of the dates in exceed current_date, return NA
               ### We do this before checking for selected_daily_returns_m_d_ref rows in case day 15 is a holiday
               if (any(seq_fwd_dates > daily_returns_m_df@current_date)) {
-                out <- selected_daily_returns_m_d_ref %>%
-                  dplyr::filter(tickers %in% current_features_tickers) %>%
-                  dplyr::mutate(
-                    dates = current_date,
-                    id    = paste0(tickers, "-", dates)
-                  ) %>%
-                  dplyr::select(id, tickers, dates)
+                out <- data.frame(
+                  tickers = current_features_tickers,
+                  dates = current_date,
+                  id = paste0(current_features_tickers, "-", current_date)
+                ) %>% dplyr::select(id, tickers, dates)
 
                 return(out)
               }
