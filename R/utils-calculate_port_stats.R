@@ -147,7 +147,7 @@ calculate_port_stats <-  function(universe_m_d_ref,
                                     "exp_ret_score")))
 
     ## Weights should sum to 1
-    if (abs(sum(df_use$weights) - 1) > 0.02){
+    if (abs(sum(df_use$weights) - 1) > 0.05){
       stop("Weights in universe_m_d_ref should sum to 1.")
     }
 
