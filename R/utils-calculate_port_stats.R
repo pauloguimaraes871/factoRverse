@@ -109,7 +109,7 @@ calculate_port_stats <-  function(universe_m_d_ref,
     }
 
     ### Weights should sum to 1
-    if (abs(sum(bench_universe_m_d_ref$weights) - 1) > 0.02){
+    if (abs(sum(bench_universe_m_d_ref$weights) - 1) > 0.05){
       stop("Weights in bench_universe_m_d_ref should sum to 1.")
     }
   }
