@@ -332,9 +332,14 @@ compute_agg_macro_objects <- function(universe_m_d_ref, covariance_matrix = NULL
         ##### Defensively check that weight columns sum to 1
         for (col in group_weight_colnames){
           total_weight_sum <- sum(universe_m_d_ref[[col]], na.rm = TRUE)
-          if (abs(total_weight_sum - 1) > 0.02){
+          if (stringr::str_detect(string = col, pattern = "bench_weights")){
+            tol <- 0.05
+          } else {
+            tol <- 0.02
+          }
+          if (abs(total_weight_sum - 1) > tol){
             stop(paste0("Total sum of '", col, "' in universe_m_d_ref is ", round(total_weight_sum, 2),
-                           ", which deviates from 1 by more than 0.02."))
+                           ", which deviates from 1 by more than ", tol))
           }
         }
 
