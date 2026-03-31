@@ -39,8 +39,12 @@ create_custom_weighted_portfolio <- function(universe_m_d_ref, custom_weights_m_
   universe_m_d_ref[which(is.na(universe_m_d_ref$weights)),"weights"] <- 0
 
   #Check for weights different from 1
-  if (abs(sum(universe_m_d_ref$weights) - 1) > 0.02){
+  if (abs(sum(universe_m_d_ref$weights) - 1) > 0.05){
     stop("Weights do not sum to 1")
+  }
+  if (abs(sum(universe_m_d_ref$weights) - 1) > 0.02 &
+      abs(sum(universe_m_d_ref$weights) - 1) <= 0.05){
+    warning("Weights do not sum to 1, but are within the acceptable range of 5%")
   }
 
   #Message

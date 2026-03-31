@@ -2936,9 +2936,18 @@ setClass(
     if(length(object@weights) != length(object@eligible_assets)){
       stop("weights must have the same length as eligible_assets")
     }
-
-    if(sum(object@weights) - 1 > 0.01){
-      stop("weights must sum to 1.")
+    #Check for weights summing to 1
+    if (object@port_construction_method != "custom_weights"){
+      if(sum(object@weights) - 1 > 0.01){
+        stop("weights must sum to 1.")
+      }
+    } else {
+      if((sum(object@weights) - 1 )> 0.01 && (sum(object@weights) - 1) <= 0.05){
+        warning("weights do not sum to 1, but are between 0.95 and 1.05. Consider adjusting weights or check for errors.")
+      }
+      if(sum(object@weights) - 1 > 0.05){
+        stop("weights must sum to less than 0.95 or more than 1.05 for port_construction_method 'custom_weights'.")
+      }
     }
 
     #exp_ret_score
