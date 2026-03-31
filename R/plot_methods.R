@@ -3020,6 +3020,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
   }
 
   # List of available plots
+  rebalance_dates <- purrr::map(x@sb_backtest_workflow, function(x) x$rebalance_dates) %>% unlist() %>% as.Date()
   sb_backtest_workflow <- x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]
   if(sb_backtest_workflow$sb_algorithm %in% c("glmnet", "rf", "xgb", "nn")){
     available_plots <- c(
@@ -3101,7 +3102,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
   chosen_eval_metric <- sb_backtest_workflow$chosen_eval_metric
   chosen_eval_metric_validation <- x@chosen_eval_metric_validation
   sb_algorithm <- sb_backtest_workflow$sb_algorithm
-  rebalance_dates <- sb_backtest_workflow$rebalance_dates
+
 
   # Define colors for plotting
   # Palette
@@ -3511,7 +3512,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
         ) +
         ggplot2::geom_point(
           ggplot2::aes(y = min),
-          color = col_quintenary,
+          color = col_quinternary,
           size = 2
         ) +
         ggplot2::ggtitle(paste("Validation", chosen_eval_metric, "by alpha and lambda.min.ratio")) +
@@ -3631,7 +3632,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
         ) +
         ggplot2::geom_point(
           ggplot2::aes(y = min),
-          color = col_quintenary,
+          color = col_quinternary,
           size = 2
         ) +
         ggplot2::ggtitle(paste("Validation", chosen_eval_metric, "by max_depth and colsample_bytree")) +
@@ -3691,7 +3692,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
         ) +
         ggplot2::geom_point(
           ggplot2::aes(y = min),
-          color = col_quintenary,
+          color = col_quinternary,
           size = 2
         ) +
         ggplot2::ggtitle(paste("Validation", chosen_eval_metric, "by droprate and regularizer_l1")) +
