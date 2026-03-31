@@ -17,8 +17,12 @@ create_custom_weighted_portfolio <- function(universe_m_d_ref, custom_weights_m_
   if (!"weights" %in% colnames(custom_weights_m_d_ref)){
     stop("Custom weights should contain a column named 'weights'")
   }
-  if (abs(sum(custom_weights_m_d_ref$weights) - 1) > 0.02){
+  if (abs(sum(custom_weights_m_d_ref$weights) - 1) > 0.05){
     stop("Custom weights should sum to 1")
+  }
+  if (abs(sum(custom_weights_m_d_ref$weights) - 1) > 0.02 &
+      abs(sum(custom_weights_m_d_ref$weights) - 1) <= 0.05){
+    warning("Custom weights do not sum to 1, but are within the acceptable range of 5%")
   }
   if (any(!universe_m_d_ref$tickers %in% custom_weights_m_d_ref$tickers)){
     stop("Custom weights should contain all tickers in the universe")
