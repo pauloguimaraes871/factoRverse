@@ -1467,7 +1467,7 @@ plot_consolidated_sb_backtest_results <- function(combined_metrics, mean_validat
     ) %>% dplyr::select(-id)
 
     # Generate Correlation Matrix
-    oos_error_cor_matrix <- stats::cor(oos_errors_df)
+    oos_error_cor_matrix <- stats::cor(oos_errors_df, use = "pairwise.complete.obs")
     backtest_names <- colnames(oos_error_cor_matrix)  # Extract backtest identifiers
 
     # Create index mapping for backtests
