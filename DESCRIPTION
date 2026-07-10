@@ -2,9 +2,19 @@ Package: factoRverse
 Title: Portfolio Construction with ML-Based and Characteristics-Based Signals
 Version: 0.4.8
 Authors@R: 
-	person("Paulo", "Guimarães", , "paulo.guimaraes871@gmail.com", role = c("aut", "cre"),
+	person("Paulo", "Guimaraes", , "paulo.guimaraes871@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "0009-0002-2719-7731"))
-Description: Functions to create features based on individual firm-level characteristics from external datasets, preprocess data for fitting ML models, and implement ML-based and/or characteristics-based strategies for backtesting under different portfolio construction methods.
+Description: An end-to-end toolkit for factor-investing research and deployment. It
+    provides point-in-time construction of firm-level characteristics and anomalies,
+    look-ahead-safe preprocessing, and a consistent, auditable interface across four
+    workflows: characteristic-sorted portfolio backtesting; signal selection under
+    multiple-testing control (family-wise error rate and false discovery rate
+    procedures, and hierarchical Bayesian partial pooling); signal blending with
+    heuristics and machine-learning models (elastic net, random forests, gradient
+    boosting and neural networks) under a unified tuning and walk-forward scheme; and
+    risk-based portfolio construction (equal weight, risk parity, hierarchical risk
+    parity, mean-variance optimization) with liquidity, turnover and concentration
+    constraints and transaction costs.
 License: MIT + file LICENSE
 URL: https://github.com/pauloguimaraes871/factoRverse, https://pauloguimaraes871.github.io/factoRverse/
 BugReports: https://github.com/pauloguimaraes871/factoRverse/issues

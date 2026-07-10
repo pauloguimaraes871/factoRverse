@@ -1,0 +1,30 @@
+citHeader("To cite factoRverse in publications, please cite the package and the accompanying papers:")
+
+bibentry(
+  bibtype = "Manual",
+  title   = "factoRverse: Portfolio Construction with ML-Based and Characteristics-Based Signals",
+  author  = person("Paulo", "Guimaraes"),
+  year    = "2026",
+  note    = "R package version 0.4.8",
+  url     = "https://github.com/pauloguimaraes871/factoRverse"
+)
+
+bibentry(
+  bibtype = "Unpublished",
+  title   = "The Factor Zoo Revisited: Multiple Testing, Hierarchical Modelling, and Out-of-Sample Evidence from Emerging Markets",
+  author  = c(person("Paulo", "Guimaraes"), person("Herbert", "Kimura")),
+  year    = "2026",
+  note    = "SSRN working paper",
+  # TODO: replace with the paper's SSRN abstract URL
+  url     = "https://ssrn.com/abstract=REPLACE_WITH_SSRN_ID"
+)
+
+bibentry(
+  bibtype = "Unpublished",
+  title   = "Man vs Machine: Can AI-Based Stock-Picking Outperform Human Skill?",
+  author  = person("Paulo", "Guimaraes"),
+  year    = "2025",
+  note    = "SSRN working paper",
+  # TODO: replace with the paper's SSRN abstract URL (and confirm the year)
+  url     = "https://ssrn.com/abstract=REPLACE_WITH_SSRN_ID"
+)

@@ -31,7 +31,13 @@ jobs:
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
-          extra-packages: any::pkgdown, local::.
+          # ParBayesianOptimization is archived on CRAN, so pak cannot resolve it
+          # from the public repos; pull it from its live GitHub source instead.
+          # (Proper fix in Phase 5: move it to Suggests behind a requireNamespace guard.)
+          extra-packages: |
+            any::pkgdown
+            github::AnotherSamWilson/ParBayesianOptimization
+            local::.
           needs: website
 
       - name: Build site

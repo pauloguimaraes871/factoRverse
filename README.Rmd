@@ -13,7 +13,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-# factoRverse <img src="inst/images/factoRverse.jpeg" align="right" height="139" alt="factoRverse logo" />
+# factoRverse <img src="inst/images/factoRverse.png" align="right" height="139" alt="factoRverse logo" />
 
 <!-- badges: start -->
 [![R-CMD-check](https://github.com/pauloguimaraes871/factoRverse/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/pauloguimaraes871/factoRverse/actions/workflows/R-CMD-check.yaml)
@@ -273,11 +273,11 @@ with `future::plan()` (e.g. `future::plan(future::multisession)`).
 The methodology behind the signal-selection and signal-blending workflows is
 developed in two companion papers:
 
-- **Guimarães, P. R. & Kimura, H.** *The Factor Zoo Revisited: Multiple Testing,
+- **Guimaraes, P. R. & Kimura, H.** *The Factor Zoo Revisited: Multiple Testing,
   Hierarchical Modelling, and Out-of-Sample Evidence from Emerging Markets.*
   Anchors the signal-selection workflow (FWER/FDR control, hierarchical Bayesian
   partial pooling, walk-forward backtesting).
-- **Guimarães, P. R.** *Man vs Machine: can AI-based stock-picking outperform human
+- **Guimaraes, P. R.** *Man vs Machine: can AI-based stock-picking outperform human
   skill?* Anchors the machine-learning signal-blending and portfolio-construction
   workflow.
 
