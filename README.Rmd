@@ -13,7 +13,7 @@ knitr::opts_chunk$set(
 )
 ```
 
-# factoRverse
+# factoRverse <img src="inst/images/factoRverse.jpeg" align="right" height="139" alt="factoRverse logo" />
 
 <!-- badges: start -->
 [![R-CMD-check](https://github.com/pauloguimaraes871/factoRverse/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/pauloguimaraes871/factoRverse/actions/workflows/R-CMD-check.yaml)
@@ -24,26 +24,24 @@ knitr::opts_chunk$set(
 > An end-to-end toolkit for **factor investing** research and deployment: engineer
 > point-in-time signals, tame the factor zoo with disciplined multiple-testing
 > inference, blend signals with machine learning, and build cost- and
-> constraint-aware portfolios — all through one consistent, auditable interface.
-
-![Beware the factoRverse](inst/images/factoRverse.jpeg)
+> constraint-aware portfolios, all through one consistent, auditable interface.
 
 `factoRverse` takes a factor strategy from raw firm-level data all the way to a
-deployable portfolio. It packages the modern asset-pricing workflow — anomaly
+deployable portfolio. It packages the modern asset-pricing workflow (anomaly
 construction, the multiple-testing / factor-zoo debate, signal blending, and
-risk-based portfolio construction — into small, composable, testable functions,
+risk-based portfolio construction) into small, composable, testable functions,
 with strict guardrails against the two cardinal sins of backtesting:
 **look-ahead bias** and **survivorship bias**.
 
 It is built around the **metafactor** idea: at any point in time an equity factor
 investor must decide *which* signals to use, *how* to process them, and *how* to
-combine them — so the package lets you blend not only signals, but also
+combine them, so the package lets you blend not only signals, but also
 signal-blending methods themselves, all the way up to meta-ensembles.
 
-## Why factoRverse? — *FactorOps*
+## Why factoRverse? (FactorOps)
 
 If Databricks frames MLOps as *DevOps + DataOps + ModelOps*, `factoRverse` adds
-**PortOps** — the deployment of portfolios given signals developed through models —
+**PortOps**: the deployment of portfolios given signals developed through models,
 and calls the whole thing **FactorOps**. In practice this means the package is
 built for reproducibility and auditing, not just computation:
 
@@ -61,38 +59,38 @@ built for reproducibility and auditing, not just computation:
 
 Two naming conventions recur throughout: objects suffixed `_m_df` are
 `meta_dataframe`s (long panels) and `_m_xts` are `meta_xts` (wide time series);
-and every workflow follows the same shape — **`config` + data objects → `run_*()` →
-a `*_results` object.**
+and every workflow follows the same shape: **`config` + data objects, then `run_*()`,
+then a `*_results` object.**
 
 ## The workflow at a glance
 
 ```mermaid
 flowchart TD
     RAW[Raw firm-level data] -->|create_meta_dataframe / create_meta_xts| BRONZE[Bronze]
-    BRONZE -->|compute_*, map_recipe_timewise| SILVER[Silver]
+    BRONZE -->|compute_ fns, map_recipe_timewise| SILVER[Silver]
     SILVER --> GOLD[Gold features_m_df]
 
     GOLD -->|create_target_m_df| TGT[target_m_df]
 
     GOLD --> W1
-    subgraph W1 [1 - Characteristic portfolios]
-        PC[create_port_backtest_config |> add_*] --> RPB[run_port_backtest] --> PBR[port_backtest_results]
+    subgraph W1 [1 Characteristic portfolios]
+        PC["create_port_backtest_config + add_*"] --> RPB[run_port_backtest] --> PBR[port_backtest_results]
         PBR --> COH[create_port_backtest_cohort]
     end
 
     COH --> W2
-    subgraph W2 [2 - Signal selection - the factor zoo]
-        SC[create_ss_backtest_config |> add_alpha_test_strategy] --> RSS[run_ss_backtest] --> SSR[ss_backtest_results]
+    subgraph W2 [2 Signal selection]
+        SC["create_ss_backtest_config + add_alpha_test_strategy"] --> RSS[run_ss_backtest] --> SSR[ss_backtest_results]
     end
 
     SSR --> W3
     TGT --> W3
-    subgraph W3 [3 - Signal blending - heuristics and ML]
-        SBC[create_sb_backtest_config |> add_tuning_strategy] --> RSB[run_sb_backtest] --> SBR[sb_backtest_results]
+    subgraph W3 [3 Signal blending]
+        SBC["create_sb_backtest_config + add_tuning_strategy"] --> RSB[run_sb_backtest] --> SBR[sb_backtest_results]
     end
 
     SBR -->|per-stock exp_ret_score| W4
-    subgraph W4 [4 - Deployed portfolio]
+    subgraph W4 [4 Deployed portfolio]
         RPB2[run_port_backtest with sb_backtest_results] --> FIN[Final book]
     end
 ```
@@ -179,11 +177,11 @@ cohort <- create_port_backtest_cohort(
 summary(cohort); plot(cohort)
 ```
 
-### 2. Signal selection — controlling the factor zoo
+### 2. Signal selection: controlling the factor zoo
 
 Which signals are *real*? Pass the backtested returns of your candidate portfolios
-through disciplined, walk-forward inference on CAPM alpha — with frequentist
-multiple-testing control (FWER: Bonferroni/Holm/…; FDR: BH/BY) or Bayesian
+through disciplined, walk-forward inference on CAPM alpha, with frequentist
+multiple-testing control (FWER: Bonferroni/Holm; FDR: BH/BY) or Bayesian
 hierarchical shrinkage that partially pools alphas within economically motivated
 **themes**. This is the workflow studied in *The Factor Zoo Revisited* (see below).
 
@@ -211,14 +209,14 @@ ss_results <- run_ss_backtest(
 ```
 
 For the Bayesian route, set `p_correction_method = "bayesian"` and attach
-`add_bayesian_model_parameters()` — priors can be user-defined or estimated from an
+`add_bayesian_model_parameters()`. Priors can be user-defined or estimated from an
 exogenous global dataset.
 
-### 3. Signal blending — from heuristics to machine learning
+### 3. Signal blending: from heuristics to machine learning
 
 Combine the *selected* signals into one score per stock. Treat signals as assets
-(equal-weight, risk parity, HRP, MVO), or predict returns with ML — `glmnet`,
-`ranger`, `xgboost`, `keras` — all behind one interface, one tuning API
+(equal-weight, risk parity, HRP, MVO), or predict returns with ML (`glmnet`,
+`ranger`, `xgboost`, `keras`), all behind one interface, one tuning API
 (grid / random / Bayesian optimization), and one walk-forward scheme.
 
 ```{r w3, eval=FALSE}
@@ -247,10 +245,10 @@ global-surrogate feature importance and `explain_prediction()`.
 
 ### 4. Deploying the blended signal
 
-The out-of-sample blended score feeds straight back into the portfolio engine — now
+The out-of-sample blended score feeds straight back into the portfolio engine: now
 with the full machinery of concentration, turnover and liquidity constraints,
 signal shrinkage, transaction costs, an auditable trade log, and portfolio methods
-from equal-weight to the novel micro–macro allocation framework (MMAF).
+from equal-weight to the novel micro-macro allocation framework (MMAF).
 
 ```{r w4, eval=FALSE}
 final_bt <- run_port_backtest(
@@ -266,7 +264,7 @@ final_bt <- run_port_backtest(
 ## Parallelism
 
 Hyperparameter tuning and hierarchical Bayesian signal selection are parallelized
-via the [`future`](https://future.futureverse.org/) framework — choose a backend
+via the [`future`](https://future.futureverse.org/) framework. Choose a backend
 with `future::plan()` (e.g. `future::plan(future::multisession)`).
 
 ## Learn more
