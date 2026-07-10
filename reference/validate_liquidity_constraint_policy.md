@@ -1,0 +1,40 @@
+# Validate Liquidity Constraint Policy
+
+Internal function to validate the liquidity constraint policy.
+
+## Usage
+
+``` r
+validate_liquidity_constraint_policy(liquidity_constraint_policy)
+```
+
+## Arguments
+
+- liquidity_constraint_policy:
+
+  A list with the elements described above.
+
+## Value
+
+Invisibly returns TRUE if the policy is valid.
+
+## Details
+
+The policy is provided as a list that may contain two elements:
+
+- liquidity_floor_rule:
+
+  (Optional) A character string indicating the liquidity floor. Must be
+  one of "micro_caps", "small_caps", "mid_caps", "large_caps", or
+  "mega_caps".
+
+- liquidity_cap_rules:
+
+  (Optional) A named numeric vector containing liquidity caps. The names
+  must be valid liquidity categories (see above), there must be no
+  duplicated names, and the numeric values must lie in the interval (0,
+  1\]. If liquidity_floor_rule is provided, no liquidity cap can be set
+  for a category that is less liquid than the floor. Moreover,
+  monotonicity is enforced: for any two categories, if one category is
+  less liquid than another, its cap must not exceed that of the more
+  liquid category.
