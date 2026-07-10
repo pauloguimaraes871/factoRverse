@@ -15,8 +15,13 @@ MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.or
 > An end-to-end toolkit for **factor investing** research and
 > deployment: engineer point-in-time signals, tame the factor zoo with
 > disciplined multiple-testing inference, blend signals with machine
+<<<<<<< HEAD
 > learning, and build cost- and constraint-aware portfolios, all through
 > one consistent, auditable interface.
+=======
+> learning, and build cost- and constraint-aware portfolios — all
+> through one consistent, auditable interface.
+>>>>>>> 5488a0715923cf6ff0ab5fc341971f96a3dfc1e0
 
 `factoRverse` takes a factor strategy from raw firm-level data all the
 way to a deployable portfolio. It packages the modern asset-pricing
