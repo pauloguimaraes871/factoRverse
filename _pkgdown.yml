@@ -1,0 +1,353 @@
+url: https://pauloguimaraes871.github.io/factoRverse/
+
+template:
+  bootstrap: 5
+
+reference:
+- title: Data structures & meta objects
+  desc: >
+    The self-documenting S4 containers at the heart of the package. `meta_dataframe`
+    (long panels) and `meta_xts` (wide time series) carry a workflow log, metadata,
+    and structural validation, and specialise into the objects each workflow consumes
+    and produces.
+  contents:
+  - create_meta_dataframe
+  - create_meta_xts
+  - update_meta_dataframe
+  - is_meta_dataframe
+  - is_coercible_to_meta_dataframe
+  - get_data
+  - get_workflow
+  - get_dates
+  - get_tickers
+  - "meta_dataframe-class"
+  - "meta_xts-class"
+  - "returns_meta_xts-class"
+  - "metrics_meta_xts-class"
+  - "raw_features_m_df-class"
+  - "signals_m_df-class"
+  - "groups_m_df-class"
+  - "weights_m_df-class"
+  - "stock_universe_m_df-class"
+  - "oos_sb_outputs_m_df-class"
+  - "feature_importance_m_df-class"
+
+- title: Tickers catalog & survivorship
+  desc: >
+    Track ticker lifecycle events (listings, delistings, renames) with stable
+    permanent identifiers, and build a survivorship-aware panel.
+  contents:
+  - create_tickers_catalog
+  - update_tickers_catalog
+  - read_tickers_catalog
+  - lookup_catalog
+  - "tickers_catalog-class"
+
+- title: Feature engineering & targets
+  desc: >
+    Construct point-in-time characteristics from the factor-zoo literature
+    (rolling and seasonal windows, formulas, composite scores, sector-wise metrics,
+    cross-sectional / time-series combinations, sector-specific mappings), and build
+    forward, risk-adjusted prediction targets.
+  contents:
+  - compute_window
+  - compute_formula
+  - compute_score
+  - compute_across
+  - compute_sector_wise
+  - compute_sector_map
+  - compute_sector_map_across
+  - create_target_m_df
+  - "target_m_df-class"
+
+- title: Signal & statistic primitives
+  desc: >
+    The low-level building blocks used by the `compute_*` functions and the
+    portfolio engine: benchmark regressions, momentum / volatility statistics, and
+    signal transformation.
+  contents:
+  - alpha_bench
+  - alpha_tstat_bench
+  - beta_bench
+  - correlation_bench
+  - res_mom
+  - idio_vol
+  - skew
+  - sur
+  - cagr
+  - geometric_mean_return
+  - count_if
+  - signal_transform
+  - relative_risk_contribution
+
+- title: Point-in-time preprocessing
+  desc: >
+    Apply a `recipes` preprocessing pipeline one date at a time so no future
+    information leaks into the past, plus custom recipe steps for winsorization and
+    sector-mean imputation.
+  contents:
+  - map_recipe_timewise
+  - step_winsorize
+  - step_impute_sector
+  - step_winsorize_new
+  - step_impute_sector_new
+  - required_pkgs.step_winsorize
+  - required_pkgs.step_impute_sector
+  - bake.step_winsorize
+  - bake.step_impute_sector
+  - prep.step_winsorize
+  - prep.step_impute_sector
+  - tidy.step_winsorize
+  - tidy.step_impute_sector
+  - print.step_winsorize
+  - print.step_impute_sector
+
+- title: Screening
+  desc: Filter the investable universe by feature values, logical conditions, or liquidity.
+  contents:
+  - screen_by_feature
+  - "screen_by_feature,meta_dataframe-method"
+  - screen_by_conditions
+  - "screen_by_conditions,meta_dataframe-method"
+  - screen_by_liquidity
+
+- title: "Workflow 1: Characteristic-portfolio backtesting"
+  desc: >
+    Rank stocks on a characteristic, invest in the top quantile, and backtest the
+    resulting long-only portfolio. Aggregate many backtests into a cohort to compare
+    them as a group.
+  contents:
+  - create_port_backtest_config
+  - run_port_backtest
+  - update_port_backtest
+  - create_port_backtest_cohort
+  - "port_backtest_config-class"
+  - "port_backtest_results-class"
+  - "port_backtest_cohort-class"
+
+- title: Constraints, liquidity & transaction costs
+  desc: >
+    Composable policy builders attached to a config with `add_*()`: liquidity floors
+    and caps, turnover buffers, concentration limits, covariance estimation, and a
+    BARRA-style transaction-cost model.
+  contents:
+  - add_liquidity_floor_cutoffs
+  - create_liquidity_floor_cutoffs
+  - get_liquidity_floor_cutoffs
+  - add_liquidity_constraint_policy
+  - create_liquidity_constraint_policy
+  - get_liquidity_constraint_policy
+  - add_turnover_constraint_policy
+  - create_turnover_constraint_policy
+  - get_turnover_constraint_policy
+  - add_concentration_constraint_policy
+  - create_concentration_constraint_policy
+  - get_concentration_constraint_policy
+  - add_transaction_costs_parameters
+  - create_transaction_costs_parameters
+  - get_transaction_costs_parameters
+  - validate_transaction_costs_parameters
+  - add_cov_est_method
+  - create_cov_est_method
+  - is_portfolio_policies
+  - "liquidity_constraint_policy-class"
+  - "turnover_constraint_policy-class"
+  - "concentration_constraint_policy-class"
+  - "transaction_costs_parameters-class"
+  - "cov_est_method-class"
+  - "transactions_log-class"
+
+- title: Portfolio construction methods
+  desc: >
+    Weighting schemes from equal-weight to risk parity, hierarchical risk parity,
+    mean-variance optimization (with resampling), and the micro-macro allocation
+    framework, plus universe classification and trade generation.
+  contents:
+  - set_portfolio_weights
+  - create_hrp_portfolio
+  - create_mvo_portfolio
+  - create_resampled_mvo_portfolio
+  - create_mmaf_portfolio
+  - classify_investment_universe
+  - classify_stock_liquidity
+  - derive_stock_universe_m_d_ref
+  - calculate_trade_orders
+  - validate_exp_ret_score_tilt
+  - add_rp_parameters
+  - create_rp_parameters
+  - add_hrp_parameters
+  - create_hrp_parameters
+  - add_mvo_parameters
+  - create_mvo_parameters
+  - add_mmaf_parameters
+  - create_mmaf_parameters
+  - "port-class"
+  - "rp_parameters-class"
+  - "hrp_parameters-class"
+  - "mvo_parameters-class"
+  - "mmaf_parameters-class"
+  - "mmaf_sub_port_config-class"
+
+- title: "Workflow 2: Signal selection (the factor zoo)"
+  desc: >
+    Walk-forward inference on CAPM alpha with multiple-testing control (frequentist
+    FWER / FDR) or hierarchical Bayesian partial pooling within themes, to decide
+    which signals enter the portfolio.
+  contents:
+  - create_ss_backtest_config
+  - run_ss_backtest
+  - update_ss_backtest
+  - add_alpha_test_strategy
+  - create_alpha_test_strategy
+  - get_alpha_test_strategy
+  - add_bayesian_model_parameters
+  - create_bayesian_model_parameters
+  - get_bayesian_model_parameters
+  - add_brms_prior
+  - bayesian_adjustment
+  - create_se_benchmarks
+  - create_performance_m_df
+  - "ss_backtest_config-class"
+  - "ss_backtest_results-class"
+  - "alpha_test_strategy-class"
+  - "frequentist_alpha_test_strategy-class"
+  - "bayesian_alpha_test_strategy-class"
+  - "bayesian_model_parameters-class"
+  - "signal_universe_m_df-class"
+  - "priors_m_df-class"
+
+- title: "Workflow 3: Signal blending & machine learning"
+  desc: >
+    Combine the selected signals into one score per stock via heuristics
+    (equal / signal-weighted, risk parity, HRP, MVO) or ML (`glmnet`, `ranger`,
+    `xgboost`, `keras`) behind a single tuning and walk-forward interface, then stack
+    blenders into meta-ensembles and interpret predictions.
+  contents:
+  - create_sb_backtest_config
+  - run_sb_backtest
+  - update_sb_backtest
+  - create_sb_metabacktest_config
+  - add_tuning_strategy
+  - create_tuning_strategy
+  - get_tuning_strategy
+  - is_tuning_strategy
+  - add_hyperparameter
+  - add_hyper_grid_domain
+  - is_hyper_grid_domain
+  - hyperparameters
+  - add_keras_architecture
+  - add_keras_layer
+  - create_keras_architecture
+  - is_keras_architecture_parameters
+  - hyper_tune
+  - set_eval_function
+  - calculate_eval_metrics
+  - fit_keras_model
+  - sb_model_accessors
+  - select_and_correct_signals
+  - convert_oos_list_to_m_df
+  - explain_prediction
+  - "sb_backtest_config-class"
+  - "sb_backtest_results-class"
+  - "sb_metabacktest_config-class"
+  - "sb_metabacktest_results-class"
+  - "sb_model-class"
+  - "tuning_strategy-class"
+  - "grid_search_strategy-class"
+  - "random_search_strategy-class"
+  - "bayesian_opt_strategy-class"
+  - "hyper_grid_domain-class"
+  - "keras_architecture_parameters-class"
+  - "signal_port_parameters-class"
+
+- title: Introspection & helpers
+  desc: Utilities for discovering valid options and validating inputs.
+  contents:
+  - display_valid_custom_objectives
+  - display_eligibility_criteria
+  - check_consistent_dates
+  - check_inputs_sb_backtest
+
+- title: S4 object methods
+  desc: >
+    `show`, `summary`, `plot`, `predict`, and coercion methods defined for
+    factoRverse objects.
+  contents:
+  - matches("^show,")
+  - matches("^summary,")
+  - matches("^plot,")
+  - matches("^predict,")
+  - matches("^as\\.data\\.frame,")
+  - matches("^as\\.list,")
+
+- title: Operators
+  contents:
+  - "%>%"
+  - "%dofuture%"
+
+# Internal engine functions: documented for developers but hidden from the
+# public reference index. The `internal` title is a pkgdown special case that
+# keeps their help pages while excluding them from the index.
+- title: internal
+  contents:
+  - allocate_port
+  - apply_stocks_pre_eligibility
+  - apply_turnover_cap_rule
+  - bench_regression_fit
+  - calculate_group_covariance_matrix
+  - calculate_port_metrics
+  - calculate_port_returns
+  - calculate_port_stats
+  - calculate_transaction_costs
+  - check_inputs_meta_sb_backtest
+  - check_inputs_port_backtest
+  - check_inputs_ss_backtest
+  - check_update_backtest_objects
+  - classify_stocks_pre_eligibility
+  - clean_returns_sample
+  - compute_agg_macro_objects
+  - consolidate_backtest_results
+  - consolidate_generic_meta_dataframes
+  - consolidate_generic_meta_xts
+  - consolidate_oos_sb_outputs_m_df
+  - consolidate_sb_metabacktest_results
+  - create_cap_scaled_portfolio
+  - create_cap_weighted_portfolio
+  - create_custom_weighted_portfolio
+  - create_equal_weighted_portfolio
+  - create_risk_parity_portfolio
+  - create_sb_metabacktest_results
+  - create_signal_weighted_portfolio
+  - define_signal_eligibility
+  - derive_adapted_custom_signal_universe_m_df
+  - derive_informative_priors_from_data
+  - derive_signal_universe_m_df
+  - estimate_covariance_matrix
+  - extract_returns_m_xts
+  - fit_bayesian_hierarchical_model
+  - fit_frequentist_hierarchical_model
+  - fit_sb_model
+  - generate_box_constraints
+  - generate_group_constraints
+  - get_best_lambda
+  - get_brms_prior
+  - get_features_positions
+  - get_hyper_grid_domain
+  - get_keras_architecture_parameters
+  - merge_and_rescale_weights
+  - min_track_record
+  - plot_consolidated_sb_backtest_results
+  - prepare_hierarchical_model_inputs
+  - prob_sharpe_ratio
+  - process_micro_portfolios
+  - roll_fwd_port_weights
+  - roll_port
+  - set_top_down_micro_weights
+  - signal_to_noise
+  - sum_top_n
+  - summarize_lmer_model
+  - summarize_performance
+  - summarize_posteriors_draws
+  - translate_metrics
+  - undummy_sector_features
+  - validate_returns_bench

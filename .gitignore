@@ -23,6 +23,9 @@ cran-comments.md
 *.a
 *.swp
 
+# Ignore locally-built pkgdown site (deployed to gh-pages by CI)
+docs/
+
 # Ignore Claude Code files
 .claude/
 CLAUDE.md

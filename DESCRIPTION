@@ -6,6 +6,8 @@ Authors@R:
            comment = c(ORCID = "0009-0002-2719-7731"))
 Description: Functions to create features based on individual firm-level characteristics from external datasets, preprocess data for fitting ML models, and implement ML-based and/or characteristics-based strategies for backtesting under different portfolio construction methods.
 License: MIT + file LICENSE
+URL: https://github.com/pauloguimaraes871/factoRverse, https://pauloguimaraes871.github.io/factoRverse/
+BugReports: https://github.com/pauloguimaraes871/factoRverse/issues
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
