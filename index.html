@@ -107,11 +107,23 @@
 <div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># install.packages("devtools")</span></span>
 <span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"pauloguimaraes871/factoRverse"</span><span class="op">)</span></span></code></pre></div>
+<div class="section level3">
+<h3 id="system-requirements">System requirements<a class="anchor" aria-label="anchor" href="#system-requirements"></a>
+</h3>
+<p>Two workflows rely on external toolchains that are not installed automatically with the package:</p>
+<ul>
+<li>
+<strong>Neural-network signal blending</strong> needs Python with TensorFlow and Keras, configured through the <code>tensorflow</code>/<code>keras</code> packages. After installing <code>factoRverse</code>, run <code><a href="https://rdrr.io/pkg/keras/man/install_keras.html" class="external-link">keras::install_keras()</a></code> once to set up a compatible Python environment.</li>
+<li>
+<strong>Hierarchical Bayesian signal selection</strong> needs a working C++ toolchain and Stan, provided through <code>brms</code> (on Windows, install Rtools; see the <code>brms</code> and <code>rstan</code> installation guides).</li>
+</ul>
+<p>All other workflows (characteristic portfolios, non-Bayesian signal selection, tree- and linear-model signal blending, and portfolio construction) work without these extras.</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="a-tour-of-the-four-workflows">A tour of the four workflows<a class="anchor" aria-label="anchor" href="#a-tour-of-the-four-workflows"></a>
 </h2>
-<p>The snippets below sketch the public API end to end. They are illustrative (the data objects are assumed to already exist); fully runnable, self-contained examples live in the package vignettes.</p>
+<p>The snippets below sketch the public API end to end. They are illustrative (the data objects are assumed to already exist); see the function reference on the <a href="https://pauloguimaraes871.github.io/factoRverse/">package website</a> or the individual help pages (e.g. <code><a href="reference/run_port_backtest.html">?run_port_backtest</a></code>) for argument-level detail.</p>
 <div class="section level3">
 <h3 id="id_0-feature-engineering--point-in-time-preprocessing">0. Feature engineering &amp; point-in-time preprocessing<a class="anchor" aria-label="anchor" href="#id_0-feature-engineering--point-in-time-preprocessing"></a>
 </h3>

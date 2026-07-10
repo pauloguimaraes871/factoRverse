@@ -25,24 +25,24 @@ and Characteristics-Based Signals*. R package version 0.4.8,
 Guimaraes P, Kimura H (2026). “The Factor Zoo Revisited: Multiple
 Testing, Hierarchical Modelling, and Out-of-Sample Evidence from
 Emerging Markets.” SSRN working paper,
-<https://ssrn.com/abstract=REPLACE_WITH_SSRN_ID>.
+<https://papers.ssrn.com/sol3/papers.cfm?abstract_id=6628840>.
 
     @Unpublished{,
       title = {The Factor Zoo Revisited: Multiple Testing, Hierarchical Modelling, and Out-of-Sample Evidence from Emerging Markets},
       author = {Paulo Guimaraes and Herbert Kimura},
       year = {2026},
       note = {SSRN working paper},
-      url = {https://ssrn.com/abstract=REPLACE_WITH_SSRN_ID},
+      url = {https://papers.ssrn.com/sol3/papers.cfm?abstract_id=6628840},
     }
 
 Guimaraes P (2025). “Man vs Machine: Can AI-Based Stock-Picking
 Outperform Human Skill?” SSRN working paper,
-<https://ssrn.com/abstract=REPLACE_WITH_SSRN_ID>.
+<https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5333150>.
 
     @Unpublished{,
       title = {Man vs Machine: Can AI-Based Stock-Picking Outperform Human Skill?},
       author = {Paulo Guimaraes},
       year = {2025},
       note = {SSRN working paper},
-      url = {https://ssrn.com/abstract=REPLACE_WITH_SSRN_ID},
+      url = {https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5333150},
     }
