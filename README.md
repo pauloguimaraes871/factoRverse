@@ -1,7 +1,7 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-# factoRverse
+# factoRverse <img src="inst/images/factoRverse.jpeg" align="right" height="139" alt="factoRverse logo" />
 
 <!-- badges: start -->
 
@@ -18,30 +18,25 @@ MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.or
 > learning, and build cost- and constraint-aware portfolios — all
 > through one consistent, auditable interface.
 
-<figure>
-<img src="inst/images/factoRverse.jpeg" alt="Beware the factoRverse" />
-<figcaption aria-hidden="true">Beware the factoRverse</figcaption>
-</figure>
-
 `factoRverse` takes a factor strategy from raw firm-level data all the
 way to a deployable portfolio. It packages the modern asset-pricing
-workflow — anomaly construction, the multiple-testing / factor-zoo
-debate, signal blending, and risk-based portfolio construction — into
+workflow (anomaly construction, the multiple-testing / factor-zoo
+debate, signal blending, and risk-based portfolio construction) into
 small, composable, testable functions, with strict guardrails against
 the two cardinal sins of backtesting: **look-ahead bias** and
 **survivorship bias**.
 
 It is built around the **metafactor** idea: at any point in time an
 equity factor investor must decide *which* signals to use, *how* to
-process them, and *how* to combine them — so the package lets you blend
+process them, and *how* to combine them, so the package lets you blend
 not only signals, but also signal-blending methods themselves, all the
 way up to meta-ensembles.
 
 ## Why factoRverse? — *FactorOps*
 
 If Databricks frames MLOps as *DevOps + DataOps + ModelOps*,
-`factoRverse` adds **PortOps** — the deployment of portfolios given
-signals developed through models — and calls the whole thing
+`factoRverse` adds **PortOps**: the deployment of portfolios given
+signals developed through models, and calls the whole thing
 **FactorOps**. In practice this means the package is built for
 reproducibility and auditing, not just computation:
 
@@ -212,14 +207,14 @@ ss_results <- run_ss_backtest(
 ```
 
 For the Bayesian route, set `p_correction_method = "bayesian"` and
-attach `add_bayesian_model_parameters()` — priors can be user-defined or
+attach `add_bayesian_model_parameters()`. Priors can be user-defined or
 estimated from an exogenous global dataset.
 
 ### 3. Signal blending — from heuristics to machine learning
 
 Combine the *selected* signals into one score per stock. Treat signals
 as assets (equal-weight, risk parity, HRP, MVO), or predict returns with
-ML — `glmnet`, `ranger`, `xgboost`, `keras` — all behind one interface,
+ML (`glmnet`, `ranger`, `xgboost`, `keras`), all behind one interface,
 one tuning API (grid / random / Bayesian optimization), and one
 walk-forward scheme.
 
@@ -251,7 +246,7 @@ to end via global-surrogate feature importance and
 ### 4. Deploying the blended signal
 
 The out-of-sample blended score feeds straight back into the portfolio
-engine — now with the full machinery of concentration, turnover and
+engine: now with the full machinery of concentration, turnover and
 liquidity constraints, signal shrinkage, transaction costs, an auditable
 trade log, and portfolio methods from equal-weight to the novel
 micro–macro allocation framework (MMAF).
@@ -271,7 +266,7 @@ final_bt <- run_port_backtest(
 
 Hyperparameter tuning and hierarchical Bayesian signal selection are
 parallelized via the [`future`](https://future.futureverse.org/)
-framework — choose a backend with `future::plan()`
+framework. Choose a backend with `future::plan()`
 (e.g. `future::plan(future::multisession)`).
 
 ## Learn more
