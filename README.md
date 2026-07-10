@@ -1,7 +1,7 @@
 
 <!-- README.md is generated from README.Rmd. Please edit that file -->
 
-# factoRverse <img src="inst/images/factoRverse.jpeg" align="right" height="139" alt="factoRverse logo" />
+# factoRverse <img src="inst/images/factoRverse.png" align="right" height="139" alt="factoRverse logo" />
 
 <!-- badges: start -->
 
@@ -20,17 +20,24 @@ auditable interface.
 
 `factoRverse` takes a factor strategy from raw firm-level data all the
 way to a deployable portfolio. It packages the modern asset-pricing
-workflow (anomaly construction, the multiple-testing / factor-zoo
-debate, signal blending, and risk-based portfolio construction) into
+workflow (clean and realistic anomaly construction, the multiple-testing / factor-zoo
+debate, signal blending through Machine-Learning or the classical way, and 
+multiple and out-of-sample robust portfolio construction methods) into
 small, composable, testable functions, with strict guardrails against
 the two cardinal sins of backtesting: **look-ahead bias** and
 **survivorship bias**.
 
-It is built around the **metafactor** idea: at any point in time an
-equity factor investor must decide *which* signals to use, *how* to
-process them, and *how* to combine them, so the package lets you blend
-not only signals, but also signal-blending methods themselves, all the
-way up to meta-ensembles.
+It is built around the **metabackesting** idea: at any point in time an
+equity factor investor must decide not only *which* signals to use, but
+*how* to process, select and combine them. Therefore, the package helps with 
+experimenting full and deployable end-to-end systems, instead of simple backtests.
+By providing modular functions and S4 objects, all the needed steps for developing
+a quantitative multifactor strategy are easy to implement and test: feature engineering,
+data pre-processing, portfolio construction, strategy selection and signal blending (including
+Machine-Learning and Meta-Ensembling). 
+Everything is already built for financial time series data, in a walk-forward point-in-time
+manner. 
+
 
 ## Why factoRverse? (FactorOps)
 
@@ -42,7 +49,7 @@ reproducibility and auditing, not just computation:
 
 - **Every artifact carries its own history.** The core S4 objects
   (`meta_dataframe`, `meta_xts`, and the `*_results` objects) store a
-  `workflow` slot recording exactly which steps produced them, so any
+  `workflow` slot recording exactly which steps produced them and when, so any
   table or backtest can be traced back to its inputs.
 - **Configuration is modular and swappable.** Each workflow is driven by
   a config object you build with a fluent `create_*_config() |> add_*()`
