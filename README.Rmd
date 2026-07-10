@@ -106,11 +106,29 @@ You can install the development version of `factoRverse` from
 devtools::install_github("pauloguimaraes871/factoRverse")
 ```
 
+### System requirements
+
+Two workflows rely on external toolchains that are not installed
+automatically with the package:
+
+- **Neural-network signal blending** needs Python with TensorFlow and Keras,
+  configured through the `tensorflow`/`keras` packages. After installing
+  `factoRverse`, run `keras::install_keras()` once to set up a compatible
+  Python environment.
+- **Hierarchical Bayesian signal selection** needs a working C++ toolchain and
+  Stan, provided through `brms` (on Windows, install Rtools; see the `brms`
+  and `rstan` installation guides).
+
+All other workflows (characteristic portfolios, non-Bayesian signal selection,
+tree- and linear-model signal blending, and portfolio construction) work
+without these extras.
+
 ## A tour of the four workflows
 
 The snippets below sketch the public API end to end. They are illustrative
-(the data objects are assumed to already exist); fully runnable, self-contained
-examples live in the package vignettes.
+(the data objects are assumed to already exist); see the function reference on the
+[package website](https://pauloguimaraes871.github.io/factoRverse/) or the individual
+help pages (e.g. `?run_port_backtest`) for argument-level detail.
 
 ### 0. Feature engineering & point-in-time preprocessing
 

@@ -15,8 +15,7 @@ bibentry(
   author  = c(person("Paulo", "Guimaraes"), person("Herbert", "Kimura")),
   year    = "2026",
   note    = "SSRN working paper",
-  # TODO: replace with the paper's SSRN abstract URL
-  url     = "https://ssrn.com/abstract=REPLACE_WITH_SSRN_ID"
+  url     = "https://papers.ssrn.com/sol3/papers.cfm?abstract_id=6628840"
 )
 
 bibentry(
@@ -25,6 +24,5 @@ bibentry(
   author  = person("Paulo", "Guimaraes"),
   year    = "2025",
   note    = "SSRN working paper",
-  # TODO: replace with the paper's SSRN abstract URL (and confirm the year)
-  url     = "https://ssrn.com/abstract=REPLACE_WITH_SSRN_ID"
+  url     = "https://papers.ssrn.com/sol3/papers.cfm?abstract_id=5333150"
 )
