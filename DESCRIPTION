@@ -91,6 +91,7 @@ Collate:
     'compute_window.R'
     'constructors.R'
     'estimate_covariance_matrix.R'
+    'factoRverse-package.R'
     'get_best_lambda.R'
     'helper-col_match.R'
     'instructions.R'
