@@ -3,42 +3,40 @@
 \docType{class}
 \name{bayesian_opt_strategy-class}
 \alias{bayesian_opt_strategy-class}
-\title{Bayesian Opt Tuning Strategy}
+\title{Bayesian Optimization Tuning Strategy}
 \description{
-A subclass of \code{tuning_strategy} that implements bayesian optimization.
+Subclass of \code{\link{tuning_strategy-class}} for Bayesian optimization
+via \code{ParBayesianOptimization::bayesOpt()}.
 }
 \section{Slots}{
 
 \describe{
-\item{\code{tuning_method}}{Character string indicating the hyperparameter tuning method ('grid_search', 'random_search', or 'bayesian_opt').}
+\item{\code{n_iter}}{Numeric. Number of evaluations after the initialization phase.}
 
-\item{\code{validation_sample_size}}{Numeric value representing the size of the validation sample. If provided a decimal, it will be set based on proportion of training sample size.}
+\item{\code{acq}}{Character. Acquisition function: \code{"ucb"} (default),
+\code{"ei"}, or \code{"poi"}.}
 
-\item{\code{chosen_eval_metric}}{Character or NULL, specifying the evaluation metric to be optimized.}
+\item{\code{init_points}}{Numeric. Number of initial random points; must exceed
+the number of hyperparameters being tuned.}
 
-\item{\code{hyper_grid_domain}}{An object of class \code{hyper_grid_domain}, representing the hyperparameter domain based on which tuning will be performed.
-It contains a list slot \code{hyperparameter_list} with the hyperparameters relevant to the specified machine learning algorithm.
-The structure of this list depends on the specified tuning method:
-\itemize{
-\item \strong{For grid search:} Must be a list of named vectors:
-\item \strong{For random search:} Must be a list of named lists, where each named list contains:
-\itemize{
-\item \code{distribution_choice}: A character string specifying the distribution (one of "normal", "uniform", "lognormal", "constant").
-\item \code{pars}: A named numeric vector of parameters corresponding to the chosen distribution.
-\item \code{value}: A numeric value (only present if \code{distribution_choice} is "constant").
+\item{\code{k_iter}}{Numeric. Number of times to sample the scoring function per
+epoch. Must be \code{<= n_iter}, and, when running in parallel, is best
+set to a multiple of the number of cores (and preferably of \code{n_iter}).}
+}}
+
+\section{\code{hyper_grid_domain} shape}{
+
+\code{hyper_grid_domain@hyperparameter_list} must be a list of named
+numeric vectors of length 2, one per hyperparameter, giving its
+\code{c(lower, upper)} bounds.
 }
-\item \strong{For Bayesian optimization:} Must be a list of named numeric vectors, each of length 2, representing the boundaries for the hyperparameters.
-}}
 
-\item{\code{early_stop}}{Sets a halting criteria to prevent overfitting in xgb and nn.}
+\section{Validity}{
 
-\item{\code{n_iter}}{For bayesian_opt, it should be the number of times the ml algorithm will be evaluated after initialization.}
+In addition to the checks inherited from \code{\link{tuning_strategy-class}},
+\code{acq} must be one of \code{"ucb"}, \code{"ei"}, or \code{"poi"}.
+}
 
-\item{\code{acq}}{Acquisition function for Bayesian optimization: "ucb", "ei", or "poi".}
-
-\item{\code{init_points}}{Number of initial random points for Bayesian optimization.}
-
-\item{\code{k_iter}}{Integer that specifies the number of times to sample eval_function at each Epoch during Bayesian optimization.
-If the intention is running in parallel, set k_iter to a multiple of the number of cores. Must be lower and preferably a multiple of n_iter.}
-}}
-
+\seealso{
+\code{\link{tuning_strategy-class}} for the inherited slots.
+}

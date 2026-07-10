@@ -31,8 +31,6 @@ compute_sector_map_across(meta_dataframe, meta_xts, sector_column, mapper, ...)
 }
 \value{
 A modified \code{meta_dataframe} with the new column containing computed values.
-
-A modified \code{meta_dataframe} with the new column containing computed values.
 }
 \description{
 This function assigns values from a \code{meta_xts} object to a new column in a \code{meta_dataframe}
@@ -46,4 +44,13 @@ The function:
 \item Extracts values from \code{meta_xts} based on \code{dates}
 \item Applies optional transformations per sector
 }
+}
+\examples{
+\dontrun{
+# For each stock, pull a sector-specific column from the metrics xts and transform it
+mapper <- list(Agro = ~ -A, Utilities = ~ B)
+meta_df <- compute_sector_map_across(meta_df, metrics_xts,
+                                     sector_column = "sector", mapper = mapper)
+}
+
 }

@@ -9,10 +9,13 @@
 \arguments{
 \item{x}{An object of class \code{ss_backtest_config} with a \code{bayesian_alpha_test_strategy} alpha test strategy.}
 
-\item{palette}{A character string specifying the color palette to use for the plots. Default is "cyberpunk". Supported options include "cyberpunk", "neon", and "extended_neon".}
+\item{palette}{A character string specifying the color palette. \code{"cyberpunk"} produces a dark theme; any other value produces a light theme. Default is \code{"cyberpunk"}.}
 
 \item{...}{Additional arguments (currently unused).}
 }
 \description{
-Plots the distribution curves for each prior in the \code{bayesian_model_parameters} inside a \code{ss_backtest_config} object.
+Plots the distribution curves (normal, student_t, cauchy, lognormal, beta, or exponential) for
+each user prior in \code{x@alpha_test_strategy@bayesian_model_parameters@user_priors}. \code{"lkj"} correlation
+priors and unparseable/unsupported prior strings are skipped with a message. Requires a \code{bayesian_alpha_test_strategy}
+with non-empty \code{user_priors}; otherwise prints a message and returns invisibly.
 }

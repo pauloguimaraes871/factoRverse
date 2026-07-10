@@ -3,29 +3,86 @@
 \docType{class}
 \name{signal_universe_m_df-class}
 \alias{signal_universe_m_df-class}
-\title{Define the signal_universe_m_df S4 Class}
+\alias{signal_universe_m_df}
+\title{signal_universe_m_df-class}
 \description{
-This class inherits from \code{meta_dataframe} and enforces that the underlying data adheres to the output of a signal selection backtest workflow.
+\code{signal_universe_m_df} stores performance summaries for a set of signals (each row = one signal/strategy).
+It inverts the usual \code{meta_dataframe} layout: instead of each row being a stock-date observation and
+columns being signals/features, each row is a signal/strategy and columns are performance metrics or attributes
+(e.g. IR, alpha, p_value, theme, is_eligible). This object is the canonical input/output for functions that
+summarize, rank and select signals after backtests (for example \code{summarize_performance()}, selection heuristics,
+or meta-model training).
+}
+\details{
+An S4 subclass of \code{meta_dataframe} that represents a universe of backtested signals (strategies).
+\itemize{
+\item The parent-class structural rules still apply: \code{data} must be a \code{data.frame} whose first three columns are
+\code{id}, \code{tickers}, \code{dates} (here \code{tickers} typically stores the signal identifier or strategy name,
+and \code{dates} represents the evaluation date for the performance metrics). The \code{id} column is expected to be
+\code{paste0(tickers, "-", dates)} so objects remain compatible with the rest of the package.
+\item Typical performance columns: \code{IR}, \code{alpha}, \code{alpha_se}, \code{p_value}, \code{turnover}, \code{theme},
+\code{benchmark_return}, etc.
+\item Eligibility-related columns:
+\itemize{
+\item \code{pre_eligible_signals} — logical (or integer 0/1) indicating whether the signal passed initial, signal-level filters (data sufficiency, minimum history, etc.).
+\item \code{is_eligible} — logical indicating final eligibility for selection in signal-selection pipelines (after rules, thresholds, and cross-signal constraints are applied).
+\item \code{eligibility_reason} (optional) — character describing why a signal was excluded (if present).
+}
+\item Use \code{summarize_performance()} (or the package helper that builds signal universes) to construct valid objects;
+low-level creation must still respect \code{meta_dataframe} validation (id/tickers/dates ordering, types, uniqueness).
+}
 }
 \section{Slots}{
 
 \describe{
-\item{\code{ss_backtest_workflow}}{An \code{ANY} object storing the signal selection backtest workflow.}
+\item{\code{data}}{A \code{data.frame} where each row is a backtested signal/strategy and columns are performance metrics, attributes and eligibility flags.}
 
-\item{\code{data}}{A \code{data.frame} storing signal metrics and metadata.}
+\item{\code{ss_backtest_workflow}}{\code{ANY}: the signal-selection backtest workflow metadata attached to this universe (may be \code{NULL}).}
 
-\item{\code{workflow}}{A \code{list} capturing preprocessing or backtesting steps.}
+\item{\code{workflow}}{Inherited: history of steps that produced the signal-universe (e.g. backtest parameters, resampling choices).}
 
-\item{\code{signals}}{A \code{character} vector of signal column names.}
+\item{\code{signals}}{Inherited: typically identifies which columns to treat as signal identifiers or the metrics of interest.}
 
-\item{\code{unique_dates}}{A \code{numeric} count of unique dates in the data.}
+\item{\code{unique_dates}}{Inherited: number of distinct dates.}
 
-\item{\code{unique_tickers}}{A \code{numeric} count of unique tickers in the data.}
+\item{\code{unique_tickers}}{Inherited: number of distinct signal identifiers.}
 
-\item{\code{n_obs}}{A \code{numeric} value for total number of observations.}
+\item{\code{n_obs}}{Inherited: total number of rows (signals).}
 
-\item{\code{current_date}}{A \code{Date} representing the latest available date.}
+\item{\code{current_date}}{Inherited: reference/current date for the object.}
 
-\item{\code{meta_dataframe_name}}{A \code{character} name label for the object.}
+\item{\code{meta_dataframe_name}}{Inherited: short identifier for the object.}
 }}
 
+\examples{
+\dontrun{
+df <- data.frame(
+  id = c("earnings_yield-2026-07-01", "free_cash_flow_yield-2026-07-01"),
+  tickers = c("earnings_yield", "free_cash_flow_yield"), # here: signal names
+  dates = as.Date(c("2026-07-01", "2026-07-01")),
+  IR = c(1.2, 0.8),
+  alpha = c(0.015, 0.008),
+  p_value = c(0.02, 0.10),
+  theme = c("Value", "Value"),
+  pre_eligible_signals = c(TRUE, TRUE),
+  is_eligible = c(TRUE, FALSE),
+  stringsAsFactors = FALSE
+)
+
+su <- new(
+  "signal_universe_m_df",
+  data = df,
+  workflow = list(step = "summarize_performance()"),
+  signals = c("earnings_yield","free_cash_flow_yield"),
+  unique_dates = length(unique(df$dates)),
+  unique_tickers = length(unique(df$tickers)),
+  n_obs = nrow(df),
+  current_date = Sys.Date(),
+  meta_dataframe_name = "signal_universe_example"
+)
+}
+
+}
+\seealso{
+\code{\link{meta_dataframe-class}}, \code{\link{summarize_performance}}, \code{\link{run_sb_backtest}}
+}

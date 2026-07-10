@@ -29,11 +29,11 @@ add_hyperparameter(object, hyperparameter, ...)
 )
 }
 \arguments{
-\item{object}{A \code{tuning_strategy} or a \code{hyper_grid_domain} object.}
+\item{object}{A \code{hyper_grid_domain}, a \code{tuning_strategy} (or subclass:
+\code{grid_search_strategy}, \code{random_search_strategy}, \code{bayesian_opt_strategy}),
+or a \code{sb_backtest_config} object.}
 
-\item{hyperparameter}{A vector of characters indicating the name of the hyperparameter to be added.}
-
-\item{...}{Additional arguments for the hyperparameter.
+\item{hyperparameter}{A character vector naming the hyperparameter(s) to add. Options are:
 \itemize{
 \item \strong{glmnet}: alpha, lambda.min.ratio
 \item \strong{rf}: mtry, num.trees, max.depth, min.bucket
@@ -41,32 +41,64 @@ add_hyperparameter(object, hyperparameter, ...)
 \item \strong{nn}: regularizer_l1, regularizer_l2, droprate, lr, size_of_batch, number_of_epochs
 }}
 
-\item{new_hyperparameter_list}{Used to pass new_hyperparameters_list after specific method at tuning_strategy level.}
+\item{...}{Method-specific arguments: \code{grid} (grid search), \code{distribution_choice}/\code{pars}
+(random search), \code{bounds} (Bayesian optimization), or \code{new_hyperparameter_list}
+(bare \code{hyper_grid_domain}) -- see the individual methods below.}
 
-\item{grid}{A numeric vector or list of numeric vectors for grid search values (only used for grid_search).}
+\item{new_hyperparameter_list}{A named list of already-shaped hyperparameter
+entries. Names matching existing entries in \code{object@hyperparameter_list}
+overwrite them; other existing names are preserved.}
 
-\item{distribution_choice}{A character vector indicating the distribution to sample from (only used for random_search).}
+\item{grid}{A numeric vector (single hyperparameter) or list of numeric vectors
+(one per name in \code{hyperparameter}, same order) giving the exact values to try.}
 
-\item{pars}{A numeric named vector or list of numeric named vectors specifying parameter values (only used for random_search).}
+\item{distribution_choice}{Character vector, one of \code{"uniform"}, \code{"normal"},
+\code{"lognormal"}, or \code{"constant"} per hyperparameter in \code{hyperparameter}.}
 
-\item{bounds}{A vector of length 2 indicating minimum and maximum bounds for each hyperparameter (only used for bayesian_opt).}
+\item{pars}{A named numeric vector (or list of them, one per hyperparameter)
+with the parameters for the chosen distribution (\code{c(min, max)}, \code{c(mean, sd)},
+\code{c(meanlog, sdlog)}), or the constant value itself when \code{distribution_choice = "constant"}.}
+
+\item{bounds}{A numeric vector of length 2 (\code{c(lower, upper)}), or a list of such
+vectors (one per hyperparameter in \code{hyperparameter}, same order).}
 }
 \value{
-A \code{hyper_grid_domain} object with the updated hyperparameters.
+The input object with \code{hyperparameter_list} (nested inside \code{hyper_grid_domain}
+for the strategy/config methods) updated: names shared with the existing list are
+overwritten, others are added, and everything already present under an unrelated
+name is left untouched.
 }
 \description{
-This generic function adds a new hyperparameter to an existing \code{hyper_grid_domain} object. The function is overloaded to handle different types of hyperparameters for different machine learning algorithms.
+Adds (or, for a name already present, upserts) one or more hyperparameters
+in a \code{hyper_grid_domain}, dispatching on where it lives: a bare
+\code{hyper_grid_domain}, a \code{tuning_strategy} subclass (\code{grid_search_strategy},
+\code{random_search_strategy}, \code{bayesian_opt_strategy}), or a \code{sb_backtest_config}.
 }
 \section{Functions}{
 \itemize{
-\item \code{add_hyperparameter(hyper_grid_domain)}: Add hyperparameter to \code{hyper_grid_domain} object
+\item \code{add_hyperparameter(hyper_grid_domain)}: Upsert entries directly into a \code{hyper_grid_domain}'s \code{hyperparameter_list}.
 
-\item \code{add_hyperparameter(grid_search_strategy)}: Add hyperparameter to \code{grid_search_strategy} object
+This is the merge primitive the \code{grid_search_strategy}/\code{random_search_strategy}/
+\code{bayesian_opt_strategy} methods below delegate to after building a properly
+shaped \code{new_hyperparameter_list} from their own \code{hyperparameter}/\code{grid}/
+\code{distribution_choice}/\code{pars}/\code{bounds} arguments. It can also be called
+directly if you already have the hyperparameter list in the shape
+\code{\link{tuning_strategy-class}} expects for the target \code{tuning_method}.
 
-\item \code{add_hyperparameter(random_search_strategy)}: Add hyperparameter to \code{random_search_strategy} object
+\item \code{add_hyperparameter(grid_search_strategy)}: Add/upsert hyperparameter(s) in a \code{grid_search_strategy}'s \code{hyper_grid_domain}.
 
-\item \code{add_hyperparameter(bayesian_opt_strategy)}: Add hyperparameter to \code{bayesian_opt_strategy} object
+\item \code{add_hyperparameter(random_search_strategy)}: Add/upsert hyperparameter(s) in a \code{random_search_strategy}'s \code{hyper_grid_domain}.
 
-\item \code{add_hyperparameter(sb_backtest_config)}: Add Hyperparameter to \code{sb_backtest_config} object
+There is no separate \code{value} argument for \code{distribution_choice = "constant"}:
+pass the constant through \code{pars} (it is stored internally as \code{value}).
+
+\item \code{add_hyperparameter(bayesian_opt_strategy)}: Add/upsert hyperparameter(s) in a \code{bayesian_opt_strategy}'s \code{hyper_grid_domain}.
+
+\item \code{add_hyperparameter(sb_backtest_config)}: Add/upsert hyperparameter(s) via a \code{sb_backtest_config}'s attached \code{tuning_strategy}.
+
+Delegates to whichever strategy-specific method matches \code{object@tuning_strategy}'s
+class; supply only the argument(s) relevant to that strategy's \code{tuning_method}
+(\code{grid}, \code{distribution_choice}/\code{pars}, or \code{bounds}) and leave the rest \code{NULL}.
+Requires \code{object@tuning_strategy} to already be set (see \code{add_tuning_strategy()}).
 
 }}

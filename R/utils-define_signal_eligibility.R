@@ -18,8 +18,8 @@
 #' @param enable_theme_representativeness Logical. If \code{TRUE}, ensures at least one signal per theme is selected, even if no signal passes the significance threshold, by choosing the signal with the highest alpha t-stat.
 #'
 #' @param model_structure A character string, either \code{"partial_pooled"} or \code{"no_pooled"}, indicating the type of model structure to use for mixed-effects estimation.
-#' @param theme_level_intercept A string specifying intercept structure at the theme level. Only relevant when \code{model_structure == "partial_pooled"}.
-#' @param theme_level_slope A string specifying slope structure at the theme level. Only relevant when \code{model_structure == "partial_pooled"}.
+#' @param theme_level_intercept A string specifying intercept structure at the theme level: one of \code{"random"}, \code{"theme_specific"}, or \code{"fixed"}. Only relevant when \code{model_structure == "partial_pooled"}; combined with \code{theme_level_slope} to build \code{model_spec_theme_level} (see \strong{Model Specifications at Theme Level} below).
+#' @param theme_level_slope A string specifying slope structure at the theme level: one of \code{"fixed"} or \code{"theme_specific"}. Only relevant when \code{model_structure == "partial_pooled"}.
 #' @param lmer_control A list of arguments passed to \code{lme4::lmer}. Expected components:
 #' \itemize{
 #'   \item \code{lmer_optimizer}: Optimization algorithm used (e.g., \code{"nloptwrap"}, \code{"bobyqa"}, \code{"Nelder_Mead"}, \code{"nlminbwrap"}).
@@ -29,7 +29,7 @@
 #'
 #' @param active_returns Logical. If \code{TRUE}, returns are adjusted by subtracting benchmark returns before computing performance metrics.
 #'
-#' @param priors_m_upd_ref A meta-dataframe used to derive informative priors. Must include columns: \code{id}, \code{characteristic}, \code{dates}, \code{theme}, \code{alpha}, \code{beta}, \code{sigma}. Should not be provided if \code{user_priors} is set.
+#' @param priors_m_upd_ref A meta-dataframe used to derive informative priors via \code{derive_informative_priors_from_data()}. Must include columns: \code{id}, \code{tickers}, \code{dates}, \code{return}, \code{market_factor_proxy}, \code{theme}. Should not be provided if \code{user_priors} is set.
 #' @param user_priors A list of \code{brms::set_prior()} objects manually defined by the user. Only used when \code{priors_m_upd_ref} is \code{NULL}.
 #'
 #' @param brms_control A list of parameters to control the Bayesian model fitting with \code{brms::brm}:
@@ -71,11 +71,13 @@
 #' }
 #'
 #' @section Model Specifications at Theme Level:
+#' \code{model_spec_theme_level} is built as \code{paste0(theme_level_intercept, "_intercept_", theme_level_slope, "_slope")}
+#' and must resolve to one of:
 #' \describe{
-#'   \item{\code{random_intercept}}{Includes a global intercept and random intercepts at the theme and signal level.}
-#'   \item{\code{fixed_intercepts}}{Uses fixed effects for themes and random effects for signals.}
-#'   \item{\code{fixed_intercepts_and_slopes}}{Includes fixed theme-wise intercepts and slopes, and random signal intercepts.}
-#'   \item{\code{none}}{Only signal-level random effects are modeled.}
+#'   \item{\code{random_intercept_fixed_slope}}{Random intercepts at the theme level, fixed (global) slope; random intercepts and slopes at the theme-signal level.}
+#'   \item{\code{theme_specific_intercept_fixed_slope}}{Fixed intercepts for each theme, fixed (global) slope; random intercepts and slopes at the theme-signal level.}
+#'   \item{\code{theme_specific_intercept_theme_specific_slope}}{Fixed intercepts and slopes for each theme; random intercepts and slopes at the theme-signal level.}
+#'   \item{\code{fixed_intercept_fixed_slope}}{A single fixed (global) intercept and slope; random intercepts and slopes at the theme-signal level only (no theme-level effect).}
 #' }
 #'
 define_signal_eligibility <- function(

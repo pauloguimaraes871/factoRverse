@@ -9,13 +9,17 @@
 \arguments{
 \item{object}{An object of class \code{port_backtest_cohort}.}
 
-\item{summary_id}{A character string or numeric value specifying which table to display.}
+\item{summary_id}{A character string (table name) or numeric index selecting the table to display. One of
+\code{"Raw Returns Summary"}, \code{"Net Returns Summary"}, \code{"Raw Active Returns Summary"},
+\code{"Net Active Returns Summary"}, \code{"Direct Cost Summary"}, \code{"Market Impact Cost Summary"},
+\code{"Total Cost Summary"}, \code{"Turnover Summary"}, \code{"Weights Summary"}, \code{"Metrics Summary"}, or
+\code{"Port Stats Summary"}. If \code{NULL}, an interactive menu is shown.}
 }
 \value{
 Invisibly returns the input \code{object}.
 }
 \description{
-Provides a detailed summary of \code{port_backtest_cohort} object.
-Users can select which summary table to display by specifying the \code{summary_id} parameter.
-The summary includes interactive tables styled using the \code{DT} package.
+Provides a detailed summary of a \code{port_backtest_cohort} object as an interactive, styled table
+(built with the \code{DT}, \code{htmltools}, and \code{htmlwidgets} packages, which must be installed). The table is selected
+via \code{summary_id} (a table name or its numeric index); if omitted, an interactive menu lists the options.
 }

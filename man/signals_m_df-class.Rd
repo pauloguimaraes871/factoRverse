@@ -3,7 +3,55 @@
 \docType{class}
 \name{signals_m_df-class}
 \alias{signals_m_df-class}
-\title{Define the signals_m_df S4 Class}
+\alias{signals_m_df}
+\title{signals_m_df-class}
 \description{
-This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to a signals meta_dataframe.
+\code{signals_m_df} inherits from \code{meta_dataframe} and tightens validation for modelling: the
+underlying \code{data} must contain no missing values (no NA in any column). This ensures downstream
+modelling functions (the \code{run_*} family) receive complete data.
+}
+\details{
+An S4 subclass of \code{meta_dataframe} that represents signal-ready data for modelling.
+
+All slots are inherited from \code{\link{meta_dataframe-class}}:
+\itemize{
+\item \code{data} : data.frame (first columns: \code{id}, \code{tickers}, \code{dates})
+\item \code{workflow} : list describing preprocessing steps
+\item \code{signals} : character vector of signal column names
+\item \code{unique_dates}, \code{unique_tickers}, \code{n_obs} : numeric summary slots
+\item \code{current_date} : Date
+\item \code{meta_dataframe_name} : character
+}
+}
+\section{Validity}{
+
+The validity method fails if any value in \code{data} is \code{NA}. Use your package constructor
+(e.g. \code{create_meta_dataframe()} then a conversion helper if provided) to build valid objects.
+}
+
+\examples{
+\dontrun{
+df <- data.frame(
+ id = c("A-2020-01-01", "B-2020-01-02"),
+ tickers = c("A", "B"),
+ dates = as.Date(c("2020-01-01","2020-01-02")),
+ s1 = c(0.1, 0.2),
+ stringsAsFactors = FALSE
+)
+new_obj <- new(
+  "signals_m_df",
+  data = df,
+  workflow = list(),
+  signals = "s1",
+  unique_dates = length(unique(df$dates)),
+  unique_tickers = length(unique(df$tickers)),
+  n_obs = nrow(df),
+  current_date = Sys.Date(),
+  meta_dataframe_name = "signals_example"
+)
+}
+
+}
+\seealso{
+\code{\link{meta_dataframe-class}}, \code{\link{is_coercible_to_meta_dataframe}}
 }

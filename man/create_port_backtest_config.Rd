@@ -52,10 +52,13 @@ create_port_backtest_config(
 \item{rebalancing_months}{A numeric vector (e.g., c(3,6,9,12)) indicating the months when the portfolio should be rebalanced.}
 
 \item{cov_est_method}{A \code{cov_est_method} object specifying the covariance estimation method and its parameters.
-If not provided, a default using method "sample", sample size 36, active returns = TRUE, and the provided selected_benchmark is created.}
+If not provided, a default is created using method "sample" and sample size 252; \code{active_returns} is set to \code{TRUE}
+(with \code{cov_matrix_benchmark = selected_benchmark}) when a \code{selected_benchmark} is supplied, and \code{FALSE} otherwise.}
 
 \item{port_construction_method}{A character string representing the portfolio construction method.
-Must be one of "ew", "sw", "cw", "cs", "rp", or "mvo".}
+Must be one of "ew" (equal-weight), "sw" (signal-weight), "cw" (cap-weight), "cs" (cap-scaled), "rp" (risk parity),
+"hrp" (hierarchical risk parity), "mvo" (mean-variance optimization), or "mmaf" (micro-macro allocation framework).
+"custom_weights" is not supported through this constructor.}
 
 \item{mvo_parameters}{An object of class \code{mvo_parameters} for mean-variance optimization. Only required if \code{port_construction_method} is "mvo".
 If missing and port_construction_method is "mvo", a default is created.}
@@ -63,9 +66,11 @@ If missing and port_construction_method is "mvo", a default is created.}
 \item{rp_parameters}{An object of class \code{rp_parameters} for risk parity portfolios. Only required if \code{port_construction_method} is "rp".
 If missing and port_construction_method is "rp", a default is created.}
 
-\item{hrp_parameters}{An object of class \code{hrp_parameters} for hierarchical risk parity portfolios. Only required if \code{port_construction_method} is "hrp".}
+\item{hrp_parameters}{An object of class \code{hrp_parameters} for hierarchical risk parity portfolios. Only required if \code{port_construction_method} is "hrp".
+If missing and port_construction_method is "hrp", a default is created.}
 
-\item{mmaf_parameters}{An object of class \code{mmaf_parameters} for micro-macro allocation framework portfolios. Only required if \code{port_construction_method} is "mmaf".}
+\item{mmaf_parameters}{An object of class \code{mmaf_parameters} for micro-macro allocation framework portfolios. Only required if \code{port_construction_method} is "mmaf".
+If missing and port_construction_method is "mmaf", a default is created (and \code{enable_group_representativeness} defaults to \code{TRUE}).}
 
 \item{main_liquidity_metric}{A character string indicating which liquidity metric (i.e. column in liquidity_m_df) to use.}
 
@@ -86,4 +91,29 @@ An object of class \code{port_backtest_config}.
 }
 \description{
 Constructs a \code{port_backtest_config} object containing all necessary parameters for backtesting stock-level portfolios.
+}
+\examples{
+# Minimal equal-weighted configuration driven by a single characteristic signal
+# (a book-yield tilt), rebalanced semi-annually after a 12-period buffer.
+config <- create_port_backtest_config(
+  chosen_score_metric_and_position = c(book_yield = "long"),
+  eligibility_quantile_range = c(0.8, 1.0),
+  initial_buffer_period = 12,
+  rebalancing_months = c(6, 12),
+  main_liquidity_metric = "mean_volfin_3m",
+  port_construction_method = "ew",
+  config_name = "ew_book_yield"
+)
+
+# Benchmark-relative risk-parity configuration: supplying a selected_benchmark
+# makes the default cov_est_method use active returns against that benchmark.
+rp_config <- create_port_backtest_config(
+  chosen_score_metric_and_position = c(book_yield = "long"),
+  selected_benchmark = "ibov",
+  initial_buffer_period = 12,
+  rebalancing_months = 12,
+  main_liquidity_metric = "mean_volfin_3m",
+  port_construction_method = "rp",
+  config_name = "rp_book_yield"
+)
 }

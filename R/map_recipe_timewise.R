@@ -1,10 +1,12 @@
 #' Map a Recipe to Sequential Dates
 #'
-#' This method maps recipes in a time-wise manner to a
-#' \code{meta_dataframe} object using the \code{recipe} supplied.
-#' For each date, the recipe is prepped and baked on the
-#' subset of data available at the specific date. This ensures that no future
-#' information is used during preprocessing.
+#' This method applies a \pkg{recipes} preprocessing pipeline in a time-wise (point-in-time) manner to a
+#' \code{meta_dataframe} object. For each date, the recipe is \code{recipes::prep()}-ed (estimating step
+#' parameters, e.g. imputation means, winsorization limits, dummy levels) and \code{recipes::bake()}-d on
+#' \strong{only} the cross-section of data available at that date. Because parameters are re-estimated per
+#' date rather than pooled across the whole panel, no future information leaks into preprocessing - the key
+#' difference from applying a recipe once to the entire dataset. This is what advances a \code{meta_dataframe}
+#' along the medallion path before it is handed to the \code{run_*} functions.
 #'
 #' Parallel processing is achieved using \code{furrr::future_map}; ensure that an appropriate
 #' future plan is set (e.g., \code{future::plan(future::multisession)}).
@@ -15,13 +17,25 @@
 #' \itemize{
 #'   \item The required meta columns (id, tickers, dates) are assigned the role \code{"id_vars"}.
 #'   \item All columns present in the \code{meta_dataframe} object have an assigned role in the recipe.
-#'   \item Target variables are preproessed separetely
+#'   \item Target variables are preprocessed separately (build a dedicated meta_dataframe with the appropriate \code{type}).
 #' }
 #' @param type A character string indicating the type of data to be preprocessed, to be passed to meta_dataframe. Default is \code{"signals"}.
 #' @param parallel A logical indicating whether to use parallel processing. Default is \code{TRUE}.
-#' @param verbose A logical indicating whether to print messages during the process. Default is \code{FALSE}.
+#' @param verbose A logical indicating whether to print messages during the process. Default is \code{TRUE}.
 #'
 #' @return A time-wise preprocessed \code{meta_dataframe}.
+#'
+#' @examples
+#' \dontrun{
+#' # Build a per-date recipe: identifier columns as id_vars, then impute + winsorize predictors
+#' rec <- recipes::recipe(panel@data) %>%
+#'   recipes::update_role(id, tickers, dates, new_role = "id_vars") %>%
+#'   recipes::update_role(recipes::all_numeric(), new_role = "predictor") %>%
+#'   recipes::step_impute_median(recipes::all_numeric_predictors()) %>%
+#'   step_winsorize(recipes::all_numeric_predictors(), probs = c(0.05, 0.95))
+#'
+#' silver <- map_recipe_timewise(panel, rec, parallel = FALSE, type = "generic")
+#' }
 #'
 #' @export
 setGeneric("map_recipe_timewise", function(meta_dataframe, recipe, verbose = TRUE, parallel = TRUE, type = "signals") {
@@ -191,6 +205,9 @@ setMethod("map_recipe_timewise",
 #' The actual winsorization limits are computed during the `prep()` phase using the quantiles of the training data.
 #' During the `bake()` phase, all values below the lower quantile threshold are replaced with that threshold,
 #' and values above the upper quantile threshold are similarly adjusted.
+#'
+#' @seealso \code{\link{map_recipe_timewise}} for applying a recipe (including this step) one date at a time;
+#'   \code{recipes::recipe}, \code{recipes::prep} and \code{recipes::bake} for the underlying framework.
 #'
 #' @importFrom recipes prep tidy bake
 #'
@@ -421,9 +438,12 @@ required_pkgs.step_winsorize <- function(x, ...) {
 
 
 # step_impute_sector-----------------------------------
-#' @title Prepare Step: step_impute_sector
-#' @description Prepares the `step_impute_sector` by computing mean or median values by sector for imputation.
-#' This function is called automatically during `prep()` on a recipe.
+#' @title Add step_impute_sector to a Recipe
+#' @description Adds a `step_impute_sector` step to a recipe. This step imputes missing values group-wise,
+#' replacing NAs in the selected columns with the sector-level mean or median. The imputation values are
+#' estimated during `prep()` (per sector) and applied during `bake()`.
+#'
+#' @seealso \code{\link{map_recipe_timewise}}; \code{recipes::step_impute_mean} for the ungrouped analogue.
 #'
 #' @param recipe A recipe object.
 #' @param ... Additional arguments passed to methods (not used).

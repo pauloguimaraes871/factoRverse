@@ -32,7 +32,7 @@ compute_sector_wise(
 
 \item{signal}{A \code{character} specifying the column name on which the function is computed.}
 
-\item{FUN}{A \code{character} specifying the function to apply. Options are "median", "mean", "sd", "skew", "sur", "signal_to_noise".}
+\item{FUN}{A \code{character} specifying the function to apply. Options are "median", "mean", "sd", "signal_to_noise".}
 
 \item{na.rm}{A \code{logical} indicating whether to remove NA values (default TRUE).}
 

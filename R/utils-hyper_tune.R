@@ -1,6 +1,6 @@
 #' Perform Hyperparameter Tuning for Machine Learning Models
 #'
-#' This function tunes hyperparameters of machine learning models using grid search, random search, or Bayesian optimization. It evaluates different hyperparameter combinations and returns the best-performing ones based on specified evaluation metrics.
+#' This function tunes hyperparameters of machine learning models using grid search, random search, or Bayesian optimization. It evaluates different hyperparameter combinations and returns the best-performing set, selected by maximizing the `Score` column from [calculate_eval_metrics()].
 #'
 #' @param tuning_method A character string specifying the tuning method. Possible values are `"random_search"`, `"grid_search"`, or `"bayesian_opt"`.
 #' @param ml_algorithm A character string indicating the machine learning algorithm to be used.
@@ -21,15 +21,15 @@
 #' @param k_iter An integer specifying the number of iterations for scoring function sampling in Bayesian optimization.
 #' @param acq A character string specifying the acquisition function for Bayesian optimization.
 #' @param keras_architecture_parameters A list of parameters specifying the architecture of the Keras model.
-#' @param parallel A logical indicating whether to perform the search in parallel. Default is TRUE.
-#' @param verbose A logical indicating whether to print detailed progress information. Default is FALSE.
+#' @param parallel A logical indicating whether to evaluate candidates in parallel (future backend).
+#' @param verbose A logical indicating whether to print timing and progress information.
 #'
 #' @return A list containing:
 #' \item{chosen_eval_metric_validation_current_date}{A data frame of evaluation metrics for each set of hyperparameters tried.}
 #' \item{optimal_hyper}{A named vector of the optimal hyperparameter values found.}
 #' \item{validation_eval_metrics_hyper_choice_current_date}{A named vector of evaluation metrics corresponding to the optimal hyperparameter set.}
 #'
-#'
+#' @seealso [set_eval_function()], [calculate_eval_metrics()]
 #'
 #' @export
 hyper_tune <- function(tuning_method, ml_algorithm, target_fwd_name,  #General Parameters

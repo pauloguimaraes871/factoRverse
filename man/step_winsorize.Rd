@@ -43,3 +43,7 @@ The actual winsorization limits are computed during the \code{prep()} phase usin
 During the \code{bake()} phase, all values below the lower quantile threshold are replaced with that threshold,
 and values above the upper quantile threshold are similarly adjusted.
 }
+\seealso{
+\code{\link{map_recipe_timewise}} for applying a recipe (including this step) one date at a time;
+\code{recipes::recipe}, \code{recipes::prep} and \code{recipes::bake} for the underlying framework.
+}

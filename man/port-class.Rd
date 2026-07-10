@@ -12,13 +12,13 @@ These classes encapsulate various parameters and constraints used in backtesting
 \section{Slots}{
 
 \describe{
-\item{\code{universe_m_df}}{A meta_dataframe containing the universe of assets.}
+\item{\code{universe_m_d_ref}}{A \code{meta_dataframe} containing the universe of assets, with weights and per-asset metrics attached.}
 
-\item{\code{port_construction_method}}{A \code{character} string specifying the method used to construct the portfolio. Must be one of: \code{c("ew", "sw", "cw", "cs", "rp", "mvo")}.}
+\item{\code{port_construction_method}}{A \code{character} string specifying the method used to construct the portfolio. Must be one of \code{c("ew", "sw", "cw", "cs", "rp", "hrp", "mvo", "mmaf", "custom_weights")}.}
 
 \item{\code{eligible_assets}}{A \code{character} vector of eligible assets for the portfolio.}
 
-\item{\code{exp_ret_score}}{The eligible assets expected return scores. Necessary if \code{port_construction_method \%in\% c("sw","cs","mvo")}.}
+\item{\code{exp_ret_score}}{The eligible assets expected return scores. Required when \code{port_construction_method} is \code{"sw"}, \code{"cs"} or \code{"mvo"}, and also for \code{"rp"}, \code{"hrp"} or \code{"mmaf"} when an \code{exp_ret_score} column is present in \code{universe_m_d_ref} (e.g. a risk-parity tilt).}
 
 \item{\code{covariance_matrix}}{The eligible assets covariance matrix of returns. Must have rownames identical to colnames and be symmetric.}
 
@@ -40,23 +40,21 @@ These classes encapsulate various parameters and constraints used in backtesting
 
 \item{\code{groups}}{An object for grouping assets (e.g., sectors).}
 
-\item{\code{group_weights}}{An object for storing group weights (used in MMAF).}
+\item{\code{group_col}}{A \code{character} naming the group column of \code{groups} used for macro/group aggregation (used in MMAF and group-level analytics).}
 
 \item{\code{mmaf_method}}{An object for storing the MMAF method (used in MMAF).}
 
-\item{\code{mmaf_group_col}}{An object for storing MMAF group colors (used in}
+\item{\code{group_cov_matrix}}{An object for storing the group covariance matrix (used in MMAF).}
 
-\item{\code{group_cov_matrix}}{An object for storing group covariance matrix (used in MMAF).}
+\item{\code{micro}}{An object for storing the micro-level portfolio (used in MMAF).}
 
-\item{\code{top_down_proxy_port_method}}{An object for storing the top-down proxy portfolio method (used in MMAF).}
-
-\item{\code{micro}}{An object for storing micro-level port (used in MMAF).}
-
-\item{\code{macro}}{An object for storing macro-level port (used in MMAF).}
+\item{\code{macro}}{An object for storing the macro-level portfolio (used in MMAF).}
 
 \item{\code{selected_benchmark_port}}{An object for storing the selected benchmark portfolio.}
 
-\item{\code{port_name}}{A \code{character} giving a unique name or label for the configuration.}
+\item{\code{port_stats}}{A one-row \code{data.frame} of portfolio (and, when applicable, group and active/benchmark-relative) analytics for this portfolio.}
+
+\item{\code{port_name}}{A \code{character} giving a unique name or label for the portfolio.}
 }}
 
 \section{port-class}{
@@ -78,8 +76,8 @@ when \code{port_construction_method} is \code{"sw"} or \code{"mvo"}.}
 
 Inherits from \code{port} and introduces:
 \describe{
-\item{\code{type}}{\code{character} specifying the portfolio subtype. Must
-\strong{not} be "signal_blend" or "single_signal" in this class.}
+\item{\code{type}}{\code{character} specifying the portfolio subtype. Must be one of
+"signal_blend", "single_signal" or "custom_weights".}
 \item{\code{main_liquidity_metric}}{\code{ANY} object specifying a liquidity metric;
 must be non-\code{NULL} when \code{port_construction_method} is \code{"cw"} or \code{"cs"}.}
 }

@@ -16,11 +16,19 @@
 \arguments{
 \item{x}{An object of class \code{port_backtest_results}.}
 
-\item{plot_id}{A character string or numeric value specifying which plot to display. If \code{NULL}, the user will be prompted.}
+\item{plot_id}{A character string (plot name) or numeric index specifying which plot to display; if \code{NULL}, an
+interactive menu is shown. One of \code{"Time-Series Weights by Tickers"}, \code{"Time-Series Weights by Stock Group"},
+\code{"Cross-Sectional Weights Statistic by Tickers"}, \code{"Cross-Sectional Weights Statistic by Stock Group"},
+\code{"Tile Heatmap of Weights by Tickers"}, \code{"Tile Heatmap of Weights by Stock Group"},
+\code{"Time-Series of Groups Composition"}, \code{"Time-Series of Expected Return Score by Tickers"},
+\code{"Time-Series of Expected Return Score by Stock Group"}, \code{"Time-Series of Expected Return Score by Eligibility"},
+\code{"Box-plot of Expected Return Score by Stock Group"}, \code{"Box-plot of Expected Return Score by Eligibility"},
+\code{"Plot Subjacent Final Port"}, \code{"Time-Series of Port Returns"}, \code{"Cross-Sectional Performance Metric Plot"},
+\code{"Time-Series of Transaction Costs"}, \code{"Time-Series of Port Metrics"}, or \code{"Port Stats"}.}
 
 \item{vertical_lines}{Optional. A vector of \code{Date} objects indicating vertical lines to display in time-series plots (e.g., rebalance dates). If \code{NULL}, the user will be prompted.}
 
-\item{palette}{A character string specifying the color palette to use for the plots. Options are "cyberpunk" (default) and "br". If an invalid option is provided, it will default to "cyberpunk".}
+\item{palette}{A character string specifying the color palette to use for the plots. Only \code{"cyberpunk"} (default) and \code{"br"} are supported; any other value leaves the plot colors undefined and raises an error.}
 
 \item{group_col}{Optional. A character string specifying the column name in the backtest results to use for grouping in certain plots. If \code{NULL}, the user will be prompted to select from available columns.}
 

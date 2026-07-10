@@ -23,7 +23,8 @@ create_sb_metabacktest_config(
 \arguments{
 \item{meta_sb_backtest_config}{A \code{sb_backtest_config} with the configuration for the meta learner.}
 
-\item{features_passthrough}{A character vector of features to pass through to the meta-learner.}
+\item{features_passthrough}{A character vector naming features from \code{features_m_df} to append to the
+meta-learner's inputs; or 'all' (all features) or 'none' (none). Default 'none'.}
 
 \item{...}{Additional arguments (not used).}
 
@@ -34,23 +35,22 @@ create_sb_metabacktest_config(
 \item{winsorize_base_predictions}{A logical value indicating whether to winsorize the base predictions.}
 }
 \value{
-A \code{sb_metabacktest_config} object containing all viable combinations of configs.
+An \code{sb_metabacktest_config} object.
 
-An \code{sb_metabacktest_config} object containing the provided sb_backtest objects.
+An \code{sb_metabacktest_config} object.
 }
 \description{
-The \code{create_sb_metabacktest_config} function creates an \code{sb_metabacktest_config} object by combining a \code{sb_backtest_config} for the meta-learner
-and a group of \code{sb_backtest_config} objects for the base learners.
-Those can be passed with our without a \code{ss_backtest_config} set. In this latter case, by passing
-a list of \code{ss_backtest_config} objects, the function will generate all possible combinations of configurations for running multiple backtests,
-possibly in parallel.
-Alternatively, the user can provide a list of \code{sb_backtest_results} directly to be used by the function.
+The \code{create_sb_metabacktest_config} function creates an \code{sb_metabacktest_config} object that configures a
+meta-learning (stacking) backtest. It wraps a single meta-learner \code{sb_backtest_config} together with the
+rules for assembling the meta feature set from base learners' out-of-sample predictions
+(\code{features_passthrough}, \code{normalize_base_predictions}, \code{winsorize_base_predictions}). The base learners
+themselves are supplied later, as a list of \code{sb_backtest_results}, to \code{\link[=run_sb_backtest]{run_sb_backtest()}}.
 }
 \section{Functions}{
 \itemize{
 \item \code{create_sb_metabacktest_config(
   meta_sb_backtest_config = sb_backtest_config,
   features_passthrough = character
-)}: Create meta config from ss_backtest_results
+)}: Create a meta-backtest config from a meta-learner \code{sb_backtest_config}.
 
 }}

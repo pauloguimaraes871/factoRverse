@@ -5,12 +5,25 @@
 \alias{hyper_grid_domain-class}
 \title{Define the \code{hyper_grid_domain} S4 Class}
 \description{
-This class represents parameters for defining the hyperparameter domain based on which tuning will be performed.
-It helps the user in correctly setting this object in the context of the \code{ml_walk_forward_validation} function.
+Holds the set of hyperparameters (and, once populated by
+\code{\link{add_hyperparameter}()}, their tuning-method-specific values) that
+\code{\link{hyper_tune}()} -- invoked internally by \code{\link{run_sb_backtest}()}
+-- will search over. This class only validates that hyperparameter \emph{names} are
+recognized; it does not check the \emph{shape} of their values (a numeric vector,
+a distribution spec, or a bounds pair) -- that shape check belongs to
+\code{\link{tuning_strategy-class}} and depends on the chosen \code{tuning_method}.
 }
 \section{Slots}{
 
 \describe{
-\item{\code{hyperparameter_list}}{A list with the hyperparameters relevant to the specified machine learning algorithm.}
+\item{\code{hyperparameter_list}}{A named list, one entry per hyperparameter, drawn from:
+\itemize{
+\item \strong{glmnet}: \code{alpha}, \code{lambda.min.ratio}
+\item \strong{rf}: \code{mtry}, \code{num.trees}, \code{max.depth}, \code{min.bucket}
+\item \strong{xgb}: \code{min_child_weight}, \code{max_depth}, \code{subsample},
+\code{colsample_bytree}, \code{eta}, \code{gamma}, \code{nrounds}
+\item \strong{nn}: \code{regularizer_l1}, \code{regularizer_l2}, \code{droprate},
+\code{lr}, \code{size_of_batch}, \code{number_of_epochs}
+}}
 }}
 

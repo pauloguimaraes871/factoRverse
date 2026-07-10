@@ -29,10 +29,10 @@ In special, make sure that:
 \itemize{
 \item The required meta columns (id, tickers, dates) are assigned the role \code{"id_vars"}.
 \item All columns present in the \code{meta_dataframe} object have an assigned role in the recipe.
-\item Target variables are preproessed separetely
+\item Target variables are preprocessed separately (build a dedicated meta_dataframe with the appropriate \code{type}).
 }}
 
-\item{verbose}{A logical indicating whether to print messages during the process. Default is \code{FALSE}.}
+\item{verbose}{A logical indicating whether to print messages during the process. Default is \code{TRUE}.}
 
 \item{parallel}{A logical indicating whether to use parallel processing. Default is \code{TRUE}.}
 
@@ -42,13 +42,28 @@ In special, make sure that:
 A time-wise preprocessed \code{meta_dataframe}.
 }
 \description{
-This method maps recipes in a time-wise manner to a
-\code{meta_dataframe} object using the \code{recipe} supplied.
-For each date, the recipe is prepped and baked on the
-subset of data available at the specific date. This ensures that no future
-information is used during preprocessing.
+This method applies a \pkg{recipes} preprocessing pipeline in a time-wise (point-in-time) manner to a
+\code{meta_dataframe} object. For each date, the recipe is \code{recipes::prep()}-ed (estimating step
+parameters, e.g. imputation means, winsorization limits, dummy levels) and \code{recipes::bake()}-d on
+\strong{only} the cross-section of data available at that date. Because parameters are re-estimated per
+date rather than pooled across the whole panel, no future information leaks into preprocessing - the key
+difference from applying a recipe once to the entire dataset. This is what advances a \code{meta_dataframe}
+along the medallion path before it is handed to the \code{run_*} functions.
 }
 \details{
 Parallel processing is achieved using \code{furrr::future_map}; ensure that an appropriate
 future plan is set (e.g., \code{future::plan(future::multisession)}).
+}
+\examples{
+\dontrun{
+# Build a per-date recipe: identifier columns as id_vars, then impute + winsorize predictors
+rec <- recipes::recipe(panel@data) \%>\%
+  recipes::update_role(id, tickers, dates, new_role = "id_vars") \%>\%
+  recipes::update_role(recipes::all_numeric(), new_role = "predictor") \%>\%
+  recipes::step_impute_median(recipes::all_numeric_predictors()) \%>\%
+  step_winsorize(recipes::all_numeric_predictors(), probs = c(0.05, 0.95))
+
+silver <- map_recipe_timewise(panel, rec, parallel = FALSE, type = "generic")
+}
+
 }

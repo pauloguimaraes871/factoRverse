@@ -2,18 +2,18 @@
 % Please edit documentation in R/print_methods.R
 \name{show,groups_m_df-method}
 \alias{show,groups_m_df-method}
-\title{Show Method for meta_dataframe Class}
+\title{Show Method for groups_m_df Class}
 \usage{
 \S4method{show}{groups_m_df}(object)
 }
 \arguments{
-\item{object}{An instance of the \code{meta_dataframe} class.}
+\item{object}{An instance of the \code{groups_m_df} class.}
 }
 \value{
 The method returns the object invisibly.
 }
 \description{
-This method displays a summary of the \code{meta_dataframe} object, including
-sb_backtest_workflow information, number of signals, unique dates, unique tickers,
-total observations, and the first few rows of the data.
+This method displays a summary of the \code{groups_m_df} object, including its name, the grouping columns and
+their count, the distinct classifications within each grouping column, the unique dates and tickers, the
+total number of observations, and the first few rows of the data.
 }

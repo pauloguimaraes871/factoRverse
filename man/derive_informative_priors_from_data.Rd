@@ -18,17 +18,18 @@ derive_informative_priors_from_data(
 \item \code{id}: Identifier for each observation.
 \item \code{tickers}: tickers corresponding to individual securities or instruments.
 \item \code{dates}: Date of each observation.
-\item \code{theme}: Theme associated with each signal, used for clustering in the hierarchical Bayesian model (e.g., "value", "growth").
-\item \code{active_returns}: Excess returns of a signal over its benchmark.
-\item \code{benchmark_returns}: Returns of the benchmark associated with each signal.
+\item \code{return}: Return of the signal at that date.
+\item \code{market_factor_proxy}: Market factor proxy return at that date.
+\item \code{theme}: Theme associated with each signal, used for clustering in the hierarchical Bayesian model (e.g., "value", "growth"). Each ticker must be uniquely linked to a single theme.
 }
 The data frame should only include observations up to the current date.}
 
 \item{model_spec_theme_level}{A character string indicating the structure of the hierarchical Bayesian model. This parameter controls the specification of parameters at the \code{theme} level, assuming tickers are uniquely nested within each theme. Options include:
 \itemize{
-\item \code{"random_intercept"}: Random effects on the \code{theme}-level intercept. Includes random intercepts for themes and both random intercepts and slopes for each theme-signal combination. This captures variability at both levels.
-\item \code{"fixed_intercepts"}: Fixed intercepts for each \code{theme}, with a global slope for the market factor proxy. Nested variability within themes is modeled using random intercepts and slopes for theme-signal combinations.
-\item \code{"fixed_intercepts_and_slopes"}: Fixed intercepts and slopes for each \code{theme}. Includes interaction terms between themes and the market factor proxy, with random intercepts for tickers.
+\item \code{"random_intercept_fixed_slope"}: Random effects on the \code{theme}-level intercept, fixed (global) slope. Includes random intercepts for themes and both random intercepts and slopes for each theme-signal combination.
+\item \code{"theme_specific_intercept_fixed_slope"}: Fixed intercepts for each \code{theme}, with a global slope for the market factor proxy. Nested variability within themes is modeled using random intercepts and slopes for theme-signal combinations.
+\item \code{"theme_specific_intercept_theme_specific_slope"}: Fixed intercepts and slopes for each \code{theme}, via interaction terms between themes and the market factor proxy, plus random intercepts and slopes for theme-signal combinations.
+\item \code{"fixed_intercept_fixed_slope"}: A single fixed (global) intercept and slope, with random intercepts and slopes for theme-signal combinations only (no theme-level fixed or random intercept/slope).
 }}
 
 \item{half_t_df}{A numeric indicating the degrees of freedom in the half-t distribution to be applied to model random effects.
@@ -58,7 +59,7 @@ The function uses frequentist linear mixed-effects models to estimate parameters
 \item Correlation priors for random effects are modeled using the LKJ (Lewandowski-Kurowicka-Joe) distribution.
 }
 \subsection{Model Specifications at Theme Level}{
-\subsection{\code{random_intercept}}{
+\subsection{\code{random_intercept_fixed_slope}}{
 
 This model includes:
 \itemize{
@@ -71,7 +72,7 @@ The model equation is:
 See the detailed breakdown in the example section.
 }
 
-\subsection{\code{fixed_intercepts}}{
+\subsection{\code{theme_specific_intercept_fixed_slope}}{
 
 This model includes:
 \itemize{
@@ -83,16 +84,27 @@ The model equation is:
 \deqn{y_{i} = \sum_{k} \beta_{k} \cdot \text{theme}_{k,i} + \beta_{m} \cdot x_{i} + b_{0,g_{i}} + b_{1,g_{i}} \cdot x_{i} + \epsilon_{i}}
 }
 
-\subsection{\code{fixed_intercepts_and_slopes}}{
+\subsection{\code{theme_specific_intercept_theme_specific_slope}}{
 
 This model includes:
 \itemize{
 \item Fixed intercepts and slopes for each \code{theme}.
-\item Interaction terms between themes and the market factor proxy.
-\item Random intercepts for tickers.
+\item Interaction terms between themes and the market factor proxy (no separate global slope term).
+\item Random intercepts and slopes for theme-signal combinations.
 }
 The model equation is:
-\deqn{y_{it} = \sum_k \beta_k \cdot \text{theme}_{k,i} + \sum_k \gamma_k \cdot \text{theme}_{k,i} \cdot x_{it} + \beta_m \cdot X_{it} + b_{0,i} + \epsilon_{it}}
+\deqn{y_{it} = \sum_k \beta_k \cdot \text{theme}_{k,i} + \sum_k \gamma_k \cdot \text{theme}_{k,i} \cdot x_{it} + b_{0,g_{i}} + b_{1,g_{i}} \cdot x_{it} + \epsilon_{it}}
+}
+
+\subsection{\code{fixed_intercept_fixed_slope}}{
+
+This model includes:
+\itemize{
+\item A single fixed (global) intercept and slope for the market factor proxy (no theme-level fixed effect).
+\item Random intercepts and slopes for theme-signal combinations.
+}
+The model equation is:
+\deqn{y_{it} = \beta_0 + \beta_1 \cdot x_{it} + b_{0,g_{i}} + b_{1,g_{i}} \cdot x_{it} + \epsilon_{it}}
 }
 
 }

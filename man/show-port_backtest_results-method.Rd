@@ -13,7 +13,8 @@
 The object is returned invisibly.
 }
 \description{
-Displays a detailed summary of the \code{port_backtest_results} object,
-including workflow metadata, portfolio construction details, date and stock information,
-performance metrics (if available), and the final stock portfolio.
+Displays a detailed summary of the \code{port_backtest_results} object, including the backtest
+identifier, configuration (config name, construction method, chosen score/position, selected benchmark),
+date information, stock-universe size, performance information (portfolio-return means, plus custom
+portfolio-metric means when a \code{port_metrics_m_xts} is available), and the final stock portfolio.
 }

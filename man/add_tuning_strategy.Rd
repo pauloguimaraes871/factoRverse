@@ -4,7 +4,7 @@
 \alias{add_tuning_strategy}
 \alias{add_tuning_strategy,sb_backtest_config,tuning_strategy-method}
 \alias{add_tuning_strategy,sb_backtest_config,missing-method}
-\title{Add a \code{tuning_strategy} to an existing \code{sb_backtest_config}.}
+\title{Add a \code{tuning_strategy} to an Existing \code{sb_backtest_config}}
 \usage{
 add_tuning_strategy(object, tuning_strategy, ...)
 
@@ -27,24 +27,26 @@ add_tuning_strategy(object, tuning_strategy, ...)
 \arguments{
 \item{object}{A \code{sb_backtest_config} object.}
 
-\item{tuning_strategy}{\code{NULL}, indicating that a new \code{tuning_strategy} should be created.}
+\item{tuning_strategy}{\code{NULL}; a new \code{tuning_strategy} is created from the remaining arguments.}
 
-\item{...}{Additional arguments required to create a new \code{tuning_strategy}, only needed when tuning_strategy is \code{NULL}.}
+\item{...}{Parameters forwarded to \code{create_tuning_strategy()} when \code{tuning_strategy} is missing
+(\code{tuning_method}, \code{validation_sample_size}, \code{chosen_eval_metric}, \code{hyper_grid_domain},
+\code{early_stop}, \code{n_iter}, \code{acq}, \code{init_points}, \code{k_iter}).}
 
 \item{tuning_method}{Character string indicating the hyperparameter tuning method. Must be one of 'grid_search', 'random_search', or 'bayesian_opt'.}
 
 \item{validation_sample_size}{Numeric value representing the size of the validation sample.}
 
-\item{chosen_eval_metric}{Character or \code{NULL}, specifying the evaluation metric to be optimized.}
+\item{chosen_eval_metric}{Character or \code{NULL}; see Details. If provided, must be one of
+\code{"rss"}, \code{"rmse"}, \code{"cp"}, \code{"mae"}, \code{"mphe"}, \code{"mpe"}, \code{"mape"}, \code{"hr"}, \code{"mb"}.}
 
-\item{hyper_grid_domain}{An object of class \code{hyper_grid_domain}, or \code{NULL}.
-If \code{NULL}, additional parameters must be provided to create a new \code{tuning_strategy}.}
+\item{hyper_grid_domain}{An object of class \code{hyper_grid_domain}, or \code{NULL} to start with an empty one.}
 
 \item{early_stop}{Optional, stopping criteria for early termination. Can be of any type.}
 
 \item{n_iter}{Numeric, number of iterations for 'random_search' or 'bayesian_opt'.}
 
-\item{acq}{Character string specifying the acquisition function for Bayesian optimization (for 'bayesian_opt' only).}
+\item{acq}{Character string specifying the acquisition function for Bayesian optimization (for 'bayesian_opt' only). Defaults to \code{"ucb"}.}
 
 \item{init_points}{Numeric, number of initial random points for Bayesian optimization (for 'bayesian_opt' only).}
 
@@ -58,8 +60,9 @@ The updated \code{sb_backtest_config} object with the provided \code{tuning_stra
 An updated \code{sb_backtest_config} object with a newly created \code{grid_search_strategy}, \code{random_search_strategy}, or \code{bayesian_opt_strategy}, depending on the selected \code{tuning_method}.
 }
 \description{
-This generic function adds an existing \code{tuning_strategy} object or creates a new one if none is provided
-(i.e., when tuning_strategy is \code{NULL}).
+Attaches a hyperparameter tuning strategy to a \code{sb_backtest_config},
+either by supplying an existing \code{tuning_strategy} object or by supplying
+the parameters needed to build one on the fly.
 }
 \section{Functions}{
 \itemize{
@@ -68,10 +71,19 @@ This generic function adds an existing \code{tuning_strategy} object or creates 
   tuning_strategy = tuning_strategy
 )}: Add an existing \code{tuning_strategy} to the \code{sb_backtest_config}.
 
-This method adds a pre-existing \code{tuning_strategy} to the \code{sb_backtest_config}. It replaces any existing tuning strategy in the experiment.
+Replaces any existing tuning strategy. If \code{tuning_strategy@validation_sample_size}
+is in \verb{(0, 1)}, it is rescaled to an absolute count as
+\code{round(validation_sample_size * object@training_sample_size)} before being stored.
+Only blocks \code{sb_algorithm == "ols"}; unlike the sibling method below, it does not
+check for other heuristic (non-ML) algorithms.
 
 \item \code{add_tuning_strategy(object = sb_backtest_config, tuning_strategy = missing)}: Create and add a new \code{tuning_strategy} to the \code{sb_backtest_config}.
 
-This method is used when \code{tuning_strategy} is \code{NULL}. It creates a new tuning strategy based on the provided parameters and adds it to the \code{sb_backtest_config}.
+Builds a \code{tuning_strategy} via \code{create_tuning_strategy()} and attaches it. If
+\code{chosen_eval_metric} is \code{NULL}, it is inferred from \code{object@custom_objective}
+(\code{"pseudo_huber_error"} -> \code{"mphe"}, \code{"quantile_error"} -> \code{"quantile_loss"},
+\code{"absolute_error"} -> \code{"mae"}, otherwise \code{"rmse"}). \code{validation_sample_size}
+in \verb{(0, 1)} is rescaled the same way as in the \code{tuning_strategy}-signature method.
+Errors if \code{object@sb_algorithm} is a heuristic (non-ML) algorithm that does not require tuning.
 
 }}

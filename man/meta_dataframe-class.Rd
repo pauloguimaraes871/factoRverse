@@ -3,36 +3,101 @@
 \docType{class}
 \name{meta_dataframe-class}
 \alias{meta_dataframe-class}
-\title{Define the \code{meta_dataframe} S4 Class}
+\alias{meta_dataframe}
+\title{meta_dataframe-class}
 \description{
-This class represents a sb_backtest_workflow-enhanced data frame. It extends the functionality
-of a standard data frame by including additional sb_backtest_workflow slots. The class is designed
-to ensure that the input data frame adheres to specific structural requirements, including
-unique identifiers, valid date formats, and unique column names.
+The \code{meta_dataframe} class encapsulates a \code{data.frame} together with metadata and a
+recorded workflow of preprocessing and feature-engineering steps used in the factoRverse
+backtesting pipeline. It enforces a strict table layout and several validation rules to ensure
+downstream methods (imputation, normalization, portfolio construction, signal blending, etc.)
+receive a well-formed input.
 }
 \details{
-The \code{meta_dataframe} class ensures that the data frame is structured correctly with the required columns,
-and includes sb_backtest_workflow about the data. The \code{signals} slot holds the names of columns representing various signals.
-The \code{unique_dates}, \code{unique_tickers}, and \code{n_obs} slots store the sb_backtest_workflow related to the number of unique dates,
-tickers, and total observations respectively.
+An S4 container that wraps a data.frame with backtest workflow metadata and structural validation.
+
+This class is intended as the canonical input for the package's preprocessing, modeling, and
+backtesting methods. Storing both the raw table (\code{data}) and a reproducible \code{workflow}
+history enables reproducible pipelines and safe application of subsequent transforms.
+
+Use the package constructor (e.g. \code{create_meta_dataframe()}) when available; it will populate
+slots and run validation. The low-level S4 constructor \code{new("meta_dataframe", ...)} may be
+used for testing but must satisfy all validation rules.
 }
 \section{Slots}{
 
 \describe{
-\item{\code{data}}{A \code{data.frame} containing the actual data.}
+\item{\code{data}}{A \code{data.frame} containing the actual tabular observations. Required first columns:
+\code{id}, \code{tickers}, \code{dates}.}
 
-\item{\code{workflow}}{A \code{list} for storing sb_backtest_workflow about the data manipulation workflow.}
+\item{\code{workflow}}{A list (typically a sb_backtest_workflow object or plain \code{list}) recording the
+sequence of preprocessing / modeling steps applied to the \code{data}. Each element should
+describe one operation (name, parameters, timestamp, etc.).}
 
-\item{\code{signals}}{A \code{character} vector containing the names of columns that represent signals.}
+\item{\code{signals}}{A \code{character} vector with the names of columns in \code{data} that are
+considered signals (features, targets, groupings, etc.).}
 
-\item{\code{unique_dates}}{A \code{numeric} value representing the count of unique dates in the data.}
+\item{\code{unique_dates}}{Numeric: number of distinct dates present in \code{data}.}
 
-\item{\code{unique_tickers}}{A \code{numeric} value representing the count of unique tickers in the data.}
+\item{\code{unique_tickers}}{Numeric: number of distinct tickers present in \code{data}.}
 
-\item{\code{n_obs}}{A \code{numeric} value representing the total number of observations in the data.}
+\item{\code{n_obs}}{Numeric: total number of observations (rows) in \code{data}.}
 
-\item{\code{current_date}}{A \code{Date} object representing the current date.}
+\item{\code{current_date}}{A \code{Date} object representing the reference/current date for the object.}
 
-\item{\code{meta_dataframe_name}}{A \code{character} value representing the name of the meta_dataframe.}
+\item{\code{meta_dataframe_name}}{A short \code{character} identifier for this meta_dataframe instance.}
 }}
 
+\section{Key validation rules}{
+
+\itemize{
+\item The underlying \code{data} must be a \code{data.frame}.
+\item The first three columns of \code{data} must be exactly \code{id}, \code{tickers}, \code{dates}
+in that order.
+\item \code{tickers} must be a character vector; \code{dates} must be of class \code{Date}; \code{id}
+must be character and equal to \code{paste0(tickers, "-", dates)}.
+\item Rows must be ordered by \code{id} (alphabetical order) and \code{dates} must be non-decreasing.
+\item Column names (variable names) must be unique and must not include the prefix \code{"low_"} in any
+\code{signals} (this prefix breaks certain backtesting routines).
+\item The validity function also calls \code{is_coercible_to_meta_dataframe()} which prints helpful
+messages when coercion checks fail.
+}
+}
+
+\examples{
+\dontrun{
+# Assume create_meta_dataframe() is the user-facing constructor
+df <- data.frame(
+  id = c("A-2020-01-01", "B-2020-01-02"),
+  tickers = c("A", "B"),
+  dates = as.Date(c("2020-01-01", "2020-01-02")),
+  signal1 = c(0.1, -0.2),
+  stringsAsFactors = FALSE
+)
+
+mdf <- create_meta_dataframe(
+  data = df,
+  workflow = list(),
+  signals = c("signal1"),
+  meta_dataframe_name = "example_mdf"
+)
+
+# low-level creation (not recommended unless you ensure validation)
+new_mdf <- new(
+  "meta_dataframe",
+  data = df,
+  workflow = list(),
+  signals = "signal1",
+  unique_dates = length(unique(df$dates)),
+  unique_tickers = length(unique(df$tickers)),
+  n_obs = nrow(df),
+  current_date = Sys.Date(),
+  meta_dataframe_name = "example_lowlevel"
+)
+}
+
+}
+\seealso{
+\code{\link{is_coercible_to_meta_dataframe}}, \code{\link{create_meta_dataframe}},
+related S4 classes: \code{raw_features_m_df}, \code{signals_m_df}, \code{target_m_df},
+\code{groups_m_df}, \code{priors_m_df}.
+}

@@ -3,7 +3,7 @@
 \docType{class}
 \name{sb_backtest_results-class}
 \alias{sb_backtest_results-class}
-\title{S4 Class for Time Series Walk-Forward Validation Results of Machine-Learning Models}
+\title{S4 Class for Time Series Walk-Forward Validation Results of Signal-Blending Models}
 \value{
 An S4 object of class \code{sb_backtest_results} containing all the specified results and sb_backtest_workflow.
 }
@@ -41,4 +41,12 @@ information about the model, data, tuning process, and performance metrics.
 
 \item{\code{backtest_identifier}}{A character string that identifies the backtest.}
 }}
+
+\section{Validity}{
+
+When non-\code{NULL}: \code{sb_backtest_config} must be a \code{sb_backtest_config};
+\code{final_sb_model} a \code{sb_model}; \code{final_gsm} an \code{lm} or \code{rpart};
+\code{feature_importance_m_df}/\code{final_feature_importance_m_d_ref} a \code{meta_dataframe};
+the \code{*_m_xts} slots \code{meta_xts} objects. (Model/importance slots may be empty in an update.)
+}
 

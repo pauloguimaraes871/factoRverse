@@ -11,9 +11,10 @@ experiment, including the hyperparameter tuning strategy, algorithm parameters, 
 \section{Slots}{
 
 \describe{
-\item{\code{sb_algorithm}}{Character string specifying the signal-blending algorithm to be used. Should be one of
-ew (Equal Weight), sw (Signal Weighting), rp (Risk Parity) or mvo (Mean Variance Optimization),
-ols (Ordinary Least Squares), glmnet (Elastic Net), rf (Random Forest), xgb (eXtreme Gradient Boosting), and nn (Keras Neural Networks).}
+\item{\code{sb_algorithm}}{Character string specifying the signal-blending algorithm. One of
+ew (Equal Weight), sw (Signal Weighting), rp (Risk Parity), hrp (Hierarchical Risk Parity),
+mvo (Mean-Variance Optimization), mmaf (Micro-Macro Allocation Framework), custom_weights,
+ols (Ordinary Least Squares), glmnet (Elastic Net), rf (Random Forest), xgb (eXtreme Gradient Boosting), or nn (Keras Neural Network).}
 
 \item{\code{target_fwd_name}}{Name of the target variable in \code{target_m_df}.}
 
@@ -27,8 +28,11 @@ ols (Ordinary Least Squares), glmnet (Elastic Net), rf (Random Forest), xgb (eXt
 
 \item{\code{rebalancing_months}}{Months (numeric) when model should be rebalanced (refit).}
 
-\item{\code{custom_objective}}{Character string specifying the custom objective function ('squared_error', 'pseudo_huber_error', 'absolute_error') or NULL.
-Custom objective  should be a double differentiable loss function and is only applicable for xgboost and nn algorithms.}
+\item{\code{custom_objective}}{Character string specifying the objective. For ML algorithms: one of
+'squared_error', 'pseudo_huber_error', 'absolute_error' (a twice-differentiable loss; non-'squared_error'
+choices only apply to 'xgb'/'nn'). For heuristic portfolio algorithms ('sw', 'rp', 'hrp', 'mvo', 'mmaf'):
+a 'max_'/'min_' prefix + a heuristic performance metric present in \code{signal_universe_m_df}
+(see \code{display_valid_custom_objectives()}). May be NULL.}
 
 \item{\code{keras_architecture_parameters}}{An object of class \code{keras_architecture_parameters} or NULL, providing parameters specific to keras-based neural networks.
 It includes:
@@ -48,4 +52,15 @@ It includes:
 
 \item{\code{config_name}}{A character string to identify the configuration.}
 }}
+
+\section{Validity}{
+
+\itemize{
+\item \code{sb_algorithm} must be one of the 12 supported algorithms.
+\item \code{chosen_signals_and_positions} must be \code{"all"} or a named vector of \code{"long"}/\code{"short"}.
+\item \code{tuning_strategy} is required for ML algorithms and forbidden for \code{ols}/heuristic algorithms; hyperparameter names must match the algorithm.
+\item \code{early_stop} only for \code{xgb}/\code{nn}; \code{keras_architecture_parameters} only for \code{nn}; \code{signal_port_parameters} only for \code{rp}/\code{hrp}/\code{mvo}/\code{mmaf}.
+\item \code{split_method} must be \code{"expanding"}; \code{rebalancing_months} in 1--12; \code{quantile_tau} in (0,1); \code{huber_delta} > 0.
+}
+}
 

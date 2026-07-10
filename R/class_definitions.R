@@ -8,30 +8,93 @@ setOldClass("recipe")
 
 #meta_dataframe------------------------------------------------------
 
-#' Define the `meta_dataframe` S4 Class
+#' meta_dataframe-class
 #'
-#' This class represents a sb_backtest_workflow-enhanced data frame. It extends the functionality
-#' of a standard data frame by including additional sb_backtest_workflow slots. The class is designed
-#' to ensure that the input data frame adheres to specific structural requirements, including
-#' unique identifiers, valid date formats, and unique column names.
+#' An S4 container that wraps a data.frame with backtest workflow metadata and structural validation.
 #'
-#' @slot data A \code{data.frame} containing the actual data.
-#' @slot workflow A \code{list} for storing sb_backtest_workflow about the data manipulation workflow.
-#' @slot signals A \code{character} vector containing the names of columns that represent signals.
-#' @slot unique_dates A \code{numeric} value representing the count of unique dates in the data.
-#' @slot unique_tickers A \code{numeric} value representing the count of unique tickers in the data.
-#' @slot n_obs A \code{numeric} value representing the total number of observations in the data.
-#' @slot current_date A \code{Date} object representing the current date.
-#' @slot meta_dataframe_name A \code{character} value representing the name of the meta_dataframe.
+#' @description
+#' The \code{meta_dataframe} class encapsulates a \code{data.frame} together with metadata and a
+#' recorded workflow of preprocessing and feature-engineering steps used in the factoRverse
+#' backtesting pipeline. It enforces a strict table layout and several validation rules to ensure
+#' downstream methods (imputation, normalization, portfolio construction, signal blending, etc.)
+#' receive a well-formed input.
+#'
+#' @section Key validation rules:
+#' - The underlying \code{data} must be a \code{data.frame}.
+#' - The first three columns of \code{data} must be exactly \code{id}, \code{tickers}, \code{dates}
+#'   in that order.
+#' - \code{tickers} must be a character vector; \code{dates} must be of class \code{Date}; \code{id}
+#'   must be character and equal to \code{paste0(tickers, "-", dates)}.
+#' - Rows must be ordered by \code{id} (alphabetical order) and \code{dates} must be non-decreasing.
+#' - Column names (variable names) must be unique and must not include the prefix \code{"low_"} in any
+#'   \code{signals} (this prefix breaks certain backtesting routines).
+#' - The validity function also calls \code{is_coercible_to_meta_dataframe()} which prints helpful
+#'   messages when coercion checks fail.
+#'
+#' @slot data A \code{data.frame} containing the actual tabular observations. Required first columns:
+#'   \code{id}, \code{tickers}, \code{dates}.
+#' @slot workflow A list (typically a sb_backtest_workflow object or plain \code{list}) recording the
+#'   sequence of preprocessing / modeling steps applied to the \code{data}. Each element should
+#'   describe one operation (name, parameters, timestamp, etc.).
+#' @slot signals A \code{character} vector with the names of columns in \code{data} that are
+#'   considered signals (features, targets, groupings, etc.).
+#' @slot unique_dates Numeric: number of distinct dates present in \code{data}.
+#' @slot unique_tickers Numeric: number of distinct tickers present in \code{data}.
+#' @slot n_obs Numeric: total number of observations (rows) in \code{data}.
+#' @slot current_date A \code{Date} object representing the reference/current date for the object.
+#' @slot meta_dataframe_name A short \code{character} identifier for this meta_dataframe instance.
 #'
 #' @details
-#' The \code{meta_dataframe} class ensures that the data frame is structured correctly with the required columns,
-#' and includes sb_backtest_workflow about the data. The \code{signals} slot holds the names of columns representing various signals.
-#' The \code{unique_dates}, \code{unique_tickers}, and \code{n_obs} slots store the sb_backtest_workflow related to the number of unique dates,
-#' tickers, and total observations respectively.
+#' This class is intended as the canonical input for the package's preprocessing, modeling, and
+#' backtesting methods. Storing both the raw table (\code{data}) and a reproducible \code{workflow}
+#' history enables reproducible pipelines and safe application of subsequent transforms.
 #'
+#' Use the package constructor (e.g. \code{create_meta_dataframe()}) when available; it will populate
+#' slots and run validation. The low-level S4 constructor \code{new("meta_dataframe", ...)} may be
+#' used for testing but must satisfy all validation rules.
 #'
-#' @export
+#' @examples
+#' \dontrun{
+#' # Assume create_meta_dataframe() is the user-facing constructor
+#' df <- data.frame(
+#'   id = c("A-2020-01-01", "B-2020-01-02"),
+#'   tickers = c("A", "B"),
+#'   dates = as.Date(c("2020-01-01", "2020-01-02")),
+#'   signal1 = c(0.1, -0.2),
+#'   stringsAsFactors = FALSE
+#' )
+#'
+#' mdf <- create_meta_dataframe(
+#'   data = df,
+#'   workflow = list(),
+#'   signals = c("signal1"),
+#'   meta_dataframe_name = "example_mdf"
+#' )
+#'
+#' # low-level creation (not recommended unless you ensure validation)
+#' new_mdf <- new(
+#'   "meta_dataframe",
+#'   data = df,
+#'   workflow = list(),
+#'   signals = "signal1",
+#'   unique_dates = length(unique(df$dates)),
+#'   unique_tickers = length(unique(df$tickers)),
+#'   n_obs = nrow(df),
+#'   current_date = Sys.Date(),
+#'   meta_dataframe_name = "example_lowlevel"
+#' )
+#' }
+#'
+#' @seealso
+#' \code{\link{is_coercible_to_meta_dataframe}}, \code{\link{create_meta_dataframe}},
+#' related S4 classes: \code{raw_features_m_df}, \code{signals_m_df}, \code{target_m_df},
+#' \code{groups_m_df}, \code{priors_m_df}.
+#'
+#' @name meta_dataframe-class
+#' @rdname meta_dataframe-class
+#' @aliases meta_dataframe
+#' @exportClass meta_dataframe
+#'
 setClass("meta_dataframe",
          slots = c(
            data = "data.frame",        # Slot for the data frame
@@ -55,21 +118,93 @@ setClass("meta_dataframe",
          })
 
 
-#' Define the raw_features_m_df S4 Class
+#' raw_features_m_df-class
 #'
-#' This class inherits from \code{meta_dataframe} and enforces that the underlying data is a product of using create_meta_dataframe to list.
+#' An S4 subclass of \code{meta_dataframe} representing raw feature tables.
 #'
-#' @export
+#' @description
+#' Inherits all slots and behavior from \code{\link{meta_dataframe-class}} but adds no extra validity checks.
+#' Use for intermediate/raw outputs (may contain NA) produced by \code{create_meta_dataframe()} or similar constructors.
+#'
+#' @details
+#' All slots are inherited (data, workflow, signals, unique_dates, unique_tickers, n_obs, current_date, meta_dataframe_name).
+#'
+#' @examples
+#' \dontrun{
+#' new(
+#'   "raw_features_m_df",
+#'   data = df,
+#'   workflow = list(),
+#'   signals = character(),
+#'   unique_dates = length(unique(df$dates)),
+#'   unique_tickers = length(unique(df$tickers)),
+#'   n_obs = nrow(df),
+#'   current_date = Sys.Date(),
+#'   meta_dataframe_name = "raw_features"
+#' )
+#' }
+#'
+#' @seealso \code{\link{meta_dataframe-class}}, \code{\link{signals_m_df-class}}
+#' @name raw_features_m_df-class
+#' @rdname raw_features_m_df-class
+#' @aliases raw_features_m_df
+#' @exportClass raw_features_m_df
 setClass(
   "raw_features_m_df",
   contains = "meta_dataframe"
 )
 
-#' Define the signals_m_df S4 Class
+#' signals_m_df-class
 #'
-#' This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to a signals meta_dataframe.
+#' An S4 subclass of \code{meta_dataframe} that represents signal-ready data for modelling.
 #'
-#' @export
+#' @description
+#' \code{signals_m_df} inherits from \code{meta_dataframe} and tightens validation for modelling: the
+#' underlying \code{data} must contain no missing values (no NA in any column). This ensures downstream
+#' modelling functions (the \code{run_*} family) receive complete data.
+#'
+#' @details
+#' All slots are inherited from \code{\link{meta_dataframe-class}}:
+#' \itemize{
+#'  \item \code{data} : data.frame (first columns: \code{id}, \code{tickers}, \code{dates})
+#'  \item \code{workflow} : list describing preprocessing steps
+#'  \item \code{signals} : character vector of signal column names
+#'  \item \code{unique_dates}, \code{unique_tickers}, \code{n_obs} : numeric summary slots
+#'  \item \code{current_date} : Date
+#'  \item \code{meta_dataframe_name} : character
+#' }
+#'
+#' @section Validity:
+#' The validity method fails if any value in \code{data} is \code{NA}. Use your package constructor
+#' (e.g. \code{create_meta_dataframe()} then a conversion helper if provided) to build valid objects.
+#'
+#' @examples
+#' \dontrun{
+#' df <- data.frame(
+#'  id = c("A-2020-01-01", "B-2020-01-02"),
+#'  tickers = c("A", "B"),
+#'  dates = as.Date(c("2020-01-01","2020-01-02")),
+#'  s1 = c(0.1, 0.2),
+#'  stringsAsFactors = FALSE
+#' )
+#' new_obj <- new(
+#'   "signals_m_df",
+#'   data = df,
+#'   workflow = list(),
+#'   signals = "s1",
+#'   unique_dates = length(unique(df$dates)),
+#'   unique_tickers = length(unique(df$tickers)),
+#'   n_obs = nrow(df),
+#'   current_date = Sys.Date(),
+#'   meta_dataframe_name = "signals_example"
+#' )
+#' }
+#'
+#' @seealso \code{\link{meta_dataframe-class}}, \code{\link{is_coercible_to_meta_dataframe}}
+#' @name signals_m_df-class
+#' @rdname signals_m_df-class
+#' @aliases signals_m_df
+#' @exportClass signals_m_df
 setClass(
   "signals_m_df",
   contains = "meta_dataframe",
@@ -80,11 +215,64 @@ setClass(
   }
 )
 
-#' Define the signals_m_df S4 Class
+#' feature_importance_m_df-class
 #'
-#' This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to a signals meta_dataframe.
+#' An S4 subclass of \code{meta_dataframe} that holds feature-importance results produced by
+#' the package's signal-blending / interpretability pipeline.
 #'
-#' @export
+#' @description
+#' \code{feature_importance_m_df} inherits all slots and behavior from \code{\link{meta_dataframe-class}}.
+#' It is the canonical container for global-surrogate feature importance produced by \code{run_sb_backtest()}
+#' (the package's signal-blending backtest). Importance values are obtained from the chosen global surrogate
+#' model (e.g. OLS coefficients or tree variable.importance) and then normalized to produce
+#' \code{normalized_importance}.
+#'
+#' @details
+#' Valid objects must include at least two columns in \code{data}:
+#' \itemize{
+#'  \item \code{importance} — numeric importance measure (e.g. OLS coef, tree importance).
+#'  \item \code{normalized_importance} — numeric z-scored / standardized importance.
+#' }
+#' Typical additional columns produced by \code{run_sb_backtest()} and present in examples are
+#' \code{tickers}, \code{theme}, \code{is_eligible}, \code{dates}, and \code{id} (where
+#' \code{id = paste0(tickers, "-", dates)}). The validity method enforces presence of the two
+#' required importance columns; other slot checks come from the parent \code{meta_dataframe} class.
+#'
+#' @slot data A \code{data.frame} containing importance results (must include \code{importance} and \code{normalized_importance}).
+#' @slot workflow Inherited: list describing preprocessing and modeling steps that led to these results.
+#' @slot signals Inherited: typically the signal names considered when building the surrogate model.
+#' @slot unique_dates, unique_tickers, n_obs, current_date, meta_dataframe_name Inherited summary slots.
+#'
+#' @examples
+#' \dontrun{
+#' # Typical object produced by run_sb_backtest()
+#' # Here is a minimal manual construction for testing:
+#' df <- data.frame(
+#'   id = c("A-2026-07-01","B-2026-07-01"),
+#'   tickers = c("A","B"),
+#'   dates = as.Date(c("2026-07-01","2026-07-01")),
+#'   importance = c(0.5, -0.2),
+#'   normalized_importance = c(1.0, -1.0),
+#'   stringsAsFactors = FALSE
+#' )
+#' fi <- new(
+#'   "feature_importance_m_df",
+#'   data = df,
+#'   workflow = list(steps = "run_sb_backtest() (mock)"),
+#'   signals = c("A","B"),
+#'   unique_dates = length(unique(df$dates)),
+#'   unique_tickers = length(unique(df$tickers)),
+#'   n_obs = nrow(df),
+#'   current_date = Sys.Date(),
+#'   meta_dataframe_name = "fi_example"
+#' )
+#' }
+#'
+#' @seealso \code{\link{meta_dataframe-class}}, \code{\link{run_sb_backtest}}
+#' @name feature_importance_m_df-class
+#' @rdname feature_importance_m_df-class
+#' @aliases feature_importance_m_df
+#' @exportClass feature_importance_m_df
 setClass(
   "feature_importance_m_df",
   contains = "meta_dataframe",
@@ -95,11 +283,54 @@ setClass(
   }
 )
 
-#' Define the groups S4 Class
+#' groups_m_df-class
 #'
-#' This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to a grouping meta_dataframe.
+#' An S4 subclass of \code{meta_dataframe} for holding grouping/classification variables (e.g., sectors, themes).
 #'
-#' @export
+#' @description
+#' \code{groups_m_df} inherits from \code{\link{meta_dataframe-class}} and is intended for tables where one or
+#' more columns represent categorical groupings (for example sector, theme, or factor families).
+#' The \code{signals} slot lists the grouping column names to be validated.
+#'
+#' @section Validity:
+#' For every grouping column named in \code{signals}, the validity method counts distinct classifications
+#' per \code{tickers}. If a ticker has more than one classification for a given grouping column a
+#' user-facing warning is emitted (the object is still created). Parent-class validation (column order,
+#' types, uniqueness, id format, etc.) is also enforced by \code{meta_dataframe}.
+#'
+#' @slot data Inherited: a \code{data.frame} whose first three columns must be \code{id}, \code{tickers}, \code{dates}.
+#' @slot workflow Inherited: list describing preprocessing steps that produced the grouping table.
+#' @slot signals Inherited: character vector with names of grouping columns in \code{data}.
+#' @slot unique_dates, unique_tickers, n_obs, current_date, meta_dataframe_name Inherited summary slots.
+#'
+#' @examples
+#' \dontrun{
+#' df <- data.frame(
+#'   id = c("A-2026-07-01","B-2026-07-01"),
+#'   tickers = c("A","B"),
+#'   dates = as.Date(c("2026-07-01","2026-07-01")),
+#'   sector = c("Energy", "Financials"),
+#'   theme = c("Value", "Value"),
+#'   stringsAsFactors = FALSE
+#' )
+#' gm <- new(
+#'   "groups_m_df",
+#'   data = df,
+#'   workflow = list(step = "assign_groups"),
+#'   signals = c("sector","theme"),
+#'   unique_dates = length(unique(df$dates)),
+#'   unique_tickers = length(unique(df$tickers)),
+#'   n_obs = nrow(df),
+#'   current_date = Sys.Date(),
+#'   meta_dataframe_name = "groups_example"
+#' )
+#' }
+#'
+#' @seealso \code{\link{meta_dataframe-class}}, \code{\link{create_meta_dataframe}}
+#' @name groups_m_df-class
+#' @rdname groups_m_df-class
+#' @aliases groups_m_df
+#' @exportClass groups_m_df
 setClass(
   "groups_m_df",
   contains = "meta_dataframe",
@@ -132,11 +363,55 @@ setClass(
 )
 
 
-#' Define the target S4 Class
+#' target_m_df-class
 #'
-#' This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to a target meta_dataframe.
+#' An S4 subclass of \code{meta_dataframe} for target variables used by signal-blending models.
 #'
-#' @export
+#' @description
+#' \code{target_m_df} stores one or more prediction targets used by \code{run_sb_backtest()} and other
+#' modeling routines. It inherits all slots from \code{\link{meta_dataframe-class}} and adds a
+#' naming convention requirement for target columns.
+#'
+#' @section Validity:
+#' Each name listed in the \code{signals} slot must match the pattern:
+#' \code{^[A-Za-z_]+_[0-9]{1,2}m$}. That is, "<target_name>_<horizon>m" where \code{horizon} is 1–99 months.
+#' If any target name fails this check object construction is halted with an informative error.
+#'
+#' @slot data Inherited: a \code{data.frame} whose first three columns must be \code{id}, \code{tickers}, \code{dates}.
+#' @slot workflow Inherited: preprocessing / generation history.
+#' @slot signals Inherited: character vector naming the target columns (must follow the pattern above).
+#' @slot unique_dates, unique_tickers, n_obs, current_date, meta_dataframe_name Inherited summary slots.
+#'
+#' @details
+#' Use \code{create_target_m_df()} to build valid target objects; it populates slots and enforces naming and structural rules.
+#'
+#' @examples
+#' \dontrun{
+#' df <- data.frame(
+#'   id = "A-2026-07-01",
+#'   tickers = "A",
+#'   dates = as.Date("2026-07-01"),
+#'   return_1m = 0.02,
+#'   stringsAsFactors = FALSE
+#' )
+#' tgt <- new(
+#'   "target_m_df",
+#'   data = df,
+#'   workflow = list(step = "create_target"),
+#'   signals = "return_1m",
+#'   unique_dates = 1,
+#'   unique_tickers = 1,
+#'   n_obs = 1,
+#'   current_date = Sys.Date(),
+#'   meta_dataframe_name = "target_example"
+#' )
+#' }
+#'
+#' @seealso \code{\link{meta_dataframe-class}}, \code{\link{create_target_m_df}}, \code{\link{run_sb_backtest}}
+#' @name target_m_df-class
+#' @rdname target_m_df-class
+#' @aliases target_m_df
+#' @exportClass target_m_df
 setClass(
   "target_m_df",
   contains = "meta_dataframe",
@@ -155,11 +430,61 @@ setClass(
   }
 )
 
-#' Define the priors_m_df S4 Class
+#' priors_m_df-class
 #'
-#' This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to a priors meta_dataframe.
+#' An S4 subclass of \code{meta_dataframe} that stores returns and ancillary columns used to derive informative priors.
 #'
-#' @export
+#' @description
+#' \code{priors_m_df} is the canonical container for datasets used to fit frequentist/hierarchical models whose
+#' parameter estimates become informative priors for subsequent Bayesian selection (see \code{run_ss_backtest()}).
+#' It inherits all slots from \code{\link{meta_dataframe-class}} and enforces structural and content constraints required by
+#' the frequentist fitting helpers (e.g. \code{derive_informative_priors_from_data()}, \code{fit_frequentist_hierarchical_model()}).
+#'
+#' @section Validity:
+#' - No missing values are allowed in \code{data} (all NA values cause construction to fail).
+#' - The data must contain the columns \code{return}, \code{theme}, and \code{market_factor_proxy} (these names must appear among \code{colnames(data)}).
+#' Parent-class validation (first three columns \code{id}, \code{tickers}, \code{dates}; types; unique ids; etc.) also applies.
+#'
+#' @slot data A \code{data.frame} containing returns and explanatory columns; must include \code{return}, \code{theme}, and \code{market_factor_proxy}.
+#' @slot workflow Inherited: list describing preprocessing and modeling steps that produced the priors data.
+#' @slot signals Inherited: names of columns considered as signals / grouping variables.
+#' @slot unique_dates, unique_tickers, n_obs, current_date, meta_dataframe_name Inherited summary slots.
+#'
+#' @details
+#' Typical workflow: build a \code{priors_m_df} from historical returns (possibly from another geography or period),
+#' pass it to \code{derive_informative_priors_from_data()} which fits frequentist/hierarchical models and returns parameter estimates
+#' used as priors for Bayesian inference in \code{run_ss_backtest()}. Ensuring no missing values and the presence of the required columns
+#' allows stable frequentist estimation and correct prior derivation.
+#'
+#' @examples
+#' \dontrun{
+#' df <- data.frame(
+#'   id = c("A-2026-01-01","B-2026-01-01"),
+#'   tickers = c("A","B"),
+#'   dates = as.Date(c("2026-01-01","2026-01-01")),
+#'   return = c(0.01, -0.02),
+#'   theme = c("Value","Value"),
+#'   market_factor_proxy = c(0.003, 0.004),
+#'   stringsAsFactors = FALSE
+#' )
+#' pri <- new(
+#'   "priors_m_df",
+#'   data = df,
+#'   workflow = list(step = "prepare_priors"),
+#'   signals = c("theme"),
+#'   unique_dates = length(unique(df$dates)),
+#'   unique_tickers = length(unique(df$tickers)),
+#'   n_obs = nrow(df),
+#'   current_date = Sys.Date(),
+#'   meta_dataframe_name = "priors_example"
+#' )
+#' }
+#'
+#' @seealso \code{\link{meta_dataframe-class}}, \code{\link{derive_informative_priors_from_data}}, \code{\link{run_ss_backtest}}
+#' @name priors_m_df-class
+#' @rdname priors_m_df-class
+#' @aliases priors_m_df
+#' @exportClass priors_m_df
 setClass(
   "priors_m_df",
   contains = "meta_dataframe",
@@ -175,21 +500,77 @@ setClass(
   }
 )
 
-#' Define the signal_universe_m_df S4 Class
+#' signal_universe_m_df-class
 #'
-#' This class inherits from \code{meta_dataframe} and enforces that the underlying data adheres to the output of a signal selection backtest workflow.
+#' An S4 subclass of \code{meta_dataframe} that represents a universe of backtested signals (strategies).
 #'
-#' @slot ss_backtest_workflow An \code{ANY} object storing the signal selection backtest workflow.
-#' @slot data A \code{data.frame} storing signal metrics and metadata.
-#' @slot workflow A \code{list} capturing preprocessing or backtesting steps.
-#' @slot signals A \code{character} vector of signal column names.
-#' @slot unique_dates A \code{numeric} count of unique dates in the data.
-#' @slot unique_tickers A \code{numeric} count of unique tickers in the data.
-#' @slot n_obs A \code{numeric} value for total number of observations.
-#' @slot current_date A \code{Date} representing the latest available date.
-#' @slot meta_dataframe_name A \code{character} name label for the object.
+#' @description
+#' \code{signal_universe_m_df} stores performance summaries for a set of signals (each row = one signal/strategy).
+#' It inverts the usual \code{meta_dataframe} layout: instead of each row being a stock-date observation and
+#' columns being signals/features, each row is a signal/strategy and columns are performance metrics or attributes
+#' (e.g. IR, alpha, p_value, theme, is_eligible). This object is the canonical input/output for functions that
+#' summarize, rank and select signals after backtests (for example \code{summarize_performance()}, selection heuristics,
+#' or meta-model training).
 #'
-#' @export
+#' @details
+#' - The parent-class structural rules still apply: \code{data} must be a \code{data.frame} whose first three columns are
+#'   \code{id}, \code{tickers}, \code{dates} (here \code{tickers} typically stores the signal identifier or strategy name,
+#'   and \code{dates} represents the evaluation date for the performance metrics). The \code{id} column is expected to be
+#'   \code{paste0(tickers, "-", dates)} so objects remain compatible with the rest of the package.
+#' - Typical performance columns: \code{IR}, \code{alpha}, \code{alpha_se}, \code{p_value}, \code{turnover}, \code{theme},
+#'   \code{benchmark_return}, etc.
+#' - Eligibility-related columns:
+#'   \itemize{
+#'     \item \code{pre_eligible_signals} — logical (or integer 0/1) indicating whether the signal passed initial, signal-level filters (data sufficiency, minimum history, etc.).
+#'     \item \code{is_eligible} — logical indicating final eligibility for selection in signal-selection pipelines (after rules, thresholds, and cross-signal constraints are applied).
+#'     \item \code{eligibility_reason} (optional) — character describing why a signal was excluded (if present).
+#'   }
+#' - Use \code{summarize_performance()} (or the package helper that builds signal universes) to construct valid objects;
+#'   low-level creation must still respect \code{meta_dataframe} validation (id/tickers/dates ordering, types, uniqueness).
+#'
+#' @slot data A \code{data.frame} where each row is a backtested signal/strategy and columns are performance metrics, attributes and eligibility flags.
+#' @slot ss_backtest_workflow \code{ANY}: the signal-selection backtest workflow metadata attached to this universe (may be \code{NULL}).
+#' @slot workflow Inherited: history of steps that produced the signal-universe (e.g. backtest parameters, resampling choices).
+#' @slot signals Inherited: typically identifies which columns to treat as signal identifiers or the metrics of interest.
+#' @slot unique_dates Inherited: number of distinct dates.
+#' @slot unique_tickers Inherited: number of distinct signal identifiers.
+#' @slot n_obs Inherited: total number of rows (signals).
+#' @slot current_date Inherited: reference/current date for the object.
+#' @slot meta_dataframe_name Inherited: short identifier for the object.
+#'
+#' @examples
+#' \dontrun{
+#' df <- data.frame(
+#'   id = c("earnings_yield-2026-07-01", "free_cash_flow_yield-2026-07-01"),
+#'   tickers = c("earnings_yield", "free_cash_flow_yield"), # here: signal names
+#'   dates = as.Date(c("2026-07-01", "2026-07-01")),
+#'   IR = c(1.2, 0.8),
+#'   alpha = c(0.015, 0.008),
+#'   p_value = c(0.02, 0.10),
+#'   theme = c("Value", "Value"),
+#'   pre_eligible_signals = c(TRUE, TRUE),
+#'   is_eligible = c(TRUE, FALSE),
+#'   stringsAsFactors = FALSE
+#' )
+#'
+#' su <- new(
+#'   "signal_universe_m_df",
+#'   data = df,
+#'   workflow = list(step = "summarize_performance()"),
+#'   signals = c("earnings_yield","free_cash_flow_yield"),
+#'   unique_dates = length(unique(df$dates)),
+#'   unique_tickers = length(unique(df$tickers)),
+#'   n_obs = nrow(df),
+#'   current_date = Sys.Date(),
+#'   meta_dataframe_name = "signal_universe_example"
+#' )
+#' }
+#'
+#' @seealso \code{\link{meta_dataframe-class}}, \code{\link{summarize_performance}}, \code{\link{run_sb_backtest}}
+#' @name signal_universe_m_df-class
+#' @rdname signal_universe_m_df-class
+#' @aliases signal_universe_m_df
+#' @exportClass signal_universe_m_df
 setClass(
   "signal_universe_m_df",
   slots = c(
@@ -240,12 +621,66 @@ setClass(
   }
 )
 
-#' Define the oos_sb_outputs_m_df S4 Class
+#' oos_sb_outputs_m_df-class
 #'
-#' This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to the output of a
-#' signal blending backtest workflow.
+#' Out-of-sample Signal-Blending backtest outputs container (S4).
 #'
-#' @export
+#' @description
+#' \code{oos_sb_outputs_m_df} extends \code{\link{meta_dataframe-class}} to represent out-of-sample
+#' predictions produced by the signal-blending backtest pipeline (\code{run_sb_backtest()}). It stores
+#' target values, model predictions and the associated errors together with the usual workflow metadata.
+#'
+#' @section Validity:
+#' Objects must satisfy parent-class checks plus:
+#' - \code{data} must include the columns \code{id}, \code{tickers}, \code{dates}, \code{target}, \code{pred}, and \code{error}.
+#' - For rows where \code{target} is not \code{NA}, \code{error} must equal \code{target - pred}.
+#' - For rows where both \code{target} and \code{pred} are \code{NA}, \code{error} must be \code{NA}.
+#'
+#' @slot sb_backtest_workflow Any. A record (usually a list) describing the out-of-sample backtest workflow and parameters used to produce the outputs.
+#' @slot data A data.frame containing the observations (first three columns: id, tickers, dates).
+#' @slot workflow ANY. Record of preprocessing/backtest workflow that produced this object.
+#' @slot signals character. Names of columns in data that represent signals/metrics.
+#' @slot unique_dates numeric. Number of distinct dates in data.
+#' @slot unique_tickers numeric. Number of distinct tickers in data.
+#' @slot n_obs numeric. Total number of observations (rows) in data.
+#' @slot current_date Date. Reference/current date for the object.
+#' @slot meta_dataframe_name character. Short identifier for this meta_dataframe instance.
+#'
+#' @details
+#' This class is the canonical return type for out-of-sample evaluation routines in the signal-blending
+#' workflow. Keeping \code{target}, \code{pred}, and \code{error} aligned and validated enables downstream
+#' aggregation, performance reporting and diagnostics to rely on consistent semantics.
+#'
+#' @examples
+#' \dontrun{
+#' df <- data.frame(
+#'   id = c("A-2026-07-01","B-2026-07-01"),
+#'   tickers = c("A","B"),
+#'   dates = as.Date(c("2026-07-01","2026-07-01")),
+#'   target = c(0.02, NA),
+#'   pred = c(0.015, NA),
+#'   error = c(0.005, NA),
+#'   stringsAsFactors = FALSE
+#' )
+#' oos <- new(
+#'   "oos_sb_outputs_m_df",
+#'   data = df,
+#'   workflow = list(step = "oos_evaluate"),
+#'   signals = character(),
+#'   sb_backtest_workflow = list(params = "example"),
+#'   unique_dates = length(unique(df$dates)),
+#'   unique_tickers = length(unique(df$tickers)),
+#'   n_obs = nrow(df),
+#'   current_date = Sys.Date(),
+#'   meta_dataframe_name = "oos_example"
+#' )
+#' }
+#'
+#' @seealso \code{\link{meta_dataframe-class}}, \code{\link{run_sb_backtest}}, \code{\link{signal_universe_m_df-class}}
+#' @name oos_sb_outputs_m_df-class
+#' @rdname oos_sb_outputs_m_df-class
+#' @aliases oos_sb_outputs_m_df
+#' @exportClass oos_sb_outputs_m_df
 setClass(
   "oos_sb_outputs_m_df",
   contains = "meta_dataframe",
@@ -275,23 +710,61 @@ setClass(
 )
 
 
-#' Define the signal_universe_meta_dataframe S4 Class
+#' stock_universe_m_df-class
 #'
-#' This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to the output of a signal selection backtest workflow.
+#' An S4 subclass of \code{meta_dataframe} representing a stock-level universe used for portfolio construction.
 #'
+#' @description
+#' \code{stock_universe_m_df} is the canonical container for per-asset expected-return scores and eligibility flags used by portfolio construction and backtesting helpers (e.g. \code{derive_stock_universe_m_d_ref}, \code{select_universe}, \code{construct_portfolio}). It derives from \code{\link{meta_dataframe-class}} and carries additional metadata about the portfolio/backtest workflow.
 #'
-#' @slot port_backtest_workflow A \code{list} storing the ss_backtest_workflow that generated the signal_universe_meta_dataframe object.
-#' @slot data A \code{data.frame} storing signal metrics and metadata.
-#' @slot workflow A \code{list} capturing preprocessing or backtesting steps.
-#' @slot signals A \code{character} vector of signal column names.
-#' @slot unique_dates A \code{numeric} count of unique dates in the data.
-#' @slot unique_tickers A \code{numeric} count of unique tickers in the data.
-#' @slot n_obs A \code{numeric} value for total number of observations.
-#' @slot current_date A \code{Date} representing the latest available date.
-#' @slot meta_dataframe_name A \code{character} name label for the object.
+#' @slot data A data.frame (first three columns: id, tickers, dates). Must also include pre_eligible_assets, is_eligible, and exp_ret_score.
+#' @slot workflow ANY. Record of preprocessing / backtest workflow that produced this object.
+#' @slot signals character. Names of columns in data that represent signals / metrics.
+#' @slot unique_dates numeric. Number of distinct dates in data.
+#' @slot unique_tickers numeric. Number of distinct tickers in data.
+#' @slot n_obs numeric. Total number of observations (rows) in data.
+#' @slot current_date Date. Reference/current date for the object.
+#' @slot meta_dataframe_name character. Short identifier for this meta_dataframe instance.
+#' @slot port_backtest_workflow ANY. Metadata describing portfolio/backtest parameters used to build the stock universe.
 #'
+#' @section Validity:
+#' Objects must satisfy parent-class validation and must include the columns \code{pre_eligible_assets}, \code{is_eligible}, and \code{exp_ret_score}. If a scaler is used, \code{exp_ret_score} is the post-scaling score; when only raw signals/predictions are used it equals the raw expected-return score. Typical construction is via \code{derive_stock_universe_m_d_ref()} which enforces additional checks (mutual exclusivity of inputs, scaler/shrinkage semantics, winsorization).
 #'
-#' @export
+#' @details
+#' - \code{pre_eligible_assets} indicates stocks that pass initial asset-level filters before portfolio rules are applied.
+#' - \code{is_eligible} is a logical indicating final eligibility for portfolio inclusion.
+#' - \code{exp_ret_score} is numeric and used to rank or weight assets; it may be derived from out-of-sample predictions or chosen signal metrics and optionally scaled by a \code{scaler}.
+#'
+#' @examples
+#' \dontrun{
+#' df <- data.frame(
+#'   id = c("A-2026-07-01","B-2026-07-01"),
+#'   tickers = c("A","B"),
+#'   dates = as.Date(c("2026-07-01","2026-07-01")),
+#'   pre_eligible_assets = c(TRUE, TRUE),
+#'   is_eligible = c(TRUE, FALSE),
+#'   exp_ret_score = c(0.12, -0.03),
+#'   stringsAsFactors = FALSE
+#' )
+#' su <- new(
+#'   "stock_universe_m_df",
+#'   data = df,
+#'   workflow = list(step = "derive_stock_universe"),
+#'   signals = character(),
+#'   port_backtest_workflow = list(params = "example"),
+#'   unique_dates = length(unique(df$dates)),
+#'   unique_tickers = length(unique(df$tickers)),
+#'   n_obs = nrow(df),
+#'   current_date = Sys.Date(),
+#'   meta_dataframe_name = "stock_universe_example"
+#' )
+#' }
+#'
+#' @seealso \code{\link{meta_dataframe-class}}, \code{\link{signal_universe_m_df-class}}, \code{\link{derive_stock_universe_m_d_ref}}
+#' @name stock_universe_m_df-class
+#' @rdname stock_universe_m_df-class
+#' @aliases stock_universe_m_df
+#' @exportClass stock_universe_m_df
 setClass(
   "stock_universe_m_df",
   slots = c(
@@ -312,11 +785,63 @@ setClass(
   }
 )
 
-#' Define the weights_m_df S4 Class
+#' weights_m_df-class
 #'
-#' This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to a weights_meta_dataframe
+#' An S4 subclass of \code{meta_dataframe} representing weight matrices used for portfolio construction.
 #'
-#' @export
+#' @description
+#' \code{weights_m_df} stores per-asset weight columns (benchmarks, strategy weights, etc.) aligned with the canonical
+#' \code{meta_dataframe} layout (rows = asset-date observations). It enforces numeric weight bounds and performs per-date
+#' checks that group sums are approximately 1 (with tolerance).
+#'
+#' @section Validity:
+#' Objects must satisfy parent-class validation and additionally:
+#' - All columns except \code{id}, \code{tickers}, and \code{dates} must be numeric and lie between 0 and 1.
+#' - For each date and weight-variable the sum of weights is checked; a tolerance of 0.1 is used and violations
+#'   emit a warning listing problematic variable-date combinations (failures do not currently abort construction).
+#'
+#' @slot data A \code{data.frame} (first three columns: \code{id}, \code{tickers}, \code{dates}). Remaining columns are numeric positive weight vectors.
+#' @slot workflow ANY. Record of preprocessing / portfolio workflow that produced this object.
+#' @slot signals character. Names of columns in \code{data} that represent signals/metrics (may be empty for weights objects).
+#' @slot unique_dates numeric. Number of distinct dates in \code{data}.
+#' @slot unique_tickers numeric. Number of distinct tickers in \code{data}.
+#' @slot n_obs numeric. Total number of observations (rows) in \code{data}.
+#' @slot current_date Date. Reference/current date for the object.
+#' @slot meta_dataframe_name character. Short identifier for this meta_dataframe instance.
+#'
+#' @details
+#' This class is intended as the canonical container for portfolio weight matrices produced by selection and
+#' portfolio-construction helpers. The per-date sum check helps catch data or aggregation errors (bench_weights-only
+#' deviations are surfaced as warnings to allow tolerant downstream workflows).
+#'
+#' @examples
+#' \dontrun{
+#' df <- data.frame(
+#'   id = c("A-2026-07-01","B-2026-07-01"),
+#'   tickers = c("A","B"),
+#'   dates = as.Date(c("2026-07-01","2026-07-01")),
+#'   bench_weights = c(0.6, 0.4),
+#'   strategy_weights = c(0.7, 0.3),
+#'   stringsAsFactors = FALSE
+#' )
+#' w <- new(
+#'   "weights_m_df",
+#'   data = df,
+#'   workflow = list(step = "construct_weights"),
+#'   signals = character(),
+#'   unique_dates = length(unique(df$dates)),
+#'   unique_tickers = length(unique(df$tickers)),
+#'   n_obs = nrow(df),
+#'   current_date = Sys.Date(),
+#'   meta_dataframe_name = "weights_example"
+#' )
+#' }
+#'
+#' @seealso \code{\link{meta_dataframe-class}}, portfolio construction and backtest helpers
+#' @name weights_m_df-class
+#' @rdname weights_m_df-class
+#' @aliases weights_m_df
+#' @exportClass weights_m_df
 setClass(
   "weights_m_df",
   contains = "meta_dataframe",
@@ -361,26 +886,56 @@ setClass(
 
 #tickers_catalog------------------------------------------------------
 
-#' tickers_catalog Class
+#' tickers_catalog-class
 #'
-#' An S4 class to store stock metadata, including listing and delisting dates,
-#' a unique identifier (`perm_id`), and classification flags for private and delisted stocks.
+#' An S4 class to store stock metadata and bookkeeping for ticker lifecycle events
+#' (listings, delistings, ticker changes).
 #'
-#' @slot catalog A data frame containing stock metadata
-#' @slot tickers A character vector of stock tickers.
-#' @slot perm_id A character vector of unique stock identifiers, combining tickers and inception date.
-#' @slot tickers_first_quote A Date vector representing the first trading date for each stock.
-#' @slot tickers_last_quote A Date vector representing the last trading date for each stock.
-#' @slot untraded A character vector of untraded stocks (both dates are NA).
-#' @slot delisted A character vector of delisted stocks.
-#' @slot listed A character vector of listed stocks.
-#' @slot old A character vector of tickers that have been changed.
-#' @slot current_date A Date object representing the most recent available date in the dataset.
-#' @slot meta_dataframe_name The name of the `meta_dataframe` used
-#' @slot n_days_tolerance A numeric value representing the number of days to consider a stock as delisted.
-#' @slot ticker_change_history The history of ticker changes.
+#' @slot catalog A \code{data.frame} with one row per ticker and columns at least:
+#'   \code{tickers}, \code{tickers_first_quote} (Date), \code{tickers_last_quote} (Date),
+#'   and \code{perm_id}.
+#' @slot tickers Character vector of tickers.
+#' @slot perm_id Character vector of stable unique identifiers (named by \code{tickers}).
+#' @slot tickers_first_quote Date vector (first observed trading date per ticker).
+#' @slot tickers_last_quote Date vector (last observed trading date per ticker).
+#' @slot untraded Character vector of tickers with no trading dates (both dates NA).
+#' @slot delisted Character vector of delisted tickers (last quote older than tolerance window).
+#' @slot listed Character vector of currently listed tickers.
+#' @slot old Character vector of tickers that were renamed/changed.
+#' @slot current_date A single \code{Date} representing the catalogue's current reference date.
+#' @slot meta_dataframe_name Character: name of the source meta_dataframe (usually the raw features input).
+#' @slot n_days_tolerance Numeric: number of days tolerance used to decide delisting vs listed status.
+#' @slot ticker_change_history Any: free-form record of ticker-change operations (may be \code{NULL}).
 #'
-#' @export
+#' @details
+#' The class centralizes per-ticker metadata used by universe construction and backtests.
+#' \code{perm_id} is intended to be stable across ticker renames (constructed from ticker + first-quote date).
+#' The validity method enforces mutual exclusivity of classification vectors (a ticker cannot be simultaneously
+#' \code{listed}, \code{delisted}, \code{untraded} or \code{old}), consistent lengths, a single \code{current_date},
+#' and that \code{catalog} is ordered by \code{perm_id} with \code{perm_id} names matching \code{tickers}.
+#'
+#' @section Common validity errors:
+#' - "A stock can't be untraded and delisted." — overlapping classifications found.
+#' - "Length of listed + delisted + untraded + old does not equal length of tickers." — partitioning mismatch.
+#' - "perm_id must be named according to tickers." — naming mismatch between \code{perm_id} and \code{tickers}.
+#'
+#' @examples
+#' \dontrun{
+#' df_first <- data.frame(tickers = c("A", "B"),
+#'                        date_first_quote = as.Date(c("2020-01-01","2020-06-01")))
+#' df_last  <- data.frame(tickers = c("A", "B"),
+#'                        date_last_quote  = as.Date(c(NA, "2026-06-30")))
+#' tickers_catalog_obj <- create_tickers_catalog(raw_features_m_df = raw_mdf,
+#'                                               date_first_quote = df_first,
+#'                                               date_last_quote  = df_last,
+#'                                               n_days_tolerance = 10)
+#' }
+#'
+#' @seealso \code{\link{meta_dataframe-class}}
+#' @name tickers_catalog-class
+#' @rdname tickers_catalog-class
+#' @aliases tickers_catalog
+#' @exportClass tickers_catalog
 setClass(
   "tickers_catalog",
   slots = list(
@@ -465,28 +1020,36 @@ setClass(
 
 
 #meta_xts---------------------------------------------------------------
-#' An S4 class that stores a main xts object plus metadata about backtested returns.
+#' An S4 Class Storing a Time Series Plus Metadata
 #'
-#' The meta_xts class is designed to hold:
+#' @description
+#' Base container class for an \code{xts} time series together with the metadata
+#' needed to track its provenance and shape. Not normally instantiated directly;
+#' use \code{\link{create_meta_xts}()}, which builds the appropriate subclass
+#' (\code{\link{returns_meta_xts-class}} or \code{\link{metrics_meta_xts-class}})
+#' for you.
+#'
+#' @slot data An \code{xts} object containing the time series.
+#' @slot meta_xts_name Character. A label or ID for the series.
+#' @slot metric_name Character. Name of the metric/return series being stored.
+#' @slot workflow ANY. A placeholder for user-defined workflow/pipeline objects
+#'   (e.g. a log of the processing steps that produced \code{data}).
+#' @slot n_dates Numeric. Number of rows in \code{data}.
+#' @slot source Character. Origin of each column, one entry per column of \code{data}.
+#' @slot frequency Character. Detected time frequency (e.g. \code{"daily"},
+#'   \code{"weekly"}, \code{"monthly"}, \code{"yearly"}).
+#' @slot current_date Date. The most recent date in \code{data}.
+#'
+#' @section Validity:
 #' \itemize{
-#'   \item \code{data}: An xts object containing the time series data.
-#'   \item \code{meta_xts_name}: A character name/label for the series.
-#'   \item \code{workflow}: An ANY object that can hold workflow objects/pipelines.
-#'   \item \code{n_dates}: A numeric value equal to the number of rows in \code{data}.
-#'   \item \code{source}: A character vector indicating the origin of each column
-#'         (same length as number of columns in \code{data}).
-#'   \item \code{frequency}: A character value representing time frequency
-#'         (e.g., "daily", "weekly", "monthly", "yearly", etc.).
+#'   \item Dates in \code{data} must be strictly increasing (no duplicated timestamps).
+#'   \item \code{n_dates} must equal \code{nrow(data)}.
+#'   \item \code{source} must have one entry per column of \code{data}.
+#'   \item Column names in \code{data} must not be duplicated.
 #' }
 #'
-#' @slot data An xts object containing the time series.
-#' @slot meta_xts_name Character. A label or ID for the series.
-#' @slot metric_name Character. The name of the metric being stored for metrics_m_xts.
-#' @slot workflow ANY. A placeholder for user-defined workflow/pipeline objects.
-#' @slot n_dates Numeric. Number of rows in \code{data}.
-#' @slot source Character. Source of each column (same length as number of columns in \code{data}).
-#' @slot frequency Character. Detected frequency (daily, monthly, yearly, etc.).
-#' @slot current_date Date. The most recent date in the dataset.
+#' @seealso \code{\link{create_meta_xts}}, \code{\link{returns_meta_xts-class}},
+#'   \code{\link{metrics_meta_xts-class}}, \code{\link{meta_dataframe-class}}
 #'
 #' @export
 setClass(
@@ -529,19 +1092,39 @@ setClass(
   }
 )
 
-#' An S4 subclass of meta_xts for asset returns with no holes.
+#' An S4 Subclass of `meta_xts` for Return Series (No Holes Allowed)
 #'
-#' @slot data An xts object containing the time series.
-#' @slot meta_xts_name Character. A label or ID for the series.
-#' @slot metric_name Character. The name of the metric being stored for metrics_m_xts.
-#' @slot workflow ANY. A placeholder for user-defined workflow/pipeline objects.
-#' @slot n_dates Numeric. Number of rows in \code{data}.
-#' @slot source Character. Source of each column (same length as number of columns in \code{data}).
-#' @slot frequency Character. Detected frequency (daily, monthly, yearly, etc.).
-#' @slot current_date Date. The most recent date in the dataset.
-#' @slot asset_type Character. Type of asset (e.g., "stock", "bond", etc.).
-#' @slot assets Character. Names of the columns (assets).
+#' @description
+#' Stores asset (or portfolio) return time series. Extends \code{\link{meta_xts-class}}
+#' with asset identity metadata and enforces the invariants that make a return
+#' series usable in backtests: consecutive dates and, for portfolios, no missing values.
+#'
+#' @slot asset_type Character. Type of asset (e.g. \code{"stock"}, \code{"bond"},
+#'   \code{"ports"} for portfolios).
+#' @slot assets Character. Column names of \code{data} (one per asset).
 #' @slot n_assets Numeric. Number of asset columns.
+#'
+#' @section Return convention:
+#' Values are expected on a **percent scale** (e.g. \code{2.0} for 2\%, not
+#' \code{0.02}). If the median absolute value in \code{data} is below 1, validity
+#' emits a \code{warning()} flagging a probable decimal-scale input, since
+#' downstream performance functions assume percent scale.
+#'
+#' @section Validity:
+#' \itemize{
+#'   \item Inherits all checks from \code{\link{meta_xts-class}}.
+#'   \item Dates should be (approximately) consecutive for the detected
+#'     frequency; a large proportion of gaps raises an error.
+#'   \item \code{n_assets} must equal \code{ncol(data)}, and \code{assets} must
+#'     match \code{colnames(data)}.
+#'   \item Missing values trigger a \code{warning()} for individual assets, but
+#'     are a hard \code{stop()} when \code{asset_type == "ports"} -- a portfolio
+#'     return series is not allowed to have gaps.
+#'   \item Emits a \code{message()} reporting the detected frequency, useful
+#'     because detection can be unreliable on short or irregular series.
+#' }
+#'
+#' @seealso \code{\link{meta_xts-class}}, \code{\link{metrics_meta_xts-class}}, \code{\link{create_meta_xts}}
 #'
 #' @export
 setClass(
@@ -607,18 +1190,25 @@ setClass(
   }
 )
 
-#' An S4 subclass of meta_xts for metric time series (holes allowed).
+#' An S4 Subclass of `meta_xts` for Metric Series (Holes Allowed)
 #'
-#' @slot data An xts object containing the time series.
-#' @slot meta_xts_name Character. A label or ID for the series.
-#' @slot metric_name Character. The name of the metric being stored for metrics_m_xts.
-#' @slot workflow ANY. A placeholder for user-defined workflow/pipeline objects.
-#' @slot n_dates Numeric. Number of rows in \code{data}.
-#' @slot source Character. Source of each column (same length as number of columns in \code{data}).
-#' @slot frequency Character. Detected frequency (daily, monthly, yearly, etc.).
-#' @slot current_date Date. The most recent date in the dataset.
-#' @slot series Character. Names of the columns (metrics).
+#' @description
+#' Stores arbitrary metric time series (e.g. factor exposures, signals) that are
+#' not required to be gap-free, unlike \code{\link{returns_meta_xts-class}}.
+#'
+#' @slot series Character. Column names of \code{data} (one per metric).
 #' @slot n_series Numeric. Number of metric columns.
+#'
+#' @section Validity:
+#' \itemize{
+#'   \item Inherits all checks from \code{\link{meta_xts-class}}.
+#'   \item \code{n_series} must equal \code{ncol(data)}, and \code{series} must
+#'     match \code{colnames(data)}.
+#'   \item No check on date consecutiveness -- holes (e.g. from illiquid tickers
+#'     or metrics undefined on every date) are expected and allowed.
+#' }
+#'
+#' @seealso \code{\link{meta_xts-class}}, \code{\link{returns_meta_xts-class}}, \code{\link{create_meta_xts}}
 #'
 #' @export
 setClass(
@@ -692,11 +1282,24 @@ setClass(
 #hyperparams------------------------------------------------------------
 #' Define the `hyper_grid_domain` S4 Class
 #'
-#' This class represents parameters for defining the hyperparameter domain based on which tuning will be performed.
-#' It helps the user in correctly setting this object in the context of the `ml_walk_forward_validation` function.
+#' @description
+#' Holds the set of hyperparameters (and, once populated by
+#' \code{\link{add_hyperparameter}()}, their tuning-method-specific values) that
+#' \code{\link{hyper_tune}()} -- invoked internally by \code{\link{run_sb_backtest}()}
+#' -- will search over. This class only validates that hyperparameter *names* are
+#' recognized; it does not check the *shape* of their values (a numeric vector,
+#' a distribution spec, or a bounds pair) -- that shape check belongs to
+#' \code{\link{tuning_strategy-class}} and depends on the chosen `tuning_method`.
 #'
-#' @slot hyperparameter_list A list with the hyperparameters relevant to the specified machine learning algorithm.
-#'
+#' @slot hyperparameter_list A named list, one entry per hyperparameter, drawn from:
+#' \itemize{
+#'   \item \strong{glmnet}: \code{alpha}, \code{lambda.min.ratio}
+#'   \item \strong{rf}: \code{mtry}, \code{num.trees}, \code{max.depth}, \code{min.bucket}
+#'   \item \strong{xgb}: \code{min_child_weight}, \code{max_depth}, \code{subsample},
+#'     \code{colsample_bytree}, \code{eta}, \code{gamma}, \code{nrounds}
+#'   \item \strong{nn}: \code{regularizer_l1}, \code{regularizer_l2}, \code{droprate},
+#'     \code{lr}, \code{size_of_batch}, \code{number_of_epochs}
+#' }
 #'
 #' @export
 setClass(
@@ -723,25 +1326,47 @@ setClass(
 
 #tuning_strat-----------------------------------------------------------
 
-#' @title Base class for hyperparameter tuning strategies
-#' @description This class defines the common slots and structure for hyperparameter tuning strategies such as grid search, random search, and Bayesian optimization.
-#' @slot tuning_method Character string indicating the hyperparameter tuning method ('grid_search', 'random_search', or 'bayesian_opt').
-#' @slot validation_sample_size Numeric value representing the size of the validation sample. If provided a decimal, it will be set based on proportion of training sample size.
-#' @slot chosen_eval_metric Character or NULL, specifying the evaluation metric to be optimized.
-#' @slot hyper_grid_domain An object of class `hyper_grid_domain`, representing the hyperparameter domain based on which tuning will be performed.
-#' It contains a list slot `hyperparameter_list` with the hyperparameters relevant to the specified machine learning algorithm.
-#' The structure of this list depends on the specified tuning method:
+#' Base Class for Hyperparameter Tuning Strategies
+#'
+#' @description
+#' Common slots and validity rules shared by the three tuning-strategy
+#' subclasses: \code{\link{grid_search_strategy-class}},
+#' \code{\link{random_search_strategy-class}}, and
+#' \code{\link{bayesian_opt_strategy-class}}. Not normally instantiated
+#' directly; use \code{\link{create_tuning_strategy}()}, which builds the
+#' subclass matching \code{tuning_method} for you.
+#'
+#' @slot tuning_method Character. One of \code{"grid_search"},
+#'   \code{"random_search"}, or \code{"bayesian_opt"} -- fixed by the
+#'   subclass's \code{prototype}, not meant to be set independently.
+#' @slot validation_sample_size Numeric. Size of the validation sample. A
+#'   value in \verb{(0, 1)} is treated as a proportion of the training sample
+#'   size and rescaled by \code{\link{add_tuning_strategy}()}; a value
+#'   \code{>= 1} is used as an absolute observation count.
+#' @slot chosen_eval_metric Character. The evaluation metric to optimize;
+#'   required (despite the name, \code{NULL} is rejected by validity) and
+#'   must be one of \code{"rss"}, \code{"rmse"}, \code{"cp"}, \code{"mae"},
+#'   \code{"mphe"}, \code{"mpe"}, \code{"mape"}, \code{"hr"}, \code{"mb"}.
+#'   \strong{Caveat:} \code{\link{check_inputs_sb_backtest}()}, the gate used
+#'   by \code{\link{run_sb_backtest}()}, only accepts 8 of these 9 values --
+#'   \code{"mb"} passes this class's validity but is rejected once the
+#'   strategy is actually run.
+#' @slot hyper_grid_domain A \code{\link{hyper_grid_domain-class}} object
+#'   holding the hyperparameter search space. The required shape of its
+#'   \code{hyperparameter_list} slot depends on \code{tuning_method}; see the
+#'   relevant subclass.
+#' @slot early_stop Numeric or \code{NULL}. Epochs with no improvement before
+#'   stopping early; only meaningful for \code{xgb}/\code{nn} algorithms.
+#'
+#' @section Validity:
 #' \itemize{
-#'   \item \strong{For grid search:} Must be a list of named vectors:
-#'   \item \strong{For random search:} Must be a list of named lists, where each named list contains:
-#'     \itemize{
-#'       \item \code{distribution_choice}: A character string specifying the distribution (one of "normal", "uniform", "lognormal", "constant").
-#'       \item \code{pars}: A named numeric vector of parameters corresponding to the chosen distribution.
-#'       \item \code{value}: A numeric value (only present if \code{distribution_choice} is "constant").
-#'     }
-#'   \item \strong{For Bayesian optimization:} Must be a list of named numeric vectors, each of length 2, representing the boundaries for the hyperparameters.
+#'   \item \code{tuning_method} must be one of the three supported methods.
+#'   \item \code{chosen_eval_metric} must be non-\code{NULL} and one of the
+#'     nine values listed above.
+#'   \item \code{hyper_grid_domain@hyperparameter_list} must match the shape
+#'     required by \code{tuning_method} (see subclasses).
 #' }
-#' @slot early_stop Sets a halting criteria to prevent overfitting in xgb and nn.
+#'
 #' @export
 setClass(
   "tuning_strategy",
@@ -834,25 +1459,22 @@ setClass(
 )
 
 
-#' @title Grid Search Tuning Strategy
-#' @description A subclass of `tuning_strategy` that implements grid search.
-#' @slot tuning_method Character string indicating the hyperparameter tuning method ('grid_search', 'random_search', or 'bayesian_opt').
-#' @slot validation_sample_size Numeric value representing the size of the validation sample. If provided a decimal, it will be set based on proportion of training sample size.
-#' @slot chosen_eval_metric Character or NULL, specifying the evaluation metric to be optimized.
-#' @slot hyper_grid_domain An object of class `hyper_grid_domain`, representing the hyperparameter domain based on which tuning will be performed.
-#' It contains a list slot `hyperparameter_list` with the hyperparameters relevant to the specified machine learning algorithm.
-#' The structure of this list depends on the specified tuning method:
-#' \itemize{
-#'   \item \strong{For grid search:} Must be a list of named vectors:
-#'   \item \strong{For random search:} Must be a list of named lists, where each named list contains:
-#'     \itemize{
-#'       \item \code{distribution_choice}: A character string specifying the distribution (one of "normal", "uniform", "lognormal", "constant").
-#'       \item \code{pars}: A named numeric vector of parameters corresponding to the chosen distribution.
-#'       \item \code{value}: A numeric value (only present if \code{distribution_choice} is "constant").
-#'     }
-#'   \item \strong{For Bayesian optimization:} Must be a list of named numeric vectors, each of length 2, representing the boundaries for the hyperparameters.
-#' }
-#' @slot early_stop Sets a halting criteria to prevent overfitting in xgb and nn.
+#' Grid Search Tuning Strategy
+#'
+#' @description
+#' Subclass of \code{\link{tuning_strategy-class}} for grid search: every
+#' combination of user-supplied hyperparameter values is evaluated
+#' exhaustively (see \code{\link{hyper_tune}()}).
+#'
+#' @section `hyper_grid_domain` shape:
+#' \code{hyper_grid_domain@hyperparameter_list} must be a list of named
+#' numeric vectors, one per hyperparameter, each holding the exact values to
+#' try (e.g. \code{list(alpha = c(0, 0.5, 1))}).
+#'
+#' @seealso \code{\link{tuning_strategy-class}} for the inherited slots
+#'   (\code{validation_sample_size}, \code{chosen_eval_metric},
+#'   \code{hyper_grid_domain}, \code{early_stop}).
+#'
 #' @export
 setClass(
   "grid_search_strategy",
@@ -861,30 +1483,35 @@ setClass(
   prototype = list(tuning_method = "grid_search")
 )
 
-#' @title Random Search Tuning Strategy
-#' @description A subclass of `tuning_strategy` that implements random search.
-#' @slot tuning_method Character string indicating the hyperparameter tuning method ('grid_search', 'random_search', or 'bayesian_opt').
-#' @slot validation_sample_size Numeric value representing the size of the validation sample. If provided a decimal, it will be set based on proportion of training sample size.
-#' @slot chosen_eval_metric Character or NULL, specifying the evaluation metric to be optimized.
-#' @slot hyper_grid_domain An object of class `hyper_grid_domain`, representing the hyperparameter domain based on which tuning will be performed.
-#' It contains a list slot `hyperparameter_list` with the hyperparameters relevant to the specified machine learning algorithm.
-#' The structure of this list depends on the specified tuning method:
+#' Random Search Tuning Strategy
+#'
+#' @description
+#' Subclass of \code{\link{tuning_strategy-class}} for random search:
+#' hyperparameter values are drawn from user-specified distributions instead
+#' of being enumerated exhaustively.
+#'
+#' @slot n_iter Numeric. Number of random draws generated per hyperparameter
+#'   that has a distribution assigned (hyperparameters with a
+#'   \code{"constant"} \code{distribution_choice} are exempt). Draws across
+#'   different hyperparameters are then combined exhaustively, so for
+#'   \code{n_iter = 5} and 2 non-constant hyperparameters the model is
+#'   generally evaluated \eqn{5^2 = 25} times.
+#'
+#' @section `hyper_grid_domain` shape:
+#' \code{hyper_grid_domain@hyperparameter_list} must be a list of named
+#' lists, one per hyperparameter, each with:
 #' \itemize{
-#'   \item \strong{For grid search:} Must be a list of named vectors:
-#'   \item \strong{For random search:} Must be a list of named lists, where each named list contains:
-#'     \itemize{
-#'       \item \code{distribution_choice}: A character string specifying the distribution (one of "normal", "uniform", "lognormal", "constant").
-#'       \item \code{pars}: A named numeric vector of parameters corresponding to the chosen distribution.
-#'       \item \code{value}: A numeric value (only present if \code{distribution_choice} is "constant").
-#'     }
-#'   \item \strong{For Bayesian optimization:} Must be a list of named numeric vectors, each of length 2, representing the boundaries for the hyperparameters.
+#'   \item \code{distribution_choice}: one of \code{"normal"}, \code{"uniform"},
+#'     \code{"lognormal"}, or \code{"constant"}.
+#'   \item \code{pars}: named numeric vector of distribution parameters
+#'     (\code{c(mean, sd)}, \code{c(min, max)}, or \code{c(meanlog, sdlog)}
+#'     as appropriate) -- omitted when \code{distribution_choice = "constant"}.
+#'   \item \code{value}: a single numeric value, present only when
+#'     \code{distribution_choice = "constant"}.
 #' }
-#' @slot early_stop Sets a halting criteria to prevent overfitting in xgb and nn.
-#' @slot n_iter For random_search, it should be the number of random draws for each hyperparameter to which a distribution has been assigned.
-#' Random samples of n_iter size will be generated for each hyperparameter and their unique values will be exhaustively combined.
-#' Therefore, for n_iter = 5 and 2 hyperparameters, the ml algorithm validation error should be generally evaluated 5² = 25 times.
-#' In case a constant vector is passed, the n_iter argument is not applied to this hyperparameter.
-
+#'
+#' @seealso \code{\link{tuning_strategy-class}} for the inherited slots.
+#'
 #' @export
 setClass(
   "random_search_strategy",
@@ -895,31 +1522,32 @@ setClass(
   prototype = list(tuning_method = "random_search")
 )
 
-#' @title Bayesian Opt Tuning Strategy
-#' @description A subclass of `tuning_strategy` that implements bayesian optimization.
-#' @slot tuning_method Character string indicating the hyperparameter tuning method ('grid_search', 'random_search', or 'bayesian_opt').
-#' @slot validation_sample_size Numeric value representing the size of the validation sample. If provided a decimal, it will be set based on proportion of training sample size.
-#' @slot chosen_eval_metric Character or NULL, specifying the evaluation metric to be optimized.
-#' @slot hyper_grid_domain An object of class `hyper_grid_domain`, representing the hyperparameter domain based on which tuning will be performed.
-#' It contains a list slot `hyperparameter_list` with the hyperparameters relevant to the specified machine learning algorithm.
-#' The structure of this list depends on the specified tuning method:
-#' \itemize{
-#'   \item \strong{For grid search:} Must be a list of named vectors:
-#'   \item \strong{For random search:} Must be a list of named lists, where each named list contains:
-#'     \itemize{
-#'       \item \code{distribution_choice}: A character string specifying the distribution (one of "normal", "uniform", "lognormal", "constant").
-#'       \item \code{pars}: A named numeric vector of parameters corresponding to the chosen distribution.
-#'       \item \code{value}: A numeric value (only present if \code{distribution_choice} is "constant").
-#'     }
-#'   \item \strong{For Bayesian optimization:} Must be a list of named numeric vectors, each of length 2, representing the boundaries for the hyperparameters.
-#' }
-#' @slot early_stop Sets a halting criteria to prevent overfitting in xgb and nn.
-#' @slot n_iter For bayesian_opt, it should be the number of times the ml algorithm will be evaluated after initialization.
-#' @slot acq Acquisition function for Bayesian optimization: "ucb", "ei", or "poi".
-#' @slot init_points Number of initial random points for Bayesian optimization.
-#' @slot k_iter Integer that specifies the number of times to sample eval_function at each Epoch during Bayesian optimization.
-#' If the intention is running in parallel, set k_iter to a multiple of the number of cores. Must be lower and preferably a multiple of n_iter.
-
+#' Bayesian Optimization Tuning Strategy
+#'
+#' @description
+#' Subclass of \code{\link{tuning_strategy-class}} for Bayesian optimization
+#' via \code{ParBayesianOptimization::bayesOpt()}.
+#'
+#' @slot n_iter Numeric. Number of evaluations after the initialization phase.
+#' @slot acq Character. Acquisition function: \code{"ucb"} (default),
+#'   \code{"ei"}, or \code{"poi"}.
+#' @slot init_points Numeric. Number of initial random points; must exceed
+#'   the number of hyperparameters being tuned.
+#' @slot k_iter Numeric. Number of times to sample the scoring function per
+#'   epoch. Must be \code{<= n_iter}, and, when running in parallel, is best
+#'   set to a multiple of the number of cores (and preferably of \code{n_iter}).
+#'
+#' @section `hyper_grid_domain` shape:
+#' \code{hyper_grid_domain@hyperparameter_list} must be a list of named
+#' numeric vectors of length 2, one per hyperparameter, giving its
+#' \code{c(lower, upper)} bounds.
+#'
+#' @section Validity:
+#' In addition to the checks inherited from \code{\link{tuning_strategy-class}},
+#' \code{acq} must be one of \code{"ucb"}, \code{"ei"}, or \code{"poi"}.
+#'
+#' @seealso \code{\link{tuning_strategy-class}} for the inherited slots.
+#'
 #' @export
 setClass(
   "bayesian_opt_strategy",
@@ -1881,17 +2509,21 @@ setClass(
 #' @title sb_backtest_config Class
 #' @description The sb_backtest_config class is designed to define an end-to-end signal-blending (heuristic or machine learning)
 #' experiment, including the hyperparameter tuning strategy, algorithm parameters, and other experiment-specific configurations.
-#' @slot sb_algorithm Character string specifying the signal-blending algorithm to be used. Should be one of
-#' ew (Equal Weight), sw (Signal Weighting), rp (Risk Parity) or mvo (Mean Variance Optimization),
-#' ols (Ordinary Least Squares), glmnet (Elastic Net), rf (Random Forest), xgb (eXtreme Gradient Boosting), and nn (Keras Neural Networks).
+#' @slot sb_algorithm Character string specifying the signal-blending algorithm. One of
+#' ew (Equal Weight), sw (Signal Weighting), rp (Risk Parity), hrp (Hierarchical Risk Parity),
+#' mvo (Mean-Variance Optimization), mmaf (Micro-Macro Allocation Framework), custom_weights,
+#' ols (Ordinary Least Squares), glmnet (Elastic Net), rf (Random Forest), xgb (eXtreme Gradient Boosting), or nn (Keras Neural Network).
 #' @slot target_fwd_name Name of the target variable in `target_m_df`.
 #' @slot tuning_strategy An object of class `tuning_strategy`, specifying the strategy for tuning hyperparameters.
 #' @slot chosen_signals_and_positions A character vector indicating which signals to include in the backtest and their positions (long and short).
 #' @slot split_method Character string indicating the data splitting method ('expanding' or 'rolling').
 #' @slot training_sample_size Number of observations to include in each training sample.
 #' @slot rebalancing_months Months (numeric) when model should be rebalanced (refit).
-#' @slot custom_objective Character string specifying the custom objective function ('squared_error', 'pseudo_huber_error', 'absolute_error') or NULL.
-#' Custom objective  should be a double differentiable loss function and is only applicable for xgboost and nn algorithms.
+#' @slot custom_objective Character string specifying the objective. For ML algorithms: one of
+#' 'squared_error', 'pseudo_huber_error', 'absolute_error' (a twice-differentiable loss; non-'squared_error'
+#' choices only apply to 'xgb'/'nn'). For heuristic portfolio algorithms ('sw', 'rp', 'hrp', 'mvo', 'mmaf'):
+#' a 'max_'/'min_' prefix + a heuristic performance metric present in `signal_universe_m_df`
+#' (see `display_valid_custom_objectives()`). May be NULL.
 #' @slot keras_architecture_parameters An object of class `keras_architecture_parameters` or NULL, providing parameters specific to keras-based neural networks.
 #' It includes:
 #' \itemize{
@@ -1905,6 +2537,15 @@ setClass(
 #' @slot quantile_tau A single numeric value indicating the tau parameter used for quantile regression, between 0 and 1.
 #' @slot huber_delta A single positive numeric value indicating the boundary that separates where the loss function turns from quadratic to linear.
 #' @slot config_name A character string to identify the configuration.
+#'
+#' @section Validity:
+#' \itemize{
+#'   \item \code{sb_algorithm} must be one of the 12 supported algorithms.
+#'   \item \code{chosen_signals_and_positions} must be \code{"all"} or a named vector of \code{"long"}/\code{"short"}.
+#'   \item \code{tuning_strategy} is required for ML algorithms and forbidden for \code{ols}/heuristic algorithms; hyperparameter names must match the algorithm.
+#'   \item \code{early_stop} only for \code{xgb}/\code{nn}; \code{keras_architecture_parameters} only for \code{nn}; \code{signal_port_parameters} only for \code{rp}/\code{hrp}/\code{mvo}/\code{mmaf}.
+#'   \item \code{split_method} must be \code{"expanding"}; \code{rebalancing_months} in 1--12; \code{quantile_tau} in (0,1); \code{huber_delta} > 0.
+#' }
 #' @export
 setClass(
   "sb_backtest_config",
@@ -2348,13 +2989,24 @@ setClass(
 
 #sb_metabacktest_config-----------------------------------------------------
 #' @title sb_metabacktest_config Class
-#' @description The sb_metabacktest_config class is designed to store and manage a collection of sb_backtest_config objects.
+#' @description The sb_metabacktest_config class configures a meta-learning (stacking) backtest:
+#' it wraps a single meta-learner `sb_backtest_config` together with the rules for building the
+#' meta feature set from base learners' out-of-sample predictions (feature passthrough,
+#' normalization, winsorization).
 #' @slot meta_sb_backtest_config A `sb_backtest_config` with the configuration for the meta learner
 #' @slot features_passthrough A character vector indicating which features from \code{features_m_df} are to be passed through to the meta learner.
 #'   Alternatively, if \code{'all'}, all features are passed through. If \code{'none'}, no features are passed through. Default is \code{'none'}.
 #' @slot normalize_base_predictions Logical; if \code{TRUE}, normalizes the base learners' predictions before passing them to the meta learner. Default is \code{TRUE}.
 #' @slot winsorize_base_predictions Logical; if \code{TRUE}, winsorizes the base learners' predictions before passing them to the meta learner. Default is \code{FALSE}.
 #' @slot config_name A character string with the name of the configuration
+#'
+#' @section Validity:
+#' \itemize{
+#'   \item The meta learner's \code{sb_algorithm} may not be \code{rp}/\code{hrp}/\code{mvo}/\code{mmaf}.
+#'   \item The meta learner requires a \code{tuning_strategy} unless it is \code{ols} or heuristic.
+#'   \item \code{chosen_signals_and_positions} must be \code{"all"} (positions are corrected via \code{features_passthrough}).
+#'   \item \code{features_passthrough} may not contain \code{"long"}, \code{"short"} or \code{"force"}.
+#' }
 #' @export
 setClass(
   "sb_metabacktest_config",
@@ -2401,7 +3053,7 @@ setClass(
 #' This class represents a (re)fitted sb model. It encapsulates the algorithm used, hyperparameters, custom objective,
 #' feature data, target variable, and the fitted model object.
 #'
-#' @slot sb_algorithm A character string specifying the machine learning algorithm used (e.g., "ols", "glmnet", "rf", "xgb", "nn", "ew", "rp" or "sw").
+#' @slot sb_algorithm A character string specifying the algorithm used ("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "hrp", "mvo", "mmaf" or "custom_weights").
 #' @slot best_hyperparameters The chosen hyperparameters relevant to the specified machine learning algorithm. Applicable only for machine-learning algorithms.
 #' @slot model The fitted model object, which varies based on the algorithm used.
 #' @slot model_class A character string specifying the class of the model object.
@@ -2412,8 +3064,7 @@ setClass(
 #'
 #' @section Methods:
 #' \describe{
-#'   \item{\code{refit()}}{Refits the model based on the specified algorithm and hyperparameters.}
-#'   \item{\code{predict(new_features)}}{Generates predictions using the fitted model on new feature data.}
+#'   \item{\code{predict(new_features_m_df)}}{Generates predictions using the fitted model on new feature data.}
 #' }
 #'
 #' @export
@@ -2434,7 +3085,7 @@ setClass(
 
 
 #sb_backtest_results---------------------------------------------------
-#' S4 Class for Time Series Walk-Forward Validation Results of Machine-Learning Models
+#' S4 Class for Time Series Walk-Forward Validation Results of Signal-Blending Models
 #'
 #' This S4 class encapsulates the results and parameters from performing walk-forward
 #' validation on time series data using signal-blending algorithms. It includes
@@ -2454,6 +3105,11 @@ setClass(
 #' @slot sb_backtest_workflow A list containing sb_backtest_workflow about the walk-forward validation process.
 #' @slot backtest_identifier A character string that identifies the backtest.
 #'
+#' @section Validity:
+#' When non-\code{NULL}: \code{sb_backtest_config} must be a \code{sb_backtest_config};
+#' \code{final_sb_model} a \code{sb_model}; \code{final_gsm} an \code{lm} or \code{rpart};
+#' \code{feature_importance_m_df}/\code{final_feature_importance_m_d_ref} a \code{meta_dataframe};
+#' the \code{*_m_xts} slots \code{meta_xts} objects. (Model/importance slots may be empty in an update.)
 #'
 #' @return An S4 object of class `sb_backtest_results` containing all the specified results and sb_backtest_workflow.
 #'
@@ -2529,6 +3185,12 @@ setClass(
 #' @slot time_series_validation_metrics A list of data frames for each evaluation metric over time (validation).
 #' @slot backtest_identifier A character string used to identify the backtest.
 #'
+#' @section Validity:
+#' When non-\code{NULL}, \code{sb_metabacktest_config} must be a \code{sb_metabacktest_config}
+#' and \code{mean_validation_metrics} a \code{data.frame}; every element of
+#' \code{base_sb_backtest_results_list} must be a \code{sb_backtest_results} and every element
+#' of \code{combined_oos_testing_metrics} a \code{data.frame}.
+#'
 #' @export
 setClass(
   "sb_metabacktest_results",
@@ -2586,8 +3248,8 @@ setClass(
 #' @slot initial_buffer_period A numeric value representing the initial buffer period.
 #' @slot rebalancing_months A numeric value representing the number of months for rebalancing.
 #' @slot cov_est_method An object of class `cov_est_method` representing the covariance estimation method and relevant parameters. Current methods are: 'sample', 'ewma', 'cc' (constant correlation),
-#' 'pca1', 'pca2', 'shrink_id' (shrinkage to identity matrix), 'shrink_cc' (shrinkage to constant correlation). This is only relevant for 'rp' and 'mvo'.
-#' @slot port_construction_method A character string representing the type of portfolio. Must be one of 'ew', 'sw', 'cw', 'cs', 'rp' or 'mvo'. For signal portfolios,
+#' 'pca1', 'pca2', 'shrink_id' (shrinkage to identity matrix), 'shrink_cc' (shrinkage to constant correlation). This is only relevant for the covariance-based methods 'rp', 'hrp', 'mvo' and 'mmaf'.
+#' @slot port_construction_method A character string representing the type of portfolio. Must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'hrp', 'mvo' or 'mmaf' ('custom_weights' is not supported for this config). For signal portfolios,
 #' 'cw' and 'cs' are not applicable. For signal portfolios, this is inferred based on sb_algorithm.
 #' @slot mvo_parameters An object of class `mvo_parameters` representing the parameters for mean-variance optimization. This is only relevant for 'mvo'.
 #' @slot rp_parameters An object of class `rp_parameters` representing the parameters for risk parity. This is only relevant for 'rp'.
@@ -2842,10 +3504,10 @@ setClass(
 #' @section port-class:
 #' The \code{port} class is a base S4 class specifying general parameters for portfolio construction.
 #'
-#' @slot universe_m_df A meta_dataframe containing the universe of assets.
-#' @slot port_construction_method A \code{character} string specifying the method used to construct the portfolio. Must be one of: \code{c("ew", "sw", "cw", "cs", "rp", "mvo")}.
+#' @slot universe_m_d_ref A \code{meta_dataframe} containing the universe of assets, with weights and per-asset metrics attached.
+#' @slot port_construction_method A \code{character} string specifying the method used to construct the portfolio. Must be one of \code{c("ew", "sw", "cw", "cs", "rp", "hrp", "mvo", "mmaf", "custom_weights")}.
 #' @slot eligible_assets A \code{character} vector of eligible assets for the portfolio.
-#' @slot exp_ret_score The eligible assets expected return scores. Necessary if \code{port_construction_method \%in\% c("sw","cs","mvo")}.
+#' @slot exp_ret_score The eligible assets expected return scores. Required when \code{port_construction_method} is \code{"sw"}, \code{"cs"} or \code{"mvo"}, and also for \code{"rp"}, \code{"hrp"} or \code{"mmaf"} when an \code{exp_ret_score} column is present in \code{universe_m_d_ref} (e.g. a risk-parity tilt).
 #' @slot covariance_matrix The eligible assets covariance matrix of returns. Must have rownames identical to colnames and be symmetric.
 #' @slot correlation_matrix An object storing the correlation matrix of returns (optional if covariance is provided).
 #' @slot weights A \code{numeric} vector of portfolio weights for eligible assets.
@@ -2856,15 +3518,14 @@ setClass(
 #' @slot ind_min_weights A numeric vector specifying minimum weight constraints per asset.
 #' @slot random_port_weights An object for storing random portfolio weights (used in MVO).
 #' @slot groups An object for grouping assets (e.g., sectors).
-#' @slot group_weights An object for storing group weights (used in MMAF).
+#' @slot group_col A \code{character} naming the group column of \code{groups} used for macro/group aggregation (used in MMAF and group-level analytics).
 #' @slot mmaf_method An object for storing the MMAF method (used in MMAF).
-#' @slot mmaf_group_col An object for storing MMAF group colors (used in
-#' @slot group_cov_matrix An object for storing group covariance matrix (used in MMAF).
-#' @slot top_down_proxy_port_method An object for storing the top-down proxy portfolio method (used in MMAF).
-#' @slot micro An object for storing micro-level port (used in MMAF).
-#' @slot macro An object for storing macro-level port (used in MMAF).
+#' @slot group_cov_matrix An object for storing the group covariance matrix (used in MMAF).
+#' @slot micro An object for storing the micro-level portfolio (used in MMAF).
+#' @slot macro An object for storing the macro-level portfolio (used in MMAF).
 #' @slot selected_benchmark_port An object for storing the selected benchmark portfolio.
-#' @slot port_name A \code{character} giving a unique name or label for the configuration.
+#' @slot port_stats A one-row \code{data.frame} of portfolio (and, when applicable, group and active/benchmark-relative) analytics for this portfolio.
+#' @slot port_name A \code{character} giving a unique name or label for the portfolio.
 #'
 #' @section signal_port-class:
 #' Inherits from \code{port}. Restricts \code{port_construction_method} to one of
@@ -2877,8 +3538,8 @@ setClass(
 #' @section stock_port-class:
 #' Inherits from \code{port} and introduces:
 #' \describe{
-#'   \item{\code{type}}{\code{character} specifying the portfolio subtype. Must
-#'   \strong{not} be "signal_blend" or "single_signal" in this class.}
+#'   \item{\code{type}}{\code{character} specifying the portfolio subtype. Must be one of
+#'   "signal_blend", "single_signal" or "custom_weights".}
 #'   \item{\code{main_liquidity_metric}}{\code{ANY} object specifying a liquidity metric;
 #'         must be non-\code{NULL} when \code{port_construction_method} is \code{"cw"} or \code{"cs"}.}
 #' }

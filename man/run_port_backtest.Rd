@@ -107,7 +107,10 @@ An object of class \code{port_backtest_results}, containing:
 \item \code{port_returns_m_xts}: Net and raw portfolio returns (and benchmark-relative returns if applicable).
 \item \code{port_metrics_m_xts}: Aggregated portfolio metrics (if \code{custom_stock_metrics_m_df} is supplied).
 \item \code{stock_universe_m_df}: Data frame with signal scores, eligibility flags, and classification for each stock.
+\item \code{port_stats_m_df}: Time series of portfolio (and, when applicable, group and active) analytics per rebalance date.
+\item \code{final_stock_port}: The \code{stock_port} object for the last rebalance date (final weights, covariance, RRC, macro/benchmark sub-portfolios).
 \item \code{port_backtest_workflow}: A list tracking workflow metadata, inputs, and date coverage.
+\item \code{backtest_identifier}: A character identifier of the form \code{"c__<config>_s__<signals>_f__<fwd_return>"}.
 }
 }
 \description{
@@ -116,6 +119,22 @@ Run Portfolio Backtest
 \details{
 Main entry point for portfolio simulations in the \code{factoRverse} ecosystem.
 This generic function defines the interface and documentation for \code{run_port_backtest()}.
+
+This is the stock-level portfolio construction and backtesting engine of the \code{factoRverse} ecosystem.
+It is used at two points of a quantitative workflow: (a) when designing backtests for an individual
+signal/characteristic, and (b) when building a final portfolio out of a blended signal. Accordingly, the
+expected-return score for each stock comes from one of two mutually exclusive sources:
+\itemize{
+\item a single characteristic column of \code{signals_m_df}, selected via \code{config@chosen_score_metric_and_position}
+(a named vector such as \code{c(book_yield = "long")}); or
+\item the \code{pred} column of an \code{sb_backtest_results}/\code{sb_metabacktest_results} object passed to
+\code{sb_backtest_results}, i.e. the out-of-sample output of \code{run_sb_backtest()}. Only \code{id}, \code{tickers},
+\code{dates}, and \code{pred} are extracted (the \code{target} column is dropped) to guard against look-ahead leakage.
+}
+The engine then walks forward date by date, at each rebalance deriving the stock universe
+(\code{derive_stock_universe_m_d_ref}), classifying eligibility (\code{classify_investment_universe}), assigning weights
+(\code{set_portfolio_weights}), allocating with trade orders and costs (\code{allocate_port}), computing metrics, and
+rolling weights and returns to the next period (\code{roll_port}).
 
 The function integrates multiple components:
 \subsection{1. \strong{Stock Classification}}{
@@ -177,7 +196,20 @@ After defining the filtered investment universe:
 
 \subsection{5. \strong{Parallel and Verbose Execution}}{
 
-The function supports verbose output and parallel execution to improve transparency and computational efficiency when backtesting over long time windows or using Bayesian inference.
+The function supports verbose output and parallel execution to improve transparency and computational efficiency when using heavy port construction methods, such as MVO.
+}
+
+\subsection{6. \strong{Portfolio Analytics, Transaction Costs and Delisting Realism}}{
+
+At every rebalance the engine computes a rich set of portfolio and benchmark analytics (via \code{calculate_port_stats})
+at both the micro (per-asset) and macro (group/sector) levels: concentration (HHI, effective N, entropy, Gini,
+top-k), diversification ratio, weighted-average pairwise correlation, gross/net exposure, and relative
+risk-contribution measures (RRC HHI, effective N, distance-to-ERC) — plus active (\code{act_}, information-ratio)
+variants whenever a benchmark is supplied. Trading is modelled realistically: \code{allocate_port} sizes trade orders
+and applies a market-impact cost model (\code{calculate_transaction_costs}, with static or \code{"dynamic"} lambda) on top of
+direct costs, and keeps a full transaction log. Delisted and newly listed (IPO) names are handled explicitly when
+rolling and rebalancing — delisted holdings are unwound (zero target weight, imputed liquidity/volatility), IPOs
+enter with zero weight, and surviving names are carried forward by \code{roll_port}.
 }
 }
 \section{Methods (by class)}{
@@ -193,3 +225,32 @@ The function supports verbose output and parallel execution to improve transpare
 Executes a full pipeline portfolio backtest, from asset/signal classification and eligibility filtering to benchmark construction and weight optimization, based on expected return scores (\code{exp_ret_score}) or signal performance. This function is designed to incorporate realistic portfolio constraints and rules—such as turnover, liquidity, group representativeness, and user-defined filters—while also supporting fallback logic to ensure a viable investment universe is selected in each rebalance date.
 
 }}
+\examples{
+\dontrun{
+  # Single-signal (book-yield) equal-weighted backtest against the ibov benchmark.
+  config <- create_port_backtest_config(
+    chosen_score_metric_and_position = c(book_yield = "long"),
+    eligibility_quantile_range = c(0.8, 1.0),
+    initial_buffer_period = 12,
+    rebalancing_months = c(6, 12),
+    selected_benchmark = "ibov",
+    main_liquidity_metric = "mean_volfin_3m",
+    port_construction_method = "ew"
+  )
+
+  results <- run_port_backtest(
+    signals_m_df           = signals_m_df,
+    fwd_return_m_df        = fwd_return_m_df,
+    liquidity_m_df         = liquidity_m_df,
+    volatility_m_df        = volatility_m_df,
+    config                 = config,
+    benchmark_weights_m_df = benchmark_weights_m_df,
+    benchmark_returns_m_xts = benchmark_returns_m_xts,
+    verbose = TRUE, parallel = FALSE
+  )
+
+  # Alternatively, drive the backtest from a blended signal (run_sb_backtest output):
+  # results <- run_port_backtest(signals_m_df, fwd_return_m_df, liquidity_m_df,
+  #                              volatility_m_df, config, sb_backtest_results = sb_results)
+}
+}

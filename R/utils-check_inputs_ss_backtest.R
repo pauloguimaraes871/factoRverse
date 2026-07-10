@@ -282,7 +282,7 @@ check_inputs_ss_backtest <- function(
       }
 
       if(!is.null(lmer_control$hierarchical_p_value_method) && !lmer_control$hierarchical_p_value_method %in% c("Satterthwaite", "Kenward-Roger", "lme4")){
-        stop("hierarchical_p_value_method should be one of 'Satterthwaite', 'Kenward-Roger'  or 'REML'")
+        stop("hierarchical_p_value_method should be one of 'Satterthwaite', 'Kenward-Roger'  or 'lme4'")
       }
       if(any(is.null(theme_level_intercept), is.null(theme_level_slope))){
         stop("For 'partial_pooled' model structure, 'theme_level_intercept' and 'theme_level_slope' must be provided.")

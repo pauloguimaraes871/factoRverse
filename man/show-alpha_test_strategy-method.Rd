@@ -10,5 +10,7 @@
 \item{object}{An \code{alpha_test_strategy} object to be displayed.}
 }
 \description{
-Prints the contents of an \code{alpha_test_strategy} object, detailing the various parameters and their configurations.
+Prints the contents of an \code{alpha_test_strategy} object: main information (signal significance
+threshold, p-value correction method, market factor proxy, theme representativeness); model structure
+(model structure, and theme-level intercept/slope if set); and \code{lmer_control} parameters, if set.
 }

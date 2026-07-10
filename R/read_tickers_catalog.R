@@ -11,7 +11,17 @@
 #' @param verbose A logical indicating whether to print progress messages. Defaults to `TRUE`.
 #' @param ... Additional arguments passed to methods. Supports `verbose = TRUE/FALSE`.
 #'
+#' @details
+#' The catalog's stable `perm_id` values replace the (possibly changing) `tickers` labels, so a company keeps a
+#' single identity across ticker renames. Each series is then restricted to its valid trading window: observations
+#' before `tickers_first_quote` or after `tickers_last_quote` (plus the catalog's `n_days_tolerance`) are set to NA
+#' or dropped, and tickers classified as `untraded` are removed. This yields a clean, survivorship-aware panel
+#' ready for the silver/gold preprocessing stages.
+#'
 #' @return An object of the same class as `data`, modified according to the catalog rules.
+#'
+#' @seealso \code{\link{create_tickers_catalog}}, \code{\link{update_tickers_catalog}}, \code{\link{tickers_catalog-class}}
+#'
 #' @export
 setGeneric("read_tickers_catalog", function(data, tickers_catalog, ...) {
   standardGeneric("read_tickers_catalog")

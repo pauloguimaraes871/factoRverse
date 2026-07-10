@@ -18,36 +18,27 @@ a column named \code{id} (or an equivalent identifier) and a column named \code{
 
 \item{fwd_selected_benchmark_return}{Numeric. The forward return of the selected benchmark.}
 
-\item{port_weights_m_d_ref}{A data frame containing portfolio weights. Must include a column named \code{id} (or an equivalent identifier).}
+\item{port_weights_m_d_ref}{A data frame containing portfolio weights. Must include an \code{id} column (for the join) and an \code{eop_port_weights} column (end-of-period weights used to weight forward returns).}
 
 \item{total_cost}{Numeric. The total cost associated with the portfolio.}
 
 \item{verbose}{Logical. If \code{TRUE}, messages will be printed about the calculation process.}
 }
 \value{
-A list containing:
-\describe{
-\item{\code{transactions_m_d_ref}}{Data frame with the updated forward returns after joining with \code{clean_fwd_return_1m_m_d_ref}.}
-\item{\code{fwd_raw_return}}{Numeric. The raw weighted forward return.}
-\item{\code{fwd_raw_active_return}}{Numeric. The raw active return.}
-\item{\code{fwd_net_return}}{Numeric. The net return (subtracting total costs from the raw return).}
-\item{\code{fwd_net_active_return}}{Numeric. The net active return (subtracting the benchmark forward return from \code{fwd_net_return}).}
-\item{\code{turnover}}{Numeric. The average of the absolute \code{delta} values.}
-}
+A one-row data frame (\code{fwd_port_returns_d_ref}) with columns \code{fwd_raw_return} and
+\code{fwd_net_return}. When \code{fwd_selected_benchmark_return} is supplied, it also includes
+\code{fwd_selected_bench_return}, \code{fwd_raw_active_return}, and \code{fwd_net_active_return}.
 }
 \description{
 This function calculates the portfolio's forward returns, active returns, net returns, and turnover,
 given stock- and benchmark-level forward returns, transactions information, and cost data.
 }
 \details{
-The function first joins \code{transactions_m_d_ref} with \code{clean_fwd_return_1m_m_d_ref} by \code{id}.
-Any missing forward returns are replaced with 0.
-It then calculates several return metrics:
+The function joins \code{port_weights_m_d_ref} with \code{clean_fwd_return_1m_m_d_ref} by \code{id} and computes:
 \itemize{
-\item \strong{Raw Return:} Weighted sum of \code{fwd_return_1m}.
-\item \strong{Raw Active Return:} Raw Return minus the benchmark forward return.
-\item \strong{Net Return:} Raw Return minus the total cost.
-\item \strong{Net Active Return:} Net Return minus the benchmark forward return.
-\item \strong{Turnover:} Mean absolute value of \code{delta}.
+\item \strong{Raw Return:} Weighted sum of \code{fwd_return_1m} using \code{eop_port_weights} (NA returns are ignored).
+\item \strong{Net Return:} Raw Return minus \code{total_cost}.
+\item \strong{Raw Active Return:} Raw Return minus the benchmark forward return (only when \code{fwd_selected_benchmark_return} is supplied).
+\item \strong{Net Active Return:} Net Return minus the benchmark forward return (only when \code{fwd_selected_benchmark_return} is supplied).
 }
 }

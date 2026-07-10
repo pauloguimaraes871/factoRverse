@@ -2,18 +2,44 @@
 % Please edit documentation in R/utils-set_eval_function.R
 \name{set_eval_function}
 \alias{set_eval_function}
-\title{Helper function to run hyperparameter tuning}
+\title{Build the Evaluation Function for Hyperparameter Tuning}
 \usage{
 set_eval_function(ml_algorithm, tuning_method)
 }
 \arguments{
-\item{ml_algorithm}{Choice of ml algorithm}
+\item{ml_algorithm}{Character, algorithm to build an evaluator for
+(\code{"glmnet"}, \code{"rf"}, \code{"xgb"}, \code{"nn"}).}
 
-\item{tuning_method}{Choice of tuning method}
+\item{tuning_method}{Character, one of \code{"grid_search"}, \code{"random_search"},
+\code{"bayesian_opt"}; selects the calling convention.}
 }
 \value{
-A eval_function to apply hyperparameter tuning
+A closure passed to \code{\link{hyper_tune}}: a direct evaluator for
+grid/random search, or a data-capturing wrapper for Bayesian optimization.
 }
 \description{
-Helper function to run hyperparameter tuning
+Factory returning the closure \code{\link{hyper_tune}} uses to score one
+hyperparameter candidate for a given ML algorithm. The shape of the returned
+function depends on \code{tuning_method}, because grid/random search and Bayesian
+optimization consume it differently.
+}
+\details{
+\itemize{
+\item \strong{\code{"grid_search"} / \code{"random_search"}}: returns a function
+whose formals are the hyperparameters (plus data and eval-metric arguments),
+suitable for \code{purrr::pmap()} / \code{furrr::future_pmap()} over an expanded
+grid. It fits on the training sample, predicts on the validation sample, and
+returns the \code{\link{calculate_eval_metrics}} data frame (or the fitted model
+when \code{return_all_info = TRUE}).
+\item \strong{\code{"bayesian_opt"}}: returns a \emph{wrapper} that captures data /
+eval-metric arguments via \code{...}, then exposes an inner \code{fit()} taking
+only the hyperparameters and returning the named list of scalar scores expected
+by \code{ParBayesianOptimization::bayesOpt()}.
+}
+Supported algorithms: \code{"glmnet"} (\code{glmnet::glmnet}), \code{"rf"}
+(\code{ranger::ranger}; \code{mtry} is treated as a proportion of predictors),
+\code{"xgb"} (\code{xgboost::xgb.train}), \code{"nn"} (\code{\link{fit_keras_model}}).
+}
+\seealso{
+\code{\link{hyper_tune}}, \code{\link{calculate_eval_metrics}}, \code{\link{fit_keras_model}}
 }

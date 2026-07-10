@@ -23,7 +23,14 @@
 #' in the same formula is not allowed when `ignore_NA` is used. The function appends the result to
 #' the `meta_dataframe`, preserving its workflow log.
 #'
-#' @return A `meta_dataframe` object with an added column containing the computed values based on the formula.
+#' @examples
+#' \dontrun{
+#' # Book yield from two columns, then a log transform
+#' features_m_df <- compute_formula(features_m_df, book_yield ~ book_value / market_cap)
+#' features_m_df <- compute_formula(features_m_df, log_mktcap ~ log(market_cap))
+#' # NA-safe additive combination: treat a missing Beta as 0
+#' features_m_df <- compute_formula(features_m_df, combo ~ Alpha + Beta, ignore_NA = "Beta")
+#' }
 #'
 #' @export
 setGeneric("compute_formula", function(features_m_df, formula, ignore_NA = NULL) {

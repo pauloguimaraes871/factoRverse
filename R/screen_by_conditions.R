@@ -1,9 +1,19 @@
-#' Generic function for screening a meta_dataframe based on conditions
+#' Screen (filter) a meta_dataframe by row-wise conditions
 #'
-#' This is a generic function for screening `meta_dataframe` objects based on conditions.
+#' Filters the rows of a `meta_dataframe` using one or more logical conditions, which are passed straight to
+#' `dplyr::filter()`. Object metadata is preserved and a screening step is appended to the `workflow` log.
+#' Errors if the conditions filter out every row.
 #'
 #' @param meta_dataframe A `meta_dataframe` object.
-#' @param ... A list of conditions to filter the data. Those will be passed to `dplyr::filter()`.
+#' @param ... One or more logical conditions passed to `dplyr::filter()` (e.g. `value > 15`, `tickers != "C"`).
+#'
+#' @return A new `meta_dataframe` containing only the rows that satisfy the conditions.
+#'
+#' @examples
+#' \dontrun{
+#' # Keep liquid, non-financial names
+#' screen_by_conditions(features_m_df, mean_volfin_3m > 1e6, sector != "Financials")
+#' }
 #'
 #' @export
 setGeneric("screen_by_conditions", function(meta_dataframe, ...) {

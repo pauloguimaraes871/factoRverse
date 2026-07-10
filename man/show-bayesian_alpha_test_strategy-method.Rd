@@ -10,5 +10,7 @@
 \item{object}{A \code{bayesian_alpha_test_strategy} object to be displayed.}
 }
 \description{
-Prints the contents of a \code{bayesian_alpha_test_strategy} object, detailing the various parameters and their configurations.
+Prints the contents of a \code{bayesian_alpha_test_strategy} object: a header, followed by the
+inherited \code{alpha_test_strategy} display, plus a \code{bayesian_model_parameters} section (delegated to its own
+\code{show} method), or a "No Bayesian Model Parameters set" message if \code{NULL}.
 }

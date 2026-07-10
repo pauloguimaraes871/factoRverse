@@ -3,7 +3,7 @@
 \name{update_meta_dataframe}
 \alias{update_meta_dataframe}
 \alias{update_meta_dataframe,meta_dataframe,meta_dataframe-method}
-\title{Update Meta Dataframe}
+\title{Update meta_dataframe by appending a batch}
 \usage{
 update_meta_dataframe(old_features_m_df, new_features_m_df, ...)
 
@@ -14,17 +14,59 @@ update_meta_dataframe(old_features_m_df, new_features_m_df, ...)
 )
 }
 \arguments{
-\item{old_features_m_df}{A features meta_dataframe object with previous data}
+\item{old_features_m_df}{A \code{meta_dataframe} containing the existing (historical) panel.}
 
-\item{new_features_m_df}{A features meta dataframe object with new data}
+\item{new_features_m_df}{A \code{meta_dataframe} containing the new batch to append. Typically the new object
+contains a single date (monthly batch) and the same set of columns as \code{old_features_m_df}.}
 
-\item{...}{Additional arguments}
+\item{...}{Additional arguments (reserved / forwarded).}
 
-\item{batch_type}{A character string indicating the batch type. Default is 'monthly'}
+\item{batch_type}{Character. Batch cadence: \code{"monthly"} (default) or \code{"daily"}. Controls validation of
+the number of unique dates in \code{new_features_m_df}.}
 }
 \value{
-Updated meta_dataframe object
+A \code{meta_dataframe} with rows from \code{new_features_m_df} appended to \code{old_features_m_df},
+metadata consolidated via \code{consolidate_generic_meta_dataframes()}, and the \code{workflow} slot updated
+with a new \code{update_<date>} entry describing the batch.
 }
 \description{
-Update Meta Dataframe
+Append a new batch (usually one month of observations) to an existing \code{meta_dataframe},
+validating compatibility and consolidating metadata. Intended for incremental ingestion of feature
+tables produced monthly (or daily) while preserving workflow provenance.
+}
+\details{
+Update a meta_dataframe with a new batch of data
+
+The method performs strict compatibility checks before merging (tests assert these behaviours):
+\itemize{
+\item Column names and classes must match exactly between old and new objects.
+\item There must be no overlapping \code{id} values or overlapping \code{dates}.
+\item For \code{batch_type == "monthly"} the new batch must contain exactly one unique date.
+\item For \code{batch_type == "daily"} the number of unique dates is validated to be in a reasonable range.
+\item \code{new_features_m_df@current_date} must equal one month after \code{old_features_m_df@current_date}.
+\item Neither object may be of class \code{raw_features_m_df}.
+\item Both objects must contain a \code{read_tickers_catalog} entry in their \code{workflow} (ensures consistent ticker mapping).
+}
+
+On success, the function calls \code{consolidate_generic_meta_dataframes(..., type = "generic")} to merge
+the tables and then appends a batch entry to the \code{workflow} slot describing the new date, batch name,
+timestamp and the batch's own workflow.
+}
+\section{Functions}{
+\itemize{
+\item \code{update_meta_dataframe(
+  old_features_m_df = meta_dataframe,
+  new_features_m_df = meta_dataframe
+)}: Method implementation for meta_dataframe inputs
+
+Method signature: \code{old_features_m_df = "meta_dataframe"}, \code{new_features_m_df = "meta_dataframe"}.
+
+}}
+\examples{
+\dontrun{
+# old_mdf and new_mdf are meta_dataframe objects
+# (new_mdf typically contains a single new monthly date)
+updated <- update_meta_dataframe(old_mdf, new_mdf, batch_type = "monthly")
+}
+
 }

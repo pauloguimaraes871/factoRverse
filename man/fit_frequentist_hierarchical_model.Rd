@@ -58,8 +58,9 @@ Options include:
 \value{
 A named list containing:
 \itemize{
-\item \code{frequentist_model}: A \code{lmermod} object containing the fitted frequentist model.
-\item \code{signal_universe_m_d_ref}: A data frame containing the updated \code{signal_universe_m_d_ref}.
+\item \code{lmer_model}: The fitted \code{lmerModLmerTest} object (from \code{lmerTest::lmer}).
+\item \code{pooled_CAPM_metrics_m_d_ref}: A data frame with per-signal CAPM metrics extracted from \code{lmer_model}
+(see \code{summarize_lmer_model()}), or \code{NULL} if \code{signal_universe_m_d_ref} was \code{NULL}.
 }
 }
 \description{

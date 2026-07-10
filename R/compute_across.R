@@ -22,6 +22,14 @@
 #' The function checks consistency of column names and dates, performs the operation row-wise
 #' for matching dates, and appends the result to the `meta_dataframe`.
 #'
+#' @examples
+#' \dontrun{
+#' # Multiply a signal by a same-date macro metric (e.g. inflation) drawn from a meta_xts
+#' meta_df <- compute_across(meta_df, metrics_xts, FUN = "product", signal = "ir_3m", metric = "ipca")
+#' # Simply append a macro time series as a per-date column
+#' meta_df <- compute_across(meta_df, metrics_xts, FUN = "just_append", metric = "ipca")
+#' }
+#'
 #' @export
 setGeneric("compute_across",
            function(meta_dataframe, meta_xts, FUN, feature_name = NULL, signal = NULL, metric, ...) {

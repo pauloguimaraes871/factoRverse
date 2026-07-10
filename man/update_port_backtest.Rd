@@ -90,6 +90,15 @@ Update Portfolio Backtest
 The \code{update_port_backtest} function will take an existing \code{port_backtest_results} object and update it with
 new dates. This function is useful when you want to add new dates to an existing backtest without having to re-run the entire backtest.
 }
+\details{
+The update re-runs a one-month extension of the existing backtest: it takes the backtest back to the last
+covered date (so the now-populated \code{fwd_return_m_df} at that date can be used to roll the portfolio forward),
+sets \code{initial_buffer_period} to the previous number of dates, and verifies that the new input objects are the
+one-month continuation of the old ones (matching object names and dates via \code{check_update_backtest_objects()})
+before binding the new outputs onto the old results with \code{consolidate_backtest_results()}. If the original
+backtest was driven by an \code{sb_backtest_results}/\code{sb_metabacktest_results} object, a matching
+\code{updated_sb_backtest_results} (same \code{backtest_identifier}, one month ahead) must be supplied here.
+}
 \section{Methods (by class)}{
 \itemize{
 \item \code{update_port_backtest(

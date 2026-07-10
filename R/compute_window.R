@@ -11,8 +11,13 @@
 #' @param data A `meta_dataframe` or `meta_xts` object.
 #' @param period A `numeric` value indicating the time window:
 #' @param window A `character` specifying the window type: either "rolling" (default) or "seasonal".
-#' @param FUN A `character` specifying the function to apply. Supported options:
-#'   - "median", "sd", "cagr", "skew", "sur", "signal_to_noise", "res_mom", "idio_vol".
+#' @param FUN A `character` specifying the function to apply. Supported options depend on the input class:
+#'   - For a `meta_dataframe`: "sum", "mean", "geom_mean_ret", "median", "sd", "skew", "sur", "cagr",
+#'     "signal_to_noise", "res_mom", "idio_vol", "count_if", "max", "min", "lag".
+#'   - For a `meta_xts`: "mean", "median", "geom_mean_ret", "max", "min", "sd", "skew", "sur", "cagr",
+#'     "signal_to_noise", "alpha", "alpha_tstat", "beta", "correlation", "res_mom", "idio_vol".
+#'   The benchmark-based FUNs ("res_mom", "idio_vol", "alpha", "alpha_tstat", "beta", "correlation") require
+#'   `benchmark_returns_m_xts` and `selected_bench`.
 #' @param signal (For `meta_dataframe`) A `character` specifying the column name on which the rolling function is computed.
 #' @param col_name (For `meta_xts`) A `character` specifying the column name.
 #' @param benchmark_returns_m_xts A `meta_xts` object. Required for `FUN` "res_mom" and "idio_vol".
@@ -39,19 +44,22 @@
 #'
 #' Available functions:
 #' \itemize{
-#'   \item **sum**: `sum(x, na.rm = na.rm)`
-#'   \item **median**: `stats::median(x, na.rm = na.rm)`
-#'   \item **sd**: `stats::sd(x, na.rm = na.rm)`
-#'   \item **skew**: `mean((x - mean(x))^3, na.rm = na.rm) / stats::sd(x, na.rm = na.rm)^3`
-#'   \item **sur**: `(final_value - mean(x, na.rm = na.rm)) / stats::sd(x, na.rm = na.rm)`, where `final_value` is the most recent metric value.
-#'   \item **cv**: `stats::mean(unique(x), na.rm = na.rm) / stats::sd(unique(x), na.rm = na.rm)`
-#'   \item **res_mom**: Performs rolling regressions between the metric and the benchmark (from `benchmark_returns_m_xts`).
-#'         Computes `alpha` and `beta`, then returns `(alpha + beta * current_benchmark) - current_metric`.
-#'   \item **idio_vol**: Computes rolling volatility by regressing the metric against the benchmark, obtaining beta, then computing `sqrt(sd(metric)^2 - beta^2 * sd(benchmark)^2)`.
-#'   \item **count_if**: Counts the number of elements that satisfy a condition. The condition is specified by the `count_condition_fun` argument.
-#'   \item **max**: `max(x, na.rm = na.rm)`
-#'   \item **min**: `min(x, na.rm = na.rm)`
-#'   \item **lag**: Retrieves the observation that happened period months ago.
+#'   \item **sum**: `sum(x, na.rm = na.rm)` (meta_dataframe only).
+#'   \item **mean**: `mean(x, na.rm = na.rm)`.
+#'   \item **geom_mean_ret**: Geometric mean return over the window (percentage-point scale).
+#'   \item **median**: `stats::median(x, na.rm = na.rm)`.
+#'   \item **sd**: `stats::sd(x, na.rm = na.rm)`.
+#'   \item **skew**: Bias-adjusted skewness of the values in the window.
+#'   \item **sur**: `(final_value - mean(x, na.rm = na.rm)) / stats::sd(x, na.rm = na.rm)`, where `final_value` is the most recent value.
+#'   \item **cagr**: Compound growth rate between the first and last value of the window.
+#'   \item **signal_to_noise**: `mean(x) / sd(x)` (mean-to-standard-deviation ratio).
+#'   \item **res_mom**: Rolling regression of the metric on the benchmark; returns the standardized sum of residuals (residual momentum).
+#'   \item **idio_vol**: Rolling regression against the benchmark; returns `sqrt(sd(metric)^2 - beta^2 * sd(benchmark)^2)`.
+#'   \item **alpha**, **alpha_tstat**, **beta**, **correlation**: Rolling CAPM-style statistics against the benchmark (meta_xts only).
+#'   \item **count_if**: Counts the number of elements that satisfy `count_condition_fun` (meta_dataframe only).
+#'   \item **max**: `max(x, na.rm = na.rm)` for a meta_dataframe; sum of the top `top_n` values for a meta_xts.
+#'   \item **min**: `min(x, na.rm = na.rm)`.
+#'   \item **lag**: Retrieves the observation that happened `period` months ago (meta_dataframe only).
 #' }
 #'
 #' @export

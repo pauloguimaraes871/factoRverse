@@ -2,7 +2,7 @@
 % Please edit documentation in R/summary_methods.R
 \name{summary,meta_xts-method}
 \alias{summary,meta_xts-method}
-\title{Summary Method for meta_xts Class}
+\title{Summary Method for \code{meta_xts} Objects}
 \usage{
 \S4method{summary}{meta_xts}(
   object,
@@ -15,19 +15,32 @@
 \arguments{
 \item{object}{An S4 object of class \code{meta_xts}, possibly a subclass like \code{returns_meta_xts}.}
 
-\item{summary_id}{A numeric or character specifying which summary to display.
-If NULL, a menu is shown.}
+\item{summary_id}{Numeric (\code{1}-\code{3}, or \code{1}-\code{4} for \code{returns_meta_xts}) or the
+matching character label: \code{"Numeric Summary Table"}, \code{"Numeric Summary Table by Year"},
+\code{"Series Frequency Table"}, or (only for \code{returns_meta_xts}) \code{"Performance Metrics Table"}.
+If \code{NULL}, an interactive menu is shown via \code{readline()}.}
 
-\item{benchmark_returns_m_xts}{An optional \code{xts} object with benchmark returns (for active performance).}
+\item{benchmark_returns_m_xts}{A single-column \code{returns_meta_xts} object with
+benchmark returns, required to compute active performance metrics.}
 
-\item{active_returns}{Logical. If TRUE, computes active returns relative to the benchmark.}
+\item{active_returns}{Logical. Requested default for computing active returns
+relative to \code{benchmark_returns_m_xts}. Note: when \code{summary_id} is supplied as
+the numeric \code{4}, this value is overridden by an interactive \code{readline()}
+prompt regardless of what was passed; supplying \code{summary_id} as the string
+\code{"Performance Metrics Table"} skips that prompt and honors this argument as-is.}
 
 \item{...}{Further arguments (not used).}
 }
 \value{
-Invisibly returns the \code{object}, printing a styled table or prompt in the Viewer.
+Invisibly returns \code{object}; called for the side effect of printing a
+\code{DT::datatable} (via \code{htmlwidgets}/\code{htmltools}) to the Viewer.
 }
 \description{
-Provides summary statistics for meta_xts objects, including numeric summaries,
-yearly trends, series frequency tables, and (for returns_meta_xts) a performance metrics table.
+Interactively (or via \code{summary_id}) prints a styled \code{DT::datatable} summary for
+a \code{meta_xts} object: a numeric summary, a by-year numeric summary, a series
+frequency table, and, for \code{returns_meta_xts} objects, a performance metrics table.
+}
+\details{
+Requires the suggested packages \code{DT}, \code{htmltools}, and \code{htmlwidgets}; if any are
+missing, an informative \code{stop()} is raised.
 }

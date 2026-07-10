@@ -47,9 +47,14 @@ compute_window(data, period, FUN, ...)
 
 \item{period}{A \code{numeric} value indicating the time window:}
 
-\item{FUN}{A \code{character} specifying the function to apply. Supported options:
+\item{FUN}{A \code{character} specifying the function to apply. Supported options depend on the input class:
 \itemize{
-\item "median", "sd", "cagr", "skew", "sur", "signal_to_noise", "res_mom", "idio_vol".
+\item For a \code{meta_dataframe}: "sum", "mean", "geom_mean_ret", "median", "sd", "skew", "sur", "cagr",
+"signal_to_noise", "res_mom", "idio_vol", "count_if", "max", "min", "lag".
+\item For a \code{meta_xts}: "mean", "median", "geom_mean_ret", "max", "min", "sd", "skew", "sur", "cagr",
+"signal_to_noise", "alpha", "alpha_tstat", "beta", "correlation", "res_mom", "idio_vol".
+The benchmark-based FUNs ("res_mom", "idio_vol", "alpha", "alpha_tstat", "beta", "correlation") require
+\code{benchmark_returns_m_xts} and \code{selected_bench}.
 }}
 
 \item{...}{Additional arguments passed to the function.}
@@ -107,18 +112,21 @@ The function filters observations within the specified time window and applies t
 
 Available functions:
 \itemize{
-\item \strong{sum}: \code{sum(x, na.rm = na.rm)}
-\item \strong{median}: \code{stats::median(x, na.rm = na.rm)}
-\item \strong{sd}: \code{stats::sd(x, na.rm = na.rm)}
-\item \strong{skew}: \code{mean((x - mean(x))^3, na.rm = na.rm) / stats::sd(x, na.rm = na.rm)^3}
-\item \strong{sur}: \code{(final_value - mean(x, na.rm = na.rm)) / stats::sd(x, na.rm = na.rm)}, where \code{final_value} is the most recent metric value.
-\item \strong{cv}: \code{stats::mean(unique(x), na.rm = na.rm) / stats::sd(unique(x), na.rm = na.rm)}
-\item \strong{res_mom}: Performs rolling regressions between the metric and the benchmark (from \code{benchmark_returns_m_xts}).
-Computes \code{alpha} and \code{beta}, then returns \code{(alpha + beta * current_benchmark) - current_metric}.
-\item \strong{idio_vol}: Computes rolling volatility by regressing the metric against the benchmark, obtaining beta, then computing \code{sqrt(sd(metric)^2 - beta^2 * sd(benchmark)^2)}.
-\item \strong{count_if}: Counts the number of elements that satisfy a condition. The condition is specified by the \code{count_condition_fun} argument.
-\item \strong{max}: \code{max(x, na.rm = na.rm)}
-\item \strong{min}: \code{min(x, na.rm = na.rm)}
-\item \strong{lag}: Retrieves the observation that happened period months ago.
+\item \strong{sum}: \code{sum(x, na.rm = na.rm)} (meta_dataframe only).
+\item \strong{mean}: \code{mean(x, na.rm = na.rm)}.
+\item \strong{geom_mean_ret}: Geometric mean return over the window (percentage-point scale).
+\item \strong{median}: \code{stats::median(x, na.rm = na.rm)}.
+\item \strong{sd}: \code{stats::sd(x, na.rm = na.rm)}.
+\item \strong{skew}: Bias-adjusted skewness of the values in the window.
+\item \strong{sur}: \code{(final_value - mean(x, na.rm = na.rm)) / stats::sd(x, na.rm = na.rm)}, where \code{final_value} is the most recent value.
+\item \strong{cagr}: Compound growth rate between the first and last value of the window.
+\item \strong{signal_to_noise}: \code{mean(x) / sd(x)} (mean-to-standard-deviation ratio).
+\item \strong{res_mom}: Rolling regression of the metric on the benchmark; returns the standardized sum of residuals (residual momentum).
+\item \strong{idio_vol}: Rolling regression against the benchmark; returns \code{sqrt(sd(metric)^2 - beta^2 * sd(benchmark)^2)}.
+\item \strong{alpha}, \strong{alpha_tstat}, \strong{beta}, \strong{correlation}: Rolling CAPM-style statistics against the benchmark (meta_xts only).
+\item \strong{count_if}: Counts the number of elements that satisfy \code{count_condition_fun} (meta_dataframe only).
+\item \strong{max}: \code{max(x, na.rm = na.rm)} for a meta_dataframe; sum of the top \code{top_n} values for a meta_xts.
+\item \strong{min}: \code{min(x, na.rm = na.rm)}.
+\item \strong{lag}: Retrieves the observation that happened \code{period} months ago (meta_dataframe only).
 }
 }

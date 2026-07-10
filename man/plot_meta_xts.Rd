@@ -47,7 +47,8 @@ Only applies if \code{cumulative = FALSE}. If \code{NULL}, user is prompted.}
 
 \item{chosen_metric}{Character. Performance metric to plot when \code{plot_perf_metric = TRUE}. Options include "CAGR", "Volatility", "Sharpe Ratio", etc. If \code{NULL}, user is prompted.}
 
-\item{palette}{Character. Color palette to use for the plots.}
+\item{palette}{Character. Either \code{"cyberpunk"} (default; dark background,
+neon series colors) or \code{"br"} (light background, brand palette).}
 
 \item{...}{Currently unused.}
 }
@@ -71,6 +72,21 @@ It includes:
 \item Neon color palette and dark theme styling.
 }
 }
+\section{Requirements}{
+
+Requires the suggested packages \code{gridExtra}, \code{scales}, \code{ggdist}, \code{ggraph},
+\code{ggrepel}, \code{igraph}, and \code{RColorBrewer}; if any are missing, an informative
+\code{stop()} is raised rather than a cryptic failure.
+}
+
+\section{Interactivity}{
+
+Any of \code{variable}, \code{facet_by_year}, \code{cumulative}, \code{plot_perf_metric},
+\code{active_returns}, or \code{chosen_metric} left as \code{NULL} triggers an interactive
+\code{readline()} prompt. Supply all of them explicitly to use this method in
+non-interactive contexts (scripts, \code{knitr}, tests).
+}
+
 \seealso{
 \code{\link[=create_performance_m_df]{create_performance_m_df()}}
 }

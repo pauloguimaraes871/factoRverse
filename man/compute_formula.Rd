@@ -24,8 +24,6 @@ If the formula uses \code{*} or \code{/}, NAs are replaced with 1.}
 }
 \value{
 A modified \code{meta_dataframe} object with a new column computed based on the formula.
-
-A \code{meta_dataframe} object with an added column containing the computed values based on the formula.
 }
 \description{
 Applies a user-defined arithmetic formula to variables in a \code{meta_dataframe} object.
@@ -37,4 +35,14 @@ If \code{ignore_NA} is specified, the computation avoids propagation of missing 
 them according to the arithmetic structure. Mixing addition/subtraction with multiplication/division
 in the same formula is not allowed when \code{ignore_NA} is used. The function appends the result to
 the \code{meta_dataframe}, preserving its workflow log.
+}
+\examples{
+\dontrun{
+# Book yield from two columns, then a log transform
+features_m_df <- compute_formula(features_m_df, book_yield ~ book_value / market_cap)
+features_m_df <- compute_formula(features_m_df, log_mktcap ~ log(market_cap))
+# NA-safe additive combination: treat a missing Beta as 0
+features_m_df <- compute_formula(features_m_df, combo ~ Alpha + Beta, ignore_NA = "Beta")
+}
+
 }

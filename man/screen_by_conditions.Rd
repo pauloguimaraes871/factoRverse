@@ -2,15 +2,27 @@
 % Please edit documentation in R/screen_by_conditions.R
 \name{screen_by_conditions}
 \alias{screen_by_conditions}
-\title{Generic function for screening a meta_dataframe based on conditions}
+\title{Screen (filter) a meta_dataframe by row-wise conditions}
 \usage{
 screen_by_conditions(meta_dataframe, ...)
 }
 \arguments{
 \item{meta_dataframe}{A \code{meta_dataframe} object.}
 
-\item{...}{A list of conditions to filter the data. Those will be passed to \code{dplyr::filter()}.}
+\item{...}{One or more logical conditions passed to \code{dplyr::filter()} (e.g. \code{value > 15}, \code{tickers != "C"}).}
+}
+\value{
+A new \code{meta_dataframe} containing only the rows that satisfy the conditions.
 }
 \description{
-This is a generic function for screening \code{meta_dataframe} objects based on conditions.
+Filters the rows of a \code{meta_dataframe} using one or more logical conditions, which are passed straight to
+\code{dplyr::filter()}. Object metadata is preserved and a screening step is appended to the \code{workflow} log.
+Errors if the conditions filter out every row.
+}
+\examples{
+\dontrun{
+# Keep liquid, non-financial names
+screen_by_conditions(features_m_df, mean_volfin_3m > 1e6, sector != "Financials")
+}
+
 }

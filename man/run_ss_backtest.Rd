@@ -72,13 +72,17 @@ run_ss_backtest(
 \item{.update}{(Internal) Logical. If \code{TRUE}, updates a previous backtest incrementally. Default is \code{FALSE}.}
 }
 \value{
-An object of class \code{ss_backtest_results}, including:
+An object of class \code{ss_backtest_results}, with slots:
 \itemize{
-\item \code{signal_universe_m_df}: a meta_dataframe containing signal eligibility results across time.
-\item \code{final_signal_universe_m_d_ref}: final snapshot of selected signals.
-\item \code{selected_market_factor_proxy_m_xts}: benchmark series used in backtests.
-\item \code{frequentist_results}, \code{bayesian_results}: detailed testing outcomes.
-\item \code{ss_backtest_workflow}: metadata about execution, timestamps, and config.
+\item \code{ss_backtest_config}: the \code{ss_backtest_config} used to run the backtest.
+\item \code{signal_universe_m_df}: a \code{signal_universe_m_df} stacking the signal eligibility results at every rebalancing period.
+\item \code{final_signal_universe_m_d_ref}: a \code{signal_universe_m_df} with the last (most recent) signal universe snapshot, i.e. the eligible signals handed to \code{run_sb_backtest()}.
+\item \code{selected_market_factor_proxy_m_xts}: the \code{meta_xts} market-factor-proxy series used to compute alphas.
+\item \code{frequentist_results}, \code{bayesian_results}: per-rebalancing lists of the fitted frequentist (\code{lm}/\code{lmer}) and Bayesian (\code{brms}) model outputs (whichever applies).
+\item \code{p_correction_method}: the multiple-testing correction method applied.
+\item \code{ss_backtest_workflow}: a list of per-batch execution metadata (object names, dates, and config).
+\item \code{backtest_identifier}: a character identifier for the backtest.
+\item \code{update}: logical flag indicating whether the object was produced by an incremental update.
 }
 }
 \description{
@@ -89,6 +93,14 @@ It filters and ranks signals based on their predictive power, typically using re
 This function performs iterative signal selection based on frequentist or Bayesian methods, which are applied to portfolio returns backtests to identify which signals can be considered significant in stock-level return prediction.
 
 To determine whether a signal matters in cross-sectional predictability, the literature typically runs regressions of signal portfolios against a benchmark factor model (e.g., CAPM), computing alphas and corresponding t-stats. Due to the large number of signals identified in the literature (the "factor zoo"), methods to control for multiple testing are often advocated.
+
+The backtest proceeds walk-forward, and at each rebalancing date it: (a) takes the characteristic-portfolio
+backtest returns in \code{backtest_returns_m_xts} (built, e.g., from a book-yield portfolio); (b) tests the
+zero-alpha null against the market-factor proxy under the chosen inference method (frequentist \code{no_pooled}
+OLS or \code{partial_pooled} hierarchical \code{lme4::lmer}, or Bayesian \code{brms}), controlling for multiple testing
+(FWER: bonferroni/holm/hochberg/hommel; FDR: BH/fdr/BY; or Bayesian shrinkage); and (c) classifies signals
+into an eligible universe. The eligible signals are then passed to \code{run_sb_backtest()}, which blends them
+into a final signal.
 }
 \section{Functions}{
 \itemize{
@@ -160,3 +172,25 @@ The Signal Engineering Benchmarks (SE Benchmarks) evaluate the performance of bo
 Comparing predictive and return performance of the SS and SB Benchmarks provides insights into the effectiveness of the signal selection process. Additionally, comparing performance between the SB Benchmark and the final portfolio evaluates the performance of the signal blending process. SE Benchmarks are built based on themes; weights are first equally distributed among themes and then equally distributed among signals within each theme.
 }
 
+\examples{
+\dontrun{
+# Frequentist, hierarchical (partial-pooled) alpha test with FDR (BH) control
+alpha_strategy <- create_alpha_test_strategy(
+  model_structure = "partial_pooled",
+  theme_level_intercept = "theme_specific", theme_level_slope = "fixed",
+  p_correction_method = "BH", signal_significance_threshold = 0.05,
+  market_factor_proxy = "IBOV"
+)
+ss_config <- create_ss_backtest_config(
+  initial_sample_size = 36, rebalancing_months = 1:12,
+  alpha_test_strategy = alpha_strategy
+)
+ss_results <- run_ss_backtest(
+  config = ss_config, signals_m_df = signals_m_df,
+  backtest_returns_m_xts = backtest_returns_m_xts,
+  benchmark_returns_m_xts = benchmark_returns_m_xts,
+  signal_themes_m_df = signal_themes_m_df
+)
+}
+
+}

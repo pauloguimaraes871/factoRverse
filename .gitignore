@@ -22,3 +22,7 @@ cran-comments.md
 *.o
 *.a
 *.swp
+
+# Ignore Claude Code files
+.claude/
+CLAUDE.md

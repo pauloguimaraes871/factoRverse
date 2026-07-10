@@ -19,7 +19,13 @@
 #' - Extracts values from `meta_xts` based on `dates`
 #' - Applies optional transformations per sector
 #'
-#' @return A modified `meta_dataframe` with the new column containing computed values.
+#' @examples
+#' \dontrun{
+#' # For each stock, pull a sector-specific column from the metrics xts and transform it
+#' mapper <- list(Agro = ~ -A, Utilities = ~ B)
+#' meta_df <- compute_sector_map_across(meta_df, metrics_xts,
+#'                                      sector_column = "sector", mapper = mapper)
+#' }
 #'
 #' @export
 setGeneric("compute_sector_map_across", function(meta_dataframe, meta_xts, sector_column, mapper, ...) {

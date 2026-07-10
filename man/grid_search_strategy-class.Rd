@@ -5,31 +5,19 @@
 \alias{grid_search_strategy-class}
 \title{Grid Search Tuning Strategy}
 \description{
-A subclass of \code{tuning_strategy} that implements grid search.
+Subclass of \code{\link{tuning_strategy-class}} for grid search: every
+combination of user-supplied hyperparameter values is evaluated
+exhaustively (see \code{\link{hyper_tune}()}).
 }
-\section{Slots}{
+\section{\code{hyper_grid_domain} shape}{
 
-\describe{
-\item{\code{tuning_method}}{Character string indicating the hyperparameter tuning method ('grid_search', 'random_search', or 'bayesian_opt').}
-
-\item{\code{validation_sample_size}}{Numeric value representing the size of the validation sample. If provided a decimal, it will be set based on proportion of training sample size.}
-
-\item{\code{chosen_eval_metric}}{Character or NULL, specifying the evaluation metric to be optimized.}
-
-\item{\code{hyper_grid_domain}}{An object of class \code{hyper_grid_domain}, representing the hyperparameter domain based on which tuning will be performed.
-It contains a list slot \code{hyperparameter_list} with the hyperparameters relevant to the specified machine learning algorithm.
-The structure of this list depends on the specified tuning method:
-\itemize{
-\item \strong{For grid search:} Must be a list of named vectors:
-\item \strong{For random search:} Must be a list of named lists, where each named list contains:
-\itemize{
-\item \code{distribution_choice}: A character string specifying the distribution (one of "normal", "uniform", "lognormal", "constant").
-\item \code{pars}: A named numeric vector of parameters corresponding to the chosen distribution.
-\item \code{value}: A numeric value (only present if \code{distribution_choice} is "constant").
+\code{hyper_grid_domain@hyperparameter_list} must be a list of named
+numeric vectors, one per hyperparameter, each holding the exact values to
+try (e.g. \code{list(alpha = c(0, 0.5, 1))}).
 }
-\item \strong{For Bayesian optimization:} Must be a list of named numeric vectors, each of length 2, representing the boundaries for the hyperparameters.
-}}
 
-\item{\code{early_stop}}{Sets a halting criteria to prevent overfitting in xgb and nn.}
-}}
-
+\seealso{
+\code{\link{tuning_strategy-class}} for the inherited slots
+(\code{validation_sample_size}, \code{chosen_eval_metric},
+\code{hyper_grid_domain}, \code{early_stop}).
+}

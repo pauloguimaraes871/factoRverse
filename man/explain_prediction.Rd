@@ -42,11 +42,13 @@ explain_prediction(
 \item{palette}{A character string indicating the color palette to use for the plot.}
 }
 \value{
-A \code{ggplot2} waterfall plot displaying the decomposition of the OOS prediction.
+A \code{data.frame} of the waterfall decomposition (feature/label,
+contribution, and plotting coordinates); the waterfall \code{ggplot2} plot is
+drawn as a side effect.
 }
 \description{
 The \code{explain_prediction} function decomposes the out‐of‐sample (OOS) prediction for a selected ticker and date using
-the OLS Global Signal Model (GSM) backtest results. It supports both standard backtest results and meta-learner backtest results.
+the OLS Global Surrogate Model (GSM) backtest results. It supports both standard backtest results and meta-learner backtest results.
 If a meta-learner backtest object is passed, the function decomposes base learners' contributions before computing the final breakdown.
 }
 \details{

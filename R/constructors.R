@@ -2,63 +2,103 @@
 
 #' Create a meta_dataframe Object
 #'
-#' This generic function creates an object of class \code{meta_dataframe} from a provided \code{data.frame} or a structured \code{list}.
-#' Specific behaviors are implemented via methods tailored to the class of the input data.
+#' @title Create a meta_dataframe
+#' @description
+#' Generic constructor that creates an S4 \code{meta_dataframe} or an appropriate subclass from supplied input.
+#' Dispatches on the class of \code{data} and implements specialized behavior for \code{data.frame} and structured
+#' wide-panel \code{list} inputs.
 #'
-#' @param data The input data. The class of this parameter determines which method is dispatched.
-#' @param meta_dataframe_name A \code{character} string specifying the name of the resulting \code{meta_dataframe} object.
-#' @param workflow A list specifying the workflow to be passed to specific subclass of  \code{meta_dataframe}
-#' @param ss_backtest_workflow A list specifying the workflow to be passed to specific subclass of  \code{meta_dataframe}
-#' @param sb_backtest_workflow A list specifying the workflow to be passed to specific subclass of  \code{meta_dataframe}
-#' @param port_backtest_workflow A list specifying the workflow to be passed to specific subclass of  \code{meta_dataframe}
-#' @param type A \code{character} string specifying the type of the \code{meta_dataframe} object. This is used to identify the class of the object.
-#' @param tickers A \code{character} vector of tickers to be included in the \code{meta_dataframe} object.
-#' @param dates A \code{Date} vector of dates to be included in the \code{meta_dataframe} object.
-#' @param features_names A \code{character} vector of feature names to be included in the \code{meta_dataframe} object.
-#' @param data_format A \code{character} string specifying the format of the data. It can be either "long" or "wide". This is used to identify the class of the object.
-#' @param tickers_on A \code{character} indicating whether tickers are placed on the rows or columns of the data. It can be either "rows" or "columns".
-#' @param ... Additional arguments passed to methods.
+#' @param data Input data. See method-specific docs for required shapes:
+#'   - \code{data.frame} method: long-format frame with first three columns \code{id}, \code{tickers}, \code{dates}.
+#'   - \code{list} method: named list of matrices/data.frames/tibbles (wide features).
+#' @param meta_dataframe_name Character. Short identifier for the resulting object (default: \code{"not_identified"}).
+#' @param workflow Optional list. Workflow entries describing how the data was produced (stored in the \code{workflow} slot).
+#' @param ss_backtest_workflow Optional list. Required when creating \code{signal_universe} objects.
+#' @param sb_backtest_workflow Optional list. Required when creating \code{oos_sb_outputs} objects.
+#' @param port_backtest_workflow Optional list. Required when creating \code{stock_universe} objects.
+#' @param type Character. When using the \code{data.frame} method this selects the subclass to instantiate.
+#'   Accepted values include \code{"generic"}, \code{"signals"}, \code{"features"}, \code{"signal_universe"},
+#'   \code{"stock_universe"}, \code{"oos_sb_outputs"}, \code{"groups"}, \code{"target"},
+#'   \code{"weights"}, \code{"priors"}, \code{"feature_importance"}, \code{"raw"}.
+#' @param tickers Character vector. (list-method) entity identifiers for rows of wide input.
+#' @param dates Date vector. (list-method) column identifiers / time points for wide input.
+#' @param features_names Character vector. (list-method) names assigned to each element of \code{data}.
+#' @param data_format Character. (list-method) currently only \code{"wide"} is supported.
+#' @param tickers_on Character. (list-method) currently only \code{"rows"} is supported.
+#' @param ... Additional arguments forwarded to specific methods.
 #'
-#' @return An object of class \code{meta_dataframe}.
+#' @return An S4 object of class \code{meta_dataframe} or an appropriate subclass. Populated slots:
+#'   \code{data}, \code{signals}, \code{unique_dates}, \code{unique_tickers}, \code{n_obs},
+#'   \code{current_date}, \code{meta_dataframe_name}, and optional workflow/backtest slots.
 #'
 #' @details
-#' The function dispatches to specific methods based on the class of the \code{data} argument. Currently, methods are implemented for:
-#' \itemize{
-#'   \item \code{data.frame}: Converts a single \code{data.frame} into a \code{meta_dataframe} object after validation.
-#'   \item \code{list}: Converts a structured \code{list} of matrices, \code{data.frames}, or tibbles into a \code{meta_dataframe} object in panel data format.
+#' Prefer this high-level constructor to calling \code{new(...)} directly because it performs structural
+#' validation and populates metadata consistently. The generic only dispatches — see the method-specific
+#' documentation for exact validation rules and error conditions (a number of tests assert these validations).
+#'
+#' @examples
+#' \dontrun{
+#' # See the data.frame and list method examples below.
 #' }
 #'
+#' @seealso \code{\link{meta_dataframe-class}}, \code{\link{create_meta_xts}}, \code{\link{create_tickers_catalog}}
+#'
+#' @name create_meta_dataframe
+#' @rdname create_meta_dataframe
 #' @export
+
 setGeneric("create_meta_dataframe", function(data, meta_dataframe_name = "not_identified", ...) {
   standardGeneric("create_meta_dataframe")
 })
 
-#' @describeIn create_meta_dataframe Method for \code{data.frame} Signature
+
+
+#' Create a meta_dataframe from a data.frame
 #'
-#' This method creates an object of class \code{meta_dataframe} from a provided \code{data.frame}.
-#' The data frame must meet specific requirements: it must contain 'id', 'tickers', and 'dates' columns,
-#' where 'dates' must be of class \code{Date} and sorted in ascending order. The 'id' column should
-#' be constructed as \code{paste0(tickers, "-", dates)}. The function also validates that there are no
-#' missing dates, duplicated IDs, or NA values in the required columns.
+#' @describeIn create_meta_dataframe Create a \code{meta_dataframe} (or subclass) from a long-format \code{data.frame}.
 #'
-#' @param data A \code{data.frame} containing the data to be converted to a \code{meta_dataframe}.
-#' @param meta_dataframe_name A \code{character} string specifying the name of the resulting \code{meta_dataframe} object.
+#' @param data A \code{data.frame} whose first three columns must be exactly \code{id}, \code{tickers}, \code{dates}.
+#'   - \code{id} must equal \code{paste0(tickers, "-", dates)}.
+#'   - \code{dates} must be class \code{Date} and ordered ascending.
+#'   - \code{tickers} must be a \code{character} vector.
+#'   - Remaining columns are interpreted as signals/features and populate the \code{signals} slot.
+#' @param meta_dataframe_name Character. Name for the resulting object.
+#' @param workflow Optional list. Workflow entries stored in the \code{workflow} slot.
+#' @param ss_backtest_workflow Optional list. Required when \code{type = "signal_universe"}.
+#' @param sb_backtest_workflow Optional list. Required when \code{type = "oos_sb_outputs"}.
+#' @param port_backtest_workflow Optional list. Required when \code{type = "stock_universe"}.
+#' @param type Character. Determines which subclass is instantiated (see generic \code{type} values). For \code{"generic"} the method
+#'   warns about missing monthly dates but still constructs the object; specialized \code{type} values enforce additional required workflow args.
+#' @param ... Additional arguments (ignored by many branches).
 #'
-#' @return An object of class \code{meta_dataframe} if the input data frame meets all validation criteria.
-#' The returned object includes metadata such as the number of unique dates, unique tickers, and
-#' total number of observations.
+#' @return An object of class \code{meta_dataframe} or one of its subclasses with metadata:
+#'   \code{unique_dates}, \code{unique_tickers}, \code{n_obs}, \code{current_date}, \code{signals}, \code{meta_dataframe_name}.
 #'
-#' @details
-#' \itemize{
-#'   \item The 'id' column is expected to be in the format of \code{paste0(tickers, "-", dates)}.
-#'   \item The 'dates' column must be of class \code{Date} and in ascending chronological order.
-#'   \item The function checks for NA values in the 'id', 'tickers', and 'dates' columns.
-#'   \item The function ensures that there are no gaps in the dates sequence and no duplicated IDs.
-#'   \item The metadata includes the number of unique dates, unique tickers, and total observations.
+#' @details — Validation performed by this method (tests assert these behaviours)
+#' - Calls \code{is_coercible_to_meta_dataframe()} which checks: required columns, \code{dates} class, \code{id} format, ordering, uniqueness and NA presence.
+#' - If \code{type == "generic"} a warning is emitted for missing months in the sequence (monthly cadence).
+#' - For specialized types the method requires the corresponding workflow argument: \code{ss_backtest_workflow} for \code{signal_universe},
+#'   \code{sb_backtest_workflow} for \code{oos_sb_outputs}, \code{port_backtest_workflow} for \code{stock_universe}.
+#'
+#' @examples
+#' \dontrun{
+#' df <- data.frame(
+#'   id = c("A-2026-01-31","B-2026-01-31"),
+#'   tickers = c("A","B"),
+#'   dates = as.Date(c("2026-01-31","2026-01-31")),
+#'   momentum = c(0.1, -0.2),
+#'   value = c(0.05, 0.03),
+#'   stringsAsFactors = FALSE
+#' )
+#' mdf <- create_meta_dataframe(df, meta_dataframe_name = "features_example", type = "generic")
+#' # For signal_universe:
+#' su <- create_meta_dataframe(df, meta_dataframe_name = "signal_universe_example",
+#'                             type = "signal_universe",
+#'                             ss_backtest_workflow = list(params = "example"))
 #' }
 #'
-#'
 #' @exportMethod create_meta_dataframe
+
 setMethod(
   "create_meta_dataframe", signature(data = "data.frame", meta_dataframe_name = "ANY"),
   function(data, meta_dataframe_name = "not_identified",
@@ -277,33 +317,47 @@ setMethod(
   }
 )
 
-#' @describeIn create_meta_dataframe Method for \code{list} Signature
+
+
+#' Create a meta_dataframe from a list (wide panel)
 #'
-#' This method converts a structured \code{list} of matrices, \code{data.frames}, or tibbles into a \code{meta_dataframe} object in panel data format.
-#' The input list must contain specific components required to build the panel data structure.
+#' @describeIn create_meta_dataframe Create a \code{meta_dataframe} from a structured \code{list} of wide feature matrices/tibbles.
 #'
-#' @param data A \code{list} containing the following components:
-#'   \describe{
-#'     \item{\code{features_list}}{A list of matrices, \code{data.frames}, or tibbles containing the features.}
-#'     \item{\code{row_names}}{A vector of row names corresponding to entities in the panel data.}
-#'     \item{\code{column_names}}{A vector of column names corresponding to time points or dates in the panel data.}
-#'     \item{\code{features_names}}{A vector of names for each feature in the \code{features_list}.}
-#'   }
-#' @param meta_dataframe_name A \code{character} string specifying the name of the resulting \code{meta_dataframe} object.
+#' @param data A \code{list} where each element is a matrix, \code{data.frame} or tibble representing a feature. All elements must have identical dimensions (rows = entities, columns = time points).
+#' @param tickers Character vector. Row identifiers for the elements of \code{data}; must be unique and length equal to nrow of each element.
+#' @param dates Date vector. Column identifiers for the elements of \code{data}; must be \code{Date}, unique, have the same day-of-month, and be consecutive by month (monthly panel).
+#' @param features_names Character vector. Names assigned to each element of \code{data}; length must equal \code{length(data)}.
+#' @param meta_dataframe_name Character. Name for the resulting object (default: \code{"not_identified"}).
+#' @param data_format Character. Currently only \code{"wide"} is supported; the method errors otherwise.
+#' @param tickers_on Character. Currently only \code{"rows"} is supported; the method errors otherwise.
 #'
-#' @return An object of class \code{meta_dataframe} containing the panel data and associated metadata.
+#' @return A \code{raw_features_m_df} (subclass of \code{meta_dataframe}) containing a long-format \code{data.frame} with \code{id}, \code{tickers}, \code{dates} and one column per feature (named by \code{features_names}), plus metadata slots.
 #'
-#' @details
-#' This method performs the following operations:
-#' \enumerate{
-#'   \item Validates the structure and contents of the input list.
-#'   \item Converts each feature set into a long (panel) format using \code{\link[reshape2]{melt}}.
-#'   \item Merges all features into a single data frame, ensuring that each row represents a unique combination of entity and date.
-#'   \item Calculates metadata such as the number of unique dates, unique entities (tickers), and total observations.
-#'   \item Constructs a \code{meta_dataframe} S4 object encapsulating the transformed data and metadata.
+#' @details — Validation performed by this method (tests assert these behaviours)
+#' - \code{data} must be a \code{list}; each element must be a matrix, \code{data.frame}, or tibble.
+#' - All elements must have identical numbers of rows and columns; otherwise an error is thrown (tests expect messages such as "All elements in the list must have the same number of rows/columns.").
+#' - \code{features_names} length must equal \code{length(data)}.
+#' - No element may consist entirely of \code{NA}; otherwise an error ("One or more datasets contain only NA values.").
+#' - \code{tickers} must be a unique \code{character} vector whose length equals nrow of elements; errors on non-character or duplicated tickers.
+#' - \code{dates} must be class \code{Date}, unique, all share the same day-of-month, and be consecutive by month; failures raise informative errors used in tests.
+#' - Elements must not already contain columns named \code{tickers} or \code{dates}; elements must not contain values matching provided \code{tickers} or \code{dates} (these conditions raise errors asserted by tests).
+#' - Only \code{data_format = "wide"} and \code{tickers_on = "rows"} are accepted.
+#'
+#' @examples
+#' \dontrun{
+#' tickers <- c("Stock A","Stock B")
+#' dates <- as.Date(c("2001-03-15","2001-04-15"))
+#' feat1 <- matrix(c(0,1,2,3), nrow = 2, byrow = TRUE)
+#' feat2 <- matrix(c(4,5,6,7), nrow = 2, byrow = TRUE)
+#' feat3 <- matrix(c(8,9,10,11), nrow = 2, byrow = TRUE)
+#' features_list <- list(Alpha = feat1, Beta = feat2, Gamma = feat3)
+#'
+#' raw_mdf <- create_meta_dataframe(features_list,
+#'                                  tickers = tickers,
+#'                                  dates = dates,
+#'                                  features_names = c("Alpha","Beta","Gamma"),
+#'                                  meta_dataframe_name = "raw_features_example")
 #' }
-#'
-#'
 #'
 #' @exportMethod create_meta_dataframe
 setMethod(
@@ -454,32 +508,87 @@ setMethod(
   }
 )
 
-#' Create a target_m_df from a meta_dataframe
+#' Create a target_m_df (prediction targets for backtests and meta-models)
 #'
-#' @param daily_returns_m_df A `meta_dataframe` object containing daily stock returns data.
-#' @param daily_bench_returns_m_xts A `meta_xts` object containing daily benchmark returns.
-#' @param features_m_df A `meta_dataframe` object containing features data.
-#' @param past_ret_column Character, indicating the column in `daily_returns_m_df` that contains returns.
-#' @param selected_bench Character, indicating the column in `benchmark_returns_m_xts` to use as the benchmark.
-#' @param fwd_horizon Integer, the number of months to compute forward returns
-#' @param active_returns Logical, indicating whether to calculate active returns.
-#' @param parallel Logical, indicating whether to use parallel processing.
-#' @param ... Additional arguments to be passed to the method.
+#' @title Build target_m_df for forward horizons
+#' @description
+#' Generate a \code{target_m_df} containing forward-return targets (and optional active returns) aligned
+#' to the rows of a features/metafeatures \code{meta_dataframe}. This routine is the canonical helper
+#' used by the package to build prediction targets for signal-blending and meta-model training.
 #'
-#' @details All ids from features_m_df are used to create the target_m_df.
-#' The target_m_df is created by calculating the forward returns for each id in features_m_df.
-#' The forward returns are calculated by shifting the returns in daily_returns_m_df by fwd_horizon months.
-#' The benchmark returns are calculated by shifting the returns in daily_bench_returns_m_xts by fwd_horizon months.
-#' The active returns are calculated by subtracting the benchmark returns from the forward returns.
+#' @param daily_returns_m_df A \code{meta_dataframe} containing daily (or higher-frequency) asset returns.
+#'   Must cover a date range that includes the forward windows required by \code{fwd_horizon}.
+#' @param daily_bench_returns_m_xts A \code{meta_xts} of benchmark returns (time-series indexed by Date).
+#'   A column specified by \code{selected_bench} will be used to compute active returns and to fill NAs
+#'   for delisted series when appropriate.
+#' @param features_m_df A \code{meta_dataframe} whose rows (ids) define the observations for which targets
+#'   will be produced. Targets are computed for each \code{features_m_df@data$id} / date pair.
+#' @param past_ret_column Character scalar. Name of the return column inside \code{daily_returns_m_df@data}
+#'   that holds realized returns (e.g. \code{"ret"}).
+#' @param selected_bench Character scalar. Column name in \code{daily_bench_returns_m_xts} to use as the benchmark.
+#' @param fwd_horizon Integer. Forward horizon in months for the target (e.g., \code{3} for 3-month forward).
+#' @param active_returns Logical. If \code{TRUE} the returned target is active (asset return minus benchmark return).
+#' @param parallel Logical. If \code{TRUE} uses \pkg{furrr} for parallelizing per-date processing; otherwise processes serially.
+#' @param ... Additional arguments forwarded (internal use).
 #'
-#' @return A `target_m_df` object containing future return metrics.
+#' @return An S4 object of class \code{target_m_df}. The \code{data} slot is a long \code{data.frame} with
+#'   the canonical first-three columns \code{id}, \code{tickers}, \code{dates} and one or more forward-target
+#'   metric columns named like \code{fwd_<metric>_<Nhorizon>m}. The \code{workflow} slot is appended with a record
+#'   describing the call and parameters used to create the targets.
+#'
+#' @details
+#' - For each row in \code{features_m_df}, the function locates the closest or matching date in \code{daily_returns_m_df}
+#'   and aggregates returns across the forward window (days from next-day through end of the horizon window).
+#' - Missing forward returns are conservatively replaced with benchmark returns only when appropriate (e.g., trailing
+#'   NAs caused by delisting). The helper checks that NA patterns are trailing blocks for each series; violations stop with an error.
+#' - If any forward dates exceed \code{daily_returns_m_df@current_date} the corresponding target rows are returned with NA values.
+#' - Uses \code{create_meta_xts()} and \code{summarize_performance()} internally to compute summary forward metrics (alpha, IR, active returns, etc.)
+#'   and then converts those summaries into a \code{target_m_df} (naming columns with the horizon suffix).
+#' - Parallel execution uses \pkg{furrr} with reproducible seeding when available.
+#'
+#' @examples
+#' \dontrun{
+#' # daily_returns_m_df and features_m_df are meta_dataframe objects;
+#' # daily_bench_returns_m_xts is a meta_xts
+#' tgt <- create_target_m_df(
+#'   daily_returns_m_df = daily_returns_m_df,
+#'   daily_bench_returns_m_xts = daily_bench_returns_m_xts,
+#'   features_m_df = features_m_df,
+#'   past_ret_column = "ret",
+#'   selected_bench = "ibov",
+#'   fwd_horizon = 3,
+#'   active_returns = TRUE,
+#'   parallel = FALSE
+#' )
+#'
+#' # Returned object is of class 'target_m_df'
+#' class(tgt)
+#' head(tgt@data)
+#' }
+#'
+#' @seealso \code{\link{target_m_df-class}}, \code{\link{create_meta_dataframe}}, \code{\link{run_sb_backtest}}
+#'
+#' @name create_target_m_df
+#' @rdname create_target_m_df
 #' @export
 setGeneric("create_target_m_df", function(daily_returns_m_df, daily_bench_returns_m_xts, features_m_df, ...) {
   standardGeneric("create_target_m_df")
 })
 
 
-#' @rdname create_target_m_df
+
+#' @describeIn create_target_m_df Method implementation for meta_dataframe inputs
+#'
+#' Method signature: \code{daily_returns_m_df = "meta_dataframe"}, \code{daily_bench_returns_m_xts = "meta_xts"},
+#' \code{features_m_df = "meta_dataframe"}.
+#'
+#' @section Input validation (as exercised by tests):
+#' - \code{features_m_df@current_date} and \code{daily_returns_m_df@current_date} must be compatible (tests expect same current_date).
+#' - All tickers referenced in \code{features_m_df} must exist in \code{daily_returns_m_df}; otherwise an informative error is thrown.
+#' - Benchmark column \code{selected_bench} must exist in \code{daily_bench_returns_m_xts}.
+#' - \code{fwd_horizon} must be >= 1.
+#'
+#' @exportMethod create_target_m_df
 setMethod("create_target_m_df",
           signature(daily_returns_m_df = "meta_dataframe", daily_bench_returns_m_xts = "meta_xts", features_m_df = "meta_dataframe"),
           function(daily_returns_m_df, daily_bench_returns_m_xts, features_m_df, past_ret_column, selected_bench, fwd_horizon, active_returns, parallel = TRUE) {
@@ -703,20 +812,62 @@ setMethod("create_target_m_df",
 
 
 
-#' Update Meta Dataframe
+#' Update a meta_dataframe with a new batch of data
 #'
-#' @param old_features_m_df A features meta_dataframe object with previous data
-#' @param new_features_m_df A features meta dataframe object with new data
-#' @param batch_type A character string indicating the batch type. Default is 'monthly'
-#' @param ... Additional arguments
+#' @title Update meta_dataframe by appending a batch
+#' @description
+#' Append a new batch (usually one month of observations) to an existing \code{meta_dataframe},
+#' validating compatibility and consolidating metadata. Intended for incremental ingestion of feature
+#' tables produced monthly (or daily) while preserving workflow provenance.
 #'
-#' @return Updated meta_dataframe object
+#' @param old_features_m_df A \code{meta_dataframe} containing the existing (historical) panel.
+#' @param new_features_m_df A \code{meta_dataframe} containing the new batch to append. Typically the new object
+#'   contains a single date (monthly batch) and the same set of columns as \code{old_features_m_df}.
+#' @param batch_type Character. Batch cadence: \code{"monthly"} (default) or \code{"daily"}. Controls validation of
+#'   the number of unique dates in \code{new_features_m_df}.
+#' @param ... Additional arguments (reserved / forwarded).
+#'
+#' @return A \code{meta_dataframe} with rows from \code{new_features_m_df} appended to \code{old_features_m_df},
+#'   metadata consolidated via \code{consolidate_generic_meta_dataframes()}, and the \code{workflow} slot updated
+#'   with a new \code{update_<date>} entry describing the batch.
+#'
+#' @details
+#' The method performs strict compatibility checks before merging (tests assert these behaviours):
+#' - Column names and classes must match exactly between old and new objects.
+#' - There must be no overlapping \code{id} values or overlapping \code{dates}.
+#' - For \code{batch_type == "monthly"} the new batch must contain exactly one unique date.
+#' - For \code{batch_type == "daily"} the number of unique dates is validated to be in a reasonable range.
+#' - \code{new_features_m_df@current_date} must equal one month after \code{old_features_m_df@current_date}.
+#' - Neither object may be of class \code{raw_features_m_df}.
+#' - Both objects must contain a \code{read_tickers_catalog} entry in their \code{workflow} (ensures consistent ticker mapping).
+#'
+#' On success, the function calls \code{consolidate_generic_meta_dataframes(..., type = "generic")} to merge
+#' the tables and then appends a batch entry to the \code{workflow} slot describing the new date, batch name,
+#' timestamp and the batch's own workflow.
+#'
+#' @examples
+#' \dontrun{
+#' # old_mdf and new_mdf are meta_dataframe objects
+#' # (new_mdf typically contains a single new monthly date)
+#' updated <- update_meta_dataframe(old_mdf, new_mdf, batch_type = "monthly")
+#' }
+#'
+#' @name update_meta_dataframe
+#' @rdname update_meta_dataframe
+#' @export
+
 setGeneric("update_meta_dataframe", function(old_features_m_df, new_features_m_df, ...) {
   standardGeneric("update_meta_dataframe")
 })
 
 
-#' @rdname update_meta_dataframe
+
+
+#' @describeIn update_meta_dataframe Method implementation for meta_dataframe inputs
+#'
+#' Method signature: \code{old_features_m_df = "meta_dataframe"}, \code{new_features_m_df = "meta_dataframe"}.
+#'
+#' @exportMethod update_meta_dataframe
 setMethod(
   "update_meta_dataframe", signature(old_features_m_df = "meta_dataframe", new_features_m_df = "meta_dataframe"),
   function(old_features_m_df, new_features_m_df, batch_type = "monthly"){
@@ -844,39 +995,82 @@ setMethod(
 # tickers_catalog------------------------------------------------------
 #' Create a tickers_catalog Object
 #'
-#' Constructs a `tickers_catalog` object by integrating stock metadata from multiple data sources.
+#' Constructs a \code{tickers_catalog} object by integrating stock metadata from multiple data sources.
 #' Ensures data consistency, generates unique identifiers, and classifies stocks based on listing status.
 #'
-#' @param raw_features_m_df A `meta_dataframe` object with `type == "generic"`, containing stock tickers and dates.
-#' @param date_first_quote A `data.frame` with columns `tickers` (character) and `date_first_quote` (Date).
-#' @param date_last_quote A `data.frame` with columns `tickers` (character) and `date_last_quote` (Date).
-#' @param n_days_tolerance A `numeric` indicating the maximum tolerance for which `date_last_quote` can be smaller than
-#' current_date without it making it a delisted stock.
-#' @param ... Additional arguments passed to `meta_dataframe`.
+#' @param raw_features_m_df A \code{meta_dataframe} object with \code{type == "generic"}, containing stock tickers and dates.
+#' @param date_first_quote A \code{data.frame} with columns \code{tickers} (character) and \code{date_first_quote} (Date).
+#' @param date_last_quote A \code{data.frame} with columns \code{tickers} (character) and \code{date_last_quote} (Date).
+#' @param n_days_tolerance A \code{numeric} indicating the maximum tolerance (in days) for which \code{date_last_quote}
+#'   can be older than \code{current_date} without classifying the stock as delisted. Default: \code{10}.
+#' @param ... Additional arguments (currently unused).
 #'
-#' @return An object of class `tickers_catalog`.
+#' @return An object of class \code{tickers_catalog}.
 #'
 #' @details
-#' This function performs the following steps:
-#' 1. Validates input types and ensures column consistency.
-#' 2. Verifies that `tickers` are identical across all input data.
-#' 3. Ensures `date_last_quote` is always greater than `date_first_quote`, allowing NAs.
-#' 4. Generates a unique `perm_id` for each stock, based on `tickers` and `date_first_quote`.
-#' 5. Extracts the most recent date (`current_date`) from `raw_features_m_df$dates`.
-#' 6. Classifies stocks as `private` (both date_first_quote and date_last_quote are NA).
-#' 7. Flags stocks as `delisted` if `date_last_quote` is before `current_date`.
+#' This generic performs these responsibilities (method implementations perform checks described below):
+#' 1. Validate input types and required columns in \code{date_first_quote} and \code{date_last_quote}.
+#' 2. Verify \code{tickers} are identical across \code{raw_features_m_df}, \code{date_first_quote} and \code{date_last_quote}.
+#' 3. Enforce that \code{date_last_quote >= date_first_quote} when both are present (NAs allowed).
+#' 4. Generate a deterministic \code{perm_id} per ticker from \code{ticker + date_first_quote}.
+#' 5. Extract \code{current_date} as the most recent date in \code{raw_features_m_df@data$dates}.
+#' 6. Classify tickers as \code{untraded} (both dates NA), \code{delisted} (last_quote < current_date - tolerance),
+#'    or \code{listed} (last_quote >= current_date - tolerance).
+#' 7. Emit informative errors or warnings for duplicate tickers, mismatched ticker sets, inconsistent NA patterns,
+#'    invalid date ordering, or if no tradable stocks are found.
 #'
-#'
+#' @seealso \code{\link{tickers_catalog-class}}, \code{\link{update_tickers_catalog}}, \code{\link{read_tickers_catalog}}, \code{\link{create_meta_dataframe}}
 #'
 #' @importFrom digest digest
 #' @export
-#'
 setGeneric("create_tickers_catalog", function(raw_features_m_df, date_first_quote, date_last_quote, ...) {
   standardGeneric("create_tickers_catalog")
 })
 
-#' @rdname create_tickers_catalog
-#' @export
+#' Construct tickers_catalog from raw_features_m_df + first/last-quote tables
+#'
+#' @describeIn create_tickers_catalog Method that builds a \code{tickers_catalog} from
+#'   a \code{raw_features_m_df} and two \code{data.frame}s containing per-ticker
+#'   first- and last-quote dates.
+#'
+#' @param raw_features_m_df A \code{raw_features_m_df} (source panel).
+#' @param date_first_quote A \code{data.frame} with columns \code{tickers} and \code{date_first_quote} (coercible to \code{Date}).
+#' @param date_last_quote A \code{data.frame} with columns \code{tickers} and \code{date_last_quote} (coercible to \code{Date}).
+#' @param n_days_tolerance Numeric scalar (in days). Window used to decide whether a last-quote date indicates delisting relative to \code{raw_features_m_df@current_date}. Default: \code{10}.
+#'
+#' @return An object of class \code{tickers_catalog} with slots:
+#'   \code{catalog}, \code{tickers}, \code{perm_id} (named by tickers), \code{tickers_first_quote},
+#'   \code{tickers_last_quote}, \code{untraded}, \code{delisted}, \code{listed}, \code{old},
+#'   \code{current_date}, \code{meta_dataframe_name}, \code{n_days_tolerance}, and \code{ticker_change_history}.
+#'
+#' @details
+#' Method behavior and validations (errors/warnings mirror unit tests):
+#' - Requires the date tables to contain the columns \code{tickers} + \code{date_first_quote} / \code{date_last_quote};
+#'   otherwise errors with "date_first_quote must have columns 'tickers' and 'date_first_quote', and date_last_quote must have 'tickers' and 'date_last_quote'."
+#' - Converts date columns to \code{Date} and errors on duplicate tickers ("Duplicate tickers found in date_first_quote or date_last_quote.").
+#' - Errors with "No tradable stocks identified" when all dates are NA.
+#' - Requires the ticker sets to match across inputs; otherwise errors "Mismatch in tickers between raw_features_m_df, date_first_quote, and date_last_quote."
+#' - Enforces pairwise NA-ness (both NA or neither) and errors "date_first_quote and date_last_quote must both be NA or neither."
+#' - Warns when the modal \code{date_last_quote} is older than \code{current_date - n_days_tolerance} with:
+#'   "Most common date in date_last_quote is not the last date in raw_features_m_df - n_days_tolerance. Consider increasing n_days_tolerance"
+#' - Errors if any \code{date_last_quote < date_first_quote} with:
+#'   "date_last_quote must be greater than or equal to date_first_quote for all tickers."
+#' - Warns if any \code{date_last_quote} is > \code{current_date}: "Some date_last_quote values are greater than the current_date. This may indicate future dates or errors in the data."
+#' - Generates deterministic \code{perm_id} values using an MD5-derived short hash of \code{ticker + first_quote} (NA first-quote uses "NA"), sorts the internal \code{catalog} by \code{perm_id}, and classifies tickers into \code{untraded}, \code{delisted}, \code{listed}, \code{old}.
+#'
+#' @examples
+#' \dontrun{
+#' df_first <- data.frame(tickers = c("A","B"),
+#'                        date_first_quote = as.Date(c("1995-01-01","1996-01-01")))
+#' df_last  <- data.frame(tickers = c("A","B"),
+#'                        date_last_quote  = as.Date(c(Sys.Date()-1, Sys.Date()-20)))
+#' tc <- create_tickers_catalog(raw_features_m_df = raw_mdf,
+#'                              date_first_quote = df_first,
+#'                              date_last_quote  = df_last,
+#'                              n_days_tolerance = 10)
+#' }
+#'
+#' @exportMethod create_tickers_catalog
 setMethod("create_tickers_catalog",
           signature(
             raw_features_m_df = "raw_features_m_df",
@@ -1068,45 +1262,86 @@ prepare_tickers_catalog_slots <- function(tickers_catalog){
 
 #' Update a `tickers_catalog` Object
 #'
-#' This function updates a `tickers_catalog` object with new data coming from a new `tickers_catalog` object.
-#' The update process ensures that newly observed tickers are classified correctly, either as new IPOs or ticker changes.
+#' @description
+#' Updates a `tickers_catalog` object with a newer `tickers_catalog`, reconciling
+#' ticker classifications (`listed`, `delisted`, `untraded`, `old`) and resolving
+#' ticker changes so that renamed tickers keep a single `perm_id` across time.
 #'
-#' @param old_tickers_catalog A `tickers_catalog` object representing the previously stored catalog.
-#' @param new_tickers_catalog A `tickers_catalog` object containing the latest batch of stock data.
-#' @param ticker_changes A `data.frame` with three columns:
+#' @param old_tickers_catalog A `tickers_catalog` S4 object representing the
+#'   previously stored catalog (the state as of the last update).
+#' @param new_tickers_catalog A `tickers_catalog` S4 object containing the latest
+#'   batch of stock data. Its `current_date` must equal
+#'   `old_tickers_catalog@current_date` plus one month, and its maximum
+#'   `tickers_last_quote` must be strictly greater than the old catalog's.
+#' @param ticker_changes A `data.frame` mapping tickers renamed between
+#'   `old_tickers_catalog` and `new_tickers_catalog`, with columns:
 #'   \describe{
-#'     \item{\code{new_ticker}}{The new ticker symbol observed in the new data.}
-#'     \item{\code{old_ticker}}{The corresponding previous ticker symbol (if applicable).}
-#'     \item{\code{change_date}}{The date on which the ticker change occurred.}
+#'     \item{\code{new_tickers}}{Character. The new ticker symbol observed in `new_tickers_catalog`.}
+#'     \item{\code{old_tickers}}{Character. The corresponding previous ticker symbol in `old_tickers_catalog`.}
+#'     \item{\code{change_date}}{Date. The date on which the ticker change occurred.}
 #'   }
-#' @param ... Additional arguments passed to the function.
+#'   Must contain no `NA`s and no duplicated `new_tickers`/`old_tickers`. Defaults
+#'   to `NULL`, treated as an empty (zero-row) `data.frame`, i.e. no ticker changes
+#'   between updates. Any ticker newly observed in `new_tickers_catalog` and not
+#'   listed here is treated as a new IPO; any ticker missing from
+#'   `old_tickers_catalog`'s successor without a matching entry here triggers an
+#'   error.
+#' @param ... Additional arguments (currently unused; reserved for future methods).
 #'
-#'
-#'
-#' @return A new `tickers_catalog` object incorporating the updated tickers and metadata.
+#' @return A new `tickers_catalog` S4 object combining `old_tickers_catalog` and
+#'   `new_tickers_catalog`:
+#'   \itemize{
+#'     \item Renamed tickers keep the `perm_id` of their pre-change ticker (looked
+#'       up through the full ticker-change history, not just the current call's
+#'       `ticker_changes`).
+#'     \item Genuinely new tickers keep the hash-based `perm_id` assigned by
+#'       `create_tickers_catalog()`.
+#'     \item At a rename boundary, `tickers_last_quote` of the old ticker and
+#'       `tickers_first_quote` of the new ticker are both set to `change_date`.
+#'     \item Pre-rename ticker rows are retained with `old = TRUE` and
+#'       `listed = delisted = untraded = FALSE`, so history is never dropped.
+#'     \item `current_date` is taken from `new_tickers_catalog`; `meta_dataframe_name`
+#'       and `n_days_tolerance` are taken from `old_tickers_catalog`.
+#'     \item `ticker_change_history` accumulates `ticker_changes` across calls.
+#'   }
 #'
 #' @details
-#' The function follows these key steps:
+#' The update proceeds in three stages:
+#' 1. **Validation** of `ticker_changes` structure/types/uniqueness, of the
+#'    partition of newly added tickers into IPOs vs. renames, of classification
+#'    transitions, and of date consistency between the two catalogs.
+#' 2. **`perm_id` reassignment**, inheriting the predecessor's `perm_id` for
+#'    renamed tickers.
+#' 3. **Recombination**, re-appending old (pre-rename) rows and merging
+#'    `ticker_change_history`.
 #'
-#' 1. **Validate Inputs**:
-#'    - Ensures the structure and constraints of `old_tickers_catalog`, `new_raw_features_m_df`, and `ticker_changes`.
-#'    - Verifies that `ticker_changes` correctly classifies all new tickers.
+#' Validation failures (`stop()`) include: malformed `ticker_changes` (missing
+#' columns, wrong types, `NA`s, duplicates); newly added tickers that cannot be
+#' decomposed into IPOs and renamed old tickers; a `delisted` ticker being
+#' renamed, or becoming `listed`/`untraded`; an `untraded` ticker becoming
+#' `listed` (or vice versa), with or without a rename; a `tickers_first_quote`/
+#' `tickers_last_quote` mismatch for tickers common to both catalogs (delisted
+#' tickers' `tickers_last_quote` must not change); an IPO's `tickers_first_quote`
+#' earlier than `old_tickers_catalog@current_date`; `new_tickers_catalog`'s
+#' maximum `tickers_last_quote` not exceeding the old catalog's; and
+#' `new_tickers_catalog@current_date` not exactly one month after
+#' `old_tickers_catalog@current_date`. A mismatched `n_days_tolerance` between
+#' catalogs produces a `warning()` rather than a `stop()`.
 #'
-#' 2. **Verify Ticker Mapping**:
-#'    - Confirms that `new_ticker` values in `ticker_changes` match tickers in `new_raw_features_m_df`.
-#'    - Ensures `old_ticker` values exist in `old_tickers_catalog`.
+#' @examples
+#' \dontrun{
+#' updated_catalog <- update_tickers_catalog(
+#'   old_tickers_catalog = old_catalog,
+#'   new_tickers_catalog = new_catalog,
+#'   ticker_changes = data.frame(
+#'     new_tickers = "BRAV3",
+#'     old_tickers = "RRRP3",
+#'     change_date = as.Date("2001-06-02")
+#'   )
+#' )
+#' }
 #'
-#' 3. **Check Date Consistency**:
-#'
-#' 4. **Assign `perm_id`s and change_date**:
-#'    - Old tickers retain their `perm_id` for renamed tickers.
-#'    - New tickers receive a new `perm_id` using a hash-based approach.
-#'    - date_first_quote and date_last_quote are renamed as tickers_first_quote and tickers_last_quote,
-#'      being assigned `change_date` when ticker change.
-#'
-#' 5. **Return Updated `tickers_catalog`**:
-#'    - Combines old and new ticker information.
-#'    - Maintains consistency in classification (`listed`, `delisted`, `untraded`, `old`).
+#' @seealso \code{\link{create_tickers_catalog}}, \code{\link{read_tickers_catalog}}, \code{\link{tickers_catalog-class}}
 #'
 #' @export
 setGeneric("update_tickers_catalog", function(old_tickers_catalog, new_tickers_catalog, ...) {
@@ -1122,14 +1357,16 @@ setMethod(
   ),
   function(old_tickers_catalog, new_tickers_catalog, ticker_changes = NULL) {
 
-    #Create tickers_changes if it is NULL
+    # Default `ticker_changes` to an empty history
     ####################
+    ## Callers that have no renames to report can omit `ticker_changes`; treat
+    ## NULL as "no renames this period" rather than requiring an empty data.frame.
     if (is.null(ticker_changes)){
       ticker_changes <- data.frame(new_tickers = character(0), old_tickers = character(0), change_date = as.Date(character(0)))
     }
     ####################
 
-    #Extract relevant slots
+    # Extract slots for comparison between old and new catalogs
     ####################
     ##ticker_change-history
     old_ticker_change_history <- old_tickers_catalog@ticker_change_history
@@ -1162,6 +1399,10 @@ setMethod(
     new_tickers <- new_tickers_catalog$tickers
     old_tickers <- old_tickers_catalog$tickers
 
+    ## Classify tickers moving between catalogs
+    ### A ticker is either a brand-new IPO or a rename (accounted for in
+    ### `ticker_changes`); anything in `old_tickers` that isn't in `new_tickers`
+    ### and isn't a known rename is treated as missing and must be explained below.
     ###Identify new and missing tickers
     newly_added_tickers <- setdiff(new_tickers, old_tickers) #New tickers (whether IPOs or ticker change)
     ####New tickers that are IPOs (not ticker changes)
@@ -1190,9 +1431,9 @@ setMethod(
 
     ####################
 
-    #Validate Inputs
+    # Validate Inputs
     ####################
-    ##ticker_changes
+    ## `ticker_changes` structure and types
     ###structure
     if (!all(c("new_tickers", "old_tickers", "change_date") %in% colnames(ticker_changes))) {
       stop("ticker_changes must contain columns: 'new_tickers', 'old_tickers', and 'change_date'.")
@@ -1215,7 +1456,11 @@ setMethod(
     }
 
 
-    ##tickers intersection
+    ## Validate ticker partition (IPOs vs. renames)
+    ### Every newly added ticker must resolve to exactly one bucket -- a fresh
+    ### IPO or the renamed successor of a missing old ticker -- otherwise a
+    ### ticker appeared without an explanation and the catalog would silently
+    ### lose lineage.
     ####Check if newly_added_tickers can't be decomposed into ipos_tickers and missing_old_tickers
     if (!identical(sort(newly_added_tickers), sort(c(ipos_tickers, #completely new
                                                      ticker_changes %>% #ticker changes
@@ -1240,6 +1485,12 @@ setMethod(
     if (!all(missing_old_tickers %in% ticker_changes$old_tickers) || !all(ticker_changes$old_tickers %in% missing_old_tickers)) {
       stop("Mismatch between missing old tickers in ticker_changes and old tickers present in old_tickers_catalog")
     }
+    ## Validate classification-transition business rules
+    ### Encodes the only classification transitions considered valid between
+    ### snapshots: listed -> {delisted, untraded} and untraded -> delisted are
+    ### allowed; skipping straight to/from `listed` without going through the
+    ### expected state (or reviving a `delisted` ticker) is not, since it would
+    ### indicate an unreported corporate action or a data error upstream.
     ###Check that all new tickers are classified as listed
     if (!all(newly_added_tickers %in% new_listed)) {
       warning("New tickers are not classified as 'listed' in new_tickers_catalog.")
@@ -1265,7 +1516,13 @@ setMethod(
       stop("Listed tickers from old_tickers_catalog are now untraded in new_tickers_catalog.")
     }
 
-    ##dates
+    ## Validate date consistency between catalogs
+    ### Guards against look-ahead bias and silent restatement: `tickers_first_quote`
+    ### must be stable for tickers common to both catalogs, `tickers_last_quote`
+    ### must not move for already-delisted tickers, and an IPO's first quote
+    ### can't predate the *previous* snapshot's `current_date` (net of
+    ### tolerance) -- otherwise the update would be injecting information the
+    ### old catalog couldn't have known about.
     ###tickers_first_quote (it should not change, as each tickers_first_quote will keep delisted tickers)
     common_tickers_first_quote <- dplyr::inner_join(
       old_tickers_catalog %>% dplyr::select(tickers, tickers_first_quote),
@@ -1321,7 +1578,9 @@ setMethod(
     if (new_current_date != lubridate::add_with_rollback(old_current_date, months(1))) {
       stop("current_date in new_tickers_catalog should be equal to current_date in old_tickers_catalog plus 1")
     }
-    ##object name
+    ## Validate object-level metadata consistency
+    ### `meta_dataframe_name` must show lineage (new name contains the old one)
+    ### and `n_days_tolerance` should not silently drift between updates.
     ###check that meta_dataframe_name in new_tickers_catalog is contained in meta_dataframe_name of oold_tickers_catalog
     if (!grepl(old_meta_dataframe_name, new_meta_dataframe_name)) {
       stop("meta_dataframe_name in new_tickers_catalog should contain meta_dataframe_name in old_tickers_catalog.")
@@ -1332,7 +1591,13 @@ setMethod(
       warning("n_days_tolerance has changed from old_tickers_catalog and new_tickers_catalog.")
     }
 
-    ##Checks involving ticker_changes
+    ## Validate `ticker_changes` against catalog dates (rename-boundary consistency)
+    ### For each rename: the new ticker's first quote can't precede
+    ### `change_date`; the old ticker's recorded first/last quote can't be
+    ### tightened by the rename; a ticker that was `listed` pre-rename must
+    ### still have non-NA quote dates post-rename, one that was `untraded`
+    ### must still be NA, and a `delisted` ticker must not be renamed at all
+    ### (relistings are new tickers).
     if (nrow(ticker_changes) >= 0) {
       ###ticker_first_quote < change_date
       only_newly_changed_tickers_catalog <- new_tickers_catalog %>%
@@ -1397,8 +1662,12 @@ setMethod(
 
     ####################
 
-    #Assign the same perm_id for ticker changes and untraded that got listed
+    # Reassign `perm_id` across renames
     ####################
+    ## A renamed ticker keeps its predecessor's `perm_id` (looked up through
+    ## the full history, not just this call's `ticker_changes`) so a single
+    ## company keeps one identity across ticker symbol changes -- this is what
+    ## lets downstream joins key on `perm_id` instead of a mutable ticker string.
     ##Bind tickers_changes to history, so as to keep perm_id for tickers that once changed
     ticker_changes_full_history <- dplyr::bind_rows(old_ticker_change_history, ticker_changes)
 
@@ -1420,8 +1689,11 @@ setMethod(
 
     ####################
 
-    #Bind old tickers in new catalog
+    # Preserve pre-rename ticker rows as historical ("old") entries
     ####################
+    ## Old tickers that were renamed are kept in the catalog (old = TRUE,
+    ## listed/delisted/untraded = FALSE) instead of being dropped, so ticker
+    ## history remains queryable without duplicating the live row under the new symbol.
     ##Get old entries, set them as either delisted or untraded
     old_tickers_entries <- old_tickers_catalog %>%
       dplyr::select(-dplyr::any_of("change_date")) %>% #Remove change_date columns if it exists
@@ -1445,7 +1717,7 @@ setMethod(
     new_tickers_catalog <- dplyr::bind_rows(new_tickers_catalog, old_tickers_entries) %>% dplyr::arrange(perm_id)
     ####################
 
-    #Merge ticker change history
+    # Merge and deduplicate ticker-change history
     #####################
     if (!is.null(old_ticker_change_history) && nrow(old_ticker_change_history) > 0) {
       ##Add general ticker_changes
@@ -1457,7 +1729,9 @@ setMethod(
     }
     #####################
 
-    #Prepare tickers_catalog_slots
+    # Assemble and return the updated `tickers_catalog`
+    ####################
+    ##Prepare tickers_catalog_slots
     tickers_catalog_slots <- prepare_tickers_catalog_slots(new_tickers_catalog)
 
     updated_catalog <-  methods::new("tickers_catalog",
@@ -1486,28 +1760,51 @@ setMethod(
 
 # meta_xts----------------------------------------------------------------
 
-#' Create a meta_xts, assets_meta_xts or metrics_meta_xts object.
+#' Create a `meta_xts` Object (`returns_meta_xts` or `metrics_meta_xts`)
 #'
-#' This constructor automatically sets most slots for you based on an
-#' input xts object and the desired type: "assets" or "metrics".
+#' @description
+#' Constructs a \code{\link{returns_meta_xts-class}} or \code{\link{metrics_meta_xts-class}}
+#' object from an \code{xts} object, a \code{data.frame} (wide or long format), or a
+#' \code{meta_dataframe}, auto-detecting frequency and filling in metadata slots.
 #'
-#' @param data An xts object containing your time series data.
-#' @param type Character. Either \code{"assets"} (no holes allowed) or
-#'   \code{"metrics"} (holes allowed). Defaults to \code{c("assets","metrics")}
-#'   which means you must pick one.
-#' @param asset_type A character string indicating the type of asset.
-#' @param meta_xts_name A character string. Defaults to \code{"default_name"}.
-#' @param metric_name A character string identifying the name of the metric
-#' @param workflow An ANY object for workflow. Defaults to \code{NULL}.
+#' @param data An \code{xts} object, a \code{data.frame}, or a \code{meta_dataframe}
+#'   containing the time series data.
+#' @param type Character. Either \code{"returns"} (built as \code{returns_meta_xts},
+#'   no holes allowed) or \code{"metrics"} (built as \code{metrics_meta_xts}, holes
+#'   allowed). Defaults to \code{"returns"} (the first value of
+#'   \code{c("returns", "metrics")}, resolved via \code{match.arg()}).
+#' @param asset_type Character. Type of asset for \code{returns_meta_xts} objects
+#'   (e.g. \code{"stock"}, \code{"ports"}). Defaults to \code{"not_identified"},
+#'   which emits a \code{message()} when \code{type = "returns"}.
+#' @param meta_xts_name Character. A label for the resulting object(s). Defaults to
+#'   \code{"not_identified"}.
+#' @param metric_name Character. Name of the metric/return series. If \code{NULL},
+#'   defaults to \code{"returns"}/\code{"metrics"} for \code{xts}/wide-\code{data.frame}
+#'   input, or to the feature column name(s) for long-\code{data.frame} input. A
+#'   vector supplied for long input must match the number of feature columns in length.
+#' @param workflow An ANY object recording processing history. Defaults to \code{NULL}.
+#'   For \code{meta_dataframe} input, the source object's own \code{workflow} is
+#'   carried over with a coercion entry appended.
 #' @param source A character vector indicating data origin for each column.
 #'   If \code{NULL}, defaults to \code{"not_identified"} repeated for each column.
-#' @param data_format A character string indicating the format of the data.
-#' @param dates An optional vector of dates to be included.
-#' @param ... Additional arguments passed to the constructor.
+#' @param data_format Character. \code{data.frame} input only: \code{"wide"}
+#'   (columns are already assets/metrics) or \code{"long"} (requires \code{tickers}
+#'   and \code{dates} columns; each non-id column becomes a separate result).
+#'   Defaults to \code{"wide"}.
+#' @param dates An optional vector of dates, sorted ascending. For wide input it
+#'   supplies the time index directly; for long input it overrides the pivoted
+#'   \code{dates} column. Unsorted input is an error rather than being silently
+#'   re-sorted, so data the caller believes is already aligned is never reordered
+#'   without their knowledge.
+#' @param ... Additional arguments passed to the underlying method.
 #'
-#' @return An S4 object of class \code{assets_meta_xts} or \code{metrics_meta_xts},
-#'   depending on \code{type}.
+#' @return
+#' A single \code{returns_meta_xts} or \code{metrics_meta_xts} object, **except**
+#' when \code{data} is a \code{data.frame} in long format with more than one
+#' feature column: then a named \code{list} of such objects is returned, one per
+#' feature column, named after the column.
 #'
+#' @seealso \code{\link{meta_xts-class}}, \code{\link{returns_meta_xts-class}}, \code{\link{metrics_meta_xts-class}}, \code{\link{create_meta_dataframe}}
 #'
 #' @export
 setGeneric(
@@ -1520,7 +1817,7 @@ setGeneric(
 
 
 #' @rdname create_meta_xts
-# Define the method for when 'data' is an 'xts' object
+# Dispatch: 'data' is an 'xts' object -- the base case the other methods delegate to
 setMethod(
   "create_meta_xts",
   signature(data = "xts"),
@@ -1778,13 +2075,24 @@ setMethod(
 #' @description This function constructs an object of class `ss_backtest_config`, ensuring the proper initialization
 #' and validation of its slots.
 #' @param initial_sample_size A numeric indicating the minimum number of observations required to begin the backtest.
-#' @param rebalancing_months A numeric indicating the number of months for rebalancing.
+#' @param rebalancing_months A numeric vector of calendar months (each in 1–12) at which signal selection is executed during the walk-forward backtest.
 #' @param active_returns Logical, whether to calculate active returns when calculating performance metrics, except for CAPM (default is TRUE).
 #' @param split_method A character string specifying the splitting method, either "expanding" (default) or "rolling".
-#' @param alpha_test_strategy An `alpha_test_strategy` object defining the alpha test configuration.
+#' @param alpha_test_strategy An `alpha_test_strategy` object — a `frequentist_alpha_test_strategy` or `bayesian_alpha_test_strategy` built with `create_alpha_test_strategy()` — defining the alpha test configuration. May be `NULL`.
 #' @param config_name A character string naming the configuration.
 #' @param chosen_signals_and_positions A character vector specifying the chosen signals and positions. If set to "all", all signals in `signals_m_df` will be used, and a long position will be assumed for all.
 #' @return An object of class `ss_backtest_config`.
+#' @examples
+#' \dontrun{
+#' alpha_strategy <- create_alpha_test_strategy(
+#'   model_structure = "no_pooled", p_correction_method = "holm",
+#'   market_factor_proxy = "IBOV"
+#' )
+#' ss_config <- create_ss_backtest_config(
+#'   initial_sample_size = 36, rebalancing_months = 1:12,
+#'   alpha_test_strategy = alpha_strategy, config_name = "ss_holm_nopool"
+#' )
+#' }
 #' @export
 create_ss_backtest_config <- function(
     initial_sample_size,
@@ -2325,18 +2633,39 @@ setMethod(
 
 
 # tuning_strategy--------------------------------------------------------
-#' @title Hyperparameter Tuning Strategy Constructor
-#' @description A constructor function to create a tuning_strategy object, based on the specified tuning method.
-#' @param tuning_method Character string indicating the hyperparameter tuning method. Must be one of 'grid_search', 'random_search', or 'bayesian_opt'.
-#' @param validation_sample_size Numeric value representing the size of the validation sample.
-#' @param chosen_eval_metric Character or NULL, specifying the evaluation metric to be optimized.
-#' @param early_stop ANY, optional argument for halting criteria.
-#' @param n_iter Numeric, number of iterations for 'random_search' or 'bayesian_opt'.
-#' @param acq Character string for the acquisition function (for 'bayesian_opt' only).
-#' @param init_points Numeric, number of initial random points for Bayesian optimization (for 'bayesian_opt' only).
-#' @param k_iter Numeric, number of samples to evaluate during Bayesian optimization (for 'bayesian_opt' only).
-#' @param hyper_grid_domain An object of class `hyper_grid_domain`, representing the hyperparameter search space. If NULL, an empty hyper_grid_domain is created.
-#' @return An object of class `grid_search_strategy`, `random_search_strategy`, or `bayesian_opt_strategy`, depending on the selected `tuning_method`.
+#' Hyperparameter Tuning Strategy Constructor
+#'
+#' @description
+#' Builds a \code{\link{grid_search_strategy-class}},
+#' \code{\link{random_search_strategy-class}}, or
+#' \code{\link{bayesian_opt_strategy-class}} object, depending on
+#' \code{tuning_method}.
+#'
+#' @param tuning_method Character. One of \code{"grid_search"},
+#'   \code{"random_search"}, or \code{"bayesian_opt"}.
+#' @param validation_sample_size Numeric. Size of the validation sample. A
+#'   value in \verb{(0, 1)} is later treated as a training-sample proportion
+#'   by \code{\link{add_tuning_strategy}()}; this constructor stores it as-is.
+#' @param chosen_eval_metric Character. Evaluation metric to optimize; must
+#'   be one of \code{"rss"}, \code{"rmse"}, \code{"cp"}, \code{"mae"},
+#'   \code{"mphe"}, \code{"mpe"}, \code{"mape"}, \code{"hr"}, \code{"mb"}.
+#'   Required -- the resulting object's validity rejects a missing value.
+#' @param hyper_grid_domain A \code{\link{hyper_grid_domain-class}} object.
+#'   If \code{NULL}, an empty one is created; populate it via
+#'   \code{\link{add_hyperparameter}()} before use.
+#' @param early_stop Numeric or \code{NULL}. Epochs with no improvement
+#'   before stopping early; only meaningful for \code{xgb}/\code{nn}.
+#' @param n_iter Numeric. Required for \code{"random_search"} (draws per
+#'   hyperparameter) and \code{"bayesian_opt"} (evaluations after
+#'   initialization); ignored for \code{"grid_search"}.
+#' @param acq Character. Acquisition function; required when
+#'   \code{tuning_method = "bayesian_opt"}, unused otherwise.
+#' @param init_points Numeric. Required when \code{tuning_method = "bayesian_opt"}, unused otherwise.
+#' @param k_iter Numeric. Required when \code{tuning_method = "bayesian_opt"}, unused otherwise.
+#'
+#' @return An object of class \code{grid_search_strategy},
+#'   \code{random_search_strategy}, or \code{bayesian_opt_strategy}.
+#'
 #' @export
 create_tuning_strategy <- function(tuning_method, validation_sample_size, chosen_eval_metric, hyper_grid_domain = NULL, early_stop = NULL,
                                    n_iter = NULL, acq = NULL, init_points = NULL, k_iter = NULL) {
@@ -2392,16 +2721,18 @@ create_tuning_strategy <- function(tuning_method, validation_sample_size, chosen
   }
 }
 
-#' Add a `tuning_strategy` to an existing `sb_backtest_config`.
+#' Add a `tuning_strategy` to an Existing `sb_backtest_config`
 #'
-#' This generic function adds an existing `tuning_strategy` object or creates a new one if none is provided
-#'  (i.e., when tuning_strategy is `NULL`).
+#' @description
+#' Attaches a hyperparameter tuning strategy to a `sb_backtest_config`,
+#' either by supplying an existing `tuning_strategy` object or by supplying
+#' the parameters needed to build one on the fly.
 #'
-#' @param object A `sb_backtest_config` object to which a ss_backtest_obj will be added.
-#' @param tuning_strategy An object of class `tuning_strategy`, or `NULL`.
-#' @param hyper_grid_domain An object of class `hyper_grid_domain`, or `NULL`.
-#' If `NULL`, additional parameters must be provided to create a new `tuning_strategy`.
-#' @param ... Additional arguments required to create a new `tuning_strategy`, only needed when tuning_strategy is `NULL`.
+#' @param object A `sb_backtest_config` object to which a `tuning_strategy` will be added.
+#' @param tuning_strategy An object of class `tuning_strategy`, or missing to build one from `...`.
+#' @param ... Parameters forwarded to `create_tuning_strategy()` when `tuning_strategy` is missing
+#'   (`tuning_method`, `validation_sample_size`, `chosen_eval_metric`, `hyper_grid_domain`,
+#'   `early_stop`, `n_iter`, `acq`, `init_points`, `k_iter`).
 #' @return An updated `sb_backtest_config` object with the specified or newly created `tuning_strategy`.
 #' @export
 setGeneric("add_tuning_strategy", function(object, tuning_strategy, ...) {
@@ -2410,10 +2741,14 @@ setGeneric("add_tuning_strategy", function(object, tuning_strategy, ...) {
 
 #' @describeIn add_tuning_strategy Add an existing `tuning_strategy` to the `sb_backtest_config`.
 #'
-#' This method adds a pre-existing `tuning_strategy` to the `sb_backtest_config`. It replaces any existing tuning strategy in the experiment.
+#' Replaces any existing tuning strategy. If `tuning_strategy@validation_sample_size`
+#' is in \verb{(0, 1)}, it is rescaled to an absolute count as
+#' `round(validation_sample_size * object@training_sample_size)` before being stored.
+#' Only blocks `sb_algorithm == "ols"`; unlike the sibling method below, it does not
+#' check for other heuristic (non-ML) algorithms.
 #'
 #' @param object A `sb_backtest_config` object.
-#' @param tuning_strategy An object of class `tuning_strategy` to be added to the `sb_backtest_config`.
+#' @param tuning_strategy An object of class `tuning_strategy` to be added.
 #' @return The updated `sb_backtest_config` object with the provided `tuning_strategy`.
 #' @export
 setMethod(
@@ -2446,16 +2781,23 @@ setMethod(
 
 #' @describeIn add_tuning_strategy Create and add a new `tuning_strategy` to the `sb_backtest_config`.
 #'
-#' This method is used when `tuning_strategy` is `NULL`. It creates a new tuning strategy based on the provided parameters and adds it to the `sb_backtest_config`.
+#' Builds a `tuning_strategy` via `create_tuning_strategy()` and attaches it. If
+#' `chosen_eval_metric` is `NULL`, it is inferred from `object@custom_objective`
+#' (`"pseudo_huber_error"` -> `"mphe"`, `"quantile_error"` -> `"quantile_loss"`,
+#' `"absolute_error"` -> `"mae"`, otherwise `"rmse"`). `validation_sample_size`
+#' in \verb{(0, 1)} is rescaled the same way as in the `tuning_strategy`-signature method.
+#' Errors if `object@sb_algorithm` is a heuristic (non-ML) algorithm that does not require tuning.
 #'
 #' @param object A `sb_backtest_config` object.
-#' @param tuning_strategy `NULL`, indicating that a new `tuning_strategy` should be created.
+#' @param tuning_strategy `NULL`; a new `tuning_strategy` is created from the remaining arguments.
 #' @param tuning_method Character string indicating the hyperparameter tuning method. Must be one of 'grid_search', 'random_search', or 'bayesian_opt'.
 #' @param validation_sample_size Numeric value representing the size of the validation sample.
-#' @param chosen_eval_metric Character or `NULL`, specifying the evaluation metric to be optimized.
+#' @param chosen_eval_metric Character or `NULL`; see Details. If provided, must be one of
+#'   `"rss"`, `"rmse"`, `"cp"`, `"mae"`, `"mphe"`, `"mpe"`, `"mape"`, `"hr"`, `"mb"`.
+#' @param hyper_grid_domain An object of class `hyper_grid_domain`, or `NULL` to start with an empty one.
 #' @param early_stop Optional, stopping criteria for early termination. Can be of any type.
 #' @param n_iter Numeric, number of iterations for 'random_search' or 'bayesian_opt'.
-#' @param acq Character string specifying the acquisition function for Bayesian optimization (for 'bayesian_opt' only).
+#' @param acq Character string specifying the acquisition function for Bayesian optimization (for 'bayesian_opt' only). Defaults to `"ucb"`.
 #' @param init_points Numeric, number of initial random points for Bayesian optimization (for 'bayesian_opt' only).
 #' @param k_iter Numeric, number of samples to evaluate during Bayesian optimization (for 'bayesian_opt' only).
 #' @return An updated `sb_backtest_config` object with a newly created `grid_search_strategy`, `random_search_strategy`, or `bayesian_opt_strategy`, depending on the selected `tuning_method`.
@@ -2485,7 +2827,7 @@ setMethod(
       message("Validation sample size is bigger than training sample size.")
     }
 
-    if (!object@sb_algorithm %in% c("ols", "sw", "ew", "rp", "mto")) {
+    if (!object@sb_algorithm %in% c("ols", "sw", "ew", "rp", "hrp", "mvo", "mmaf")) {
       # Create a new tuning_strategy object
       object@tuning_strategy <- create_tuning_strategy(
         tuning_method = tuning_method, validation_sample_size = validation_sample_size,
@@ -2493,7 +2835,7 @@ setMethod(
         init_points = init_points, k_iter = k_iter
       )
     } else {
-      stop("ols, sw, ew, rp and mvo do not require tuning.")
+      stop("ols, sw, ew, rp, hrp, mvo and mmaf do not require tuning.")
     }
 
 
@@ -2509,37 +2851,47 @@ setMethod(
 # hyperparameters--------------------------------------------------------
 #' Add a Hyperparameter to a `hyper_grid_domain`, whether inside a `sb_backtest_config`, a `tuning_strategy` or on its own.
 #'
-#' This generic function adds a new hyperparameter to an existing `hyper_grid_domain` object. The function is overloaded to handle different types of hyperparameters for different machine learning algorithms.
+#' @description
+#' Adds (or, for a name already present, upserts) one or more hyperparameters
+#' in a `hyper_grid_domain`, dispatching on where it lives: a bare
+#' `hyper_grid_domain`, a `tuning_strategy` subclass (`grid_search_strategy`,
+#' `random_search_strategy`, `bayesian_opt_strategy`), or a `sb_backtest_config`.
 #'
-#' @param object A `tuning_strategy` or a `hyper_grid_domain` object.
-#' @param hyperparameter A vector of characters indicating the name of the hyperparameter to be added. Options are:
-#' @param ... Additional arguments for the hyperparameter.
+#' @param object A `hyper_grid_domain`, a `tuning_strategy` (or subclass:
+#'   `grid_search_strategy`, `random_search_strategy`, `bayesian_opt_strategy`),
+#'   or a `sb_backtest_config` object.
+#' @param hyperparameter A character vector naming the hyperparameter(s) to add. Options are:
 #' \itemize{
 #'  \item \strong{glmnet}: alpha, lambda.min.ratio
 #'  \item \strong{rf}: mtry, num.trees, max.depth, min.bucket
 #'  \item \strong{xgb}: min_child_weight, max_depth, subsample, colsample_bytree, eta, gamma, nrounds
 #'  \item \strong{nn}: regularizer_l1, regularizer_l2, droprate, lr, size_of_batch, number_of_epochs
 #' }
+#' @param ... Method-specific arguments: `grid` (grid search), `distribution_choice`/`pars`
+#'   (random search), `bounds` (Bayesian optimization), or `new_hyperparameter_list`
+#'   (bare `hyper_grid_domain`) -- see the individual methods below.
 #'
-#' @return A `hyper_grid_domain` object with the updated hyperparameters.
+#' @return The input object with `hyperparameter_list` (nested inside `hyper_grid_domain`
+#'   for the strategy/config methods) updated: names shared with the existing list are
+#'   overwritten, others are added, and everything already present under an unrelated
+#'   name is left untouched.
 #' @export
 setGeneric("add_hyperparameter", function(object, hyperparameter, ...) {
   standardGeneric("add_hyperparameter")
 })
 
-#' @describeIn add_hyperparameter Add hyperparameter to `hyper_grid_domain` object
-#' @param hyperparameter A vector of characters indicating the name of the hyperparameter to be added. Options are:
-#' \itemize{
-#'  \item \strong{glmnet}: alpha, lambda.min.ratio
-#'  \item \strong{rf}: mtry, num.trees, max.depth, min.bucket
-#'  \item \strong{xgb}: min_child_weight, max_depth, subsample, colsample_bytree, eta, gamma, nrounds
-#'  \item \strong{nn}: regularizer_l1, regularizer_l2, droprate, lr, size_of_batch, number_of_epochs
-#' }
-#' @param grid A numeric vector or list of numeric vectors for grid search values (only used for grid_search).
-#' @param distribution_choice A character vector indicating the distribution to sample from (only used for random_search).
-#' @param pars A numeric named vector or list of numeric named vectors specifying parameter values (only used for random_search).
-#' @param bounds A vector of length 2 indicating minimum and maximum bounds for each hyperparameter (only used for bayesian_opt).
-#' @param new_hyperparameter_list Used to pass new_hyperparameters_list after specific method at tuning_strategy level.
+#' @describeIn add_hyperparameter Upsert entries directly into a `hyper_grid_domain`'s `hyperparameter_list`.
+#'
+#' This is the merge primitive the `grid_search_strategy`/`random_search_strategy`/
+#' `bayesian_opt_strategy` methods below delegate to after building a properly
+#' shaped `new_hyperparameter_list` from their own `hyperparameter`/`grid`/
+#' `distribution_choice`/`pars`/`bounds` arguments. It can also be called
+#' directly if you already have the hyperparameter list in the shape
+#' \code{\link{tuning_strategy-class}} expects for the target `tuning_method`.
+#'
+#' @param new_hyperparameter_list A named list of already-shaped hyperparameter
+#'   entries. Names matching existing entries in `object@hyperparameter_list`
+#'   overwrite them; other existing names are preserved.
 #' @export
 setMethod(
   "add_hyperparameter",
@@ -2578,15 +2930,9 @@ setMethod(
 )
 
 
-#' @describeIn add_hyperparameter Add hyperparameter to `grid_search_strategy` object
-#' @param hyperparameter A vector of characters indicating the name of the hyperparameter to be added. Options are:
-#' \itemize{
-#'  \item \strong{glmnet}: alpha, lambda.min.ratio
-#'  \item \strong{rf}: mtry, num.trees, max.depth, min.bucket
-#'  \item \strong{xgb}: min_child_weight, max_depth, subsample, colsample_bytree, eta, gamma, nrounds
-#'  \item \strong{nn}: regularizer_l1, regularizer_l2, droprate, lr, size_of_batch, number_of_epochs
-#' }
-#' @param grid A numeric vector or list of numeric vectors for grid search values.
+#' @describeIn add_hyperparameter Add/upsert hyperparameter(s) in a `grid_search_strategy`'s `hyper_grid_domain`.
+#' @param grid A numeric vector (single hyperparameter) or list of numeric vectors
+#'   (one per name in `hyperparameter`, same order) giving the exact values to try.
 #' @export
 setMethod(
   "add_hyperparameter",
@@ -2624,16 +2970,16 @@ setMethod(
 
 
 
-#' @describeIn add_hyperparameter Add hyperparameter to `random_search_strategy` object
-#' @param hyperparameter A vector of characters indicating the name of the hyperparameter to be added. Options are:
-#' \itemize{
-#'  \item \strong{glmnet}: alpha, lambda.min.ratio
-#'  \item \strong{rf}: mtry, num.trees, max.depth, min.bucket
-#'  \item \strong{xgb}: min_child_weight, max_depth, subsample, colsample_bytree, eta, gamma, nrounds
-#'  \item \strong{nn}: regularizer_l1, regularizer_l2, droprate, lr, size_of_batch, number_of_epochs
-#' }
-#' @param distribution_choice A character vector indicating the distribution to sample from (only used for random_search).
-#' @param pars A numeric named vector or list of numeric named vectors specifying parameter values (only used for random_search).
+#' @describeIn add_hyperparameter Add/upsert hyperparameter(s) in a `random_search_strategy`'s `hyper_grid_domain`.
+#'
+#' There is no separate `value` argument for `distribution_choice = "constant"`:
+#' pass the constant through `pars` (it is stored internally as `value`).
+#'
+#' @param distribution_choice Character vector, one of `"uniform"`, `"normal"`,
+#'   `"lognormal"`, or `"constant"` per hyperparameter in `hyperparameter`.
+#' @param pars A named numeric vector (or list of them, one per hyperparameter)
+#'   with the parameters for the chosen distribution (`c(min, max)`, `c(mean, sd)`,
+#'   `c(meanlog, sdlog)`), or the constant value itself when `distribution_choice = "constant"`.
 #' @export
 setMethod(
   "add_hyperparameter",
@@ -2699,16 +3045,9 @@ setMethod(
 )
 
 
-#' @describeIn add_hyperparameter Add hyperparameter to `bayesian_opt_strategy` object
-#' @param hyperparameter A vector of characters indicating the name of the hyperparameter to be added. Options are:
-#' \itemize{
-#'  \item \strong{glmnet}: alpha, lambda.min.ratio
-#'  \item \strong{rf}: mtry, num.trees, max.depth, min.bucket
-#'  \item \strong{xgb}: min_child_weight, max_depth, subsample, colsample_bytree, eta, gamma, nrounds
-#'  \item \strong{nn}: regularizer_l1, regularizer_l2, droprate, lr, size_of_batch, number_of_epochs
-#' }
-#' @param distribution_choice A character vector indicating the distribution to sample from (only used for random_search).
-#' @param pars A numeric named vector or list of numeric named vectors specifying parameter values (only used for random_search).
+#' @describeIn add_hyperparameter Add/upsert hyperparameter(s) in a `bayesian_opt_strategy`'s `hyper_grid_domain`.
+#' @param bounds A numeric vector of length 2 (`c(lower, upper)`), or a list of such
+#'   vectors (one per hyperparameter in `hyperparameter`, same order).
 #' @export
 setMethod(
   "add_hyperparameter",
@@ -2746,12 +3085,13 @@ setMethod(
   }
 )
 
-#' @describeIn add_hyperparameter Add Hyperparameter to `sb_backtest_config` object
-#' @param hyperparameter A vector of characters indicating the name of the hyperparameter to be added.
-#' @param grid A numeric vector or list of numeric vectors for grid search values (only used for grid_search).
-#' @param distribution_choice A character vector indicating the distribution to sample from (only used for random_search).
-#' @param pars A numeric named vector or list of numeric named vectors specifying parameter values (only used for random_search).
-#' @param bounds A vector of length 2 indicating minimum and maximum bounds for each hyperparameter (only used for bayesian_opt).
+#' @describeIn add_hyperparameter Add/upsert hyperparameter(s) via a `sb_backtest_config`'s attached `tuning_strategy`.
+#'
+#' Delegates to whichever strategy-specific method matches `object@tuning_strategy`'s
+#' class; supply only the argument(s) relevant to that strategy's `tuning_method`
+#' (`grid`, `distribution_choice`/`pars`, or `bounds`) and leave the rest `NULL`.
+#' Requires `object@tuning_strategy` to already be set (see `add_tuning_strategy()`).
+#'
 #' @export
 setMethod(
   "add_hyperparameter",
@@ -2815,7 +3155,9 @@ setMethod(
 
 
 #' @describeIn add_hyper_grid_domain Add `hyper_grid_domain` to `sb_backtest_config` object
-#' @param object An object of class `sb_backtest_config`.
+#' @param object An object of class `sb_backtest_config`. Must already have a
+#'   `tuning_strategy` attached (via `add_tuning_strategy()`) -- this method writes
+#'   into `object@tuning_strategy@hyper_grid_domain` and will error on a `NULL`/unset strategy.
 #' @param hyper_grid_domain An object of class `hyper_grid_domain`.
 #' @export
 setMethod(
@@ -4057,14 +4399,19 @@ setMethod(
 #' @title Create sb_backtest_config Object
 #' @description Constructs an sb_backtest_config object.
 #'
-#' @param sb_algorithm Character string specifying the machine learning algorithm to be used ('glmnet', 'rf', 'xgb', 'nn', 'sw', 'ew', etc.).
-#' @param chosen_signals_and_positions A vector of chosen signals and positions (long, short)
+#' @param sb_algorithm Character string specifying the signal-blending algorithm. One of 'ols' (default),
+#'   'glmnet', 'rf', 'xgb', 'nn' (ML), or 'ew', 'sw', 'rp', 'hrp', 'mvo', 'mmaf', 'custom_weights' (heuristic/portfolio).
+#' @param chosen_signals_and_positions A named vector of chosen signals and their positions ('long'/'short').
+#'   Defaults to NULL, which is coerced to 'all' (use every signal in `features_m_df`).
 #' @param target_fwd_name Name of the target variable in `target_m_df`.
 #' @param training_sample_size Number of observations to include in each training sample.
 #' @param rebalancing_months Months (numeric) when model should be rebalanced (refit).
 #' @param split_method Character string indicating the data splitting method ('expanding' or 'rolling').
 #' @param tuning_strategy An object of class tuning_strategy, specifying the strategy for tuning hyperparameters.
-#' @param custom_objective Character string specifying the custom objective function ('squared_error', 'pseudo_huber_error', 'absolute_error') or NULL.
+#' @param custom_objective Character string, or NULL to auto-set. For ML algorithms: 'squared_error'
+#'   (default), 'pseudo_huber_error' or 'absolute_error' (last two only for 'xgb'/'nn'). For heuristic
+#'   portfolio algorithms ('sw', 'rp', 'hrp', 'mvo', 'mmaf'): a 'max_'/'min_' + heuristic-metric string
+#'   (defaults to 'max_info_ratio' when NULL). See `display_valid_custom_objectives()`.
 #' @param keras_architecture_parameters An object of class `keras_architecture_parameters` providing parameters specific to keras-based neural networks.
 #' @param signal_port_parameters An object of class `signal_port_parameters`, specifying the parameters for constructing signal portfolios (portfolio-blending).
 #' @param quantile_tau Numeric value indicating the tau parameter used for quantile regression, between 0 and 1.
@@ -4072,6 +4419,7 @@ setMethod(
 #' @param config_name Name of the backtest configuration.
 #'
 #' @return An sb_backtest_config object.
+#' @seealso [add_tuning_strategy()], [add_hyperparameter()], [add_concentration_constraint_policy()], [run_sb_backtest()]
 #' @export
 create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tuning_strategy = NULL, training_sample_size, rebalancing_months, split_method = "expanding",
                                       chosen_signals_and_positions = NULL,
@@ -4182,21 +4530,21 @@ create_sb_backtest_config <- function(sb_algorithm = "ols", target_fwd_name, tun
 # sb_metabacktest------------------------------------------------------------
 #' Create SB Meta Backtest Configuration
 #'
-#' The `create_sb_metabacktest_config` function creates an `sb_metabacktest_config` object by combining a `sb_backtest_config` for the meta-learner
-#' and a group of `sb_backtest_config` objects for the base learners.
-#' Those can be passed with our without a `ss_backtest_config` set. In this latter case, by passing
-#' a list of `ss_backtest_config` objects, the function will generate all possible combinations of configurations for running multiple backtests,
-#' possibly in parallel.
-#' Alternatively, the user can provide a list of `sb_backtest_results` directly to be used by the function.
+#' The `create_sb_metabacktest_config` function creates an `sb_metabacktest_config` object that configures a
+#' meta-learning (stacking) backtest. It wraps a single meta-learner `sb_backtest_config` together with the
+#' rules for assembling the meta feature set from base learners' out-of-sample predictions
+#' (`features_passthrough`, `normalize_base_predictions`, `winsorize_base_predictions`). The base learners
+#' themselves are supplied later, as a list of `sb_backtest_results`, to [run_sb_backtest()].
 #'
 #' @param meta_sb_backtest_config A `sb_backtest_config` with the configuration for the meta learner.
-#' @param features_passthrough A character vector of features to pass through to the meta-learner.
+#' @param features_passthrough A character vector naming features from `features_m_df` to append to the
+#'   meta-learner's inputs; or 'all' (all features) or 'none' (none). Default 'none'.
 #' @param normalize_base_predictions A logical value indicating whether to normalize the base predictions.
 #' @param winsorize_base_predictions A logical value indicating whether to winsorize the base predictions.
 #' @param config_name Name of the backtest configuration.
 #' @param ... Additional arguments (not used).
 #'
-#' @return A `sb_metabacktest_config` object containing all viable combinations of configs.
+#' @return An `sb_metabacktest_config` object.
 #'
 #' @export
 setGeneric("create_sb_metabacktest_config", function(meta_sb_backtest_config, features_passthrough, ...) {
@@ -4204,12 +4552,12 @@ setGeneric("create_sb_metabacktest_config", function(meta_sb_backtest_config, fe
 })
 
 
-#' @describeIn create_sb_metabacktest_config Create meta config from ss_backtest_results
+#' @describeIn create_sb_metabacktest_config Create a meta-backtest config from a meta-learner `sb_backtest_config`.
 #'
 #' @param meta_sb_backtest_config A `sb_backtest_config` with the configuration for the meta learner.
 #' @param ... Additional arguments (not used).
 #'
-#' @return An `sb_metabacktest_config` object containing the provided sb_backtest objects.
+#' @return An `sb_metabacktest_config` object.
 #' @export
 setMethod(
   "create_sb_metabacktest_config",
@@ -4332,15 +4680,20 @@ setMethod(
 #' @param initial_buffer_period A numeric value indicating the number of initial dates to skip before starting the backtest.
 #' @param rebalancing_months A numeric vector (e.g., c(3,6,9,12)) indicating the months when the portfolio should be rebalanced.
 #' @param cov_est_method A `cov_est_method` object specifying the covariance estimation method and its parameters.
-#' If not provided, a default using method "sample", sample size 36, active returns = TRUE, and the provided selected_benchmark is created.
+#' If not provided, a default is created using method "sample" and sample size 252; `active_returns` is set to `TRUE`
+#' (with `cov_matrix_benchmark = selected_benchmark`) when a `selected_benchmark` is supplied, and `FALSE` otherwise.
 #' @param port_construction_method A character string representing the portfolio construction method.
-#' Must be one of "ew", "sw", "cw", "cs", "rp", or "mvo".
+#' Must be one of "ew" (equal-weight), "sw" (signal-weight), "cw" (cap-weight), "cs" (cap-scaled), "rp" (risk parity),
+#' "hrp" (hierarchical risk parity), "mvo" (mean-variance optimization), or "mmaf" (micro-macro allocation framework).
+#' "custom_weights" is not supported through this constructor.
 #' @param mvo_parameters An object of class `mvo_parameters` for mean-variance optimization. Only required if `port_construction_method` is "mvo".
 #' If missing and port_construction_method is "mvo", a default is created.
 #' @param rp_parameters An object of class `rp_parameters` for risk parity portfolios. Only required if `port_construction_method` is "rp".
 #' If missing and port_construction_method is "rp", a default is created.
 #' @param hrp_parameters An object of class `hrp_parameters` for hierarchical risk parity portfolios. Only required if `port_construction_method` is "hrp".
+#' If missing and port_construction_method is "hrp", a default is created.
 #' @param mmaf_parameters An object of class `mmaf_parameters` for micro-macro allocation framework portfolios. Only required if `port_construction_method` is "mmaf".
+#' If missing and port_construction_method is "mmaf", a default is created (and `enable_group_representativeness` defaults to `TRUE`).
 #' @param main_liquidity_metric A character string indicating which liquidity metric (i.e. column in liquidity_m_df) to use.
 #' @param liquidity_floor_cutoffs An object (e.g., a data frame) containing liquidity cutoff values.
 #' @param liquidity_constraint_policy An object of class `liquidity_constraint_policy` (optional).
@@ -4350,6 +4703,31 @@ setMethod(
 #' @param config_name A character string representing the name of the configuration.
 #'
 #' @return An object of class `port_backtest_config`.
+#'
+#' @examples
+#' # Minimal equal-weighted configuration driven by a single characteristic signal
+#' # (a book-yield tilt), rebalanced semi-annually after a 12-period buffer.
+#' config <- create_port_backtest_config(
+#'   chosen_score_metric_and_position = c(book_yield = "long"),
+#'   eligibility_quantile_range = c(0.8, 1.0),
+#'   initial_buffer_period = 12,
+#'   rebalancing_months = c(6, 12),
+#'   main_liquidity_metric = "mean_volfin_3m",
+#'   port_construction_method = "ew",
+#'   config_name = "ew_book_yield"
+#' )
+#'
+#' # Benchmark-relative risk-parity configuration: supplying a selected_benchmark
+#' # makes the default cov_est_method use active returns against that benchmark.
+#' rp_config <- create_port_backtest_config(
+#'   chosen_score_metric_and_position = c(book_yield = "long"),
+#'   selected_benchmark = "ibov",
+#'   initial_buffer_period = 12,
+#'   rebalancing_months = 12,
+#'   main_liquidity_metric = "mean_volfin_3m",
+#'   port_construction_method = "rp",
+#'   config_name = "rp_book_yield"
+#' )
 #' @export
 create_port_backtest_config <- function(chosen_score_metric_and_position = NULL,
                                         eligibility_quantile_range = c(0.9, 1.0),

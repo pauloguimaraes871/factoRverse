@@ -13,6 +13,9 @@
 #' @param upper_quantile_winsorization Numeric value for upper winsorization
 #' @param lower_quantile_winsorization Numeric value for lower winsorization
 #'
+#' @return A numeric vector of blended-signal predictions (weighted sum of the eligible
+#'   signals, winsorized by the quantile bounds).
+#'
 setMethod("predict",
           signature = list(object = "signal_port"),
           function(object, new_features_m_df,
@@ -176,7 +179,12 @@ setMethod("predict",
 
 
   #Get objects of sb_backtest_workflow
-  sb_model_refit <- sb_backtest_results@final_sb_model #Get refitted model
+  sb_model_refit <- object@final_sb_model #Get refitted model
+
+  #Ensure a refitted model exists (final_sb_model can be empty after an update)
+  if (is.null(sb_model_refit) || !methods::is(sb_model_refit, "sb_model")) {
+    stop("No final_sb_model available in this sb_backtest_results object; cannot predict on new data.")
+  }
 
   #Get predictions
   predictions <- predict(sb_model_refit, new_features_m_df = new_features_m_df,

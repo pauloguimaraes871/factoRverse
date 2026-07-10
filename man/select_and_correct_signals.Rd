@@ -22,10 +22,12 @@ For example, chosen_signals_and_positions = c(book_yield = "long", vol_36m = "sh
 \item{backtest_returns_m_xts}{A xts containing historical backtested returns named according to signals in \code{signals_m_df},}
 }
 \value{
-A list with two components:
+A named list with three components (the last two are \code{NULL} when their
+inputs are not supplied):
 \itemize{
 \item \code{selected_signals_corrected_positions_m_df}: The updated data frame from \code{signals_m_df} with corrected signal positions and adjusted column names.
-\item \code{selected_backtest_returns_corrected_positions_df}: The data frame from \code{backtest_returns_df} with columns matching the corrected signal positions.
+\item \code{selected_signal_themes_m_df}: The \code{signal_themes_m_df} subset to the corrected signals (\code{NULL} if not provided).
+\item \code{selected_backtest_returns_corrected_positions_m_xts}: The \code{backtest_returns_m_xts} subset to the columns matching the corrected signal positions (\code{NULL} if not provided).
 }
 }
 \description{
@@ -38,6 +40,6 @@ The function performs the following operations:
 \item Checks for consistency between the length of \code{chosen_signals} and \code{signal_positions} and ensures that all chosen signals have corresponding positions.
 \item Adjusts the signal positions based on whether they are "short" by multiplying their values by -1.
 \item Updates column names in the data frame to reflect the corrected positions of the signals.
-\item Validates that all adjusted signals have corresponding columns in \code{backtest_returns_df}.
+\item Validates that all adjusted signals have corresponding columns in \code{backtest_returns_m_xts}.
 }
 }

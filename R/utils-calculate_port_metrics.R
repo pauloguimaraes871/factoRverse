@@ -5,8 +5,11 @@
 #' Optionally, if benchmark weights are provided (i.e. if \code{selected_benchmark} is not \code{NULL}),
 #' the function also computes benchmark metrics and merges them with the portfolio metrics.
 #'
-#' @param port_weights_m_d_ref A data frame containing portfolio weights with at least the columns:
-#' @param custom_stock_metrics_m_d_ref A data frame containing custom stock metrics with at least the columns:
+#' @param port_weights_m_d_ref A data frame containing portfolio weights. Must include an \code{id} column and an
+#'   \code{eop_port_weights} column (end-of-period weights). May optionally include a \code{bench_weights} column,
+#'   in which case benchmark-weighted metrics (prefixed \code{bench_}) are also computed and merged.
+#' @param custom_stock_metrics_m_d_ref A data frame of custom per-stock metrics. Must include an \code{id} column
+#'   (used for the join) plus one or more numeric metric columns; \code{tickers}/\code{dates}, if present, are ignored.
 #'
 #' @return A data frame with consolidated portfolio metrics. If benchmark metrics are calculated,
 #'   the data frame will also include columns with a \code{"bench_"} prefix.

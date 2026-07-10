@@ -1,46 +1,92 @@
-#' @title Plot Method for `meta_dataframe` Objects
+#' Plot method for meta_dataframe objects
 #'
+#' @title Plot meta_dataframe
 #' @description
-#' This method creates a variety of diagnostic and summary plots from a `meta_dataframe` object,
-#' including time series plots, cross-sectional plots, histograms, boxplots, composition plots,
-#' regression plots, density plots, tile heatmaps, correlograms, and radar charts.
+#' S4 \code{plot} method for \code{\link{meta_dataframe}} objects. Produces a variety of diagnostic
+#' and summary visualisations (time series, cross-sectional, histogram, boxplot, composition,
+#' regression, density2d, correlogram, radar, waterfall, tile heatmap, frequency). The function
+#' performs internal filtering and summarisation before rendering a \code{ggplot} (or base plot
+#' for radar charts).
 #'
-#' It supports both univariate and bivariate statistics (e.g., correlation, regression),
-#' faceting by clustering variables, and interactive filtering by tickers, dates, or other custom criteria.
+#' @param x A \code{meta_dataframe} object.
+#' @param type Character. Plot type. One of \code{"cross_sectional"}, \code{"time_series"},
+#'   \code{"histogram"}, \code{"boxplot"}, \code{"composition"}, \code{"regression"},
+#'   \code{"density2d"}, \code{"correlogram"}, \code{"radar"}, \code{"waterfall"},
+#'   \code{"tile_heatmap"}, \code{"frequency"}.
+#' @param clustering_variables Character vector or \code{"auto"}. Columns to group/facet by (e.g.
+#'   \code{"dates"}, \code{"tickers"}). Use \code{NULL} for no clustering.
+#' @param variable Character vector. Main numeric variable(s) to analyse or visualise (must be
+#'   column names of \code{x@data}). For bivariate plots, supply two variables when appropriate.
+#' @param tickers Character vector or \code{"all"}. Tickes to include (default \code{"all"}).
+#' @param dates Either a single \code{Date}, vector of \code{Date}, a date range, or \code{"all"}.
+#' @param calc_stat Character. Summary statistic or metric to compute (e.g. \code{"mean"},
+#'   \code{"sd"}, \code{"median"}, \code{"cor"}, \code{"beta"}, \code{"alpha"}, quantiles like
+#'   \code{"q05"}, etc.). Defaults vary by \code{type}.
+#' @param custom_filter Character or character vector. Column(s) to filter on (e.g. \code{"sector"}).
+#' @param filter_values A vector or list of values used to filter \code{custom_filter} columns.
+#' @param dep_y Optional character. Dependent variable used for bivariate statistics (required when
+#'   \code{calc_stat} is \code{"cor"}, \code{"beta"}, \code{"alpha"} or \code{type} is \code{"regression"}).
+#' @param numeric_aggregation Character. How to discretize numeric clustering variables: one of
+#'   \code{"decile"}, \code{"quartile"}, \code{"tercile"}, \code{"median"}. Default: \code{"decile"}.
+#' @param palette Character. Colour palette to use for the plot (e.g. \code{"cyberpunk"}, \code{"br"}).
 #'
-#' @param x A `meta_dataframe` object to be plotted.
-#' @param type A character string specifying the plot type. Valid options include:
-#'   `"cross_sectional"`, `"time_series"`, `"histogram"`, `"boxplot"`, `"composition"`, `"regression"`,
-#'   `"density2d"`, `"correlogram"`, `"radar"`, `"waterfall"`, `"tile_heatmap"`, `"frequency"`.
-#' @param clustering_variables A character vector specifying one or more columns to group by (e.g., `"dates"`, `"tickers"`).
-#'   Used to produce faceted plots or grouping within plots.
-#' @param variable A character vector specifying the main numeric variable(s) to analyze or visualize.
-#' @param tickers Character vector of tickers to include. Use `"all"` (default) to include all tickers.
-#' @param dates Either a single date, a vector of dates, or `"all"` to include all.
-#' @param calc_stat Character string specifying the calculation to apply. Supported options include:
-#'   `"mean"`, `"sd"`, `"median"`, `"min"`, `"max"`, `"sum"`, `"n"`, `"q05"`, `"q10"`, `"q25"`, `"q75"`, `"q90"`, `"q95"`,
-#'   and bivariate metrics such as `"cor"`, `"beta"`, `"beta_tstat"`, `"alpha"`, `"alpha_tstat"`.
-#' @param custom_filter A character or character vector specifying the column(s) to filter on (e.g., `sector`, `theme`).
-#' @param filter_values A list or vector of values corresponding to `custom_filter` columns.
-#' @param dep_y Optional. A character string indicating the dependent variable to be used in bivariate statistics
-#'   (e.g., `"cor"`, `"beta"`, `"alpha"`). Required when `calc_stat` involves regression or correlation.
-#' @param numeric_aggregation A character string defining how to discretize numeric `clustering_variables`.
-#'   Options include: `"decile"`, `"quartile"`, `"tercile"`, `"median"`. Default is `"decile"`.
-#' @param palette A character string specifying the color palette for the plot. Options include `"cyberpunk"` (default) and `"br"`.
-#'
-#' @return A `ggplot` object or base R plot (in the case of radar plots), visualizing the requested output.
-#'         The plot is printed as a side effect.
+#' @return A \code{ggplot} object (or base plot for radar). The plot is printed as a side-effect.
 #'
 #' @details
-#' This method performs internal filtering and summarization before rendering visual output.
-#' - **Univariate plots** (e.g., histogram, boxplot, time series) are based on the `variable` argument.
-#' - **Bivariate plots** (e.g., regression, correlation) require both `variable` and `dep_y`.
-#' - **Tile heatmaps** classify values across time and grouping dimensions using quantiles (e.g., deciles).
+#' - Univariate plots use \code{variable}. Bivariate plots require \code{dep_y} or two variables.
+#' - \code{tile_heatmap} and \code{composition} perform internal quantile binning and aggregation.
+#' - When \code{clustering_variables="auto"} the function will interactively prompt for sensible defaults
+#'   if run in an interactive session. Many arguments can be selected interactively when omitted.
+#' - Required plotting packages: \pkg{ggplot2}, \pkg{gridExtra}, \pkg{scales}, \pkg{ggdist}, \pkg{ggraph},
+#'   \pkg{ggrepel}, \pkg{igraph}, \pkg{RColorBrewer}. The method stops if dependencies are missing.
 #'
-#' The plot aesthetics and background colors follow a customized neon/blue theme consistent with the `factoRverse` package style.
+#' @examples
+#' \dontrun{
+#' # Cross-sectional mean of 'score' by tickers on a given date
+#' plot(mdf, type = "cross_sectional", variable = "score", calc_stat = "mean",
+#'      clustering_variables = "tickers", dates = as.Date("2026-07-01"))
 #'
-#' @export
-
+#' # Time series of 'momentum' for a specific ticker
+#' plot(mdf, type = "time_series", variable = "momentum",
+#'      clustering_variables = "dates", tickers = "AAPL")
+#'
+#' # Histogram of a signal distribution
+#' plot(mdf, type = "histogram", variable = "signal", clustering_variables = "tickers")
+#'
+#' # Boxplot of a signal across tickers
+#' plot(mdf, type = "boxplot", variable = "signal", clustering_variables = "tickers")
+#'
+#' # Composition of themes (uses calc_stat = "mean")
+#' plot(mdf, type = "composition", variable = "theme")
+#'
+#' # Regression of signal_x against return_1m (bivariate)
+#' plot(mdf, type = "regression", variable = "signal_x", dep_y = "return_1m",
+#'      clustering_variables = "tickers")
+#'
+#' # 2D density of two signals
+#' plot(mdf, type = "density2d", variable = c("signal_x", "signal_y"), tickers = "all")
+#'
+#' # Correlogram across several metrics
+#' plot(mdf, type = "correlogram", variable = c("signal_a", "signal_b", "signal_c"))
+#'
+#' # Radar chart (requires >= 3 variables)
+#' plot(mdf, type = "radar", variable = c("IR", "alpha", "turnover"))
+#'
+#' # Waterfall (e.g., cumulative contribution)
+#' plot(mdf, type = "waterfall", variable = "exp_ret", calc_stat = "sum",
+#'      clustering_variables = "tickers")
+#'
+#' # Tile heatmap over dates × groups (quantile-binned)
+#' plot(mdf, type = "tile_heatmap", variable = "score", clustering_variables = c("dates", "tickers"))
+#'
+#' # Frequency plot for categorical/count diagnostics
+#' plot(mdf, type = "frequency", variable = "sector")
+#' }
+#'
+#' @name plot-meta_dataframe
+#' @rdname plot-meta_dataframe
+#' @aliases plot,meta_dataframe,missing-method
+#' @exportMethod plot
 setMethod(
   "plot",
   signature(x = "meta_dataframe", y = "missing"),
@@ -1628,10 +1674,22 @@ setMethod(
 #' @param active_returns Logical or `"yes"/"no"` string. Whether to compute active returns relative to the benchmark when `plot_perf_metric = TRUE`.
 #' @param variable Variable to plot. If `NULL`, user is prompted to select from available columns.
 #' @param chosen_metric Character. Performance metric to plot when `plot_perf_metric = TRUE`. Options include "CAGR", "Volatility", "Sharpe Ratio", etc. If `NULL`, user is prompted.
-#' @param palette Character. Color palette to use for the plots.
+#' @param palette Character. Either `"cyberpunk"` (default; dark background,
+#'   neon series colors) or `"br"` (light background, brand palette).
 #' @param ... Currently unused.
 #'
 #' @return Invisibly returns the generated `ggplot` object.
+#'
+#' @section Requirements:
+#' Requires the suggested packages `gridExtra`, `scales`, `ggdist`, `ggraph`,
+#' `ggrepel`, `igraph`, and `RColorBrewer`; if any are missing, an informative
+#' `stop()` is raised rather than a cryptic failure.
+#'
+#' @section Interactivity:
+#' Any of `variable`, `facet_by_year`, `cumulative`, `plot_perf_metric`,
+#' `active_returns`, or `chosen_metric` left as `NULL` triggers an interactive
+#' `readline()` prompt. Supply all of them explicitly to use this method in
+#' non-interactive contexts (scripts, `knitr`, tests).
 #'
 #' @seealso [create_performance_m_df()]
 #'
@@ -2312,7 +2370,11 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
 #' @param x An object of class `grid_search_strategy`.
 #' @param y Unused. Included for consistency with the generic `plot` method.
 #' @param palette Character. Color palette to use for the plot. Options include "cyberpunk" and "br". Default is "cyberpunk".
-#' @return A `ggplot` object visualizing the hyperparameter grid and possible limits.
+#' @return Invisibly returns the `ggplot` object visualizing the hyperparameter grid and its predefined limits (also printed as a side effect).
+#' @section Requirements:
+#' Requires the suggested packages `gridExtra`, `scales`, `ggdist`, `ggraph`,
+#' `ggrepel`, `igraph`, and `RColorBrewer`; if any are missing, an informative
+#' `stop()` is raised.
 #' @export
 setMethod("plot", signature(x = "grid_search_strategy", y = "missing"), function(x, y, palette = "cyberpunk") {
 
@@ -2493,11 +2555,21 @@ setMethod("plot", signature(x = "grid_search_strategy", y = "missing"), function
 
 
 #' @title Plot Method for `random_search_strategy`
-#' @description Generate a sample for each hyperparameter and plot the histogram for random search.
+#' @description Draw a fresh random sample from each hyperparameter's assigned
+#'   distribution and plot the resulting histograms/violins for random search.
 #' @param x An object of class `random_search_strategy`.
 #' @param y Unused. Included for consistency with the generic `plot` method.
 #' @param palette Character. Color palette to use for the plot. Options include "cyberpunk" and "br". Default is "cyberpunk".
-#' @return A `ggplot` object visualizing the hyperparameter histograms with possible limits.
+#' @return Invisibly returns the `ggplot` object visualizing the hyperparameter histograms and their predefined limits (also printed as a side effect).
+#' @section Requirements:
+#' Requires the suggested packages `gridExtra`, `scales`, `ggdist`, `ggraph`,
+#' `ggrepel`, `igraph`, and `RColorBrewer`; if any are missing, an informative
+#' `stop()` is raised.
+#' @section Note:
+#' Samples are drawn fresh on every call (no seed control) purely to
+#' illustrate the shape of each distribution -- they are **not** the actual
+#' draws `hyper_tune()` will use during tuning, and repeated calls can look
+#' different, especially for small `n_iter`.
 #' @export
 setMethod("plot", signature(x = "random_search_strategy", y = "missing"), function(x, y, palette = "cyberpunk") {
 
@@ -2709,12 +2781,16 @@ setMethod("plot", signature(x = "random_search_strategy", y = "missing"), functi
 
 
 #' @title Plot Method for `bayesian_opt_strategy`
-#' @description Plot the bounds for each hyperparameter in `bayesian_opt_strategy`.
+#' @description Plot the lower/upper bounds for each hyperparameter in `bayesian_opt_strategy`.
 #' @param x An object of class `bayesian_opt_strategy`.
 #' @param y Unused. Included for consistency with the generic `plot` method.
 #' @param palette Character. Color palette to use for the plot. Options include "cyberpunk" and "br". Default is "cyberpunk".
 #' @param ... Additional arguments passed to the plotting method (currently unused).
-#' @return A `ggplot` object visualizing the bounds.
+#' @return Invisibly returns the `ggplot` object visualizing the bounds (also printed as a side effect).
+#' @section Requirements:
+#' Requires the suggested packages `gridExtra`, `scales`, `ggdist`, `ggraph`,
+#' `ggrepel`, `igraph`, and `RColorBrewer`; if any are missing, an informative
+#' `stop()` is raised.
 #' @export
 setMethod("plot", signature(x = "bayesian_opt_strategy", y = "missing"), function(x, y, palette = "cyberpunk", ...) {
 
@@ -2984,17 +3060,28 @@ setMethod(
 #'
 #' @param x An object of class \code{sb_backtest_results} containing the results of the walk-forward validation.
 #' @param plot_id A character string or numeric value specifying which plot to display.
-#'   - By name: Options are:
-#'     - `"Chosen Evaluation Metric Over Time"`
-#'     - `"Test vs Validation Chosen Evaluation Metric Over Time"`
-#'     - `"Best Hyperparameters Over Time"`
-#'     - `"Hyperparameters vs Error"`
-#'     - `"All Evaluation Metrics Over Time"`
-#'     - `"Consolidated OOS Testing Metrics"`
-#'     - `"Average Validation Metrics"`
-#'     - `"Signal Portfolio"`
-#'   - By number: Provide a number corresponding to the plot (as listed when `plot_id` is `NULL`).
-#'   If `NULL` (default), the method lists available plots.
+#'   Available plots depend on `sb_algorithm`. For ML algorithms ("glmnet", "rf", "xgb", "nn"):
+#'   - `"Chosen Evaluation Metric Over Time"`
+#'   - `"Test vs Validation Chosen Evaluation Metric Over Time"`
+#'   - `"Best Hyperparameters Over Time"`
+#'   - `"Hyperparameters vs Error"`
+#'   - `"All Evaluation Metrics Over Time"`
+#'   - `"Consolidated OOS Testing Metrics"`
+#'   - `"OOS Predictions, Errors and Targets"`
+#'   - `"Consolidated OOS Testing Metrics vs Average Validation"`
+#'   - `"Final Signal-Blending Model"`
+#'   - `"Time-Series Feature Importance by Signal"`
+#'   - `"Average Time-Series Feature Importance by Theme"`
+#'   - `"Compare Feature Importance Side-by-Side by Signal"`
+#'   - `"Compare Feature Importance Side-by-Side by Theme"`
+#'   - `"Feature Importance Box-Plot by Signal"`
+#'   - `"Feature Importance Box-Plot by Theme"`
+#'   - `"Feature Importance Heatmap by Signal"`
+#'   - `"Feature Importance Heatmap by Theme"`
+#'   - `"Explain Prediction"`
+#'   For "ols" and heuristic/portfolio algorithms, the tuning-specific plots (chosen-metric,
+#'   test-vs-validation, hyperparameter, and consolidated-vs-validation plots) are omitted.
+#'   Provide a number (index into the list shown when `plot_id` is `NULL`), or `NULL` (default) to list them.
 #' @param features_m_df A \code{meta_dataframe} containing features used in the backtest. Required for plots like `"Explain Prediction"`.
 #' @param palette Character. Color palette to use for the plot. Options include "cyberpunk" and "br". Default is "cyberpunk".
 #' @param ticker_to_explain Character. Ticker symbol to explain in the "Explain Prediction" plot.
@@ -4133,11 +4220,14 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
 #' @param x An object of class \code{sb_metabacktest_results} containing the results of the meta-learning backtests.
 #' @param plot_id A character string or numeric value specifying which plot to display.
 #'   - By name: Options are:
-#'     - `"Consolidated OOS Testing Metrics Comparison"`
+#'     - `"Combined and Consolidated OOS Testing Metrics - All Dates"`
+#'     - `"Combined and Averaged OOS Testing Metrics - Common Dates"`
 #'     - `"Time Series OOS Testing Metrics"`
 #'     - `"Mean Validation Metrics Comparison"`
 #'     - `"Time Series Validation Metrics"`
+#'     - `"Prediction Error Correlation"`
 #'     - `"Base Learners vs Meta Learners Over Time"`
+#'     - `"Hierarchical Feature Importance"`
 #'   - By number: Provide a number corresponding to the plot (as listed when `plot_id` is `NULL`).
 #'   If `NULL` (default), the method lists available plots.
 #' @param palette Character. Color palette to use for the plot. Options include "cyberpunk" and "br". Default is "cyberpunk".
@@ -4145,7 +4235,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
 #' @param chosen_backtests Character vector. Specific backtests to include in the plot.
 #' @param top_n Numeric. If specified, limits the plot to the top N backtests based on the chosen metric.
 #' @param facet_by_year Logical. If `TRUE`, facets the plot by year.
-#' @param add_overall_means Logical. If `TRUE`, adds horizontal lines representing
+#' @param add_overall_means Logical. If `TRUE`, adds horizontal lines representing the overall mean of the chosen metric.
 #' @return Invisibly returns the input \code{x}.
 #' @export
 setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL, palette = "cyberpunk", chosen_metric = NULL, chosen_backtests = NULL, top_n = NULL,
@@ -4537,9 +4627,12 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL, palette
 
 
 #' @title Plot Priors from ss_backtest_config
-#' @description Plots the distribution curves for each prior in the `bayesian_model_parameters` inside a `ss_backtest_config` object.
+#' @description Plots the distribution curves (normal, student_t, cauchy, lognormal, beta, or exponential) for
+#' each user prior in \code{x@@alpha_test_strategy@@bayesian_model_parameters@@user_priors}. \code{"lkj"} correlation
+#' priors and unparseable/unsupported prior strings are skipped with a message. Requires a \code{bayesian_alpha_test_strategy}
+#' with non-empty \code{user_priors}; otherwise prints a message and returns invisibly.
 #' @param x An object of class `ss_backtest_config` with a `bayesian_alpha_test_strategy` alpha test strategy.
-#' @param palette A character string specifying the color palette to use for the plots. Default is "cyberpunk". Supported options include "cyberpunk", "neon", and "extended_neon".
+#' @param palette A character string specifying the color palette. \code{"cyberpunk"} produces a dark theme; any other value produces a light theme. Default is `"cyberpunk"`.
 #' @param ... Additional arguments (currently unused).
 #' @rdname plot_ss_backtest_config
 #' @export
@@ -4754,11 +4847,21 @@ setMethod("plot", "bayesian_alpha_test_strategy", function(x, ...) {
 
 #' @title Plot Method for ss_backtest_results Class
 #' @description Generates various plots to visualize metrics from the `ss_backtest_results` object.
-#' Users can select which plot to display by specifying the `plot_id` parameter.
+#' Users can select which plot to display by specifying the `plot_id` parameter (numeric index or exact name);
+#' if omitted, an interactive menu is shown. Available plots for every `ss_backtest_results` object:
+#' \code{"Time-Series Metrics by Signal"}, \code{"Average Time-Series Metrics by Theme"},
+#' \code{"Compare Metrics Side-by-Side by Signals"}, \code{"Compare Metrics Side-by-Side by Theme"},
+#' \code{"Box-Plot by Theme"}, \code{"Box-Plot by Eligibility"}, \code{"Waterfall Plot by Signal"},
+#' \code{"Waterfall Plot by Theme"}, \code{"Eligibility by Theme"}. When \code{x@@p_correction_method == "bayesian"},
+#' the following posterior-diagnostic plots are also available: \code{"Posterior Individual Alphas"},
+#' \code{"Posterior Individual Betas"}, \code{"Posterior Random Effects"},
+#' \code{"Waterfall Plot of Posterior Variance Components"}, \code{"Posterior Regression Lines"},
+#' \code{"Waterfall Plot of Return Decomposition by Signal"},
+#' \code{"Posterior Individual Alpha Distributions by Theme and Signal"}.
 #' @param x An object of class `ss_backtest_results`.
-#' @param plot_id A character string or numeric value specifying which plot to display.
-#' @param palette A character string specifying the color palette to use for the plots. Default is "cyberpunk". Supported options include "cyberpunk", "neon", and "extended_neon".
-#' @param variable A character string specifying the variable to plot (used for certain plot types). Default is NULL.
+#' @param plot_id A character string or numeric value specifying which plot to display (see `@description` for the full list of names).
+#' @param palette A character string specifying the color palette. Must be one of `"cyberpunk"` (dark theme) or `"br"` (light theme); any other value is not handled and will error. Default is `"cyberpunk"`.
+#' @param variable Character vector of tickers to include, used only by the Bayesian posterior-diagnostic plots (\code{plot_id} 10 and above). If `NULL`, an interactive ticker-selection prompt is shown. Ignored for the other plot types.
 #' @return Invisibly returns the input object.
 #' @export
 setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL, palette = "cyberpunk", variable = NULL) {
@@ -7551,9 +7654,17 @@ setMethod(
 #' Users can select which plot to display by specifying the `plot_id` parameter.
 #'
 #' @param x An object of class `port_backtest_results`.
-#' @param plot_id A character string or numeric value specifying which plot to display. If `NULL`, the user will be prompted.
+#' @param plot_id A character string (plot name) or numeric index specifying which plot to display; if `NULL`, an
+#' interactive menu is shown. One of \code{"Time-Series Weights by Tickers"}, \code{"Time-Series Weights by Stock Group"},
+#' \code{"Cross-Sectional Weights Statistic by Tickers"}, \code{"Cross-Sectional Weights Statistic by Stock Group"},
+#' \code{"Tile Heatmap of Weights by Tickers"}, \code{"Tile Heatmap of Weights by Stock Group"},
+#' \code{"Time-Series of Groups Composition"}, \code{"Time-Series of Expected Return Score by Tickers"},
+#' \code{"Time-Series of Expected Return Score by Stock Group"}, \code{"Time-Series of Expected Return Score by Eligibility"},
+#' \code{"Box-plot of Expected Return Score by Stock Group"}, \code{"Box-plot of Expected Return Score by Eligibility"},
+#' \code{"Plot Subjacent Final Port"}, \code{"Time-Series of Port Returns"}, \code{"Cross-Sectional Performance Metric Plot"},
+#' \code{"Time-Series of Transaction Costs"}, \code{"Time-Series of Port Metrics"}, or \code{"Port Stats"}.
 #' @param vertical_lines Optional. A vector of `Date` objects indicating vertical lines to display in time-series plots (e.g., rebalance dates). If `NULL`, the user will be prompted.
-#' @param palette A character string specifying the color palette to use for the plots. Options are "cyberpunk" (default) and "br". If an invalid option is provided, it will default to "cyberpunk".
+#' @param palette A character string specifying the color palette to use for the plots. Only \code{"cyberpunk"} (default) and \code{"br"} are supported; any other value leaves the plot colors undefined and raises an error.
 #' @param group_col Optional. A character string specifying the column name in the backtest results to use for grouping in certain plots. If `NULL`, the user will be prompted to select from available columns.
 #' @param facet_by_year Logical. If `TRUE`, time-series plots will be faceted by year. Default is `FALSE`.
 #' @return Invisibly returns the input object.
@@ -7982,9 +8093,16 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_
 #' Users can select which plot to display by specifying the \code{plot_id} parameter.
 #'
 #' @param x An object of class \code{port_backtest_cohort}.
-#' @param plot_id A character string or numeric value specifying which plot to display.
+#' @param plot_id A character string (plot name) or numeric index specifying which plot to display; if `NULL`, an
+#' interactive menu is shown. One of \code{"Time-Series of Raw Returns"}, \code{"Time-Series of Net Returns"},
+#' \code{"Time-Series of Raw Active Returns"}, \code{"Time-Series of Net Active Returns"},
+#' \code{"Cross-Sectional Raw Performance Metric Plot"}, \code{"Cross-Sectional Net Performance Metric Plot"},
+#' \code{"Cross-Sectional Raw Active Performance Metric Plot"}, \code{"Cross-Sectional Net Active Performance Metric Plot"},
+#' \code{"Time-Series of Direct Costs"}, \code{"Time-Series of Market Impact Costs"}, \code{"Time-Series of Total Costs"},
+#' \code{"Time-Series of Turnover"}, \code{"Time-Series of Port Metrics"}, \code{"Time-Series of Port Stats"},
+#' \code{"Weights Correlogram"}, or \code{"Weights Radar"}.
 #' @param vertical_lines Optional. A named list or vector specifying vertical lines to add to time-series plots. Used for highlighting events.
-#' @param palette A character string specifying the color palette to use for the plots. Options are "cyberpunk" (default) and "br". If an invalid option is provided, it will default to "cyberpunk".
+#' @param palette A character string specifying the color palette to use for the plots. Only \code{"cyberpunk"} (default) and \code{"br"} are supported; any other value leaves the plot colors undefined and raises an error.
 #' @param selected_metric Optional. A character string specifying a particular performance metric to focus on in the plots. If `NULL`, all available metrics will be plotted.
 #' @return Invisibly returns the input object.
 #' @export

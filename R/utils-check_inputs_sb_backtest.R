@@ -9,7 +9,7 @@
 #' @param validation_sample_size Numeric, size of the validation sample.
 #' @param rebalancing_months Numeric, number of months for rebalancing.
 #' @param split_method Character, method of data splitting (currently only "expanding" is supported).
-#' @param sb_algorithm Character, choice of signal blending algorithm ("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "mvo").
+#' @param sb_algorithm Character, choice of signal blending algorithm ("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "hrp", "mvo", "mmaf", "custom_weights").
 #' @param custom_objective Character, custom objective function for loss.
 #' @param chosen_eval_metric Character, chosen evaluation metric ("rmse", "mae", "cp", "rss", "mphe", "mpe", "hr", "mape").
 #' @param huber_delta Numeric, delta parameter for Huber loss (for "pseudo_huber_error" custom objective).
@@ -54,6 +54,17 @@
 #' @param macro_linkage Character. Linkage method for hierarchical clustering in macro-level HRP.
 #' @param backtest_returns_m_xts A xts containing historical backtested returns named according to signals in `signals_m_df`,
 #' @param benchmark_returns_m_xts A xts with benchmark returns, named accordingly.
+#' @param signal_universe_m_df A (meta) data frame defining the signal universe, including per-signal/date eligibility flags (`is_eligible`) and heuristic performance metrics.
+#' @param cov_matrix_benchmark Character, the benchmark column in `benchmark_returns_m_xts` used to build the active covariance matrix (rp/mvo when `active_returns = TRUE`).
+#' @param cov_matrix_sample_size Numeric, number of trailing periods used to estimate the covariance matrix (rp/hrp/mvo/mmaf).
+#' @param cov_estimation_method Character, covariance estimation method (e.g. "sample") for rp/hrp/mvo/mmaf.
+#' @param active_returns Logical, whether covariance/optimization operate on returns in excess of the benchmark.
+#' @param signal_themes_m_df A (meta) data frame mapping each signal to a `theme` group; required for group-level concentration constraints and MMAF grouping.
+#' @param linkage Character, linkage method for hierarchical clustering in HRP.
+#' @param concentration_constraint_policy A `list`/policy object defining signal-level (and optionally group-level) active-weight caps.
+#' @param custom_signal_weights_m_df A (meta) data frame of user-supplied signal weights; required when `sb_algorithm = "custom_weights"`.
+#' @param gsm_algorithm Character, global surrogate model algorithm used for interpretability ("ols" or "tree").
+#' @param .test_seed Optional numeric seed used to make validation reproducible in tests.
 #' @param verbose Logical, whether to print verbose output.
 #' @param parallel Logical, whether to use parallel computation.
 #'

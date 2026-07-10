@@ -154,7 +154,7 @@ An S4 object of class:
 \itemize{
 \item \code{meta_sb_backtest_results}: A \code{sb_backtest_results} object fitted to meta features.
 \item \code{base_sb_backtest_results_list}: The original list of base learner backtests.
-\item \code{oos_predictions_m_df}: The meta features constructed from base learners' predictions.
+\item \code{base_learners_oos_predictions_m_df}: The meta features constructed from base learners' predictions.
 \item \code{sb_metabacktest_config}: Original configuration object.
 }
 }

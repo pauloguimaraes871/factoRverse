@@ -15,11 +15,18 @@
 \arguments{
 \item{x}{An object of class \code{port_backtest_cohort}.}
 
-\item{plot_id}{A character string or numeric value specifying which plot to display.}
+\item{plot_id}{A character string (plot name) or numeric index specifying which plot to display; if \code{NULL}, an
+interactive menu is shown. One of \code{"Time-Series of Raw Returns"}, \code{"Time-Series of Net Returns"},
+\code{"Time-Series of Raw Active Returns"}, \code{"Time-Series of Net Active Returns"},
+\code{"Cross-Sectional Raw Performance Metric Plot"}, \code{"Cross-Sectional Net Performance Metric Plot"},
+\code{"Cross-Sectional Raw Active Performance Metric Plot"}, \code{"Cross-Sectional Net Active Performance Metric Plot"},
+\code{"Time-Series of Direct Costs"}, \code{"Time-Series of Market Impact Costs"}, \code{"Time-Series of Total Costs"},
+\code{"Time-Series of Turnover"}, \code{"Time-Series of Port Metrics"}, \code{"Time-Series of Port Stats"},
+\code{"Weights Correlogram"}, or \code{"Weights Radar"}.}
 
 \item{vertical_lines}{Optional. A named list or vector specifying vertical lines to add to time-series plots. Used for highlighting events.}
 
-\item{palette}{A character string specifying the color palette to use for the plots. Options are "cyberpunk" (default) and "br". If an invalid option is provided, it will default to "cyberpunk".}
+\item{palette}{A character string specifying the color palette to use for the plots. Only \code{"cyberpunk"} (default) and \code{"br"} are supported; any other value leaves the plot colors undefined and raises an error.}
 
 \item{selected_metric}{Optional. A character string specifying a particular performance metric to focus on in the plots. If \code{NULL}, all available metrics will be plotted.}
 }

@@ -30,3 +30,11 @@ along with consolidated and time series evaluation metrics for machine learning 
 \item{\code{backtest_identifier}}{A character string used to identify the backtest.}
 }}
 
+\section{Validity}{
+
+When non-\code{NULL}, \code{sb_metabacktest_config} must be a \code{sb_metabacktest_config}
+and \code{mean_validation_metrics} a \code{data.frame}; every element of
+\code{base_sb_backtest_results_list} must be a \code{sb_backtest_results} and every element
+of \code{combined_oos_testing_metrics} a \code{data.frame}.
+}
+

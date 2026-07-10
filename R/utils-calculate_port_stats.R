@@ -27,7 +27,15 @@
 #' @param group_cov_matrix Optional covariance matrix for the **group** universe
 #'   (row/column names must match \code{group} tickers provided).
 #' @param groups_m_d_ref An optional data frame used for group constraints and covariance matrix estimation. Should include group information if used. Defaults to \code{NULL}.
-#' @return A one-row \code{data.frame} with portfolio metrics (and group metrics if provided).
+#' @return A named list with components:
+#' \describe{
+#'   \item{\code{port_stats}}{A one-row \code{data.frame} of portfolio metrics. Includes \code{group_}-prefixed
+#'     metrics when \code{group_universe_m_d_ref} is supplied, and \code{act_}-prefixed active variants
+#'     (with \code{sharpe} renamed \code{info_ratio}) when a benchmark is supplied.}
+#'   \item{\code{assets_stats}}{A \code{data.frame} of per-asset \code{tickers}, \code{weights} (active weights when a
+#'     benchmark is supplied), and \code{rel_risk_contr}.}
+#'   \item{\code{covariance_matrix}}{The covariance matrix actually used (estimated or subset), or \code{NULL} when none was available.}
+#' }
 #' @rdname calculate_port_stats
 calculate_port_stats <-  function(universe_m_d_ref,
                                   covariance_matrix = NULL,

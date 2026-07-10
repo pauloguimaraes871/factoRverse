@@ -30,3 +30,13 @@ Applies ticker ID mapping and filtering based on a \code{tickers_catalog} object
 a \code{raw_features_m_df} or a \code{returns_meta_xts} object. This ensures consistency in ticker
 identifiers and filters out data outside trading ranges or for untraded tickers.
 }
+\details{
+The catalog's stable \code{perm_id} values replace the (possibly changing) \code{tickers} labels, so a company keeps a
+single identity across ticker renames. Each series is then restricted to its valid trading window: observations
+before \code{tickers_first_quote} or after \code{tickers_last_quote} (plus the catalog's \code{n_days_tolerance}) are set to NA
+or dropped, and tickers classified as \code{untraded} are removed. This yields a clean, survivorship-aware panel
+ready for the silver/gold preprocessing stages.
+}
+\seealso{
+\code{\link{create_tickers_catalog}}, \code{\link{update_tickers_catalog}}, \code{\link{tickers_catalog-class}}
+}

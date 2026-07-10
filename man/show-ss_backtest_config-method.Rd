@@ -10,5 +10,7 @@
 \item{object}{An \code{ss_backtest_config} object to be displayed.}
 }
 \description{
-Prints the contents of an \code{ss_backtest_config} object, detailing the various parameters and their configurations.
+Prints the contents of an \code{ss_backtest_config} object: config name; backtest parameters
+(initial sample size, rebalancing months, active returns, split method, chosen signals and positions); and,
+if set, the \code{alpha_test_strategy} (delegated to its own \code{show} method).
 }

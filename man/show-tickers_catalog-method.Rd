@@ -7,9 +7,13 @@
 \S4method{show}{tickers_catalog}(object)
 }
 \arguments{
-\item{object}{An instance of the \code{tickers_catalog} class.
-Displays key information about a tickers_catalog object.}
+\item{object}{An instance of the \code{tickers_catalog} class.}
+}
+\value{
+Called for its side effect of printing a summary of the catalog.
 }
 \description{
-Print method for tickers_catalog
+Displays key information about a \code{tickers_catalog} object: its source meta_dataframe name and
+current reference date, the total number of tickers, the untraded / delisted / old / listed classifications,
+the delisting tolerance (\code{n_days_tolerance}), and the first few rows of the \code{catalog} slot.
 }

@@ -22,11 +22,14 @@
 \itemize{
 \item By name: Options are:
 \itemize{
-\item \code{"Consolidated OOS Testing Metrics Comparison"}
+\item \code{"Combined and Consolidated OOS Testing Metrics - All Dates"}
+\item \code{"Combined and Averaged OOS Testing Metrics - Common Dates"}
 \item \code{"Time Series OOS Testing Metrics"}
 \item \code{"Mean Validation Metrics Comparison"}
 \item \code{"Time Series Validation Metrics"}
+\item \code{"Prediction Error Correlation"}
 \item \code{"Base Learners vs Meta Learners Over Time"}
+\item \code{"Hierarchical Feature Importance"}
 }
 \item By number: Provide a number corresponding to the plot (as listed when \code{plot_id} is \code{NULL}).
 If \code{NULL} (default), the method lists available plots.
@@ -42,7 +45,7 @@ If \code{NULL} (default), the method lists available plots.
 
 \item{facet_by_year}{Logical. If \code{TRUE}, facets the plot by year.}
 
-\item{add_overall_means}{Logical. If \code{TRUE}, adds horizontal lines representing}
+\item{add_overall_means}{Logical. If \code{TRUE}, adds horizontal lines representing the overall mean of the chosen metric.}
 }
 \value{
 Invisibly returns the input \code{x}.

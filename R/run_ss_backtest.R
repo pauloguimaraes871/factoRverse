@@ -238,6 +238,14 @@ setMethod("update_ss_backtest",
 #'
 #' To determine whether a signal matters in cross-sectional predictability, the literature typically runs regressions of signal portfolios against a benchmark factor model (e.g., CAPM), computing alphas and corresponding t-stats. Due to the large number of signals identified in the literature (the "factor zoo"), methods to control for multiple testing are often advocated.
 #'
+#' The backtest proceeds walk-forward, and at each rebalancing date it: (a) takes the characteristic-portfolio
+#' backtest returns in `backtest_returns_m_xts` (built, e.g., from a book-yield portfolio); (b) tests the
+#' zero-alpha null against the market-factor proxy under the chosen inference method (frequentist `no_pooled`
+#' OLS or `partial_pooled` hierarchical `lme4::lmer`, or Bayesian `brms`), controlling for multiple testing
+#' (FWER: bonferroni/holm/hochberg/hommel; FDR: BH/fdr/BY; or Bayesian shrinkage); and (c) classifies signals
+#' into an eligible universe. The eligible signals are then passed to `run_sb_backtest()`, which blends them
+#' into a final signal.
+#'
 #' @section Bayesian Hierarchical Model:
 #'
 #' One way of introducing shrinkage to alpha estimates from signal portfolios is by using bayesian statistics, which might be specially useful in the context of small samples of strategy returns. Bayesian statistics allows for the incorporation of prior information about the parameters of interest (alpha and beta), which can be particularly useful in multiple testing.
@@ -283,13 +291,38 @@ setMethod("update_ss_backtest",
 #'
 #' Comparing predictive and return performance of the SS and SB Benchmarks provides insights into the effectiveness of the signal selection process. Additionally, comparing performance between the SB Benchmark and the final portfolio evaluates the performance of the signal blending process. SE Benchmarks are built based on themes; weights are first equally distributed among themes and then equally distributed among signals within each theme.
 #'
-#' @return An object of class `ss_backtest_results`, including:
+#' @return An object of class `ss_backtest_results`, with slots:
 #' \itemize{
-#'   \item `signal_universe_m_df`: a meta_dataframe containing signal eligibility results across time.
-#'   \item `final_signal_universe_m_d_ref`: final snapshot of selected signals.
-#'   \item `selected_market_factor_proxy_m_xts`: benchmark series used in backtests.
-#'   \item `frequentist_results`, `bayesian_results`: detailed testing outcomes.
-#'   \item `ss_backtest_workflow`: metadata about execution, timestamps, and config.
+#'   \item `ss_backtest_config`: the `ss_backtest_config` used to run the backtest.
+#'   \item `signal_universe_m_df`: a `signal_universe_m_df` stacking the signal eligibility results at every rebalancing period.
+#'   \item `final_signal_universe_m_d_ref`: a `signal_universe_m_df` with the last (most recent) signal universe snapshot, i.e. the eligible signals handed to `run_sb_backtest()`.
+#'   \item `selected_market_factor_proxy_m_xts`: the `meta_xts` market-factor-proxy series used to compute alphas.
+#'   \item `frequentist_results`, `bayesian_results`: per-rebalancing lists of the fitted frequentist (`lm`/`lmer`) and Bayesian (`brms`) model outputs (whichever applies).
+#'   \item `p_correction_method`: the multiple-testing correction method applied.
+#'   \item `ss_backtest_workflow`: a list of per-batch execution metadata (object names, dates, and config).
+#'   \item `backtest_identifier`: a character identifier for the backtest.
+#'   \item `update`: logical flag indicating whether the object was produced by an incremental update.
+#' }
+#'
+#' @examples
+#' \dontrun{
+#' # Frequentist, hierarchical (partial-pooled) alpha test with FDR (BH) control
+#' alpha_strategy <- create_alpha_test_strategy(
+#'   model_structure = "partial_pooled",
+#'   theme_level_intercept = "theme_specific", theme_level_slope = "fixed",
+#'   p_correction_method = "BH", signal_significance_threshold = 0.05,
+#'   market_factor_proxy = "IBOV"
+#' )
+#' ss_config <- create_ss_backtest_config(
+#'   initial_sample_size = 36, rebalancing_months = 1:12,
+#'   alpha_test_strategy = alpha_strategy
+#' )
+#' ss_results <- run_ss_backtest(
+#'   config = ss_config, signals_m_df = signals_m_df,
+#'   backtest_returns_m_xts = backtest_returns_m_xts,
+#'   benchmark_returns_m_xts = benchmark_returns_m_xts,
+#'   signal_themes_m_df = signal_themes_m_df
+#' )
 #' }
 #'
 #' @export

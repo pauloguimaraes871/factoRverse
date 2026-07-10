@@ -3,29 +3,27 @@
 #' Performs Bayesian p-value adjustment by setting priors, fitting a Bayesian hierarchical model to signals, and summarizing posterior draws. Optionally provides progress updates if `verbose` is set to `TRUE`.
 #'
 #' @param signal_universe_m_d_ref Data frame.
-#'   A dataframe containing information about signals with the following columns:
-#'   \describe{
-#'     \item{tickers}{Unique identifiers for each signal.}
-#'     \item{is_eligible}{Logical indicator specifying if a signal is eligible for modeling.}
-#'     \item{final_signal}{Finalized signals to be used in the Bayesian adjustment.}
-#'   }
+#'   The performance-enriched signal universe produced by `summarize_performance()`, containing at least
+#'   `id`, `tickers`, `dates`, and the frequentist CAPM metrics (`alpha`, `alpha_se`, `beta`, `specific_risk`,
+#'   `alpha_t_stat`, `treynor_ratio`, `appraisal_ratio`, `p_value` for `"no_pooled"`, or the theme/individual
+#'   alpha and beta columns for `"partial_pooled"`). It is updated in place with posterior statistics.
 #'
 #' @param selected_backtest_returns_corrected_positions_m_xts_upd_ref Meta xts containing backtest returns for selected signals
 #'
 #' @param selected_market_factor_proxy_m_xts_upd_ref  Meta xts containing backtest returns for selected markte factor proxy
 #'
 #' @param priors_m_upd_ref Data frame.
-#'   A (meta)data frame with the following columns:
+#'   A (meta)data frame of exogenous (out-of-sample) return observations used to derive informative priors
+#'   via `derive_informative_priors_from_data()`, with the following columns:
 #'   \describe{
 #'     \item{id}{Identifier for each observation.}
-#'     \item{characteristic/signal}{Characteristic or signal associated with each observation.}
+#'     \item{tickers}{Signal (ticker) identifier associated with each observation.}
 #'     \item{dates}{Date of each observation.}
+#'     \item{return}{Return of the signal at that date.}
+#'     \item{market_factor_proxy}{Market factor proxy return at that date.}
 #'     \item{theme}{Theme associated with each signal, used for clustering in the hierarchical Bayesian model.}
-#'     \item{alpha}{Mean and standard error values for the alpha parameter.}
-#'     \item{beta}{Mean and standard error values for the beta parameter.}
-#'     \item{sigma}{Sigma values used to build priors.}
 #'   }
-#'   **Note:** This dataframe should contain data only for the current date.
+#'   **Note:** This dataframe should contain observations up to (but not beyond) the current date.
 #'
 #' @param model_spec_theme_level Character string.
 #'   Specifies the structure of the hierarchical Bayesian model. Options include:
@@ -112,17 +110,17 @@
 #'   \item{`posterior_signal_universe_m_d_ref`}{Data frame.
 #'     The input `signal_universe_m_d_ref` updated with posterior summary statistics derived from the Bayesian model fitting. This includes metrics such as posterior alphas, betas, sigmas, active returns, tracking errors, information ratios (IR), appraisal ratios (AP), and Treynor ratios.
 #'   }
-#'   \item{`bayesian_model`}{`brmsfit` object.
+#'   \item{`brm_model`}{`brmsfit` object.
 #'     The fitted Bayesian hierarchical model containing posterior distributions, parameter estimates, diagnostics, and other details of the model fit.
 #'   }
-#'   \item{`elected_priors`}{List.
-#'     The priors used in the Bayesian model, either derived from data or provided by the user.
+#'   \item{`posterior_draws_summaries`}{List.
+#'     Summary statistics (median and 89\% CI) of posterior distributions for the intercept, slope, and scale parameters. See `summarize_posteriors_draws()`.
 #'   }
-#'   \item{`frequentist_model`}{`lme4::lmer` object.
-#'     The fitted frequentist linear mixed-effects model used to derive informative priors.
+#'   \item{`elected_priors`}{`brmsprior` data frame, or `NULL` if uninformative priors were used.
+#'     The priors used in the Bayesian model, either derived from data, provided by the user, or `NULL`.
 #'   }
-#'   #'   \item{`posterior_draws_summaries`}{Data frame.
-#'     Summary statistics of posterior distributions for each signal including mean, standard deviation, and confidence intervals for model parameters.
+#'   \item{`elected_priors_frequentist_model`}{`lme4::lmer` object, or `NULL`.
+#'     The fitted frequentist linear mixed-effects model used to derive informative priors (only set when `priors_m_upd_ref` was supplied).
 #'   }
 #' }
 #'

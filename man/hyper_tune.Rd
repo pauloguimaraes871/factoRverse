@@ -67,9 +67,9 @@ hyper_tune(
 
 \item{keras_architecture_parameters}{A list of parameters specifying the architecture of the Keras model.}
 
-\item{parallel}{A logical indicating whether to perform the search in parallel. Default is TRUE.}
+\item{parallel}{A logical indicating whether to evaluate candidates in parallel (future backend).}
 
-\item{verbose}{A logical indicating whether to print detailed progress information. Default is FALSE.}
+\item{verbose}{A logical indicating whether to print timing and progress information.}
 }
 \value{
 A list containing:
@@ -78,5 +78,8 @@ A list containing:
 \item{validation_eval_metrics_hyper_choice_current_date}{A named vector of evaluation metrics corresponding to the optimal hyperparameter set.}
 }
 \description{
-This function tunes hyperparameters of machine learning models using grid search, random search, or Bayesian optimization. It evaluates different hyperparameter combinations and returns the best-performing ones based on specified evaluation metrics.
+This function tunes hyperparameters of machine learning models using grid search, random search, or Bayesian optimization. It evaluates different hyperparameter combinations and returns the best-performing set, selected by maximizing the \code{Score} column from \code{\link[=calculate_eval_metrics]{calculate_eval_metrics()}}.
+}
+\seealso{
+\code{\link[=set_eval_function]{set_eval_function()}}, \code{\link[=calculate_eval_metrics]{calculate_eval_metrics()}}
 }

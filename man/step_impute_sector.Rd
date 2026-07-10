@@ -2,7 +2,7 @@
 % Please edit documentation in R/map_recipe_timewise.R
 \name{step_impute_sector}
 \alias{step_impute_sector}
-\title{Prepare Step: step_impute_sector}
+\title{Add step_impute_sector to a Recipe}
 \usage{
 step_impute_sector(
   recipe,
@@ -39,6 +39,10 @@ step_impute_sector(
 A \code{step_impute_sector} object with computed \code{impute_values}.
 }
 \description{
-Prepares the \code{step_impute_sector} by computing mean or median values by sector for imputation.
-This function is called automatically during \code{prep()} on a recipe.
+Adds a \code{step_impute_sector} step to a recipe. This step imputes missing values group-wise,
+replacing NAs in the selected columns with the sector-level mean or median. The imputation values are
+estimated during \code{prep()} (per sector) and applied during \code{bake()}.
+}
+\seealso{
+\code{\link{map_recipe_timewise}}; \code{recipes::step_impute_mean} for the ungrouped analogue.
 }

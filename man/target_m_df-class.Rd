@@ -3,7 +3,60 @@
 \docType{class}
 \name{target_m_df-class}
 \alias{target_m_df-class}
-\title{Define the target S4 Class}
+\alias{target_m_df}
+\title{target_m_df-class}
 \description{
-This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to a target meta_dataframe.
+\code{target_m_df} stores one or more prediction targets used by \code{run_sb_backtest()} and other
+modeling routines. It inherits all slots from \code{\link{meta_dataframe-class}} and adds a
+naming convention requirement for target columns.
+}
+\details{
+An S4 subclass of \code{meta_dataframe} for target variables used by signal-blending models.
+
+Use \code{create_target_m_df()} to build valid target objects; it populates slots and enforces naming and structural rules.
+}
+\section{Slots}{
+
+\describe{
+\item{\code{data}}{Inherited: a \code{data.frame} whose first three columns must be \code{id}, \code{tickers}, \code{dates}.}
+
+\item{\code{workflow}}{Inherited: preprocessing / generation history.}
+
+\item{\code{signals}}{Inherited: character vector naming the target columns (must follow the pattern above).}
+
+\item{\code{unique_dates,}}{unique_tickers, n_obs, current_date, meta_dataframe_name Inherited summary slots.}
+}}
+
+\section{Validity}{
+
+Each name listed in the \code{signals} slot must match the pattern:
+\code{^[A-Za-z_]+_[0-9]{1,2}m$}. That is, "<target_name>_\if{html}{\out{<horizon>}}m" where \code{horizon} is 1–99 months.
+If any target name fails this check object construction is halted with an informative error.
+}
+
+\examples{
+\dontrun{
+df <- data.frame(
+  id = "A-2026-07-01",
+  tickers = "A",
+  dates = as.Date("2026-07-01"),
+  return_1m = 0.02,
+  stringsAsFactors = FALSE
+)
+tgt <- new(
+  "target_m_df",
+  data = df,
+  workflow = list(step = "create_target"),
+  signals = "return_1m",
+  unique_dates = 1,
+  unique_tickers = 1,
+  n_obs = 1,
+  current_date = Sys.Date(),
+  meta_dataframe_name = "target_example"
+)
+}
+
+}
+\seealso{
+\code{\link{meta_dataframe-class}}, \code{\link{create_target_m_df}}, \code{\link{run_sb_backtest}}
 }

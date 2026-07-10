@@ -16,6 +16,7 @@
 \item \code{"OOS_SB_Outputs_Summary"} (Delegates to \code{meta_dataframe} summary)
 \item \code{"OOS_Testing_Eval_Metrics"}
 \item \code{"Chosen_Eval_Metric_Validation"}
+\item \code{"Feature_Importance"}
 }
 \item By number: Provide a number corresponding to the table (as listed when \code{summary_id} is \code{NULL}).
 If \code{NULL} (default), the method lists available tables.

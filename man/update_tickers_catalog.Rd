@@ -14,51 +14,92 @@ update_tickers_catalog(old_tickers_catalog, new_tickers_catalog, ...)
 )
 }
 \arguments{
-\item{old_tickers_catalog}{A \code{tickers_catalog} object representing the previously stored catalog.}
+\item{old_tickers_catalog}{A \code{tickers_catalog} S4 object representing the
+previously stored catalog (the state as of the last update).}
 
-\item{new_tickers_catalog}{A \code{tickers_catalog} object containing the latest batch of stock data.}
+\item{new_tickers_catalog}{A \code{tickers_catalog} S4 object containing the latest
+batch of stock data. Its \code{current_date} must equal
+\code{old_tickers_catalog@current_date} plus one month, and its maximum
+\code{tickers_last_quote} must be strictly greater than the old catalog's.}
 
-\item{...}{Additional arguments passed to the function.}
+\item{...}{Additional arguments (currently unused; reserved for future methods).}
 
-\item{ticker_changes}{A \code{data.frame} with three columns:
+\item{ticker_changes}{A \code{data.frame} mapping tickers renamed between
+\code{old_tickers_catalog} and \code{new_tickers_catalog}, with columns:
 \describe{
-\item{\code{new_ticker}}{The new ticker symbol observed in the new data.}
-\item{\code{old_ticker}}{The corresponding previous ticker symbol (if applicable).}
-\item{\code{change_date}}{The date on which the ticker change occurred.}
-}}
+\item{\code{new_tickers}}{Character. The new ticker symbol observed in \code{new_tickers_catalog}.}
+\item{\code{old_tickers}}{Character. The corresponding previous ticker symbol in \code{old_tickers_catalog}.}
+\item{\code{change_date}}{Date. The date on which the ticker change occurred.}
+}
+Must contain no \code{NA}s and no duplicated \code{new_tickers}/\code{old_tickers}. Defaults
+to \code{NULL}, treated as an empty (zero-row) \code{data.frame}, i.e. no ticker changes
+between updates. Any ticker newly observed in \code{new_tickers_catalog} and not
+listed here is treated as a new IPO; any ticker missing from
+\code{old_tickers_catalog}'s successor without a matching entry here triggers an
+error.}
 }
 \value{
-A new \code{tickers_catalog} object incorporating the updated tickers and metadata.
+A new \code{tickers_catalog} S4 object combining \code{old_tickers_catalog} and
+\code{new_tickers_catalog}:
+\itemize{
+\item Renamed tickers keep the \code{perm_id} of their pre-change ticker (looked
+up through the full ticker-change history, not just the current call's
+\code{ticker_changes}).
+\item Genuinely new tickers keep the hash-based \code{perm_id} assigned by
+\code{create_tickers_catalog()}.
+\item At a rename boundary, \code{tickers_last_quote} of the old ticker and
+\code{tickers_first_quote} of the new ticker are both set to \code{change_date}.
+\item Pre-rename ticker rows are retained with \code{old = TRUE} and
+\code{listed = delisted = untraded = FALSE}, so history is never dropped.
+\item \code{current_date} is taken from \code{new_tickers_catalog}; \code{meta_dataframe_name}
+and \code{n_days_tolerance} are taken from \code{old_tickers_catalog}.
+\item \code{ticker_change_history} accumulates \code{ticker_changes} across calls.
+}
 }
 \description{
-This function updates a \code{tickers_catalog} object with new data coming from a new \code{tickers_catalog} object.
-The update process ensures that newly observed tickers are classified correctly, either as new IPOs or ticker changes.
+Updates a \code{tickers_catalog} object with a newer \code{tickers_catalog}, reconciling
+ticker classifications (\code{listed}, \code{delisted}, \code{untraded}, \code{old}) and resolving
+ticker changes so that renamed tickers keep a single \code{perm_id} across time.
 }
 \details{
-The function follows these key steps:
+The update proceeds in three stages:
 \enumerate{
-\item \strong{Validate Inputs}:
-\itemize{
-\item Ensures the structure and constraints of \code{old_tickers_catalog}, \code{new_raw_features_m_df}, and \code{ticker_changes}.
-\item Verifies that \code{ticker_changes} correctly classifies all new tickers.
+\item \strong{Validation} of \code{ticker_changes} structure/types/uniqueness, of the
+partition of newly added tickers into IPOs vs. renames, of classification
+transitions, and of date consistency between the two catalogs.
+\item \strong{\code{perm_id} reassignment}, inheriting the predecessor's \code{perm_id} for
+renamed tickers.
+\item \strong{Recombination}, re-appending old (pre-rename) rows and merging
+\code{ticker_change_history}.
 }
-\item \strong{Verify Ticker Mapping}:
-\itemize{
-\item Confirms that \code{new_ticker} values in \code{ticker_changes} match tickers in \code{new_raw_features_m_df}.
-\item Ensures \code{old_ticker} values exist in \code{old_tickers_catalog}.
+
+Validation failures (\code{stop()}) include: malformed \code{ticker_changes} (missing
+columns, wrong types, \code{NA}s, duplicates); newly added tickers that cannot be
+decomposed into IPOs and renamed old tickers; a \code{delisted} ticker being
+renamed, or becoming \code{listed}/\code{untraded}; an \code{untraded} ticker becoming
+\code{listed} (or vice versa), with or without a rename; a \code{tickers_first_quote}/
+\code{tickers_last_quote} mismatch for tickers common to both catalogs (delisted
+tickers' \code{tickers_last_quote} must not change); an IPO's \code{tickers_first_quote}
+earlier than \code{old_tickers_catalog@current_date}; \code{new_tickers_catalog}'s
+maximum \code{tickers_last_quote} not exceeding the old catalog's; and
+\code{new_tickers_catalog@current_date} not exactly one month after
+\code{old_tickers_catalog@current_date}. A mismatched \code{n_days_tolerance} between
+catalogs produces a \code{warning()} rather than a \code{stop()}.
 }
-\item \strong{Check Date Consistency}:
-\item \strong{Assign \code{perm_id}s and change_date}:
-\itemize{
-\item Old tickers retain their \code{perm_id} for renamed tickers.
-\item New tickers receive a new \code{perm_id} using a hash-based approach.
-\item date_first_quote and date_last_quote are renamed as tickers_first_quote and tickers_last_quote,
-being assigned \code{change_date} when ticker change.
+\examples{
+\dontrun{
+updated_catalog <- update_tickers_catalog(
+  old_tickers_catalog = old_catalog,
+  new_tickers_catalog = new_catalog,
+  ticker_changes = data.frame(
+    new_tickers = "BRAV3",
+    old_tickers = "RRRP3",
+    change_date = as.Date("2001-06-02")
+  )
+)
 }
-\item \strong{Return Updated \code{tickers_catalog}}:
-\itemize{
-\item Combines old and new ticker information.
-\item Maintains consistency in classification (\code{listed}, \code{delisted}, \code{untraded}, \code{old}).
+
 }
-}
+\seealso{
+\code{\link{create_tickers_catalog}}, \code{\link{read_tickers_catalog}}, \code{\link{tickers_catalog-class}}
 }

@@ -3,7 +3,7 @@
 #' @description
 #' Estimates total transaction costs for a set of trades, incorporating both direct and market impact costs.
 #'
-#' @param transactions_m_d_ref A data frame containing transaction data. Must include the columns: \code{order}, \code{strategy_aum}, \code{relative_order_size}, and \code{daily_vol}.
+#' @param transactions_m_d_ref A data frame containing transaction data. Must include the columns: \code{order}, \code{relative_order_size}, \code{daily_vol}, and \code{delta} (the last used to compute turnover).
 #' @param alpha Numeric. Scaling factor for market impact cost.
 #' @param lambda Either a numeric value or the string \code{"dynamic"}. When \code{"dynamic"}, the lambda value varies based on the relative order size.
 #' @param direct_transaction_cost Numeric. Direct transaction cost applied per trade (e.g., 0.0005 for 0.05%).
@@ -15,7 +15,11 @@
 #'
 #' When \code{lambda = "dynamic"}, lambda is set according to the relative order size, using predefined thresholds.
 #'
-#' @return A named list with components: \code{total_direct_cost}, \code{total_market_impact_cost}, and \code{total_cost}.
+#' @return A named list with two components:
+#' \describe{
+#'   \item{\code{transactions_and_costs_m_d_ref}}{The input transactions augmented with per-trade \code{alpha}, \code{lambda}, \code{direct_cost}, \code{market_impact_cost} and \code{total_cost} columns.}
+#'   \item{\code{port_costs_d_ref}}{A one-row data frame with portfolio-level \code{direct_cost}, \code{market_impact_cost}, \code{total_cost} and \code{turnover}.}
+#' }
 calculate_transaction_costs <- function(transactions_m_d_ref,
                                         alpha, lambda,
                                         direct_transaction_cost,

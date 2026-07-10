@@ -16,7 +16,9 @@ summarize_posteriors_draws(
 \arguments{
 \item{brm_model}{A bayesian model fit with \code{brms::brm}.}
 
-\item{signal_universe_m_d_ref}{A dataframe with tickers, is_eligible and final_signal columns}
+\item{signal_universe_m_d_ref}{Optional. The performance-enriched signal universe from \code{summarize_performance()}
+(\code{id}, \code{tickers}, \code{dates}, plus frequentist CAPM metric columns). If \code{NULL}, the function instead returns the
+raw tidy posterior-draws objects (see \verb{@return}).}
 
 \item{selected_signal_themes_m_d_ref}{A (meta) data frame with id, tickers ("signals") and dates column contemplating all signals in \code{signals_m_df} and a "theme" column providing group membership for each signal, which is needed
 for defining clusters in bayesian hierarchical model. It should contain data only for current date.}
@@ -35,7 +37,13 @@ Options include:
 \item{n_draws_predictive}{Number of posterior draws to use for predictive computations. If NULL, all available draws are used.}
 }
 \value{
-The \code{signal_universe_m_d_ref} data frame is updated in place with posterior summary statistics.
+A named list. When \code{signal_universe_m_d_ref} is supplied: \code{signal_universe_m_d_ref} (the input,
+left-joined with the posterior alpha/beta/sigma/Treynor/appraisal metrics) and \code{posterior_draws_summaries}
+(a list of \code{intercept_summary}, \code{slope_summary}, \code{sd_summary}, \code{epred_summary}, \code{predicted_summary}
+data frames, each a median/89\\% CI summary; the predictive ones are \code{NULL} unless \code{compute_predictives_full = TRUE}).
+When \code{signal_universe_m_d_ref} is \code{NULL}: a list of the raw tidy posterior-draws data frames
+(\code{tidy_posterior_draws_intercept}, \code{tidy_posterior_draws_slope}, \code{tidy_posterior_draws_sd},
+\code{tidy_posterior_epred_draws}, \code{tidy_posterior_predicted_draws}).
 }
 \description{
 This function computes various posterior summary statistics for a given set of signals, themes, and posterior draws.

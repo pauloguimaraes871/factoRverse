@@ -3,38 +3,73 @@
 \docType{class}
 \name{tickers_catalog-class}
 \alias{tickers_catalog-class}
-\title{tickers_catalog Class}
+\alias{tickers_catalog}
+\title{tickers_catalog-class}
 \description{
-An S4 class to store stock metadata, including listing and delisting dates,
-a unique identifier (\code{perm_id}), and classification flags for private and delisted stocks.
+An S4 class to store stock metadata and bookkeeping for ticker lifecycle events
+(listings, delistings, ticker changes).
+}
+\details{
+The class centralizes per-ticker metadata used by universe construction and backtests.
+\code{perm_id} is intended to be stable across ticker renames (constructed from ticker + first-quote date).
+The validity method enforces mutual exclusivity of classification vectors (a ticker cannot be simultaneously
+\code{listed}, \code{delisted}, \code{untraded} or \code{old}), consistent lengths, a single \code{current_date},
+and that \code{catalog} is ordered by \code{perm_id} with \code{perm_id} names matching \code{tickers}.
 }
 \section{Slots}{
 
 \describe{
-\item{\code{catalog}}{A data frame containing stock metadata}
+\item{\code{catalog}}{A \code{data.frame} with one row per ticker and columns at least:
+\code{tickers}, \code{tickers_first_quote} (Date), \code{tickers_last_quote} (Date),
+and \code{perm_id}.}
 
-\item{\code{tickers}}{A character vector of stock tickers.}
+\item{\code{tickers}}{Character vector of tickers.}
 
-\item{\code{perm_id}}{A character vector of unique stock identifiers, combining tickers and inception date.}
+\item{\code{perm_id}}{Character vector of stable unique identifiers (named by \code{tickers}).}
 
-\item{\code{tickers_first_quote}}{A Date vector representing the first trading date for each stock.}
+\item{\code{tickers_first_quote}}{Date vector (first observed trading date per ticker).}
 
-\item{\code{tickers_last_quote}}{A Date vector representing the last trading date for each stock.}
+\item{\code{tickers_last_quote}}{Date vector (last observed trading date per ticker).}
 
-\item{\code{untraded}}{A character vector of untraded stocks (both dates are NA).}
+\item{\code{untraded}}{Character vector of tickers with no trading dates (both dates NA).}
 
-\item{\code{delisted}}{A character vector of delisted stocks.}
+\item{\code{delisted}}{Character vector of delisted tickers (last quote older than tolerance window).}
 
-\item{\code{listed}}{A character vector of listed stocks.}
+\item{\code{listed}}{Character vector of currently listed tickers.}
 
-\item{\code{old}}{A character vector of tickers that have been changed.}
+\item{\code{old}}{Character vector of tickers that were renamed/changed.}
 
-\item{\code{current_date}}{A Date object representing the most recent available date in the dataset.}
+\item{\code{current_date}}{A single \code{Date} representing the catalogue's current reference date.}
 
-\item{\code{meta_dataframe_name}}{The name of the \code{meta_dataframe} used}
+\item{\code{meta_dataframe_name}}{Character: name of the source meta_dataframe (usually the raw features input).}
 
-\item{\code{n_days_tolerance}}{A numeric value representing the number of days to consider a stock as delisted.}
+\item{\code{n_days_tolerance}}{Numeric: number of days tolerance used to decide delisting vs listed status.}
 
-\item{\code{ticker_change_history}}{The history of ticker changes.}
+\item{\code{ticker_change_history}}{Any: free-form record of ticker-change operations (may be \code{NULL}).}
 }}
 
+\section{Common validity errors}{
+
+\itemize{
+\item "A stock can't be untraded and delisted." — overlapping classifications found.
+\item "Length of listed + delisted + untraded + old does not equal length of tickers." — partitioning mismatch.
+\item "perm_id must be named according to tickers." — naming mismatch between \code{perm_id} and \code{tickers}.
+}
+}
+
+\examples{
+\dontrun{
+df_first <- data.frame(tickers = c("A", "B"),
+                       date_first_quote = as.Date(c("2020-01-01","2020-06-01")))
+df_last  <- data.frame(tickers = c("A", "B"),
+                       date_last_quote  = as.Date(c(NA, "2026-06-30")))
+tickers_catalog_obj <- create_tickers_catalog(raw_features_m_df = raw_mdf,
+                                              date_first_quote = df_first,
+                                              date_last_quote  = df_last,
+                                              n_days_tolerance = 10)
+}
+
+}
+\seealso{
+\code{\link{meta_dataframe-class}}
+}

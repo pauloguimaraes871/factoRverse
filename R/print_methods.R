@@ -1,9 +1,9 @@
 #meta_dataframe-----------------------------
 #' Show Method for meta_dataframe Class
 #'
-#' This method displays a summary of the `meta_dataframe` object, including
-#' sb_backtest_workflow information, number of signals, unique dates, unique tickers,
-#' total observations, and the first few rows of the data.
+#' This method displays a summary of the `meta_dataframe` object, including its name and current date, the
+#' signal (or target) columns and their count, the unique dates and tickers, the total number of observations,
+#' and the first few rows of the data.
 #'
 #' @param object An instance of the `meta_dataframe` class.
 #'
@@ -46,13 +46,13 @@ setMethod("show", "meta_dataframe", function(object) {
 })
 
 
-#' Show Method for meta_dataframe Class
+#' Show Method for groups_m_df Class
 #'
-#' This method displays a summary of the `meta_dataframe` object, including
-#' sb_backtest_workflow information, number of signals, unique dates, unique tickers,
-#' total observations, and the first few rows of the data.
+#' This method displays a summary of the `groups_m_df` object, including its name, the grouping columns and
+#' their count, the distinct classifications within each grouping column, the unique dates and tickers, the
+#' total number of observations, and the first few rows of the data.
 #'
-#' @param object An instance of the `meta_dataframe` class.
+#' @param object An instance of the `groups_m_df` class.
 #'
 #' @return The method returns the object invisibly.
 #'
@@ -181,8 +181,13 @@ setMethod("show", "signal_universe_m_df", function(object) {
 #tickers_catalog-----------------------------
 #' Print method for tickers_catalog
 #'
+#' @description Displays key information about a `tickers_catalog` object: its source meta_dataframe name and
+#' current reference date, the total number of tickers, the untraded / delisted / old / listed classifications,
+#' the delisting tolerance (`n_days_tolerance`), and the first few rows of the `catalog` slot.
+#'
 #' @param object An instance of the \code{tickers_catalog} class.
-#' Displays key information about a tickers_catalog object.
+#'
+#' @return Called for its side effect of printing a summary of the catalog.
 #' @export
 setMethod("show", "tickers_catalog", function(object) {
   cat("\nTickers Catalog Object\n")
@@ -1127,7 +1132,9 @@ setMethod("show", "sb_metabacktest_results", function(object) {
 
 #ss_backtest_config------------------------------------------------
 #' @title Show Signal Selection Backtest Config
-#' @description Prints the contents of an `ss_backtest_config` object, detailing the various parameters and their configurations.
+#' @description Prints the contents of an `ss_backtest_config` object: config name; backtest parameters
+#' (initial sample size, rebalancing months, active returns, split method, chosen signals and positions); and,
+#' if set, the `alpha_test_strategy` (delegated to its own `show` method).
 #'
 #' @param object An `ss_backtest_config` object to be displayed.
 #' @method show ss_backtest_config
@@ -1171,7 +1178,9 @@ setMethod("show", "ss_backtest_config", function(object) {
 
 #alpha_test_strategy------------------------------------------------
 #' @title Show Alpha Test Strategy
-#' @description Prints the contents of an `alpha_test_strategy` object, detailing the various parameters and their configurations.
+#' @description Prints the contents of an `alpha_test_strategy` object: main information (signal significance
+#' threshold, p-value correction method, market factor proxy, theme representativeness); model structure
+#' (model structure, and theme-level intercept/slope if set); and `lmer_control` parameters, if set.
 #' @param object An `alpha_test_strategy` object to be displayed.
 #' @method show alpha_test_strategy
 #' @export
@@ -1214,7 +1223,8 @@ setMethod("show", "alpha_test_strategy", function(object) {
 
 
 #' @title Show Frequentist Alpha Test Strategy
-#' @description Prints the contents of a `frequentist_alpha_test_strategy` object, detailing the various parameters and their configurations.
+#' @description Prints the contents of a `frequentist_alpha_test_strategy` object: a header, followed by the
+#' inherited `alpha_test_strategy` display (main information, model structure, and `lmer_control`).
 #' @param object A `frequentist_alpha_test_strategy` object to be displayed.
 #' @method show frequentist_alpha_test_strategy
 #' @export
@@ -1230,7 +1240,9 @@ setMethod("show", "frequentist_alpha_test_strategy", function(object) {
 
 
 #' @title Show Bayesian Alpha Test Strategy
-#' @description Prints the contents of a `bayesian_alpha_test_strategy` object, detailing the various parameters and their configurations.
+#' @description Prints the contents of a `bayesian_alpha_test_strategy` object: a header, followed by the
+#' inherited `alpha_test_strategy` display, plus a `bayesian_model_parameters` section (delegated to its own
+#' `show` method), or a "No Bayesian Model Parameters set" message if `NULL`.
 #' @param object A `bayesian_alpha_test_strategy` object to be displayed.
 #' @method show bayesian_alpha_test_strategy
 #' @export
@@ -1257,7 +1269,9 @@ setMethod("show", "bayesian_alpha_test_strategy", function(object) {
 })
 
 #' @title Show Bayesian Model Parameters
-#' @description Prints the contents of a `bayesian_model_parameters` object, detailing the various parameters and configurations.
+#' @description Prints the contents of a `bayesian_model_parameters` object: prior derivation control
+#' (e.g. `half_t_df`), `brms` control parameters (e.g. `chains`, `iter`, `warmup`, `thin`, `seed`, `adapt_delta`),
+#' and user priors (if set) — each section shown, or reported as not set, individually.
 #' @param object A `bayesian_model_parameters` object to be displayed.
 #' @method show bayesian_model_parameters
 #' @export
@@ -1298,11 +1312,11 @@ setMethod("show", "bayesian_model_parameters", function(object) {
 #ss_backtest_results------------------------------------------------
 #' Show Method for ss_backtest_results Class
 #'
-#' This method displays a detailed summary of the `ss_backtest_results` object,
-#' including metadata on the signal selection backtest results,
-#' configuration details, date information, signals information,
-#' p-value correction methods, Bayesian model parameters (if applicable),
-#' performance metrics, and the original call.
+#' This method displays a detailed summary of the most recent batch in the `ss_backtest_results` object's
+#' `ss_backtest_workflow`, including: backtest configuration (config name, alpha test strategy parameters,
+#' lmer control), p-value correction method (with Bayesian model parameters, if applicable), date/rebalancing
+#' information, signals information, signal themes and priors information (if applicable), winsorization
+#' parameters, and execution performance (elapsed time and timestamps).
 #'
 #' @param object An instance of the `ss_backtest_results` class.
 #'
@@ -1978,9 +1992,10 @@ setMethod("show", "transaction_costs_parameters", function(object) {
 
 #port_backtest_results--------------------------
 #' @title Show Port Backtest Results
-#' @description Displays a detailed summary of the `port_backtest_results` object,
-#' including workflow metadata, portfolio construction details, date and stock information,
-#' performance metrics (if available), and the final stock portfolio.
+#' @description Displays a detailed summary of the `port_backtest_results` object, including the backtest
+#' identifier, configuration (config name, construction method, chosen score/position, selected benchmark),
+#' date information, stock-universe size, performance information (portfolio-return means, plus custom
+#' portfolio-metric means when a `port_metrics_m_xts` is available), and the final stock portfolio.
 #'
 #' @param object An instance of the `port_backtest_results` class.
 #'

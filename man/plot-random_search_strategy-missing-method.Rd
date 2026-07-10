@@ -14,8 +14,24 @@
 \item{palette}{Character. Color palette to use for the plot. Options include "cyberpunk" and "br". Default is "cyberpunk".}
 }
 \value{
-A \code{ggplot} object visualizing the hyperparameter histograms with possible limits.
+Invisibly returns the \code{ggplot} object visualizing the hyperparameter histograms and their predefined limits (also printed as a side effect).
 }
 \description{
-Generate a sample for each hyperparameter and plot the histogram for random search.
+Draw a fresh random sample from each hyperparameter's assigned
+distribution and plot the resulting histograms/violins for random search.
 }
+\section{Requirements}{
+
+Requires the suggested packages \code{gridExtra}, \code{scales}, \code{ggdist}, \code{ggraph},
+\code{ggrepel}, \code{igraph}, and \code{RColorBrewer}; if any are missing, an informative
+\code{stop()} is raised.
+}
+
+\section{Note}{
+
+Samples are drawn fresh on every call (no seed control) purely to
+illustrate the shape of each distribution -- they are \strong{not} the actual
+draws \code{hyper_tune()} will use during tuning, and repeated calls can look
+different, especially for small \code{n_iter}.
+}
+

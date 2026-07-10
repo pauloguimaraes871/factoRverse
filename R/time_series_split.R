@@ -1,18 +1,35 @@
-#' Time Series Split
+#' Time-Series Split for Walk-Forward Validation
 #'
-#' Split time series data into training, validation, and refitting samples, in order to perform a walk-forward expanding or rolling time series validation.
+#' @description
+#' Splits panel data into training, (optional) validation, and refit samples for one
+#' \code{current_date} of a walk-forward, expanding- or rolling-window backtest. The
+#' cut points embed a \code{target_fwd}-period embargo so no sample uses target
+#' information unobservable at decision time.
 #'
-#' @param current_date A single date in the format '%Y-%m-%d'.
-#' @param features_m_df A matrix or data frame containing features with columns 'id', 'tickers', and 'dates'.
-#' @param target_m_df A matrix or data frame containing target variables.
-#' @param dates_m_vector A vector of dates in the format '%Y-%m-%d'.
-#' @param training_sample_size Number of observations to include in the training sample.
-#' @param validation_sample_size Number of observations to include in the validation sample (default is 0).
-#' @param target_fwd The number of periods forward to forecast.
-#' @param target_fwd_name The name of the target variable.
-#' @param split_method The method used for splitting the data, either 'expanding' or 'rolling' (default is 'expanding').
+#' @details
+#' Because the target is a \code{target_fwd}-months-forward return, the last usable
+#' training/validation date is shifted back by \code{target_fwd} periods relative to
+#' \code{current_date}. The first rebalancing
+#' (\code{d == training_sample_size + validation_sample_size}) is a special case;
+#' later rebalances slide the windows forward.
 #'
-#' @return A list containing the training, validation, and refit samples.
+#' @param current_date A single \code{Date} (\code{"\%Y-\%m-\%d"}) for the rebalancing point.
+#' @param features_m_df Data frame/matrix with \code{id}, \code{tickers}, \code{dates} columns.
+#' @param target_m_df Data frame/matrix of targets aligned row-for-row with \code{features_m_df}.
+#' @param dates_m_vector Ascending vector of unique panel dates (\code{"\%Y-\%m-\%d"}).
+#' @param training_sample_size Integer, number of dates in the training window.
+#' @param validation_sample_size Integer, dates in the validation window (\code{0} disables it; default \code{0}).
+#' @param target_fwd Integer, forecast horizon in periods (the embargo length).
+#' @param target_fwd_name Character, name of the target column to extract.
+#' @param split_method Character, \code{"expanding"} (default) or \code{"rolling"}.
+#'
+#' @return A named list with \code{training}, \code{refit}, and — when
+#'   \code{validation_sample_size > 0} — \code{validation}. \code{training}/\code{refit}
+#'   each hold raw features, the target vector, and a cleaned \code{full_data_*_clean}
+#'   frame (target + features, no id columns); \code{validation} holds validation
+#'   features and target.
+#'
+#' @keywords internal
 #'
 time_series_split <- function(current_date, features_m_df, target_m_df, dates_m_vector, training_sample_size, validation_sample_size = 0, target_fwd,
                               target_fwd_name, split_method = "expanding"){

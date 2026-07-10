@@ -16,6 +16,14 @@
 #' - Maps each row in `meta_dataframe` to the corresponding transformation based on `sector_column`
 #' - Evaluates the formulas in `mapper` within the context of the `meta_dataframe`
 #'
+#' @examples
+#' \dontrun{
+#' # Apply a sector-specific transformation (e.g. a tax adjustment for banks)
+#' mapper <- list(Banks = ~ sharpe * (1 - 0.34), Agro = ~ sharpe)
+#' features_m_df <- compute_sector_map(features_m_df, sector_column = "sector",
+#'                                     mapper = mapper, feature_name = "sharpe_adj")
+#' }
+#'
 #' @export
 setGeneric("compute_sector_map", function(meta_dataframe, sector_column, mapper, ...) {
   standardGeneric("compute_sector_map")

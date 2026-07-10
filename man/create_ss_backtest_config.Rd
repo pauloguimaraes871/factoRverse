@@ -17,13 +17,13 @@ create_ss_backtest_config(
 \arguments{
 \item{initial_sample_size}{A numeric indicating the minimum number of observations required to begin the backtest.}
 
-\item{rebalancing_months}{A numeric indicating the number of months for rebalancing.}
+\item{rebalancing_months}{A numeric vector of calendar months (each in 1–12) at which signal selection is executed during the walk-forward backtest.}
 
 \item{active_returns}{Logical, whether to calculate active returns when calculating performance metrics, except for CAPM (default is TRUE).}
 
 \item{split_method}{A character string specifying the splitting method, either "expanding" (default) or "rolling".}
 
-\item{alpha_test_strategy}{An \code{alpha_test_strategy} object defining the alpha test configuration.}
+\item{alpha_test_strategy}{An \code{alpha_test_strategy} object — a \code{frequentist_alpha_test_strategy} or \code{bayesian_alpha_test_strategy} built with \code{create_alpha_test_strategy()} — defining the alpha test configuration. May be \code{NULL}.}
 
 \item{config_name}{A character string naming the configuration.}
 
@@ -35,4 +35,16 @@ An object of class \code{ss_backtest_config}.
 \description{
 This function constructs an object of class \code{ss_backtest_config}, ensuring the proper initialization
 and validation of its slots.
+}
+\examples{
+\dontrun{
+alpha_strategy <- create_alpha_test_strategy(
+  model_structure = "no_pooled", p_correction_method = "holm",
+  market_factor_proxy = "IBOV"
+)
+ss_config <- create_ss_backtest_config(
+  initial_sample_size = 36, rebalancing_months = 1:12,
+  alpha_test_strategy = alpha_strategy, config_name = "ss_holm_nopool"
+)
+}
 }

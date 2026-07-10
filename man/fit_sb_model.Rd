@@ -66,7 +66,8 @@ fit_sb_model(
 }
 \arguments{
 \item{sb_algorithm}{A \code{character} specifying the signal blending algorithm. Options include:
-\code{"ols"}, \code{"glmnet"}, \code{"rf"}, \code{"xgb"}, \code{"nn"}, \code{"ew"}, \code{"sw"}, \code{"rp"}, \code{"mvo"}.}
+\code{"ols"}, \code{"glmnet"}, \code{"rf"}, \code{"xgb"}, \code{"nn"}, \code{"ew"}, \code{"sw"},
+\code{"rp"}, \code{"hrp"}, \code{"mvo"}, \code{"mmaf"}, \code{"custom_weights"}.}
 
 \item{target_fwd_name}{A \code{character} indicating the target variable's name.}
 
@@ -191,6 +192,7 @@ An S4 object of class \code{sb_model}, encapsulating the trained model, algorith
 Fits a Signal Blending (SB) model based on the specified \code{sb_algorithm}, preparing and
 training the model with the given data, hyperparameters, and constraints. This function
 dispatches to various modeling workflows, including OLS, GLMNET, Ranger (RF), XGBoost,
-Keras (NN), heuristic portfolios, Risk Parity, or Mean-Variance Optimization (MVO),
-depending on the input.
+Keras (NN), heuristic portfolios (equal- and signal-weighted, custom weights), Risk
+Parity (RP), Hierarchical Risk Parity (HRP), Mean-Variance Optimization (MVO), or the
+Micro-Macro Allocation Framework (MMAF), depending on the input.
 }

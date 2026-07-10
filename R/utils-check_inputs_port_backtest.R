@@ -7,7 +7,7 @@
 #' @param chosen_score_metric_and_position (Optional) A single-element list specifying the chosen score metric and position. Its name(s) must not include the substring \code{"low_"} and the chosen metric must be present as a column name in \code{signals_m_df}.
 #' @param rebalancing_months A numeric value indicating the rebalancing frequency in months. Must be numeric and between 1 and 12.
 #' @param initial_buffer_period A numeric value specifying the number of initial periods to exclude from the backtest.
-#' @param port_construction_method A character string indicating the portfolio construction method. Allowed values are \code{"ew"}, \code{"sw"}, \code{"cw"}, \code{"cs"}, \code{"rp"}, \code{"mvo"}, or \code{"custom_weights"}.
+#' @param port_construction_method A character string indicating the portfolio construction method. Allowed values are \code{"ew"}, \code{"sw"}, \code{"cw"}, \code{"cs"}, \code{"rp"}, \code{"hrp"}, \code{"mvo"}, \code{"mmaf"}, or \code{"custom_weights"}.
 #' @param eligibility_quantile_range A numeric vector of length 2 specifying the eligibility quantile range used in portfolio construction.
 #' @param min_eligible_assets_fallback A positive integer indicating the fallback minimum number of eligible assets (optional).
 #' @param selected_benchmark A character string naming the benchmark to be used for active return calculation or constraints.

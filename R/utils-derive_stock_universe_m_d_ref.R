@@ -30,7 +30,24 @@
 #'   \item{`id`}{A unique identifier combining the ticker and date.}
 #'   \item{`tickers`}{Ticker symbols.}
 #'   \item{`dates`}{The current date.}
-#'   \item{`exp_ret_score`}{The expected return score after transformation.}
+#'   \item{`exp_ret_score_raw`}{The transformed (winsorized/z-scored and sign-adjusted) score before any scaling.}
+#'   \item{`scaler`}{The winsorized and (optionally) shrunk scaling factor. Present only when `scaler_m_d_ref` and `chosen_scaler` are supplied.}
+#'   \item{`exp_ret_score`}{The final expected return score - `exp_ret_score_raw` multiplied by `scaler` when scaling, otherwise equal to `exp_ret_score_raw`. Always the last column.}
+#'
+#' @examples
+#' signals_m_d_ref <- data.frame(
+#'   id = paste0(c("AAA", "BBB", "CCC"), "-2020-01-31"),
+#'   tickers = c("AAA", "BBB", "CCC"),
+#'   dates = as.Date("2020-01-31"),
+#'   book_yield = c(0.08, 0.05, 0.12)
+#' )
+#' # Long tilt on a book-yield characteristic
+#' derive_stock_universe_m_d_ref(
+#'   signals_m_d_ref = signals_m_d_ref,
+#'   chosen_score_metric_and_position = c(book_yield = "long"),
+#'   lower_quantile_winsorization = 0.05,
+#'   upper_quantile_winsorization = 0.95
+#' )
 #'
 #' @export
 derive_stock_universe_m_d_ref <- function(signals_m_d_ref, oos_predictions_m_d_ref = NULL, chosen_score_metric_and_position = NULL,

@@ -2,15 +2,30 @@
 % Please edit documentation in R/screen_by_feature.R
 \name{screen_by_feature}
 \alias{screen_by_feature}
-\title{Generic function for selecting features from a meta_dataframe}
+\title{Screen (select) features from a meta_dataframe}
 \usage{
 screen_by_feature(meta_dataframe, ...)
 }
 \arguments{
 \item{meta_dataframe}{A \code{meta_dataframe} object.}
 
-\item{...}{A list of feature names or tidyselect helpers to select columns.}
+\item{...}{One or more column names or tidyselect helpers (e.g. \code{dplyr::starts_with("mom")}) passed to
+\code{dplyr::select()} to choose feature columns.}
+}
+\value{
+A new \code{meta_dataframe} with the selected features (plus \code{id}, \code{tickers}, \code{dates}). Errors if the
+selection would leave only the identifier columns.
 }
 \description{
-This is a generic function for selecting columns (features) from a \code{meta_dataframe} object.
+Selects columns (features) from a \code{meta_dataframe}, always retaining the \code{id}, \code{tickers} and \code{dates}
+identifier columns regardless of the selection. This is a thin, workflow-aware wrapper around
+\code{dplyr::select()}: the requested columns are chosen, the three identifier columns are guaranteed to be
+present and ordered first, and a screening step is appended to the object's \code{workflow} log.
+}
+\examples{
+\dontrun{
+# Keep only momentum features (id/tickers/dates are always retained)
+screen_by_feature(features_m_df, dplyr::starts_with("mom"))
+}
+
 }

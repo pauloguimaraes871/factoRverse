@@ -3,7 +3,67 @@
 \docType{class}
 \name{feature_importance_m_df-class}
 \alias{feature_importance_m_df-class}
-\title{Define the signals_m_df S4 Class}
+\alias{feature_importance_m_df}
+\title{feature_importance_m_df-class}
 \description{
-This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to a signals meta_dataframe.
+\code{feature_importance_m_df} inherits all slots and behavior from \code{\link{meta_dataframe-class}}.
+It is the canonical container for global-surrogate feature importance produced by \code{run_sb_backtest()}
+(the package's signal-blending backtest). Importance values are obtained from the chosen global surrogate
+model (e.g. OLS coefficients or tree variable.importance) and then normalized to produce
+\code{normalized_importance}.
+}
+\details{
+An S4 subclass of \code{meta_dataframe} that holds feature-importance results produced by
+the package's signal-blending / interpretability pipeline.
+
+Valid objects must include at least two columns in \code{data}:
+\itemize{
+\item \code{importance} — numeric importance measure (e.g. OLS coef, tree importance).
+\item \code{normalized_importance} — numeric z-scored / standardized importance.
+}
+Typical additional columns produced by \code{run_sb_backtest()} and present in examples are
+\code{tickers}, \code{theme}, \code{is_eligible}, \code{dates}, and \code{id} (where
+\code{id = paste0(tickers, "-", dates)}). The validity method enforces presence of the two
+required importance columns; other slot checks come from the parent \code{meta_dataframe} class.
+}
+\section{Slots}{
+
+\describe{
+\item{\code{data}}{A \code{data.frame} containing importance results (must include \code{importance} and \code{normalized_importance}).}
+
+\item{\code{workflow}}{Inherited: list describing preprocessing and modeling steps that led to these results.}
+
+\item{\code{signals}}{Inherited: typically the signal names considered when building the surrogate model.}
+
+\item{\code{unique_dates,}}{unique_tickers, n_obs, current_date, meta_dataframe_name Inherited summary slots.}
+}}
+
+\examples{
+\dontrun{
+# Typical object produced by run_sb_backtest()
+# Here is a minimal manual construction for testing:
+df <- data.frame(
+  id = c("A-2026-07-01","B-2026-07-01"),
+  tickers = c("A","B"),
+  dates = as.Date(c("2026-07-01","2026-07-01")),
+  importance = c(0.5, -0.2),
+  normalized_importance = c(1.0, -1.0),
+  stringsAsFactors = FALSE
+)
+fi <- new(
+  "feature_importance_m_df",
+  data = df,
+  workflow = list(steps = "run_sb_backtest() (mock)"),
+  signals = c("A","B"),
+  unique_dates = length(unique(df$dates)),
+  unique_tickers = length(unique(df$tickers)),
+  n_obs = nrow(df),
+  current_date = Sys.Date(),
+  meta_dataframe_name = "fi_example"
+)
+}
+
+}
+\seealso{
+\code{\link{meta_dataframe-class}}, \code{\link{run_sb_backtest}}
 }

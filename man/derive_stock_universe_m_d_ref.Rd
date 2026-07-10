@@ -49,11 +49,29 @@ A data frame with columns:
 \item{\code{id}}{A unique identifier combining the ticker and date.}
 \item{\code{tickers}}{Ticker symbols.}
 \item{\code{dates}}{The current date.}
-\item{\code{exp_ret_score}}{The expected return score after transformation.}
+\item{\code{exp_ret_score_raw}}{The transformed (winsorized/z-scored and sign-adjusted) score before any scaling.}
+\item{\code{scaler}}{The winsorized and (optionally) shrunk scaling factor. Present only when \code{scaler_m_d_ref} and \code{chosen_scaler} are supplied.}
+\item{\code{exp_ret_score}}{The final expected return score - \code{exp_ret_score_raw} multiplied by \code{scaler} when scaling, otherwise equal to \code{exp_ret_score_raw}. Always the last column.}
 }
 \description{
 This function creates a stock universe data frame by merging ticker information
 with either out-of-sample predictions or signal values. It then transforms the score
 using a user-provided function (\code{signal_transform}), which is typically used to
 winsorize, z-score, and/or otherwise adjust the raw signal.
+}
+\examples{
+signals_m_d_ref <- data.frame(
+  id = paste0(c("AAA", "BBB", "CCC"), "-2020-01-31"),
+  tickers = c("AAA", "BBB", "CCC"),
+  dates = as.Date("2020-01-31"),
+  book_yield = c(0.08, 0.05, 0.12)
+)
+# Long tilt on a book-yield characteristic
+derive_stock_universe_m_d_ref(
+  signals_m_d_ref = signals_m_d_ref,
+  chosen_score_metric_and_position = c(book_yield = "long"),
+  lower_quantile_winsorization = 0.05,
+  upper_quantile_winsorization = 0.95
+)
+
 }

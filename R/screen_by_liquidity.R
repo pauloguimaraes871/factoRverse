@@ -17,6 +17,17 @@
 #' @param verbose Logical. If TRUE, prints additional information during processing.
 #' @param ... Additional arguments to be passed to the method.
 #'
+#' @return A new `meta_dataframe` containing only the ids whose liquidity classification meets or exceeds
+#'   `liquidity_floor_rule` (via `classify_stock_liquidity()`), with a screening step appended to the
+#'   `workflow` log. Errors if every stock is filtered out.
+#'
+#' @examples
+#' \dontrun{
+#' # Drop everything less liquid than small caps
+#' screen_by_liquidity(features_m_df, liquidity_m_df, liquidity_floor_cutoffs,
+#'                     liquidity_floor_rule = "small_caps")
+#' }
+#'
 #' @export
 setGeneric("screen_by_liquidity", function(meta_dataframe, liquidity_m_df, liquidity_floor_cutoffs, liquidity_floor_rule, ...) {
   standardGeneric("screen_by_liquidity")

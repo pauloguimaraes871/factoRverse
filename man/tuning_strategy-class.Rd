@@ -3,33 +3,53 @@
 \docType{class}
 \name{tuning_strategy-class}
 \alias{tuning_strategy-class}
-\title{Base class for hyperparameter tuning strategies}
+\title{Base Class for Hyperparameter Tuning Strategies}
 \description{
-This class defines the common slots and structure for hyperparameter tuning strategies such as grid search, random search, and Bayesian optimization.
+Common slots and validity rules shared by the three tuning-strategy
+subclasses: \code{\link{grid_search_strategy-class}},
+\code{\link{random_search_strategy-class}}, and
+\code{\link{bayesian_opt_strategy-class}}. Not normally instantiated
+directly; use \code{\link{create_tuning_strategy}()}, which builds the
+subclass matching \code{tuning_method} for you.
 }
 \section{Slots}{
 
 \describe{
-\item{\code{tuning_method}}{Character string indicating the hyperparameter tuning method ('grid_search', 'random_search', or 'bayesian_opt').}
+\item{\code{tuning_method}}{Character. One of \code{"grid_search"},
+\code{"random_search"}, or \code{"bayesian_opt"} -- fixed by the
+subclass's \code{prototype}, not meant to be set independently.}
 
-\item{\code{validation_sample_size}}{Numeric value representing the size of the validation sample. If provided a decimal, it will be set based on proportion of training sample size.}
+\item{\code{validation_sample_size}}{Numeric. Size of the validation sample. A
+value in \verb{(0, 1)} is treated as a proportion of the training sample
+size and rescaled by \code{\link{add_tuning_strategy}()}; a value
+\code{>= 1} is used as an absolute observation count.}
 
-\item{\code{chosen_eval_metric}}{Character or NULL, specifying the evaluation metric to be optimized.}
+\item{\code{chosen_eval_metric}}{Character. The evaluation metric to optimize;
+required (despite the name, \code{NULL} is rejected by validity) and
+must be one of \code{"rss"}, \code{"rmse"}, \code{"cp"}, \code{"mae"},
+\code{"mphe"}, \code{"mpe"}, \code{"mape"}, \code{"hr"}, \code{"mb"}.
+\strong{Caveat:} \code{\link{check_inputs_sb_backtest}()}, the gate used
+by \code{\link{run_sb_backtest}()}, only accepts 8 of these 9 values --
+\code{"mb"} passes this class's validity but is rejected once the
+strategy is actually run.}
 
-\item{\code{hyper_grid_domain}}{An object of class \code{hyper_grid_domain}, representing the hyperparameter domain based on which tuning will be performed.
-It contains a list slot \code{hyperparameter_list} with the hyperparameters relevant to the specified machine learning algorithm.
-The structure of this list depends on the specified tuning method:
+\item{\code{hyper_grid_domain}}{A \code{\link{hyper_grid_domain-class}} object
+holding the hyperparameter search space. The required shape of its
+\code{hyperparameter_list} slot depends on \code{tuning_method}; see the
+relevant subclass.}
+
+\item{\code{early_stop}}{Numeric or \code{NULL}. Epochs with no improvement before
+stopping early; only meaningful for \code{xgb}/\code{nn} algorithms.}
+}}
+
+\section{Validity}{
+
 \itemize{
-\item \strong{For grid search:} Must be a list of named vectors:
-\item \strong{For random search:} Must be a list of named lists, where each named list contains:
-\itemize{
-\item \code{distribution_choice}: A character string specifying the distribution (one of "normal", "uniform", "lognormal", "constant").
-\item \code{pars}: A named numeric vector of parameters corresponding to the chosen distribution.
-\item \code{value}: A numeric value (only present if \code{distribution_choice} is "constant").
+\item \code{tuning_method} must be one of the three supported methods.
+\item \code{chosen_eval_metric} must be non-\code{NULL} and one of the
+nine values listed above.
+\item \code{hyper_grid_domain@hyperparameter_list} must match the shape
+required by \code{tuning_method} (see subclasses).
 }
-\item \strong{For Bayesian optimization:} Must be a list of named numeric vectors, each of length 2, representing the boundaries for the hyperparameters.
-}}
-
-\item{\code{early_stop}}{Sets a halting criteria to prevent overfitting in xgb and nn.}
-}}
+}
 

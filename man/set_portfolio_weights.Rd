@@ -66,12 +66,15 @@ set_portfolio_weights(
 
 \item{port_construction_method}{A character string indicating the method to use for portfolio construction. Supported methods are:
 \describe{
-\item{\code{EW}}{Equal-Weighted Portfolio}
-\item{\code{SW}}{Signal-Weighted Portfolio}
-\item{\code{CW}}{Cap-Weighted Portfolio}
-\item{\code{CS}}{Cap-Scaled Portfolio}
-\item{\code{RP}}{Risk-Parity Portfolio}
-\item{\code{MTO}}{Mean-Tracking Error Optimization}
+\item{\code{ew}}{Equal-Weighted Portfolio}
+\item{\code{sw}}{Signal-Weighted Portfolio}
+\item{\code{cw}}{Cap-Weighted Portfolio}
+\item{\code{cs}}{Cap-Scaled Portfolio}
+\item{\code{rp}}{Risk-Parity Portfolio}
+\item{\code{hrp}}{Hierarchical Risk-Parity Portfolio}
+\item{\code{mvo}}{Mean-Variance (resampled) Optimization}
+\item{\code{mmaf}}{Micro-Macro Allocation Framework Portfolio}
+\item{\code{custom_weights}}{User-supplied weights, via \code{custom_weights_m_d_ref}}
 }}
 
 \item{liquidity_m_d_ref}{An optional data frame or matrix containing liquidity metrics for the signals, used for capitalization weighting and scaling. Defaults to \code{NULL}.}

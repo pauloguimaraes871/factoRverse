@@ -4,7 +4,9 @@
 #' It updates the `signal_universe_m_d_ref` data frame with posterior statistics including alphas, betas, sigmas, and other metrics.
 #'
 #' @param brm_model A bayesian model fit with `brms::brm`.
-#' @param signal_universe_m_d_ref A dataframe with tickers, is_eligible and final_signal columns
+#' @param signal_universe_m_d_ref Optional. The performance-enriched signal universe from `summarize_performance()`
+#'   (`id`, `tickers`, `dates`, plus frequentist CAPM metric columns). If `NULL`, the function instead returns the
+#'   raw tidy posterior-draws objects (see `@return`).
 #' @param selected_signal_themes_m_d_ref A (meta) data frame with id, tickers ("signals") and dates column contemplating all signals in `signals_m_df` and a "theme" column providing group membership for each signal, which is needed
 #' for defining clusters in bayesian hierarchical model. It should contain data only for current date.
 #'
@@ -19,7 +21,13 @@
 #'
 #' @param n_draws_predictive Number of posterior draws to use for predictive computations. If NULL, all available draws are used.
 #'
-#' @return The `signal_universe_m_d_ref` data frame is updated in place with posterior summary statistics.
+#' @return A named list. When `signal_universe_m_d_ref` is supplied: `signal_universe_m_d_ref` (the input,
+#'   left-joined with the posterior alpha/beta/sigma/Treynor/appraisal metrics) and `posterior_draws_summaries`
+#'   (a list of `intercept_summary`, `slope_summary`, `sd_summary`, `epred_summary`, `predicted_summary`
+#'   data frames, each a median/89\% CI summary; the predictive ones are `NULL` unless `compute_predictives_full = TRUE`).
+#'   When `signal_universe_m_d_ref` is `NULL`: a list of the raw tidy posterior-draws data frames
+#'   (`tidy_posterior_draws_intercept`, `tidy_posterior_draws_slope`, `tidy_posterior_draws_sd`,
+#'   `tidy_posterior_epred_draws`, `tidy_posterior_predicted_draws`).
 #' @details The function performs the following operations for each theme:
 #' \itemize{
 #'   \item Computes and updates the posterior overall alpha and individual alpha for each signal.

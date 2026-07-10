@@ -1,7 +1,17 @@
 #' Fit a Keras Neural Network Model
 #'
-#' This function fits a Keras neural network model based on the specified hyperparameters,
-#' architecture choices, training configurations, and loss function parameters.
+#' @description
+#' Builds and trains a feed-forward Keras neural network (1--5 dense layers) for signal
+#' blending, given hyperparameters, an architecture specification, and loss /
+#' early-stopping settings. Used both during tuning (with a validation set for early
+#' stopping) and at refit time (no early stopping).
+#'
+#' @details
+#' Each hidden layer applies L1/L2 kernel regularization, optional batch normalization,
+#' and dropout; the output layer is a single linear unit (regression). The Keras
+#' session is cleared via \code{on.exit()} after each call to bound memory growth across
+#' the many refits of a walk-forward backtest. Note that Keras models are mutable:
+#' re-fitting the same object continues training rather than starting fresh.
 #'
 #' @param regularizer_l1 Numeric. L1 regularization parameter.
 #' @param regularizer_l2 Numeric. L2 regularization parameter.
@@ -16,11 +26,14 @@
 #' @param features_matrix_train_clean Matrix. Training features matrix.
 #' @param target_vector_train Vector. Training target vector.
 #' @param verbose Integer. Verbosity level during training.
-#' @param ... Additional arguments. Not currently used.
+#' @param ... Additional arguments consumed only when early stopping is active:
+#'   \code{features_validation_sample_clean}, \code{target_validation_sample}, and
+#'   \code{chosen_eval_metric_translated} (its \code{$name}/\code{$mode} configure
+#'   \code{keras::callback_early_stopping()}).
 #'
 #' @return A list containing:
-#'   \item{model_nn}{The Keras model object.}
-#'   \item{fit_nn}{The fitted Keras model object.}
+#'   \item{model_nn}{The trained Keras model object.}
+#'   \item{fit_nn}{The Keras training \code{history} object (per-epoch metrics).}
 #'
 #'
 #' @import keras

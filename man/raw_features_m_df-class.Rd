@@ -3,7 +3,33 @@
 \docType{class}
 \name{raw_features_m_df-class}
 \alias{raw_features_m_df-class}
-\title{Define the raw_features_m_df S4 Class}
+\alias{raw_features_m_df}
+\title{raw_features_m_df-class}
 \description{
-This class inherits from \code{meta_dataframe} and enforces that the underlying data is a product of using create_meta_dataframe to list.
+Inherits all slots and behavior from \code{\link{meta_dataframe-class}} but adds no extra validity checks.
+Use for intermediate/raw outputs (may contain NA) produced by \code{create_meta_dataframe()} or similar constructors.
+}
+\details{
+An S4 subclass of \code{meta_dataframe} representing raw feature tables.
+
+All slots are inherited (data, workflow, signals, unique_dates, unique_tickers, n_obs, current_date, meta_dataframe_name).
+}
+\examples{
+\dontrun{
+new(
+  "raw_features_m_df",
+  data = df,
+  workflow = list(),
+  signals = character(),
+  unique_dates = length(unique(df$dates)),
+  unique_tickers = length(unique(df$tickers)),
+  n_obs = nrow(df),
+  current_date = Sys.Date(),
+  meta_dataframe_name = "raw_features"
+)
+}
+
+}
+\seealso{
+\code{\link{meta_dataframe-class}}, \code{\link{signals_m_df-class}}
 }

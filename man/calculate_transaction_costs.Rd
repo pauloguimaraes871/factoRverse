@@ -14,7 +14,7 @@ calculate_transaction_costs(
 )
 }
 \arguments{
-\item{transactions_m_d_ref}{A data frame containing transaction data. Must include the columns: \code{order}, \code{strategy_aum}, \code{relative_order_size}, and \code{daily_vol}.}
+\item{transactions_m_d_ref}{A data frame containing transaction data. Must include the columns: \code{order}, \code{relative_order_size}, \code{daily_vol}, and \code{delta} (the last used to compute turnover).}
 
 \item{alpha}{Numeric. Scaling factor for market impact cost.}
 
@@ -27,7 +27,11 @@ calculate_transaction_costs(
 \item{verbose}{Logical. If \code{TRUE}, prints detailed transaction cost information.}
 }
 \value{
-A named list with components: \code{total_direct_cost}, \code{total_market_impact_cost}, and \code{total_cost}.
+A named list with two components:
+\describe{
+\item{\code{transactions_and_costs_m_d_ref}}{The input transactions augmented with per-trade \code{alpha}, \code{lambda}, \code{direct_cost}, \code{market_impact_cost} and \code{total_cost} columns.}
+\item{\code{port_costs_d_ref}}{A one-row data frame with portfolio-level \code{direct_cost}, \code{market_impact_cost}, \code{total_cost} and \code{turnover}.}
+}
 }
 \description{
 Estimates total transaction costs for a set of trades, incorporating both direct and market impact costs.

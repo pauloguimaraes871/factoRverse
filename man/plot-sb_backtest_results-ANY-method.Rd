@@ -17,8 +17,7 @@
 \item{x}{An object of class \code{sb_backtest_results} containing the results of the walk-forward validation.}
 
 \item{plot_id}{A character string or numeric value specifying which plot to display.
-\itemize{
-\item By name: Options are:
+Available plots depend on \code{sb_algorithm}. For ML algorithms ("glmnet", "rf", "xgb", "nn"):
 \itemize{
 \item \code{"Chosen Evaluation Metric Over Time"}
 \item \code{"Test vs Validation Chosen Evaluation Metric Over Time"}
@@ -26,11 +25,21 @@
 \item \code{"Hyperparameters vs Error"}
 \item \code{"All Evaluation Metrics Over Time"}
 \item \code{"Consolidated OOS Testing Metrics"}
-\item \code{"Average Validation Metrics"}
-\item \code{"Signal Portfolio"}
-}
-\item By number: Provide a number corresponding to the plot (as listed when \code{plot_id} is \code{NULL}).
-If \code{NULL} (default), the method lists available plots.
+\item \code{"OOS Predictions, Errors and Targets"}
+\item \code{"Consolidated OOS Testing Metrics vs Average Validation"}
+\item \code{"Final Signal-Blending Model"}
+\item \code{"Time-Series Feature Importance by Signal"}
+\item \code{"Average Time-Series Feature Importance by Theme"}
+\item \code{"Compare Feature Importance Side-by-Side by Signal"}
+\item \code{"Compare Feature Importance Side-by-Side by Theme"}
+\item \code{"Feature Importance Box-Plot by Signal"}
+\item \code{"Feature Importance Box-Plot by Theme"}
+\item \code{"Feature Importance Heatmap by Signal"}
+\item \code{"Feature Importance Heatmap by Theme"}
+\item \code{"Explain Prediction"}
+For "ols" and heuristic/portfolio algorithms, the tuning-specific plots (chosen-metric,
+test-vs-validation, hyperparameter, and consolidated-vs-validation plots) are omitted.
+Provide a number (index into the list shown when \code{plot_id} is \code{NULL}), or \code{NULL} (default) to list them.
 }}
 
 \item{features_m_df}{A \code{meta_dataframe} containing features used in the backtest. Required for plots like \code{"Explain Prediction"}.}

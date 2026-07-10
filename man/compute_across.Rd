@@ -55,3 +55,12 @@ and a metric column in a \code{meta_xts}. The operation is performed for each ro
 The function checks consistency of column names and dates, performs the operation row-wise
 for matching dates, and appends the result to the \code{meta_dataframe}.
 }
+\examples{
+\dontrun{
+# Multiply a signal by a same-date macro metric (e.g. inflation) drawn from a meta_xts
+meta_df <- compute_across(meta_df, metrics_xts, FUN = "product", signal = "ir_3m", metric = "ipca")
+# Simply append a macro time series as a per-date column
+meta_df <- compute_across(meta_df, metrics_xts, FUN = "just_append", metric = "ipca")
+}
+
+}

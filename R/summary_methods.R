@@ -1,19 +1,49 @@
-#' @title Summary Method for meta_dataframe Class
-#' @description Provides a detailed summary of a `meta_dataframe` object.
-#' Users can select which summary to display by specifying the `summary_id` parameter,
-#' either by name or by number.
-#' The summary includes tables and plots styled accordingly.
+#' Summary method for meta_dataframe objects
 #'
-#' @param object An instance of the `meta_dataframe` class.
-#' @param summary_id A character string or numeric value specifying which summary to display.
-#'   - By name: Options are:
-#'     - `"Numeric Summary Table"`
-#'     - `"Tickers Frequency Table"`
-#'     - `"Categorical Variables Plots"`
-#'   - By number: Provide a number corresponding to the summary (as listed when `summary_id` is `NULL`).
-#'   If `NULL` (default), the method lists available summaries.
-#' @return Invisibly returns the input `object`.
-#' @export
+#' @title Summary for meta_dataframe
+#' @description
+#' S4 \code{summary} method for \code{meta_dataframe} objects. Produces interactive, styled summaries that help
+#' inspect variable distributions, ticker coverage and categorical diagnostics. Output is printed (DT tables or ggplot2 plots)
+#' and the input object is returned invisibly.
+#'
+#' @param object A \code{meta_dataframe} instance.
+#' @param summary_id Character or numeric. Which summary to display. Accepts either the name or the index of one of:
+#'   \itemize{
+#'     \item \code{"Numeric Summary Table"} — detailed numeric statistics (min, Q1, median, mean, Q3, max, NA counts).
+#'     \item \code{"Tickers Frequency Table"} — frequency counts per ticker.
+#'     \item \code{"Categorical Variables Plots"} — bar plots for character/factor columns.
+#'   }
+#'   If \code{NULL} (default) the method lists available summaries and prompts for a selection (interactive).
+#'
+#' @return Invisibly returns the original \code{meta_dataframe} object (side effects: prints DT tables / plots).
+#'
+#' @details
+#' - Required packages: \pkg{DT}, \pkg{htmltools}, \pkg{htmlwidgets}, and \pkg{ggplot2}. The function stops with an informative
+#'   message if these are not available.
+#' - When a \code{dates} column exists the method can prompt to filter the data to a single date before summarizing.
+#' - Numeric summary displays per-variable stats and an aggregated "Average" row; tables are rendered with scrolling and custom styling.
+#' - Ticker frequencies are shown as a styled DT table. Categorical variables are displayed as bar charts with readable labels.
+#' - Designed for interactive inspection; all behaviors may be called programmatically by supplying \code{summary_id}.
+#'
+#' @examples
+#' \dontrun{
+#' # List summaries and choose interactively
+#' summary(mdf)
+#'
+#' # Programmatically show the numeric summary
+#' summary(mdf, summary_id = "Numeric Summary Table")
+#'
+#' # Show tickers frequency
+#' summary(mdf, summary_id = "Tickers Frequency Table")
+#'
+#' # Show categorical plots
+#' summary(mdf, summary_id = "Categorical Variables Plots")
+#' }
+#'
+#' @name summary-meta_dataframe
+#' @rdname summary-meta_dataframe
+#' @aliases summary,meta_dataframe-method
+#' @exportMethod summary
 setMethod("summary", "meta_dataframe", function(object, summary_id = NULL) {
 
   #Check for required packages
@@ -348,10 +378,9 @@ setMethod("summary", "meta_dataframe", function(object, summary_id = NULL) {
 #'
 #' @param object An instance of the `tickers_catalog` class.
 #' @param summary_id A character string or numeric value specifying which summary to display.
-#'   - By name: Options are:
-#'     - "Catalog Overview"
-#'   - By number: Provide a number corresponding to the summary.
-#'   If `NULL` (default), the method lists available summaries.
+#'   - By name: Options are "Catalog Overview" or "Yearly Summary".
+#'   - By number: Provide a number corresponding to the summary (1 or 2).
+#'   If `NULL` (default), the method lists available summaries and prompts for a selection.
 #'
 #' @return Invisibly returns the input `object`.
 #' @export
@@ -525,19 +554,32 @@ setMethod("summary", "tickers_catalog", function(object, summary_id = NULL) {
 })
 
 
-#' @title Summary Method for meta_xts Class
-#' @description Provides summary statistics for meta_xts objects, including numeric summaries,
-#' yearly trends, series frequency tables, and (for returns_meta_xts) a performance metrics table.
+#' @title Summary Method for `meta_xts` Objects
+#' @description
+#' Interactively (or via `summary_id`) prints a styled `DT::datatable` summary for
+#' a `meta_xts` object: a numeric summary, a by-year numeric summary, a series
+#' frequency table, and, for `returns_meta_xts` objects, a performance metrics table.
 #'
 #' @param object An S4 object of class `meta_xts`, possibly a subclass like `returns_meta_xts`.
-#' @param summary_id A numeric or character specifying which summary to display.
-#'   If NULL, a menu is shown.
-#' @param benchmark_returns_m_xts An optional \code{xts} object with benchmark returns (for active performance).
-#' @param active_returns Logical. If TRUE, computes active returns relative to the benchmark.
+#' @param summary_id Numeric (`1`-`3`, or `1`-`4` for `returns_meta_xts`) or the
+#'   matching character label: `"Numeric Summary Table"`, `"Numeric Summary Table by Year"`,
+#'   `"Series Frequency Table"`, or (only for `returns_meta_xts`) `"Performance Metrics Table"`.
+#'   If `NULL`, an interactive menu is shown via `readline()`.
+#' @param benchmark_returns_m_xts A single-column `returns_meta_xts` object with
+#'   benchmark returns, required to compute active performance metrics.
+#' @param active_returns Logical. Requested default for computing active returns
+#'   relative to `benchmark_returns_m_xts`. Note: when `summary_id` is supplied as
+#'   the numeric `4`, this value is overridden by an interactive `readline()`
+#'   prompt regardless of what was passed; supplying `summary_id` as the string
+#'   `"Performance Metrics Table"` skips that prompt and honors this argument as-is.
 #' @param ... Further arguments (not used).
 #'
-#' @return Invisibly returns the \code{object}, printing a styled table or prompt in the Viewer.
+#' @return Invisibly returns `object`; called for the side effect of printing a
+#'   `DT::datatable` (via `htmlwidgets`/`htmltools`) to the Viewer.
 #'
+#' @details
+#' Requires the suggested packages `DT`, `htmltools`, and `htmlwidgets`; if any are
+#' missing, an informative `stop()` is raised.
 #'
 #' @export
 setMethod("summary", "meta_xts", function(object, summary_id = NULL, benchmark_returns_m_xts = NULL, active_returns = FALSE, ...) {
@@ -1444,6 +1486,7 @@ setMethod("summary", "sb_metabacktest_config",
 #'     - `"OOS_SB_Outputs_Summary"` (Delegates to `meta_dataframe` summary)
 #'     - `"OOS_Testing_Eval_Metrics"`
 #'     - `"Chosen_Eval_Metric_Validation"`
+#'     - `"Feature_Importance"`
 #'   - By number: Provide a number corresponding to the table (as listed when `summary_id` is `NULL`).
 #'   If `NULL` (default), the method lists available tables.
 #' @return Invisibly returns the input `object`.
@@ -1766,14 +1809,16 @@ setMethod("summary", "sb_backtest_results", function(object, summary_id = NULL) 
 #' @param object An object of class `sb_metabacktest_results`.
 #' @param summary_id A character string or numeric value specifying which table to display.
 #'   - By name: Options are:
-#'     - `"Consolidated_OOS_Testing_Metrics"`
+#'     - `"Combined_OOS_Testing_Metrics"`
 #'     - `"Mean_Validation_Metrics"`
 #'     - `"Time_Series_OOS_Testing_Metrics"`
 #'     - `"Time_Series_Validation_Metrics"`
 #'     - `"Base_Learners_OOS_Predictions"`
 #'   - By number: Provide a number corresponding to the table (as listed when `summary_id` is `NULL`).
 #'   If `NULL` (default), the method lists available tables.
-#' @param which_backtest_results A character string or numeric value specifying which backtest results to display.
+#' @param which_backtest_results Character/numeric selecting which nested results to summarize:
+#'   the meta-backtest itself, the meta learner (`meta_learner_sb_backtest_results`), or a base
+#'   learner (`base_learners_sb_backtest_results`). If `NULL`, the method prompts interactively.
 #' @return Invisibly returns the input `object`.
 #' @export
 setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NULL, which_backtest_results = NULL) {
@@ -2084,11 +2129,15 @@ setMethod("summary", "sb_metabacktest_results", function(object, summary_id = NU
 
 #' @title Summary Method for ss_backtest_results Class
 #' @description Provides a detailed summary of an `ss_backtest_results` object.
-#' Users can select which summary table to display by specifying the `summary_id` parameter.
-#' The summary includes interactive tables styled using the `DT` package.
+#' Users can select which summary table to display by specifying the `summary_id` parameter (numeric index or
+#' exact name); if omitted, an interactive menu is shown. The summary includes interactive tables styled using
+#' the `DT` package. Requires the `DT`, `htmltools`, and `htmlwidgets` packages.
 #'
 #' @param object An object of class `ss_backtest_results`.
-#' @param summary_id A character string or numeric value specifying which table to display.
+#' @param summary_id A character string or numeric value specifying which table to display. One of:
+#' \code{"Eligibility_Count"}, \code{"Theme_Eligibility_Proportion"}, \code{"Eligibility_Over_Time"},
+#' \code{"Metric_Rate_of_Change"}, \code{"Metrics_By_Theme"}, \code{"Metrics_By_Eligibility"},
+#' \code{"Top_Signals"}, \code{"Top_Themes"}.
 #' @return Invisibly returns the input `object`.
 #' @export
 setMethod("summary", "ss_backtest_results", function(object, summary_id = NULL) {
@@ -2535,12 +2584,15 @@ setMethod("summary", "ss_backtest_results", function(object, summary_id = NULL) 
 
 
 #' @title Summary Method for port_backtest_results Class
-#' @description Provides a detailed summary of `port_backtest_results` object.
-#' Users can select which summary table to display by specifying the `summary_id` parameter.
-#' The summary includes interactive tables styled using the `DT` package.
+#' @description Provides a detailed summary of a `port_backtest_results` object as an interactive, styled table
+#' (built with the `DT`, `htmltools`, and `htmlwidgets` packages, which must be installed). The table is selected
+#' via `summary_id` (a table name or its numeric index); if omitted, an interactive menu lists the options.
 #'
 #' @param object An object of class `port_backtest_results`.
-#' @param summary_id A character string or numeric value specifying which table to display.
+#' @param summary_id A character string (table name) or numeric index selecting the table to display. One of
+#' \code{"Returns Summary"}, \code{"Costs Summary"}, \code{"Metrics Summary"}, \code{"Stats Summary"},
+#' \code{"Stock Universe Summary"}, \code{"Final Port Summary"}, \code{"Final Stock Universe Summary"}, or
+#' \code{"Transactions Log"}. If \code{NULL}, an interactive menu is shown.
 #' @return Invisibly returns the input `object`.
 #' @export
 setMethod("summary", "port_backtest_results", function(object, summary_id = NULL) {
@@ -2765,12 +2817,16 @@ setMethod("summary", "port_backtest_results", function(object, summary_id = NULL
 
 
 #' @title Summary Method for port_backtest_cohort Class
-#' @description Provides a detailed summary of `port_backtest_cohort` object.
-#' Users can select which summary table to display by specifying the `summary_id` parameter.
-#' The summary includes interactive tables styled using the `DT` package.
+#' @description Provides a detailed summary of a `port_backtest_cohort` object as an interactive, styled table
+#' (built with the `DT`, `htmltools`, and `htmlwidgets` packages, which must be installed). The table is selected
+#' via `summary_id` (a table name or its numeric index); if omitted, an interactive menu lists the options.
 #'
 #' @param object An object of class `port_backtest_cohort`.
-#' @param summary_id A character string or numeric value specifying which table to display.
+#' @param summary_id A character string (table name) or numeric index selecting the table to display. One of
+#' \code{"Raw Returns Summary"}, \code{"Net Returns Summary"}, \code{"Raw Active Returns Summary"},
+#' \code{"Net Active Returns Summary"}, \code{"Direct Cost Summary"}, \code{"Market Impact Cost Summary"},
+#' \code{"Total Cost Summary"}, \code{"Turnover Summary"}, \code{"Weights Summary"}, \code{"Metrics Summary"}, or
+#' \code{"Port Stats Summary"}. If \code{NULL}, an interactive menu is shown.
 #' @return Invisibly returns the input `object`.
 #' @export
 setMethod("summary", "port_backtest_cohort", function(object, summary_id = NULL) {

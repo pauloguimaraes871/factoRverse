@@ -40,3 +40,12 @@ The function:
 \item Evaluates the formulas in \code{mapper} within the context of the \code{meta_dataframe}
 }
 }
+\examples{
+\dontrun{
+# Apply a sector-specific transformation (e.g. a tax adjustment for banks)
+mapper <- list(Banks = ~ sharpe * (1 - 0.34), Agro = ~ sharpe)
+features_m_df <- compute_sector_map(features_m_df, sector_column = "sector",
+                                    mapper = mapper, feature_name = "sharpe_adj")
+}
+
+}

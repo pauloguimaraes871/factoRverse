@@ -3,8 +3,78 @@
 \docType{class}
 \name{oos_sb_outputs_m_df-class}
 \alias{oos_sb_outputs_m_df-class}
-\title{Define the oos_sb_outputs_m_df S4 Class}
+\alias{oos_sb_outputs_m_df}
+\title{oos_sb_outputs_m_df-class}
 \description{
-This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to the output of a
-signal blending backtest workflow.
+\code{oos_sb_outputs_m_df} extends \code{\link{meta_dataframe-class}} to represent out-of-sample
+predictions produced by the signal-blending backtest pipeline (\code{run_sb_backtest()}). It stores
+target values, model predictions and the associated errors together with the usual workflow metadata.
+}
+\details{
+Out-of-sample Signal-Blending backtest outputs container (S4).
+
+This class is the canonical return type for out-of-sample evaluation routines in the signal-blending
+workflow. Keeping \code{target}, \code{pred}, and \code{error} aligned and validated enables downstream
+aggregation, performance reporting and diagnostics to rely on consistent semantics.
+}
+\section{Slots}{
+
+\describe{
+\item{\code{sb_backtest_workflow}}{Any. A record (usually a list) describing the out-of-sample backtest workflow and parameters used to produce the outputs.}
+
+\item{\code{data}}{A data.frame containing the observations (first three columns: id, tickers, dates).}
+
+\item{\code{workflow}}{ANY. Record of preprocessing/backtest workflow that produced this object.}
+
+\item{\code{signals}}{character. Names of columns in data that represent signals/metrics.}
+
+\item{\code{unique_dates}}{numeric. Number of distinct dates in data.}
+
+\item{\code{unique_tickers}}{numeric. Number of distinct tickers in data.}
+
+\item{\code{n_obs}}{numeric. Total number of observations (rows) in data.}
+
+\item{\code{current_date}}{Date. Reference/current date for the object.}
+
+\item{\code{meta_dataframe_name}}{character. Short identifier for this meta_dataframe instance.}
+}}
+
+\section{Validity}{
+
+Objects must satisfy parent-class checks plus:
+\itemize{
+\item \code{data} must include the columns \code{id}, \code{tickers}, \code{dates}, \code{target}, \code{pred}, and \code{error}.
+\item For rows where \code{target} is not \code{NA}, \code{error} must equal \code{target - pred}.
+\item For rows where both \code{target} and \code{pred} are \code{NA}, \code{error} must be \code{NA}.
+}
+}
+
+\examples{
+\dontrun{
+df <- data.frame(
+  id = c("A-2026-07-01","B-2026-07-01"),
+  tickers = c("A","B"),
+  dates = as.Date(c("2026-07-01","2026-07-01")),
+  target = c(0.02, NA),
+  pred = c(0.015, NA),
+  error = c(0.005, NA),
+  stringsAsFactors = FALSE
+)
+oos <- new(
+  "oos_sb_outputs_m_df",
+  data = df,
+  workflow = list(step = "oos_evaluate"),
+  signals = character(),
+  sb_backtest_workflow = list(params = "example"),
+  unique_dates = length(unique(df$dates)),
+  unique_tickers = length(unique(df$tickers)),
+  n_obs = nrow(df),
+  current_date = Sys.Date(),
+  meta_dataframe_name = "oos_example"
+)
+}
+
+}
+\seealso{
+\code{\link{meta_dataframe-class}}, \code{\link{run_sb_backtest}}, \code{\link{signal_universe_m_df-class}}
 }

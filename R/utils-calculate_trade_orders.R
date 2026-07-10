@@ -12,8 +12,11 @@
 #' @param main_liquidity_metric character string naming the column in \code{liquidity_m_d_ref} with liquidity data.
 #' @param verbose logical. If TRUE, prints IPO/delisting info to console.
 #'
-#' @return A data frame with columns including \code{tickers}, \code{bop_port_weights}, \code{eop_port_weights},
-#'   \code{delta}, \code{order}, \code{relative_order_size}, and any liquidity/volatility columns.
+#' @return A data frame with one row per ticker in the union of the current and previous universes, including
+#'   \code{tickers}, \code{bop_port_weights}, \code{eop_port_weights}, \code{delta} (EOP minus BOP), \code{order}
+#'   (delta scaled by \code{strategy_aum}), \code{relative_order_size} (order relative to the liquidity metric), an
+#'   \code{obs} tag marking each ticker as \code{"none"}, \code{"delisted"} or \code{"IPO"}, and the joined
+#'   liquidity/volatility columns (delisted names receive imputed liquidity/volatility so costs can still be computed).
 #' @export
 #'
 calculate_trade_orders <- function(merged_port_results_list,

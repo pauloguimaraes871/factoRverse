@@ -3,31 +3,30 @@
 \docType{class}
 \name{metrics_meta_xts-class}
 \alias{metrics_meta_xts-class}
-\title{An S4 subclass of meta_xts for metric time series (holes allowed).}
+\title{An S4 Subclass of \code{meta_xts} for Metric Series (Holes Allowed)}
 \description{
-An S4 subclass of meta_xts for metric time series (holes allowed).
+Stores arbitrary metric time series (e.g. factor exposures, signals) that are
+not required to be gap-free, unlike \code{\link{returns_meta_xts-class}}.
 }
 \section{Slots}{
 
 \describe{
-\item{\code{data}}{An xts object containing the time series.}
-
-\item{\code{meta_xts_name}}{Character. A label or ID for the series.}
-
-\item{\code{metric_name}}{Character. The name of the metric being stored for metrics_m_xts.}
-
-\item{\code{workflow}}{ANY. A placeholder for user-defined workflow/pipeline objects.}
-
-\item{\code{n_dates}}{Numeric. Number of rows in \code{data}.}
-
-\item{\code{source}}{Character. Source of each column (same length as number of columns in \code{data}).}
-
-\item{\code{frequency}}{Character. Detected frequency (daily, monthly, yearly, etc.).}
-
-\item{\code{current_date}}{Date. The most recent date in the dataset.}
-
-\item{\code{series}}{Character. Names of the columns (metrics).}
+\item{\code{series}}{Character. Column names of \code{data} (one per metric).}
 
 \item{\code{n_series}}{Numeric. Number of metric columns.}
 }}
 
+\section{Validity}{
+
+\itemize{
+\item Inherits all checks from \code{\link{meta_xts-class}}.
+\item \code{n_series} must equal \code{ncol(data)}, and \code{series} must
+match \code{colnames(data)}.
+\item No check on date consecutiveness -- holes (e.g. from illiquid tickers
+or metrics undefined on every date) are expected and allowed.
+}
+}
+
+\seealso{
+\code{\link{meta_xts-class}}, \code{\link{returns_meta_xts-class}}, \code{\link{create_meta_xts}}
+}

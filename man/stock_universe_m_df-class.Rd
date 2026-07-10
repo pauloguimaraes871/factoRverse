@@ -3,29 +3,72 @@
 \docType{class}
 \name{stock_universe_m_df-class}
 \alias{stock_universe_m_df-class}
-\title{Define the signal_universe_meta_dataframe S4 Class}
+\alias{stock_universe_m_df}
+\title{stock_universe_m_df-class}
 \description{
-This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to the output of a signal selection backtest workflow.
+\code{stock_universe_m_df} is the canonical container for per-asset expected-return scores and eligibility flags used by portfolio construction and backtesting helpers (e.g. \code{derive_stock_universe_m_d_ref}, \code{select_universe}, \code{construct_portfolio}). It derives from \code{\link{meta_dataframe-class}} and carries additional metadata about the portfolio/backtest workflow.
+}
+\details{
+An S4 subclass of \code{meta_dataframe} representing a stock-level universe used for portfolio construction.
+\itemize{
+\item \code{pre_eligible_assets} indicates stocks that pass initial asset-level filters before portfolio rules are applied.
+\item \code{is_eligible} is a logical indicating final eligibility for portfolio inclusion.
+\item \code{exp_ret_score} is numeric and used to rank or weight assets; it may be derived from out-of-sample predictions or chosen signal metrics and optionally scaled by a \code{scaler}.
+}
 }
 \section{Slots}{
 
 \describe{
-\item{\code{port_backtest_workflow}}{A \code{list} storing the ss_backtest_workflow that generated the signal_universe_meta_dataframe object.}
+\item{\code{data}}{A data.frame (first three columns: id, tickers, dates). Must also include pre_eligible_assets, is_eligible, and exp_ret_score.}
 
-\item{\code{data}}{A \code{data.frame} storing signal metrics and metadata.}
+\item{\code{workflow}}{ANY. Record of preprocessing / backtest workflow that produced this object.}
 
-\item{\code{workflow}}{A \code{list} capturing preprocessing or backtesting steps.}
+\item{\code{signals}}{character. Names of columns in data that represent signals / metrics.}
 
-\item{\code{signals}}{A \code{character} vector of signal column names.}
+\item{\code{unique_dates}}{numeric. Number of distinct dates in data.}
 
-\item{\code{unique_dates}}{A \code{numeric} count of unique dates in the data.}
+\item{\code{unique_tickers}}{numeric. Number of distinct tickers in data.}
 
-\item{\code{unique_tickers}}{A \code{numeric} count of unique tickers in the data.}
+\item{\code{n_obs}}{numeric. Total number of observations (rows) in data.}
 
-\item{\code{n_obs}}{A \code{numeric} value for total number of observations.}
+\item{\code{current_date}}{Date. Reference/current date for the object.}
 
-\item{\code{current_date}}{A \code{Date} representing the latest available date.}
+\item{\code{meta_dataframe_name}}{character. Short identifier for this meta_dataframe instance.}
 
-\item{\code{meta_dataframe_name}}{A \code{character} name label for the object.}
+\item{\code{port_backtest_workflow}}{ANY. Metadata describing portfolio/backtest parameters used to build the stock universe.}
 }}
 
+\section{Validity}{
+
+Objects must satisfy parent-class validation and must include the columns \code{pre_eligible_assets}, \code{is_eligible}, and \code{exp_ret_score}. If a scaler is used, \code{exp_ret_score} is the post-scaling score; when only raw signals/predictions are used it equals the raw expected-return score. Typical construction is via \code{derive_stock_universe_m_d_ref()} which enforces additional checks (mutual exclusivity of inputs, scaler/shrinkage semantics, winsorization).
+}
+
+\examples{
+\dontrun{
+df <- data.frame(
+  id = c("A-2026-07-01","B-2026-07-01"),
+  tickers = c("A","B"),
+  dates = as.Date(c("2026-07-01","2026-07-01")),
+  pre_eligible_assets = c(TRUE, TRUE),
+  is_eligible = c(TRUE, FALSE),
+  exp_ret_score = c(0.12, -0.03),
+  stringsAsFactors = FALSE
+)
+su <- new(
+  "stock_universe_m_df",
+  data = df,
+  workflow = list(step = "derive_stock_universe"),
+  signals = character(),
+  port_backtest_workflow = list(params = "example"),
+  unique_dates = length(unique(df$dates)),
+  unique_tickers = length(unique(df$tickers)),
+  n_obs = nrow(df),
+  current_date = Sys.Date(),
+  meta_dataframe_name = "stock_universe_example"
+)
+}
+
+}
+\seealso{
+\code{\link{meta_dataframe-class}}, \code{\link{signal_universe_m_df-class}}, \code{\link{derive_stock_universe_m_d_ref}}
+}

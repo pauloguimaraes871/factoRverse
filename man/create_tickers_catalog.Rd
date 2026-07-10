@@ -20,33 +20,82 @@ create_tickers_catalog(
 )
 }
 \arguments{
-\item{raw_features_m_df}{A \code{meta_dataframe} object with \code{type == "generic"}, containing stock tickers and dates.}
+\item{raw_features_m_df}{A \code{raw_features_m_df} (source panel).}
 
-\item{date_first_quote}{A \code{data.frame} with columns \code{tickers} (character) and \code{date_first_quote} (Date).}
+\item{date_first_quote}{A \code{data.frame} with columns \code{tickers} and \code{date_first_quote} (coercible to \code{Date}).}
 
-\item{date_last_quote}{A \code{data.frame} with columns \code{tickers} (character) and \code{date_last_quote} (Date).}
+\item{date_last_quote}{A \code{data.frame} with columns \code{tickers} and \code{date_last_quote} (coercible to \code{Date}).}
 
-\item{...}{Additional arguments passed to \code{meta_dataframe}.}
+\item{...}{Additional arguments (currently unused).}
 
-\item{n_days_tolerance}{A \code{numeric} indicating the maximum tolerance for which \code{date_last_quote} can be smaller than
-current_date without it making it a delisted stock.}
+\item{n_days_tolerance}{Numeric scalar (in days). Window used to decide whether a last-quote date indicates delisting relative to \code{raw_features_m_df@current_date}. Default: \code{10}.}
 }
 \value{
 An object of class \code{tickers_catalog}.
+
+An object of class \code{tickers_catalog} with slots:
+\code{catalog}, \code{tickers}, \code{perm_id} (named by tickers), \code{tickers_first_quote},
+\code{tickers_last_quote}, \code{untraded}, \code{delisted}, \code{listed}, \code{old},
+\code{current_date}, \code{meta_dataframe_name}, \code{n_days_tolerance}, and \code{ticker_change_history}.
 }
 \description{
 Constructs a \code{tickers_catalog} object by integrating stock metadata from multiple data sources.
 Ensures data consistency, generates unique identifiers, and classifies stocks based on listing status.
 }
 \details{
-This function performs the following steps:
+This generic performs these responsibilities (method implementations perform checks described below):
 \enumerate{
-\item Validates input types and ensures column consistency.
-\item Verifies that \code{tickers} are identical across all input data.
-\item Ensures \code{date_last_quote} is always greater than \code{date_first_quote}, allowing NAs.
-\item Generates a unique \code{perm_id} for each stock, based on \code{tickers} and \code{date_first_quote}.
-\item Extracts the most recent date (\code{current_date}) from \code{raw_features_m_df$dates}.
-\item Classifies stocks as \code{private} (both date_first_quote and date_last_quote are NA).
-\item Flags stocks as \code{delisted} if \code{date_last_quote} is before \code{current_date}.
+\item Validate input types and required columns in \code{date_first_quote} and \code{date_last_quote}.
+\item Verify \code{tickers} are identical across \code{raw_features_m_df}, \code{date_first_quote} and \code{date_last_quote}.
+\item Enforce that \code{date_last_quote >= date_first_quote} when both are present (NAs allowed).
+\item Generate a deterministic \code{perm_id} per ticker from \code{ticker + date_first_quote}.
+\item Extract \code{current_date} as the most recent date in \code{raw_features_m_df@data$dates}.
+\item Classify tickers as \code{untraded} (both dates NA), \code{delisted} (last_quote < current_date - tolerance),
+or \code{listed} (last_quote >= current_date - tolerance).
+\item Emit informative errors or warnings for duplicate tickers, mismatched ticker sets, inconsistent NA patterns,
+invalid date ordering, or if no tradable stocks are found.
 }
+
+Method behavior and validations (errors/warnings mirror unit tests):
+\itemize{
+\item Requires the date tables to contain the columns \code{tickers} + \code{date_first_quote} / \code{date_last_quote};
+otherwise errors with "date_first_quote must have columns 'tickers' and 'date_first_quote', and date_last_quote must have 'tickers' and 'date_last_quote'."
+\item Converts date columns to \code{Date} and errors on duplicate tickers ("Duplicate tickers found in date_first_quote or date_last_quote.").
+\item Errors with "No tradable stocks identified" when all dates are NA.
+\item Requires the ticker sets to match across inputs; otherwise errors "Mismatch in tickers between raw_features_m_df, date_first_quote, and date_last_quote."
+\item Enforces pairwise NA-ness (both NA or neither) and errors "date_first_quote and date_last_quote must both be NA or neither."
+\item Warns when the modal \code{date_last_quote} is older than \code{current_date - n_days_tolerance} with:
+"Most common date in date_last_quote is not the last date in raw_features_m_df - n_days_tolerance. Consider increasing n_days_tolerance"
+\item Errors if any \code{date_last_quote < date_first_quote} with:
+"date_last_quote must be greater than or equal to date_first_quote for all tickers."
+\item Warns if any \code{date_last_quote} is > \code{current_date}: "Some date_last_quote values are greater than the current_date. This may indicate future dates or errors in the data."
+\item Generates deterministic \code{perm_id} values using an MD5-derived short hash of \code{ticker + first_quote} (NA first-quote uses "NA"), sorts the internal \code{catalog} by \code{perm_id}, and classifies tickers into \code{untraded}, \code{delisted}, \code{listed}, \code{old}.
+}
+}
+\section{Functions}{
+\itemize{
+\item \code{create_tickers_catalog(
+  raw_features_m_df = raw_features_m_df,
+  date_first_quote = data.frame,
+  date_last_quote = data.frame
+)}: Method that builds a \code{tickers_catalog} from
+a \code{raw_features_m_df} and two \code{data.frame}s containing per-ticker
+first- and last-quote dates.
+
+}}
+\examples{
+\dontrun{
+df_first <- data.frame(tickers = c("A","B"),
+                       date_first_quote = as.Date(c("1995-01-01","1996-01-01")))
+df_last  <- data.frame(tickers = c("A","B"),
+                       date_last_quote  = as.Date(c(Sys.Date()-1, Sys.Date()-20)))
+tc <- create_tickers_catalog(raw_features_m_df = raw_mdf,
+                             date_first_quote = df_first,
+                             date_last_quote  = df_last,
+                             n_days_tolerance = 10)
+}
+
+}
+\seealso{
+\code{\link{tickers_catalog-class}}, \code{\link{update_tickers_catalog}}, \code{\link{read_tickers_catalog}}, \code{\link{create_meta_dataframe}}
 }

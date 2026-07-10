@@ -87,15 +87,29 @@ check_inputs_sb_backtest(
 
 \item{split_method}{Character, method of data splitting (currently only "expanding" is supported).}
 
+\item{signal_universe_m_df}{A (meta) data frame defining the signal universe, including per-signal/date eligibility flags (\code{is_eligible}) and heuristic performance metrics.}
+
 \item{backtest_returns_m_xts}{A xts containing historical backtested returns named according to signals in \code{signals_m_df},}
 
 \item{benchmark_returns_m_xts}{A xts with benchmark returns, named accordingly.}
+
+\item{cov_matrix_benchmark}{Character, the benchmark column in \code{benchmark_returns_m_xts} used to build the active covariance matrix (rp/mvo when \code{active_returns = TRUE}).}
+
+\item{cov_matrix_sample_size}{Numeric, number of trailing periods used to estimate the covariance matrix (rp/hrp/mvo/mmaf).}
+
+\item{cov_estimation_method}{Character, covariance estimation method (e.g. "sample") for rp/hrp/mvo/mmaf.}
+
+\item{active_returns}{Logical, whether covariance/optimization operate on returns in excess of the benchmark.}
+
+\item{signal_themes_m_df}{A (meta) data frame mapping each signal to a \code{theme} group; required for group-level concentration constraints and MMAF grouping.}
 
 \item{rp_method}{A parameter specifying the risk parity method to be applied (when applicable).}
 
 \item{exp_ret_score_tilt}{A logical value indicating whether to apply expected return score tilting in risk parity or mean-variance optimization (when applicable).}
 
 \item{exp_ret_score_tilt_eta}{A numeric value specifying the exponent used for expected return score tilting (when applicable).}
+
+\item{linkage}{Character, linkage method for hierarchical clustering in HRP.}
 
 \item{n_random_ports}{A numeric value indicating the number of random portfolios to generate.}
 
@@ -151,7 +165,13 @@ check_inputs_sb_backtest(
 
 \item{macro_linkage}{Character. Linkage method for hierarchical clustering in macro-level HRP.}
 
-\item{sb_algorithm}{Character, choice of signal blending algorithm ("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "mvo").}
+\item{concentration_constraint_policy}{A \code{list}/policy object defining signal-level (and optionally group-level) active-weight caps.}
+
+\item{custom_signal_weights_m_df}{A (meta) data frame of user-supplied signal weights; required when \code{sb_algorithm = "custom_weights"}.}
+
+\item{sb_algorithm}{Character, choice of signal blending algorithm ("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "hrp", "mvo", "mmaf", "custom_weights").}
+
+\item{gsm_algorithm}{Character, global surrogate model algorithm used for interpretability ("ols" or "tree").}
 
 \item{custom_objective}{Character, custom objective function for loss.}
 
@@ -180,6 +200,8 @@ check_inputs_sb_backtest(
 \item{parallel}{Logical, whether to use parallel computation.}
 
 \item{verbose}{Logical, whether to print verbose output.}
+
+\item{.test_seed}{Optional numeric seed used to make validation reproducible in tests.}
 }
 \value{
 NULL. This function is used for validation and does not return a value; it stops on errors.

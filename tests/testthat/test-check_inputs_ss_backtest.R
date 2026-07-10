@@ -1306,7 +1306,7 @@ test_that("check_inputs_ss_backtest have wrong lmer_control", {
                                         signal_significance_threshold = 0.05, priors_m_df = wrong_priors_m_df, custom_signal_universe_metrics_m_df = NULL,
                                         signal_themes_m_df = signal_themes_m_df, p_correction_method = p_correction_method,
                                         rebalancing_months = 6),
-               "hierarchical_p_value_method should be one of 'Satterthwaite', 'Kenward-Roger'  or 'REML'")
+               "hierarchical_p_value_method should be one of 'Satterthwaite', 'Kenward-Roger'  or 'lme4'")
 
 
 

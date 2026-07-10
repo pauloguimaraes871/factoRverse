@@ -452,11 +452,12 @@ setMethod("update_sb_backtest",
 #' @param target_m_df A `meta_dataframe` with the target variable. Columns should follow format `targetname_1_m`, etc.
 #' @param config Either a `sb_backtest_config` (single backtest) or a `sb_metabacktest_config` (meta learning).
 #' @param base_sb_backtest_results_list A list of `sb_backtest_results` objects (only for `sb_metabacktest_config`).
-#' @param verbose Logical.
-#' @param parallel Logical.
-#' @param winsorization_probs Numeric vector of length 2.
+#' @param gsm_algorithm Character, the Global Surrogate Model fitted post-hoc for interpretability ("ols" or "tree"). Default "ols".
+#' @param verbose Logical; if `TRUE`, prints progress and timing messages. Default `TRUE`.
+#' @param parallel Logical; if `TRUE`, hyperparameter tuning runs on the `future`/`foreach` parallel backend (see the Parallel Execution section). Default `TRUE`.
+#' @param winsorization_probs Numeric vector of length 2, `c(lower, upper)` quantiles used to winsorize predictions. Default `c(0.025, 0.975)`.
 #' @param .test_seed Integer, for test reproducibility.
-#' @param .update Logical.
+#' @param .update Logical internal flag; when `TRUE`, reuses prior predictions and only refits new rebalancing dates (see the Update Workflow section). Default `FALSE`.
 #' @param ss_backtest_results An `ss_backtest_results` object (optional).
 #' @param port_backtest_cohort A `port_backtest_cohort` object (optional).
 #' @param backtest_returns_m_xts A `meta_xts` object of returns (optional).
@@ -489,7 +490,7 @@ setMethod("update_sb_backtest",
 #'   \itemize{
 #'     \item \code{meta_sb_backtest_results}: A `sb_backtest_results` object fitted to meta features.
 #'     \item \code{base_sb_backtest_results_list}: The original list of base learner backtests.
-#'     \item \code{oos_predictions_m_df}: The meta features constructed from base learners' predictions.
+#'     \item \code{base_learners_oos_predictions_m_df}: The meta features constructed from base learners' predictions.
 #'     \item \code{sb_metabacktest_config}: Original configuration object.
 #'   }
 #' }

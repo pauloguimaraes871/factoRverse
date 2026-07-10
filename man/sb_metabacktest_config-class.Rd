@@ -5,7 +5,10 @@
 \alias{sb_metabacktest_config-class}
 \title{sb_metabacktest_config Class}
 \description{
-The sb_metabacktest_config class is designed to store and manage a collection of sb_backtest_config objects.
+The sb_metabacktest_config class configures a meta-learning (stacking) backtest:
+it wraps a single meta-learner \code{sb_backtest_config} together with the rules for building the
+meta feature set from base learners' out-of-sample predictions (feature passthrough,
+normalization, winsorization).
 }
 \section{Slots}{
 
@@ -21,4 +24,14 @@ Alternatively, if \code{'all'}, all features are passed through. If \code{'none'
 
 \item{\code{config_name}}{A character string with the name of the configuration}
 }}
+
+\section{Validity}{
+
+\itemize{
+\item The meta learner's \code{sb_algorithm} may not be \code{rp}/\code{hrp}/\code{mvo}/\code{mmaf}.
+\item The meta learner requires a \code{tuning_strategy} unless it is \code{ols} or heuristic.
+\item \code{chosen_signals_and_positions} must be \code{"all"} (positions are corrected via \code{features_passthrough}).
+\item \code{features_passthrough} may not contain \code{"long"}, \code{"short"} or \code{"force"}.
+}
+}
 

@@ -5,7 +5,7 @@
 \alias{create_meta_xts,xts-method}
 \alias{create_meta_xts,data.frame-method}
 \alias{create_meta_xts,meta_dataframe-method}
-\title{Create a meta_xts, assets_meta_xts or metrics_meta_xts object.}
+\title{Create a \code{meta_xts} Object (\code{returns_meta_xts} or \code{metrics_meta_xts})}
 \usage{
 create_meta_xts(
   data,
@@ -50,34 +50,57 @@ create_meta_xts(
 )
 }
 \arguments{
-\item{data}{An xts object containing your time series data.}
+\item{data}{An \code{xts} object, a \code{data.frame}, or a \code{meta_dataframe}
+containing the time series data.}
 
-\item{type}{Character. Either \code{"assets"} (no holes allowed) or
-\code{"metrics"} (holes allowed). Defaults to \code{c("assets","metrics")}
-which means you must pick one.}
+\item{type}{Character. Either \code{"returns"} (built as \code{returns_meta_xts},
+no holes allowed) or \code{"metrics"} (built as \code{metrics_meta_xts}, holes
+allowed). Defaults to \code{"returns"} (the first value of
+\code{c("returns", "metrics")}, resolved via \code{match.arg()}).}
 
-\item{asset_type}{A character string indicating the type of asset.}
+\item{asset_type}{Character. Type of asset for \code{returns_meta_xts} objects
+(e.g. \code{"stock"}, \code{"ports"}). Defaults to \code{"not_identified"},
+which emits a \code{message()} when \code{type = "returns"}.}
 
-\item{meta_xts_name}{A character string. Defaults to \code{"default_name"}.}
+\item{meta_xts_name}{Character. A label for the resulting object(s). Defaults to
+\code{"not_identified"}.}
 
-\item{metric_name}{A character string identifying the name of the metric}
+\item{metric_name}{Character. Name of the metric/return series. If \code{NULL},
+defaults to \code{"returns"}/\code{"metrics"} for \code{xts}/wide-\code{data.frame}
+input, or to the feature column name(s) for long-\code{data.frame} input. A
+vector supplied for long input must match the number of feature columns in length.}
 
-\item{workflow}{An ANY object for workflow. Defaults to \code{NULL}.}
+\item{workflow}{An ANY object recording processing history. Defaults to \code{NULL}.
+For \code{meta_dataframe} input, the source object's own \code{workflow} is
+carried over with a coercion entry appended.}
 
 \item{source}{A character vector indicating data origin for each column.
 If \code{NULL}, defaults to \code{"not_identified"} repeated for each column.}
 
-\item{...}{Additional arguments passed to the constructor.}
+\item{...}{Additional arguments passed to the underlying method.}
 
-\item{data_format}{A character string indicating the format of the data.}
+\item{data_format}{Character. \code{data.frame} input only: \code{"wide"}
+(columns are already assets/metrics) or \code{"long"} (requires \code{tickers}
+and \code{dates} columns; each non-id column becomes a separate result).
+Defaults to \code{"wide"}.}
 
-\item{dates}{An optional vector of dates to be included.}
+\item{dates}{An optional vector of dates, sorted ascending. For wide input it
+supplies the time index directly; for long input it overrides the pivoted
+\code{dates} column. Unsorted input is an error rather than being silently
+re-sorted, so data the caller believes is already aligned is never reordered
+without their knowledge.}
 }
 \value{
-An S4 object of class \code{assets_meta_xts} or \code{metrics_meta_xts},
-depending on \code{type}.
+A single \code{returns_meta_xts} or \code{metrics_meta_xts} object, \strong{except}
+when \code{data} is a \code{data.frame} in long format with more than one
+feature column: then a named \code{list} of such objects is returned, one per
+feature column, named after the column.
 }
 \description{
-This constructor automatically sets most slots for you based on an
-input xts object and the desired type: "assets" or "metrics".
+Constructs a \code{\link{returns_meta_xts-class}} or \code{\link{metrics_meta_xts-class}}
+object from an \code{xts} object, a \code{data.frame} (wide or long format), or a
+\code{meta_dataframe}, auto-detecting frequency and filling in metadata slots.
+}
+\seealso{
+\code{\link{meta_xts-class}}, \code{\link{returns_meta_xts-class}}, \code{\link{metrics_meta_xts-class}}, \code{\link{create_meta_dataframe}}
 }

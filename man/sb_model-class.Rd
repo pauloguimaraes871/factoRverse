@@ -11,7 +11,7 @@ feature data, target variable, and the fitted model object.
 \section{Slots}{
 
 \describe{
-\item{\code{sb_algorithm}}{A character string specifying the machine learning algorithm used (e.g., "ols", "glmnet", "rf", "xgb", "nn", "ew", "rp" or "sw").}
+\item{\code{sb_algorithm}}{A character string specifying the algorithm used ("ols", "glmnet", "rf", "xgb", "nn", "ew", "sw", "rp", "hrp", "mvo", "mmaf" or "custom_weights").}
 
 \item{\code{best_hyperparameters}}{The chosen hyperparameters relevant to the specified machine learning algorithm. Applicable only for machine-learning algorithms.}
 
@@ -31,8 +31,7 @@ feature data, target variable, and the fitted model object.
 \section{Methods}{
 
 \describe{
-\item{\code{refit()}}{Refits the model based on the specified algorithm and hyperparameters.}
-\item{\code{predict(new_features)}}{Generates predictions using the fitted model on new feature data.}
+\item{\code{predict(new_features_m_df)}}{Generates predictions using the fitted model on new feature data.}
 }
 }
 

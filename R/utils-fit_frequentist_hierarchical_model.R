@@ -35,8 +35,9 @@
 #' @param hierarchical_p_value_method A character string specifying the method for calculating p-values.
 #'
 #' @return A named list containing:
-#'   - `frequentist_model`: A `lmermod` object containing the fitted frequentist model.
-#'   - `signal_universe_m_d_ref`: A data frame containing the updated `signal_universe_m_d_ref`.
+#'   - `lmer_model`: The fitted `lmerModLmerTest` object (from `lmerTest::lmer`).
+#'   - `pooled_CAPM_metrics_m_d_ref`: A data frame with per-signal CAPM metrics extracted from `lmer_model`
+#'     (see `summarize_lmer_model()`), or `NULL` if `signal_universe_m_d_ref` was `NULL`.
 #'
 #' @details
 #' The function performs the following steps:

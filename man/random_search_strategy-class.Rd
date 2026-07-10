@@ -5,36 +5,36 @@
 \alias{random_search_strategy-class}
 \title{Random Search Tuning Strategy}
 \description{
-A subclass of \code{tuning_strategy} that implements random search.
+Subclass of \code{\link{tuning_strategy-class}} for random search:
+hyperparameter values are drawn from user-specified distributions instead
+of being enumerated exhaustively.
 }
 \section{Slots}{
 
 \describe{
-\item{\code{tuning_method}}{Character string indicating the hyperparameter tuning method ('grid_search', 'random_search', or 'bayesian_opt').}
+\item{\code{n_iter}}{Numeric. Number of random draws generated per hyperparameter
+that has a distribution assigned (hyperparameters with a
+\code{"constant"} \code{distribution_choice} are exempt). Draws across
+different hyperparameters are then combined exhaustively, so for
+\code{n_iter = 5} and 2 non-constant hyperparameters the model is
+generally evaluated \eqn{5^2 = 25} times.}
+}}
 
-\item{\code{validation_sample_size}}{Numeric value representing the size of the validation sample. If provided a decimal, it will be set based on proportion of training sample size.}
+\section{\code{hyper_grid_domain} shape}{
 
-\item{\code{chosen_eval_metric}}{Character or NULL, specifying the evaluation metric to be optimized.}
-
-\item{\code{hyper_grid_domain}}{An object of class \code{hyper_grid_domain}, representing the hyperparameter domain based on which tuning will be performed.
-It contains a list slot \code{hyperparameter_list} with the hyperparameters relevant to the specified machine learning algorithm.
-The structure of this list depends on the specified tuning method:
+\code{hyper_grid_domain@hyperparameter_list} must be a list of named
+lists, one per hyperparameter, each with:
 \itemize{
-\item \strong{For grid search:} Must be a list of named vectors:
-\item \strong{For random search:} Must be a list of named lists, where each named list contains:
-\itemize{
-\item \code{distribution_choice}: A character string specifying the distribution (one of "normal", "uniform", "lognormal", "constant").
-\item \code{pars}: A named numeric vector of parameters corresponding to the chosen distribution.
-\item \code{value}: A numeric value (only present if \code{distribution_choice} is "constant").
+\item \code{distribution_choice}: one of \code{"normal"}, \code{"uniform"},
+\code{"lognormal"}, or \code{"constant"}.
+\item \code{pars}: named numeric vector of distribution parameters
+(\code{c(mean, sd)}, \code{c(min, max)}, or \code{c(meanlog, sdlog)}
+as appropriate) -- omitted when \code{distribution_choice = "constant"}.
+\item \code{value}: a single numeric value, present only when
+\code{distribution_choice = "constant"}.
 }
-\item \strong{For Bayesian optimization:} Must be a list of named numeric vectors, each of length 2, representing the boundaries for the hyperparameters.
-}}
+}
 
-\item{\code{early_stop}}{Sets a halting criteria to prevent overfitting in xgb and nn.}
-
-\item{\code{n_iter}}{For random_search, it should be the number of random draws for each hyperparameter to which a distribution has been assigned.
-Random samples of n_iter size will be generated for each hyperparameter and their unique values will be exhaustively combined.
-Therefore, for n_iter = 5 and 2 hyperparameters, the ml algorithm validation error should be generally evaluated 5² = 25 times.
-In case a constant vector is passed, the n_iter argument is not applied to this hyperparameter.}
-}}
-
+\seealso{
+\code{\link{tuning_strategy-class}} for the inherited slots.
+}

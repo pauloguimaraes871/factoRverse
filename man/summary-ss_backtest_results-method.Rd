@@ -9,13 +9,17 @@
 \arguments{
 \item{object}{An object of class \code{ss_backtest_results}.}
 
-\item{summary_id}{A character string or numeric value specifying which table to display.}
+\item{summary_id}{A character string or numeric value specifying which table to display. One of:
+\code{"Eligibility_Count"}, \code{"Theme_Eligibility_Proportion"}, \code{"Eligibility_Over_Time"},
+\code{"Metric_Rate_of_Change"}, \code{"Metrics_By_Theme"}, \code{"Metrics_By_Eligibility"},
+\code{"Top_Signals"}, \code{"Top_Themes"}.}
 }
 \value{
 Invisibly returns the input \code{object}.
 }
 \description{
 Provides a detailed summary of an \code{ss_backtest_results} object.
-Users can select which summary table to display by specifying the \code{summary_id} parameter.
-The summary includes interactive tables styled using the \code{DT} package.
+Users can select which summary table to display by specifying the \code{summary_id} parameter (numeric index or
+exact name); if omitted, an interactive menu is shown. The summary includes interactive tables styled using
+the \code{DT} package. Requires the \code{DT}, \code{htmltools}, and \code{htmlwidgets} packages.
 }

@@ -17,27 +17,43 @@ create_tuning_strategy(
 )
 }
 \arguments{
-\item{tuning_method}{Character string indicating the hyperparameter tuning method. Must be one of 'grid_search', 'random_search', or 'bayesian_opt'.}
+\item{tuning_method}{Character. One of \code{"grid_search"},
+\code{"random_search"}, or \code{"bayesian_opt"}.}
 
-\item{validation_sample_size}{Numeric value representing the size of the validation sample.}
+\item{validation_sample_size}{Numeric. Size of the validation sample. A
+value in \verb{(0, 1)} is later treated as a training-sample proportion
+by \code{\link{add_tuning_strategy}()}; this constructor stores it as-is.}
 
-\item{chosen_eval_metric}{Character or NULL, specifying the evaluation metric to be optimized.}
+\item{chosen_eval_metric}{Character. Evaluation metric to optimize; must
+be one of \code{"rss"}, \code{"rmse"}, \code{"cp"}, \code{"mae"},
+\code{"mphe"}, \code{"mpe"}, \code{"mape"}, \code{"hr"}, \code{"mb"}.
+Required -- the resulting object's validity rejects a missing value.}
 
-\item{hyper_grid_domain}{An object of class \code{hyper_grid_domain}, representing the hyperparameter search space. If NULL, an empty hyper_grid_domain is created.}
+\item{hyper_grid_domain}{A \code{\link{hyper_grid_domain-class}} object.
+If \code{NULL}, an empty one is created; populate it via
+\code{\link{add_hyperparameter}()} before use.}
 
-\item{early_stop}{ANY, optional argument for halting criteria.}
+\item{early_stop}{Numeric or \code{NULL}. Epochs with no improvement
+before stopping early; only meaningful for \code{xgb}/\code{nn}.}
 
-\item{n_iter}{Numeric, number of iterations for 'random_search' or 'bayesian_opt'.}
+\item{n_iter}{Numeric. Required for \code{"random_search"} (draws per
+hyperparameter) and \code{"bayesian_opt"} (evaluations after
+initialization); ignored for \code{"grid_search"}.}
 
-\item{acq}{Character string for the acquisition function (for 'bayesian_opt' only).}
+\item{acq}{Character. Acquisition function; required when
+\code{tuning_method = "bayesian_opt"}, unused otherwise.}
 
-\item{init_points}{Numeric, number of initial random points for Bayesian optimization (for 'bayesian_opt' only).}
+\item{init_points}{Numeric. Required when \code{tuning_method = "bayesian_opt"}, unused otherwise.}
 
-\item{k_iter}{Numeric, number of samples to evaluate during Bayesian optimization (for 'bayesian_opt' only).}
+\item{k_iter}{Numeric. Required when \code{tuning_method = "bayesian_opt"}, unused otherwise.}
 }
 \value{
-An object of class \code{grid_search_strategy}, \code{random_search_strategy}, or \code{bayesian_opt_strategy}, depending on the selected \code{tuning_method}.
+An object of class \code{grid_search_strategy},
+\code{random_search_strategy}, or \code{bayesian_opt_strategy}.
 }
 \description{
-A constructor function to create a tuning_strategy object, based on the specified tuning method.
+Builds a \code{\link{grid_search_strategy-class}},
+\code{\link{random_search_strategy-class}}, or
+\code{\link{bayesian_opt_strategy-class}} object, depending on
+\code{tuning_method}.
 }

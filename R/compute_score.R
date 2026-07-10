@@ -24,6 +24,13 @@
 #' or logical criteria. Each condition is applied to its corresponding column using `purrr::map2()`.
 #' The total score per row reflects how many of the defined conditions are satisfied.
 #'
+#' @examples
+#' \dontrun{
+#' # Count how many quality criteria each stock meets
+#' conditions <- list(roe_3m = function(x) x > 0.1, net_margin = function(x) x > 0.05)
+#' features_m_df <- compute_score(features_m_df, conditions, feature_name = "quality_score")
+#' }
+#'
 #' @export
 setGeneric("compute_score", function(features_m_df, conditions, feature_name, ...) {
   standardGeneric("compute_score")

@@ -4,7 +4,7 @@
 \alias{create_meta_dataframe}
 \alias{create_meta_dataframe,data.frame-method}
 \alias{create_meta_dataframe,list-method}
-\title{Create a meta_dataframe Object}
+\title{Create a meta_dataframe}
 \usage{
 create_meta_dataframe(data, meta_dataframe_name = "not_identified", ...)
 
@@ -30,88 +30,119 @@ create_meta_dataframe(data, meta_dataframe_name = "not_identified", ...)
 )
 }
 \arguments{
-\item{data}{A \code{list} containing the following components:
-\describe{
-\item{\code{features_list}}{A list of matrices, \code{data.frames}, or tibbles containing the features.}
-\item{\code{row_names}}{A vector of row names corresponding to entities in the panel data.}
-\item{\code{column_names}}{A vector of column names corresponding to time points or dates in the panel data.}
-\item{\code{features_names}}{A vector of names for each feature in the \code{features_list}.}
-}}
+\item{data}{A \code{list} where each element is a matrix, \code{data.frame} or tibble representing a feature. All elements must have identical dimensions (rows = entities, columns = time points).}
 
-\item{meta_dataframe_name}{A \code{character} string specifying the name of the resulting \code{meta_dataframe} object.}
+\item{meta_dataframe_name}{Character. Name for the resulting object (default: \code{"not_identified"}).}
 
-\item{...}{Additional arguments passed to methods.}
+\item{...}{Additional arguments (ignored by many branches).}
 
-\item{workflow}{A list specifying the workflow to be passed to specific subclass of  \code{meta_dataframe}}
+\item{workflow}{Optional list. Workflow entries stored in the \code{workflow} slot.}
 
-\item{ss_backtest_workflow}{A list specifying the workflow to be passed to specific subclass of  \code{meta_dataframe}}
+\item{ss_backtest_workflow}{Optional list. Required when \code{type = "signal_universe"}.}
 
-\item{sb_backtest_workflow}{A list specifying the workflow to be passed to specific subclass of  \code{meta_dataframe}}
+\item{sb_backtest_workflow}{Optional list. Required when \code{type = "oos_sb_outputs"}.}
 
-\item{port_backtest_workflow}{A list specifying the workflow to be passed to specific subclass of  \code{meta_dataframe}}
+\item{port_backtest_workflow}{Optional list. Required when \code{type = "stock_universe"}.}
 
-\item{type}{A \code{character} string specifying the type of the \code{meta_dataframe} object. This is used to identify the class of the object.}
+\item{type}{Character. Determines which subclass is instantiated (see generic \code{type} values). For \code{"generic"} the method
+warns about missing monthly dates but still constructs the object; specialized \code{type} values enforce additional required workflow args.}
 
-\item{tickers}{A \code{character} vector of tickers to be included in the \code{meta_dataframe} object.}
+\item{tickers}{Character vector. Row identifiers for the elements of \code{data}; must be unique and length equal to nrow of each element.}
 
-\item{dates}{A \code{Date} vector of dates to be included in the \code{meta_dataframe} object.}
+\item{dates}{Date vector. Column identifiers for the elements of \code{data}; must be \code{Date}, unique, have the same day-of-month, and be consecutive by month (monthly panel).}
 
-\item{features_names}{A \code{character} vector of feature names to be included in the \code{meta_dataframe} object.}
+\item{features_names}{Character vector. Names assigned to each element of \code{data}; length must equal \code{length(data)}.}
 
-\item{data_format}{A \code{character} string specifying the format of the data. It can be either "long" or "wide". This is used to identify the class of the object.}
+\item{data_format}{Character. Currently only \code{"wide"} is supported; the method errors otherwise.}
 
-\item{tickers_on}{A \code{character} indicating whether tickers are placed on the rows or columns of the data. It can be either "rows" or "columns".}
+\item{tickers_on}{Character. Currently only \code{"rows"} is supported; the method errors otherwise.}
 }
 \value{
-An object of class \code{meta_dataframe}.
+An S4 object of class \code{meta_dataframe} or an appropriate subclass. Populated slots:
+\code{data}, \code{signals}, \code{unique_dates}, \code{unique_tickers}, \code{n_obs},
+\code{current_date}, \code{meta_dataframe_name}, and optional workflow/backtest slots.
 
-An object of class \code{meta_dataframe} if the input data frame meets all validation criteria.
-The returned object includes metadata such as the number of unique dates, unique tickers, and
-total number of observations.
+An object of class \code{meta_dataframe} or one of its subclasses with metadata:
+\code{unique_dates}, \code{unique_tickers}, \code{n_obs}, \code{current_date}, \code{signals}, \code{meta_dataframe_name}.
 
-An object of class \code{meta_dataframe} containing the panel data and associated metadata.
+A \code{raw_features_m_df} (subclass of \code{meta_dataframe}) containing a long-format \code{data.frame} with \code{id}, \code{tickers}, \code{dates} and one column per feature (named by \code{features_names}), plus metadata slots.
 }
 \description{
-This generic function creates an object of class \code{meta_dataframe} from a provided \code{data.frame} or a structured \code{list}.
-Specific behaviors are implemented via methods tailored to the class of the input data.
+Generic constructor that creates an S4 \code{meta_dataframe} or an appropriate subclass from supplied input.
+Dispatches on the class of \code{data} and implements specialized behavior for \code{data.frame} and structured
+wide-panel \code{list} inputs.
 }
 \details{
-The function dispatches to specific methods based on the class of the \code{data} argument. Currently, methods are implemented for:
+Create a meta_dataframe Object
+
+Prefer this high-level constructor to calling \code{new(...)} directly because it performs structural
+validation and populates metadata consistently. The generic only dispatches — see the method-specific
+documentation for exact validation rules and error conditions (a number of tests assert these validations).
+
+— Validation performed by this method (tests assert these behaviours)
 \itemize{
-\item \code{data.frame}: Converts a single \code{data.frame} into a \code{meta_dataframe} object after validation.
-\item \code{list}: Converts a structured \code{list} of matrices, \code{data.frames}, or tibbles into a \code{meta_dataframe} object in panel data format.
+\item Calls \code{is_coercible_to_meta_dataframe()} which checks: required columns, \code{dates} class, \code{id} format, ordering, uniqueness and NA presence.
+\item If \code{type == "generic"} a warning is emitted for missing months in the sequence (monthly cadence).
+\item For specialized types the method requires the corresponding workflow argument: \code{ss_backtest_workflow} for \code{signal_universe},
+\code{sb_backtest_workflow} for \code{oos_sb_outputs}, \code{port_backtest_workflow} for \code{stock_universe}.
 }
 
+— Validation performed by this method (tests assert these behaviours)
 \itemize{
-\item The 'id' column is expected to be in the format of \code{paste0(tickers, "-", dates)}.
-\item The 'dates' column must be of class \code{Date} and in ascending chronological order.
-\item The function checks for NA values in the 'id', 'tickers', and 'dates' columns.
-\item The function ensures that there are no gaps in the dates sequence and no duplicated IDs.
-\item The metadata includes the number of unique dates, unique tickers, and total observations.
-}
-
-This method performs the following operations:
-\enumerate{
-\item Validates the structure and contents of the input list.
-\item Converts each feature set into a long (panel) format using \code{\link[reshape2]{melt}}.
-\item Merges all features into a single data frame, ensuring that each row represents a unique combination of entity and date.
-\item Calculates metadata such as the number of unique dates, unique entities (tickers), and total observations.
-\item Constructs a \code{meta_dataframe} S4 object encapsulating the transformed data and metadata.
+\item \code{data} must be a \code{list}; each element must be a matrix, \code{data.frame}, or tibble.
+\item All elements must have identical numbers of rows and columns; otherwise an error is thrown (tests expect messages such as "All elements in the list must have the same number of rows/columns.").
+\item \code{features_names} length must equal \code{length(data)}.
+\item No element may consist entirely of \code{NA}; otherwise an error ("One or more datasets contain only NA values.").
+\item \code{tickers} must be a unique \code{character} vector whose length equals nrow of elements; errors on non-character or duplicated tickers.
+\item \code{dates} must be class \code{Date}, unique, all share the same day-of-month, and be consecutive by month; failures raise informative errors used in tests.
+\item Elements must not already contain columns named \code{tickers} or \code{dates}; elements must not contain values matching provided \code{tickers} or \code{dates} (these conditions raise errors asserted by tests).
+\item Only \code{data_format = "wide"} and \code{tickers_on = "rows"} are accepted.
 }
 }
 \section{Functions}{
 \itemize{
-\item \code{create_meta_dataframe(data.frame)}: Method for \code{data.frame} Signature
+\item \code{create_meta_dataframe(data.frame)}: Create a \code{meta_dataframe} (or subclass) from a long-format \code{data.frame}.
 
-This method creates an object of class \code{meta_dataframe} from a provided \code{data.frame}.
-The data frame must meet specific requirements: it must contain 'id', 'tickers', and 'dates' columns,
-where 'dates' must be of class \code{Date} and sorted in ascending order. The 'id' column should
-be constructed as \code{paste0(tickers, "-", dates)}. The function also validates that there are no
-missing dates, duplicated IDs, or NA values in the required columns.
-
-\item \code{create_meta_dataframe(list)}: Method for \code{list} Signature
-
-This method converts a structured \code{list} of matrices, \code{data.frames}, or tibbles into a \code{meta_dataframe} object in panel data format.
-The input list must contain specific components required to build the panel data structure.
+\item \code{create_meta_dataframe(list)}: Create a \code{meta_dataframe} from a structured \code{list} of wide feature matrices/tibbles.
 
 }}
+\examples{
+\dontrun{
+# See the data.frame and list method examples below.
+}
+
+\dontrun{
+df <- data.frame(
+  id = c("A-2026-01-31","B-2026-01-31"),
+  tickers = c("A","B"),
+  dates = as.Date(c("2026-01-31","2026-01-31")),
+  momentum = c(0.1, -0.2),
+  value = c(0.05, 0.03),
+  stringsAsFactors = FALSE
+)
+mdf <- create_meta_dataframe(df, meta_dataframe_name = "features_example", type = "generic")
+# For signal_universe:
+su <- create_meta_dataframe(df, meta_dataframe_name = "signal_universe_example",
+                            type = "signal_universe",
+                            ss_backtest_workflow = list(params = "example"))
+}
+
+\dontrun{
+tickers <- c("Stock A","Stock B")
+dates <- as.Date(c("2001-03-15","2001-04-15"))
+feat1 <- matrix(c(0,1,2,3), nrow = 2, byrow = TRUE)
+feat2 <- matrix(c(4,5,6,7), nrow = 2, byrow = TRUE)
+feat3 <- matrix(c(8,9,10,11), nrow = 2, byrow = TRUE)
+features_list <- list(Alpha = feat1, Beta = feat2, Gamma = feat3)
+
+raw_mdf <- create_meta_dataframe(features_list,
+                                 tickers = tickers,
+                                 dates = dates,
+                                 features_names = c("Alpha","Beta","Gamma"),
+                                 meta_dataframe_name = "raw_features_example")
+}
+
+}
+\seealso{
+\code{\link{meta_dataframe-class}}, \code{\link{create_meta_xts}}, \code{\link{create_tickers_catalog}}
+}

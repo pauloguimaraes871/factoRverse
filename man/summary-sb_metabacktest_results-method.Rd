@@ -13,7 +13,7 @@
 \itemize{
 \item By name: Options are:
 \itemize{
-\item \code{"Consolidated_OOS_Testing_Metrics"}
+\item \code{"Combined_OOS_Testing_Metrics"}
 \item \code{"Mean_Validation_Metrics"}
 \item \code{"Time_Series_OOS_Testing_Metrics"}
 \item \code{"Time_Series_Validation_Metrics"}
@@ -23,7 +23,9 @@
 If \code{NULL} (default), the method lists available tables.
 }}
 
-\item{which_backtest_results}{A character string or numeric value specifying which backtest results to display.}
+\item{which_backtest_results}{Character/numeric selecting which nested results to summarize:
+the meta-backtest itself, the meta learner (\code{meta_learner_sb_backtest_results}), or a base
+learner (\code{base_learners_sb_backtest_results}). If \code{NULL}, the method prompts interactively.}
 }
 \value{
 Invisibly returns the input \code{object}.

@@ -3,7 +3,68 @@
 \docType{class}
 \name{priors_m_df-class}
 \alias{priors_m_df-class}
-\title{Define the priors_m_df S4 Class}
+\alias{priors_m_df}
+\title{priors_m_df-class}
 \description{
-This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to a priors meta_dataframe.
+\code{priors_m_df} is the canonical container for datasets used to fit frequentist/hierarchical models whose
+parameter estimates become informative priors for subsequent Bayesian selection (see \code{run_ss_backtest()}).
+It inherits all slots from \code{\link{meta_dataframe-class}} and enforces structural and content constraints required by
+the frequentist fitting helpers (e.g. \code{derive_informative_priors_from_data()}, \code{fit_frequentist_hierarchical_model()}).
+}
+\details{
+An S4 subclass of \code{meta_dataframe} that stores returns and ancillary columns used to derive informative priors.
+
+Typical workflow: build a \code{priors_m_df} from historical returns (possibly from another geography or period),
+pass it to \code{derive_informative_priors_from_data()} which fits frequentist/hierarchical models and returns parameter estimates
+used as priors for Bayesian inference in \code{run_ss_backtest()}. Ensuring no missing values and the presence of the required columns
+allows stable frequentist estimation and correct prior derivation.
+}
+\section{Slots}{
+
+\describe{
+\item{\code{data}}{A \code{data.frame} containing returns and explanatory columns; must include \code{return}, \code{theme}, and \code{market_factor_proxy}.}
+
+\item{\code{workflow}}{Inherited: list describing preprocessing and modeling steps that produced the priors data.}
+
+\item{\code{signals}}{Inherited: names of columns considered as signals / grouping variables.}
+
+\item{\code{unique_dates,}}{unique_tickers, n_obs, current_date, meta_dataframe_name Inherited summary slots.}
+}}
+
+\section{Validity}{
+
+\itemize{
+\item No missing values are allowed in \code{data} (all NA values cause construction to fail).
+\item The data must contain the columns \code{return}, \code{theme}, and \code{market_factor_proxy} (these names must appear among \code{colnames(data)}).
+Parent-class validation (first three columns \code{id}, \code{tickers}, \code{dates}; types; unique ids; etc.) also applies.
+}
+}
+
+\examples{
+\dontrun{
+df <- data.frame(
+  id = c("A-2026-01-01","B-2026-01-01"),
+  tickers = c("A","B"),
+  dates = as.Date(c("2026-01-01","2026-01-01")),
+  return = c(0.01, -0.02),
+  theme = c("Value","Value"),
+  market_factor_proxy = c(0.003, 0.004),
+  stringsAsFactors = FALSE
+)
+pri <- new(
+  "priors_m_df",
+  data = df,
+  workflow = list(step = "prepare_priors"),
+  signals = c("theme"),
+  unique_dates = length(unique(df$dates)),
+  unique_tickers = length(unique(df$tickers)),
+  n_obs = nrow(df),
+  current_date = Sys.Date(),
+  meta_dataframe_name = "priors_example"
+)
+}
+
+}
+\seealso{
+\code{\link{meta_dataframe-class}}, \code{\link{derive_informative_priors_from_data}}, \code{\link{run_ss_backtest}}
 }

@@ -1,9 +1,22 @@
-#' Generic function for selecting features from a meta_dataframe
+#' Screen (select) features from a meta_dataframe
 #'
-#' This is a generic function for selecting columns (features) from a `meta_dataframe` object.
+#' Selects columns (features) from a `meta_dataframe`, always retaining the `id`, `tickers` and `dates`
+#' identifier columns regardless of the selection. This is a thin, workflow-aware wrapper around
+#' `dplyr::select()`: the requested columns are chosen, the three identifier columns are guaranteed to be
+#' present and ordered first, and a screening step is appended to the object's `workflow` log.
 #'
 #' @param meta_dataframe A `meta_dataframe` object.
-#' @param ... A list of feature names or tidyselect helpers to select columns.
+#' @param ... One or more column names or tidyselect helpers (e.g. `dplyr::starts_with("mom")`) passed to
+#'   `dplyr::select()` to choose feature columns.
+#'
+#' @return A new `meta_dataframe` with the selected features (plus `id`, `tickers`, `dates`). Errors if the
+#'   selection would leave only the identifier columns.
+#'
+#' @examples
+#' \dontrun{
+#' # Keep only momentum features (id/tickers/dates are always retained)
+#' screen_by_feature(features_m_df, dplyr::starts_with("mom"))
+#' }
 #'
 #' @export
 setGeneric("screen_by_feature", function(meta_dataframe, ...) {

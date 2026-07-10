@@ -13,7 +13,9 @@ add_hyper_grid_domain(object, hyper_grid_domain)
 \S4method{add_hyper_grid_domain}{sb_backtest_config,hyper_grid_domain}(object, hyper_grid_domain)
 }
 \arguments{
-\item{object}{An object of class \code{sb_backtest_config}.}
+\item{object}{An object of class \code{sb_backtest_config}. Must already have a
+\code{tuning_strategy} attached (via \code{add_tuning_strategy()}) -- this method writes
+into \code{object@tuning_strategy@hyper_grid_domain} and will error on a \code{NULL}/unset strategy.}
 
 \item{hyper_grid_domain}{An object of class \code{hyper_grid_domain}.}
 }

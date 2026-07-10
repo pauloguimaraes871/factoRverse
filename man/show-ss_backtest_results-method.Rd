@@ -13,9 +13,9 @@
 The method returns the object invisibly.
 }
 \description{
-This method displays a detailed summary of the \code{ss_backtest_results} object,
-including metadata on the signal selection backtest results,
-configuration details, date information, signals information,
-p-value correction methods, Bayesian model parameters (if applicable),
-performance metrics, and the original call.
+This method displays a detailed summary of the most recent batch in the \code{ss_backtest_results} object's
+\code{ss_backtest_workflow}, including: backtest configuration (config name, alpha test strategy parameters,
+lmer control), p-value correction method (with Bayesian model parameters, if applicable), date/rebalancing
+information, signals information, signal themes and priors information (if applicable), winsorization
+parameters, and execution performance (elapsed time and timestamps).
 }

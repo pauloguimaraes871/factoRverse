@@ -27,29 +27,27 @@ bayesian_adjustment(
 }
 \arguments{
 \item{signal_universe_m_d_ref}{Data frame.
-A dataframe containing information about signals with the following columns:
-\describe{
-\item{tickers}{Unique identifiers for each signal.}
-\item{is_eligible}{Logical indicator specifying if a signal is eligible for modeling.}
-\item{final_signal}{Finalized signals to be used in the Bayesian adjustment.}
-}}
+The performance-enriched signal universe produced by \code{summarize_performance()}, containing at least
+\code{id}, \code{tickers}, \code{dates}, and the frequentist CAPM metrics (\code{alpha}, \code{alpha_se}, \code{beta}, \code{specific_risk},
+\code{alpha_t_stat}, \code{treynor_ratio}, \code{appraisal_ratio}, \code{p_value} for \code{"no_pooled"}, or the theme/individual
+alpha and beta columns for \code{"partial_pooled"}). It is updated in place with posterior statistics.}
 
 \item{selected_backtest_returns_corrected_positions_m_xts_upd_ref}{Meta xts containing backtest returns for selected signals}
 
 \item{selected_market_factor_proxy_m_xts_upd_ref}{Meta xts containing backtest returns for selected markte factor proxy}
 
 \item{priors_m_upd_ref}{Data frame.
-A (meta)data frame with the following columns:
+A (meta)data frame of exogenous (out-of-sample) return observations used to derive informative priors
+via \code{derive_informative_priors_from_data()}, with the following columns:
 \describe{
 \item{id}{Identifier for each observation.}
-\item{characteristic/signal}{Characteristic or signal associated with each observation.}
+\item{tickers}{Signal (ticker) identifier associated with each observation.}
 \item{dates}{Date of each observation.}
+\item{return}{Return of the signal at that date.}
+\item{market_factor_proxy}{Market factor proxy return at that date.}
 \item{theme}{Theme associated with each signal, used for clustering in the hierarchical Bayesian model.}
-\item{alpha}{Mean and standard error values for the alpha parameter.}
-\item{beta}{Mean and standard error values for the beta parameter.}
-\item{sigma}{Sigma values used to build priors.}
 }
-\strong{Note:} This dataframe should contain data only for the current date.}
+\strong{Note:} This dataframe should contain observations up to (but not beyond) the current date.}
 
 \item{model_spec_theme_level}{Character string.
 Specifies the structure of the hierarchical Bayesian model. Options include:
@@ -118,17 +116,17 @@ A named list with the following components:
 \item{\code{posterior_signal_universe_m_d_ref}}{Data frame.
 The input \code{signal_universe_m_d_ref} updated with posterior summary statistics derived from the Bayesian model fitting. This includes metrics such as posterior alphas, betas, sigmas, active returns, tracking errors, information ratios (IR), appraisal ratios (AP), and Treynor ratios.
 }
-\item{\code{bayesian_model}}{\code{brmsfit} object.
+\item{\code{brm_model}}{\code{brmsfit} object.
 The fitted Bayesian hierarchical model containing posterior distributions, parameter estimates, diagnostics, and other details of the model fit.
 }
-\item{\code{elected_priors}}{List.
-The priors used in the Bayesian model, either derived from data or provided by the user.
+\item{\code{posterior_draws_summaries}}{List.
+Summary statistics (median and 89\\% CI) of posterior distributions for the intercept, slope, and scale parameters. See \code{summarize_posteriors_draws()}.
 }
-\item{\code{frequentist_model}}{\code{lme4::lmer} object.
-The fitted frequentist linear mixed-effects model used to derive informative priors.
+\item{\code{elected_priors}}{\code{brmsprior} data frame, or \code{NULL} if uninformative priors were used.
+The priors used in the Bayesian model, either derived from data, provided by the user, or \code{NULL}.
 }
-#'   \item{\code{posterior_draws_summaries}}{Data frame.
-Summary statistics of posterior distributions for each signal including mean, standard deviation, and confidence intervals for model parameters.
+\item{\code{elected_priors_frequentist_model}}{\code{lme4::lmer} object, or \code{NULL}.
+The fitted frequentist linear mixed-effects model used to derive informative priors (only set when \code{priors_m_upd_ref} was supplied).
 }
 }
 }

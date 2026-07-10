@@ -3,37 +3,47 @@
 \docType{class}
 \name{meta_xts-class}
 \alias{meta_xts-class}
-\title{An S4 class that stores a main xts object plus metadata about backtested returns.}
+\title{An S4 Class Storing a Time Series Plus Metadata}
 \description{
-The meta_xts class is designed to hold:
-\itemize{
-\item \code{data}: An xts object containing the time series data.
-\item \code{meta_xts_name}: A character name/label for the series.
-\item \code{workflow}: An ANY object that can hold workflow objects/pipelines.
-\item \code{n_dates}: A numeric value equal to the number of rows in \code{data}.
-\item \code{source}: A character vector indicating the origin of each column
-(same length as number of columns in \code{data}).
-\item \code{frequency}: A character value representing time frequency
-(e.g., "daily", "weekly", "monthly", "yearly", etc.).
-}
+Base container class for an \code{xts} time series together with the metadata
+needed to track its provenance and shape. Not normally instantiated directly;
+use \code{\link{create_meta_xts}()}, which builds the appropriate subclass
+(\code{\link{returns_meta_xts-class}} or \code{\link{metrics_meta_xts-class}})
+for you.
 }
 \section{Slots}{
 
 \describe{
-\item{\code{data}}{An xts object containing the time series.}
+\item{\code{data}}{An \code{xts} object containing the time series.}
 
 \item{\code{meta_xts_name}}{Character. A label or ID for the series.}
 
-\item{\code{metric_name}}{Character. The name of the metric being stored for metrics_m_xts.}
+\item{\code{metric_name}}{Character. Name of the metric/return series being stored.}
 
-\item{\code{workflow}}{ANY. A placeholder for user-defined workflow/pipeline objects.}
+\item{\code{workflow}}{ANY. A placeholder for user-defined workflow/pipeline objects
+(e.g. a log of the processing steps that produced \code{data}).}
 
 \item{\code{n_dates}}{Numeric. Number of rows in \code{data}.}
 
-\item{\code{source}}{Character. Source of each column (same length as number of columns in \code{data}).}
+\item{\code{source}}{Character. Origin of each column, one entry per column of \code{data}.}
 
-\item{\code{frequency}}{Character. Detected frequency (daily, monthly, yearly, etc.).}
+\item{\code{frequency}}{Character. Detected time frequency (e.g. \code{"daily"},
+\code{"weekly"}, \code{"monthly"}, \code{"yearly"}).}
 
-\item{\code{current_date}}{Date. The most recent date in the dataset.}
+\item{\code{current_date}}{Date. The most recent date in \code{data}.}
 }}
 
+\section{Validity}{
+
+\itemize{
+\item Dates in \code{data} must be strictly increasing (no duplicated timestamps).
+\item \code{n_dates} must equal \code{nrow(data)}.
+\item \code{source} must have one entry per column of \code{data}.
+\item Column names in \code{data} must not be duplicated.
+}
+}
+
+\seealso{
+\code{\link{create_meta_xts}}, \code{\link{returns_meta_xts-class}},
+\code{\link{metrics_meta_xts-class}}, \code{\link{meta_dataframe-class}}
+}

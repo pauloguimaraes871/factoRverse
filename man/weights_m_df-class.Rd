@@ -3,7 +3,74 @@
 \docType{class}
 \name{weights_m_df-class}
 \alias{weights_m_df-class}
-\title{Define the weights_m_df S4 Class}
+\alias{weights_m_df}
+\title{weights_m_df-class}
 \description{
-This class inherits from \code{meta_dataframe} and enforces that the underlying data is adherent to a weights_meta_dataframe
+\code{weights_m_df} stores per-asset weight columns (benchmarks, strategy weights, etc.) aligned with the canonical
+\code{meta_dataframe} layout (rows = asset-date observations). It enforces numeric weight bounds and performs per-date
+checks that group sums are approximately 1 (with tolerance).
+}
+\details{
+An S4 subclass of \code{meta_dataframe} representing weight matrices used for portfolio construction.
+
+This class is intended as the canonical container for portfolio weight matrices produced by selection and
+portfolio-construction helpers. The per-date sum check helps catch data or aggregation errors (bench_weights-only
+deviations are surfaced as warnings to allow tolerant downstream workflows).
+}
+\section{Slots}{
+
+\describe{
+\item{\code{data}}{A \code{data.frame} (first three columns: \code{id}, \code{tickers}, \code{dates}). Remaining columns are numeric positive weight vectors.}
+
+\item{\code{workflow}}{ANY. Record of preprocessing / portfolio workflow that produced this object.}
+
+\item{\code{signals}}{character. Names of columns in \code{data} that represent signals/metrics (may be empty for weights objects).}
+
+\item{\code{unique_dates}}{numeric. Number of distinct dates in \code{data}.}
+
+\item{\code{unique_tickers}}{numeric. Number of distinct tickers in \code{data}.}
+
+\item{\code{n_obs}}{numeric. Total number of observations (rows) in \code{data}.}
+
+\item{\code{current_date}}{Date. Reference/current date for the object.}
+
+\item{\code{meta_dataframe_name}}{character. Short identifier for this meta_dataframe instance.}
+}}
+
+\section{Validity}{
+
+Objects must satisfy parent-class validation and additionally:
+\itemize{
+\item All columns except \code{id}, \code{tickers}, and \code{dates} must be numeric and lie between 0 and 1.
+\item For each date and weight-variable the sum of weights is checked; a tolerance of 0.1 is used and violations
+emit a warning listing problematic variable-date combinations (failures do not currently abort construction).
+}
+}
+
+\examples{
+\dontrun{
+df <- data.frame(
+  id = c("A-2026-07-01","B-2026-07-01"),
+  tickers = c("A","B"),
+  dates = as.Date(c("2026-07-01","2026-07-01")),
+  bench_weights = c(0.6, 0.4),
+  strategy_weights = c(0.7, 0.3),
+  stringsAsFactors = FALSE
+)
+w <- new(
+  "weights_m_df",
+  data = df,
+  workflow = list(step = "construct_weights"),
+  signals = character(),
+  unique_dates = length(unique(df$dates)),
+  unique_tickers = length(unique(df$tickers)),
+  n_obs = nrow(df),
+  current_date = Sys.Date(),
+  meta_dataframe_name = "weights_example"
+)
+}
+
+}
+\seealso{
+\code{\link{meta_dataframe-class}}, portfolio construction and backtest helpers
 }

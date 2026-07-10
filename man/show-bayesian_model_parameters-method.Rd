@@ -10,5 +10,7 @@
 \item{object}{A \code{bayesian_model_parameters} object to be displayed.}
 }
 \description{
-Prints the contents of a \code{bayesian_model_parameters} object, detailing the various parameters and configurations.
+Prints the contents of a \code{bayesian_model_parameters} object: prior derivation control
+(e.g. \code{half_t_df}), \code{brms} control parameters (e.g. \code{chains}, \code{iter}, \code{warmup}, \code{thin}, \code{seed}, \code{adapt_delta}),
+and user priors (if set) — each section shown, or reported as not set, individually.
 }

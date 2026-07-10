@@ -3,11 +3,13 @@
 #' Fits a Signal Blending (SB) model based on the specified \code{sb_algorithm}, preparing and
 #' training the model with the given data, hyperparameters, and constraints. This function
 #' dispatches to various modeling workflows, including OLS, GLMNET, Ranger (RF), XGBoost,
-#' Keras (NN), heuristic portfolios, Risk Parity, or Mean-Variance Optimization (MVO),
-#' depending on the input.
+#' Keras (NN), heuristic portfolios (equal- and signal-weighted, custom weights), Risk
+#' Parity (RP), Hierarchical Risk Parity (HRP), Mean-Variance Optimization (MVO), or the
+#' Micro-Macro Allocation Framework (MMAF), depending on the input.
 #'
 #' @param sb_algorithm A \code{character} specifying the signal blending algorithm. Options include:
-#'   \code{"ols"}, \code{"glmnet"}, \code{"rf"}, \code{"xgb"}, \code{"nn"}, \code{"ew"}, \code{"sw"}, \code{"rp"}, \code{"mvo"}.
+#'   \code{"ols"}, \code{"glmnet"}, \code{"rf"}, \code{"xgb"}, \code{"nn"}, \code{"ew"}, \code{"sw"},
+#'   \code{"rp"}, \code{"hrp"}, \code{"mvo"}, \code{"mmaf"}, \code{"custom_weights"}.
 #' @param target_fwd_name A \code{character} indicating the target variable's name.
 #' @param selected_full_data_corrected_positions_m_refit_clean A cleaned meta-dataframe for refitting the model.
 #' @param selected_features_corrected_positions_m_refit A matrix or dataframe containing the features for model refitting.
@@ -341,7 +343,8 @@ fit_sb_model <- function(sb_algorithm, #SB Algorithm
                                                   exp_ret_score_tilt_eta = exp_ret_score_tilt_eta,
                                                   #Macro parameters
                                                   macro_concentration_constraint_policy = macro_concentration_constraint_policy,
-                                                  macro_cap_weighting_metric = macro_cap_weighting_metric,
+                                                  #Signal portfolios never cap-weight the macro proxy (cw/cs disallowed by check_inputs_sb_backtest)
+                                                  macro_cap_weighting_metric = NULL,
                                                   macro_n_random_ports = macro_n_random_ports,
                                                   macro_random_ports_method = macro_random_ports_method,
                                                   macro_opt_objective = macro_opt_objective,

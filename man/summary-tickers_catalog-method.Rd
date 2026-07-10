@@ -11,12 +11,9 @@
 
 \item{summary_id}{A character string or numeric value specifying which summary to display.
 \itemize{
-\item By name: Options are:
-\itemize{
-\item "Catalog Overview"
-}
-\item By number: Provide a number corresponding to the summary.
-If \code{NULL} (default), the method lists available summaries.
+\item By name: Options are "Catalog Overview" or "Yearly Summary".
+\item By number: Provide a number corresponding to the summary (1 or 2).
+If \code{NULL} (default), the method lists available summaries and prompts for a selection.
 }}
 }
 \value{

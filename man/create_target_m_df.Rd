@@ -3,7 +3,7 @@
 \name{create_target_m_df}
 \alias{create_target_m_df}
 \alias{create_target_m_df,meta_dataframe,meta_xts,meta_dataframe-method}
-\title{Create a target_m_df from a meta_dataframe}
+\title{Build target_m_df for forward horizons}
 \usage{
 create_target_m_df(
   daily_returns_m_df,
@@ -24,34 +24,96 @@ create_target_m_df(
 )
 }
 \arguments{
-\item{daily_returns_m_df}{A \code{meta_dataframe} object containing daily stock returns data.}
+\item{daily_returns_m_df}{A \code{meta_dataframe} containing daily (or higher-frequency) asset returns.
+Must cover a date range that includes the forward windows required by \code{fwd_horizon}.}
 
-\item{daily_bench_returns_m_xts}{A \code{meta_xts} object containing daily benchmark returns.}
+\item{daily_bench_returns_m_xts}{A \code{meta_xts} of benchmark returns (time-series indexed by Date).
+A column specified by \code{selected_bench} will be used to compute active returns and to fill NAs
+for delisted series when appropriate.}
 
-\item{features_m_df}{A \code{meta_dataframe} object containing features data.}
+\item{features_m_df}{A \code{meta_dataframe} whose rows (ids) define the observations for which targets
+will be produced. Targets are computed for each \code{features_m_df@data$id} / date pair.}
 
-\item{...}{Additional arguments to be passed to the method.}
+\item{...}{Additional arguments forwarded (internal use).}
 
-\item{past_ret_column}{Character, indicating the column in \code{daily_returns_m_df} that contains returns.}
+\item{past_ret_column}{Character scalar. Name of the return column inside \code{daily_returns_m_df@data}
+that holds realized returns (e.g. \code{"ret"}).}
 
-\item{selected_bench}{Character, indicating the column in \code{benchmark_returns_m_xts} to use as the benchmark.}
+\item{selected_bench}{Character scalar. Column name in \code{daily_bench_returns_m_xts} to use as the benchmark.}
 
-\item{fwd_horizon}{Integer, the number of months to compute forward returns}
+\item{fwd_horizon}{Integer. Forward horizon in months for the target (e.g., \code{3} for 3-month forward).}
 
-\item{active_returns}{Logical, indicating whether to calculate active returns.}
+\item{active_returns}{Logical. If \code{TRUE} the returned target is active (asset return minus benchmark return).}
 
-\item{parallel}{Logical, indicating whether to use parallel processing.}
+\item{parallel}{Logical. If \code{TRUE} uses \pkg{furrr} for parallelizing per-date processing; otherwise processes serially.}
 }
 \value{
-A \code{target_m_df} object containing future return metrics.
+An S4 object of class \code{target_m_df}. The \code{data} slot is a long \code{data.frame} with
+the canonical first-three columns \code{id}, \code{tickers}, \code{dates} and one or more forward-target
+metric columns named like \code{fwd_<metric>_<Nhorizon>m}. The \code{workflow} slot is appended with a record
+describing the call and parameters used to create the targets.
 }
 \description{
-Create a target_m_df from a meta_dataframe
+Generate a \code{target_m_df} containing forward-return targets (and optional active returns) aligned
+to the rows of a features/metafeatures \code{meta_dataframe}. This routine is the canonical helper
+used by the package to build prediction targets for signal-blending and meta-model training.
 }
 \details{
-All ids from features_m_df are used to create the target_m_df.
-The target_m_df is created by calculating the forward returns for each id in features_m_df.
-The forward returns are calculated by shifting the returns in daily_returns_m_df by fwd_horizon months.
-The benchmark returns are calculated by shifting the returns in daily_bench_returns_m_xts by fwd_horizon months.
-The active returns are calculated by subtracting the benchmark returns from the forward returns.
+Create a target_m_df (prediction targets for backtests and meta-models)
+\itemize{
+\item For each row in \code{features_m_df}, the function locates the closest or matching date in \code{daily_returns_m_df}
+and aggregates returns across the forward window (days from next-day through end of the horizon window).
+\item Missing forward returns are conservatively replaced with benchmark returns only when appropriate (e.g., trailing
+NAs caused by delisting). The helper checks that NA patterns are trailing blocks for each series; violations stop with an error.
+\item If any forward dates exceed \code{daily_returns_m_df@current_date} the corresponding target rows are returned with NA values.
+\item Uses \code{create_meta_xts()} and \code{summarize_performance()} internally to compute summary forward metrics (alpha, IR, active returns, etc.)
+and then converts those summaries into a \code{target_m_df} (naming columns with the horizon suffix).
+\item Parallel execution uses \pkg{furrr} with reproducible seeding when available.
+}
+}
+\section{Functions}{
+\itemize{
+\item \code{create_target_m_df(
+  daily_returns_m_df = meta_dataframe,
+  daily_bench_returns_m_xts = meta_xts,
+  features_m_df = meta_dataframe
+)}: Method implementation for meta_dataframe inputs
+
+Method signature: \code{daily_returns_m_df = "meta_dataframe"}, \code{daily_bench_returns_m_xts = "meta_xts"},
+\code{features_m_df = "meta_dataframe"}.
+
+}}
+\section{Input validation (as exercised by tests)}{
+
+\itemize{
+\item \code{features_m_df@current_date} and \code{daily_returns_m_df@current_date} must be compatible (tests expect same current_date).
+\item All tickers referenced in \code{features_m_df} must exist in \code{daily_returns_m_df}; otherwise an informative error is thrown.
+\item Benchmark column \code{selected_bench} must exist in \code{daily_bench_returns_m_xts}.
+\item \code{fwd_horizon} must be >= 1.
+}
+}
+
+\examples{
+\dontrun{
+# daily_returns_m_df and features_m_df are meta_dataframe objects;
+# daily_bench_returns_m_xts is a meta_xts
+tgt <- create_target_m_df(
+  daily_returns_m_df = daily_returns_m_df,
+  daily_bench_returns_m_xts = daily_bench_returns_m_xts,
+  features_m_df = features_m_df,
+  past_ret_column = "ret",
+  selected_bench = "ibov",
+  fwd_horizon = 3,
+  active_returns = TRUE,
+  parallel = FALSE
+)
+
+# Returned object is of class 'target_m_df'
+class(tgt)
+head(tgt@data)
+}
+
+}
+\seealso{
+\code{\link{target_m_df-class}}, \code{\link{create_meta_dataframe}}, \code{\link{run_sb_backtest}}
 }

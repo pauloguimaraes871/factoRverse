@@ -3,33 +3,47 @@
 \docType{class}
 \name{returns_meta_xts-class}
 \alias{returns_meta_xts-class}
-\title{An S4 subclass of meta_xts for asset returns with no holes.}
+\title{An S4 Subclass of \code{meta_xts} for Return Series (No Holes Allowed)}
 \description{
-An S4 subclass of meta_xts for asset returns with no holes.
+Stores asset (or portfolio) return time series. Extends \code{\link{meta_xts-class}}
+with asset identity metadata and enforces the invariants that make a return
+series usable in backtests: consecutive dates and, for portfolios, no missing values.
 }
 \section{Slots}{
 
 \describe{
-\item{\code{data}}{An xts object containing the time series.}
+\item{\code{asset_type}}{Character. Type of asset (e.g. \code{"stock"}, \code{"bond"},
+\code{"ports"} for portfolios).}
 
-\item{\code{meta_xts_name}}{Character. A label or ID for the series.}
-
-\item{\code{metric_name}}{Character. The name of the metric being stored for metrics_m_xts.}
-
-\item{\code{workflow}}{ANY. A placeholder for user-defined workflow/pipeline objects.}
-
-\item{\code{n_dates}}{Numeric. Number of rows in \code{data}.}
-
-\item{\code{source}}{Character. Source of each column (same length as number of columns in \code{data}).}
-
-\item{\code{frequency}}{Character. Detected frequency (daily, monthly, yearly, etc.).}
-
-\item{\code{current_date}}{Date. The most recent date in the dataset.}
-
-\item{\code{asset_type}}{Character. Type of asset (e.g., "stock", "bond", etc.).}
-
-\item{\code{assets}}{Character. Names of the columns (assets).}
+\item{\code{assets}}{Character. Column names of \code{data} (one per asset).}
 
 \item{\code{n_assets}}{Numeric. Number of asset columns.}
 }}
 
+\section{Return convention}{
+
+Values are expected on a \strong{percent scale} (e.g. \code{2.0} for 2\\%, not
+\code{0.02}). If the median absolute value in \code{data} is below 1, validity
+emits a \code{warning()} flagging a probable decimal-scale input, since
+downstream performance functions assume percent scale.
+}
+
+\section{Validity}{
+
+\itemize{
+\item Inherits all checks from \code{\link{meta_xts-class}}.
+\item Dates should be (approximately) consecutive for the detected
+frequency; a large proportion of gaps raises an error.
+\item \code{n_assets} must equal \code{ncol(data)}, and \code{assets} must
+match \code{colnames(data)}.
+\item Missing values trigger a \code{warning()} for individual assets, but
+are a hard \code{stop()} when \code{asset_type == "ports"} -- a portfolio
+return series is not allowed to have gaps.
+\item Emits a \code{message()} reporting the detected frequency, useful
+because detection can be unreliable on short or irregular series.
+}
+}
+
+\seealso{
+\code{\link{meta_xts-class}}, \code{\link{metrics_meta_xts-class}}, \code{\link{create_meta_xts}}
+}

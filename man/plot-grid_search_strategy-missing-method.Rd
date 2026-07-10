@@ -14,8 +14,15 @@
 \item{palette}{Character. Color palette to use for the plot. Options include "cyberpunk" and "br". Default is "cyberpunk".}
 }
 \value{
-A \code{ggplot} object visualizing the hyperparameter grid and possible limits.
+Invisibly returns the \code{ggplot} object visualizing the hyperparameter grid and its predefined limits (also printed as a side effect).
 }
 \description{
 Plot the values selected for each hyperparameter in \code{hyper_grid_domain} for grid search strategy.
 }
+\section{Requirements}{
+
+Requires the suggested packages \code{gridExtra}, \code{scales}, \code{ggdist}, \code{ggraph},
+\code{ggrepel}, \code{igraph}, and \code{RColorBrewer}; if any are missing, an informative
+\code{stop()} is raised.
+}
+

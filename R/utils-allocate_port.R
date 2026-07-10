@@ -24,10 +24,10 @@
 #'
 #' @return A list with the following components:
 #'   \itemize{
-#'     \item \code{port_allocation_log_m_d_ref} - An enhanced portfolio allocation log containing transactions,
-#'           costs, and strategic data.
-#'     \item \code{port_weights_m_d_ref} - The merged and rescaled portfolio weights.
-#'     \item \code{port_costs_d_ref} - The calculated portfolio transaction costs.
+#'     \item \code{transactions_log_m_d_ref} - The transaction-and-costs log (from \code{calculate_transaction_costs()}):
+#'           per-ticker orders enriched with direct, market-impact and total costs (and benchmark weights, if provided).
+#'     \item \code{port_weights_m_d_ref} - The merged and rescaled end-of-period portfolio weights.
+#'     \item \code{port_costs_d_ref} - The one-row portfolio transaction-cost summary (direct cost, market impact, total cost, turnover).
 #'   }
 #'
 #' @details
@@ -39,9 +39,9 @@
 #'   \item **Calculate Transactions:** Computes trade orders using \code{calculate_trade_orders()} with liquidity and
 #'         volatility data.
 #'   \item **Compute Transaction Costs:** Uses \code{calculate_transaction_costs()} to determine both indirect and direct costs.
-#'   \item **Enhance Allocation Log:** Generates an enhanced allocation log from the transaction costs results.
-#'   \item **Merge Benchmark Weights (Optional):** If \code{selected_benchmark_weights_m_d_ref} is provided, it is merged
-#'         into the allocation log and any missing \code{bench_weights} are set to 0.
+#'   \item **Build Transaction Log:** Extracts the enriched transactions-and-costs data frame (\code{transactions_log_m_d_ref})
+#'         from the cost results. Benchmark weights, when \code{selected_benchmark_weights_m_d_ref} is supplied, are already
+#'         merged during the merge step (2) and carried through in \code{port_weights_m_d_ref} and the transaction log.
 #' }
 #'
 #' @examples
@@ -64,8 +64,8 @@
 #'     verbose = TRUE
 #'   )
 #'
-#'   # Access the enhanced portfolio allocation log:
-#'   allocation_log <- result$port_allocation_log_m_d_ref
+#'   # Access the transaction-and-costs log:
+#'   allocation_log <- result$transactions_log_m_d_ref
 #'
 #'   # Print the allocation log using cat and paste:
 #'   cat(paste(capture.output(print(allocation_log)), collapse = "\n"))

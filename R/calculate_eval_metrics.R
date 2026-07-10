@@ -1,26 +1,48 @@
-#' Calculate Evaluation Metrics
+#' Calculate Out-of-Sample Evaluation Metrics
 #'
-#' Calculate various evaluation metrics for model prediction performance.
+#' @description
+#' Computes a panel of out-of-sample (OOS) prediction-quality metrics comparing a
+#' vector of predictions against realized targets. Used inside the signal-blending
+#' tuning loop (see \code{\link{hyper_tune}}) to score each hyperparameter candidate,
+#' and again to report the metrics of the chosen model.
+#'
+#' @details
+#' The error convention is \code{error = target - pred}. If every element of
+#' \code{error}/\code{target} is \code{NA}, or any prediction is \code{NA}, all metrics
+#' are returned as \code{NA} rather than propagating silently. The \code{Score} column
+#' is the single scalar the tuner maximizes: the \code{chosen_eval_metric} re-signed so
+#' that larger is always better (error-type metrics \code{rmse}, \code{mae},
+#' \code{mphe}, \code{mpe}, \code{mape} are negated; \code{rss}, \code{cp}, \code{hr}
+#' are kept as-is).
 #'
 #' @param pred Numeric vector of predicted values.
-#' @param target Numeric vector of actual target values.
-#' @param huber_delta Numeric scalar, delta parameter for Pseudo-Huber loss calculation.
-#' @param quantile_tau Numeric scalar, quantile parameter for Pinball loss calculation.
-#' @param chosen_eval_metric Metric to optimize during tuning: "rss", "rmse", "cp", "mae", "mphe", "mpe", "mape", "hr" and "mb"
-#' @param early_stop If numeric, will include Halting criteria to prevent overfitting in xgb and nn
-#' @param best_iteration Best iteration according to early stopping criteria implemented
-#' @param return_error Should residuals be returned?
+#' @param target Numeric vector of realized target values (same length as \code{pred}).
+#' @param huber_delta Numeric scalar, delta for the Pseudo-Huber error (\code{mphe}). Default \code{1}.
+#' @param quantile_tau Numeric scalar in \code{(0, 1)}, tau for the Pinball error (\code{mpe}). Default \code{0.5}.
+#' @param chosen_eval_metric Character, metric used to build \code{Score}. One of
+#'   \code{"rss"}, \code{"rmse"}, \code{"cp"}, \code{"mae"}, \code{"mphe"}, \code{"mpe"},
+#'   \code{"mape"}, \code{"hr"}. Default \code{"rmse"}. Note \code{"mb"} is reported but
+#'   not selectable here.
+#' @param early_stop Numeric or \code{NULL}. When numeric, a \code{best_iteration}
+#'   column is appended (for \code{xgb}/\code{nn} early stopping).
+#' @param best_iteration Numeric or \code{NULL}. Best iteration index to record when \code{early_stop} is set.
+#' @param return_error Logical. If \code{TRUE}, returns a list of the metrics data frame plus the raw \code{error} vector. Default \code{FALSE}.
 #'
-#' @return A data frame containing the calculated evaluation metrics:
-#'   - `rss`: R-squared (coefficient of determination).
-#'   - `cp`: Cross-product of predicted and actual values.
-#'   - `rmse`: Root Mean Squared Error.
-#'   - `mae`: Mean Absolute Error.
-#'   - `mphe`: Mean Pseudo-Huber Error.
-#'   - `mpe`: Mean Pinball Error.
-#'   - `mape`: Mean Absolute Percentage Error.
-#'   - `hr`: Hit Rate (percentage of predictions with correct sign).
-#'   - `mb`: Mean Bias (mean of prediction errors).
+#' @return A one-row \code{data.frame} of metrics (or a list of that plus \code{error}
+#'   when \code{return_error = TRUE}). Columns:
+#'   \itemize{
+#'     \item \code{Score}: \code{chosen_eval_metric} re-signed so higher is better (tuning target).
+#'     \item \code{rss}: Out-of-sample R-squared, \eqn{1 - \sum error^2 / \sum target^2}.
+#'     \item \code{cp}: Mean cross-product, \code{mean(pred * target)}.
+#'     \item \code{rmse}: Root Mean Squared Error.
+#'     \item \code{mae}: Mean Absolute Error.
+#'     \item \code{mphe}: Mean Pseudo-Huber Error (uses \code{huber_delta}).
+#'     \item \code{mpe}: Mean Pinball Error (uses \code{quantile_tau}).
+#'     \item \code{mape}: Mean Absolute Percentage Error.
+#'     \item \code{hr}: Hit Rate (share of predictions whose sign matches the target).
+#'     \item \code{mb}: Mean Bias, \code{mean(error)} (reported only).
+#'     \item \code{best_iteration}: Present only when \code{early_stop} is numeric.
+#'   }
 #'
 #'
 #' @export

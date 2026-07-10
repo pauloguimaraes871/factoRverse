@@ -23,7 +23,15 @@
 #' @param user_defined_AND_rules_m_df A \code{meta_dataframe} specifying AND-based portfolio inclusion rules.
 #' @param verbose Logical; if \code{TRUE}, prints progress messages (default is \code{TRUE}).
 #' @param .test_seed Optional seed for reproducibility when testing.
-
+#'
+#' @details
+#' The update re-runs a one-month extension of the existing backtest: it takes the backtest back to the last
+#' covered date (so the now-populated `fwd_return_m_df` at that date can be used to roll the portfolio forward),
+#' sets `initial_buffer_period` to the previous number of dates, and verifies that the new input objects are the
+#' one-month continuation of the old ones (matching object names and dates via `check_update_backtest_objects()`)
+#' before binding the new outputs onto the old results with `consolidate_backtest_results()`. If the original
+#' backtest was driven by an `sb_backtest_results`/`sb_metabacktest_results` object, a matching
+#' `updated_sb_backtest_results` (same `backtest_identifier`, one month ahead) must be supplied here.
 #'
 #' @return An object of class \code{port_backtest_results} containing the portfolio backtest results.
 #'
@@ -272,6 +280,22 @@ setGeneric("run_port_backtest", function(signals_m_df, fwd_return_m_df, liquidit
 #' Executes a full pipeline portfolio backtest, from asset/signal classification and eligibility filtering to benchmark construction and weight optimization, based on expected return scores (`exp_ret_score`) or signal performance. This function is designed to incorporate realistic portfolio constraints and rules—such as turnover, liquidity, group representativeness, and user-defined filters—while also supporting fallback logic to ensure a viable investment universe is selected in each rebalance date.
 #'
 #' @details
+#' This is the stock-level portfolio construction and backtesting engine of the `factoRverse` ecosystem.
+#' It is used at two points of a quantitative workflow: (a) when designing backtests for an individual
+#' signal/characteristic, and (b) when building a final portfolio out of a blended signal. Accordingly, the
+#' expected-return score for each stock comes from one of two mutually exclusive sources:
+#' \itemize{
+#'   \item a single characteristic column of `signals_m_df`, selected via `config@chosen_score_metric_and_position`
+#'         (a named vector such as `c(book_yield = "long")`); or
+#'   \item the `pred` column of an `sb_backtest_results`/`sb_metabacktest_results` object passed to
+#'         `sb_backtest_results`, i.e. the out-of-sample output of `run_sb_backtest()`. Only `id`, `tickers`,
+#'         `dates`, and `pred` are extracted (the `target` column is dropped) to guard against look-ahead leakage.
+#' }
+#' The engine then walks forward date by date, at each rebalance deriving the stock universe
+#' (`derive_stock_universe_m_d_ref`), classifying eligibility (`classify_investment_universe`), assigning weights
+#' (`set_portfolio_weights`), allocating with trade orders and costs (`allocate_port`), computing metrics, and
+#' rolling weights and returns to the next period (`roll_port`).
+#'
 #' The function integrates multiple components:
 #'
 #' ## 1. **Stock Classification**
@@ -309,7 +333,18 @@ setGeneric("run_port_backtest", function(signals_m_df, fwd_return_m_df, liquidit
 #' - Constraints (e.g., turnover, group weight limits) are applied at this stage, potentially using box or group constraints via `generate_box_constraints()` and `generate_group_constraints()`.
 #'
 #' ## 5. **Parallel and Verbose Execution**
-#' The function supports verbose output and parallel execution to improve transparency and computational efficiency when backtesting over long time windows or using Bayesian inference.
+#' The function supports verbose output and parallel execution to improve transparency and computational efficiency when using heavy port construction methods, such as MVO.
+#'
+#' ## 6. **Portfolio Analytics, Transaction Costs and Delisting Realism**
+#' At every rebalance the engine computes a rich set of portfolio and benchmark analytics (via `calculate_port_stats`)
+#' at both the micro (per-asset) and macro (group/sector) levels: concentration (HHI, effective N, entropy, Gini,
+#' top-k), diversification ratio, weighted-average pairwise correlation, gross/net exposure, and relative
+#' risk-contribution measures (RRC HHI, effective N, distance-to-ERC) — plus active (`act_`, information-ratio)
+#' variants whenever a benchmark is supplied. Trading is modelled realistically: `allocate_port` sizes trade orders
+#' and applies a market-impact cost model (`calculate_transaction_costs`, with static or `"dynamic"` lambda) on top of
+#' direct costs, and keeps a full transaction log. Delisted and newly listed (IPO) names are handled explicitly when
+#' rolling and rebalancing — delisted holdings are unwound (zero target weight, imputed liquidity/volatility), IPOs
+#' enter with zero weight, and surviving names are carried forward by `roll_port`.
 #'
 #' @param signals_m_df A `meta_dataframe` containing alpha signals. Must include columns `id`, `tickers`, and `dates`.
 #' @param fwd_return_m_df A `meta_dataframe` of forward returns (e.g., 1M-ahead).
@@ -347,7 +382,39 @@ setGeneric("run_port_backtest", function(signals_m_df, fwd_return_m_df, liquidit
 #'   \item \code{port_returns_m_xts}: Net and raw portfolio returns (and benchmark-relative returns if applicable).
 #'   \item \code{port_metrics_m_xts}: Aggregated portfolio metrics (if `custom_stock_metrics_m_df` is supplied).
 #'   \item \code{stock_universe_m_df}: Data frame with signal scores, eligibility flags, and classification for each stock.
+#'   \item \code{port_stats_m_df}: Time series of portfolio (and, when applicable, group and active) analytics per rebalance date.
+#'   \item \code{final_stock_port}: The `stock_port` object for the last rebalance date (final weights, covariance, RRC, macro/benchmark sub-portfolios).
 #'   \item \code{port_backtest_workflow}: A list tracking workflow metadata, inputs, and date coverage.
+#'   \item \code{backtest_identifier}: A character identifier of the form \code{"c__<config>_s__<signals>_f__<fwd_return>"}.
+#' }
+#'
+#' @examples
+#' \dontrun{
+#'   # Single-signal (book-yield) equal-weighted backtest against the ibov benchmark.
+#'   config <- create_port_backtest_config(
+#'     chosen_score_metric_and_position = c(book_yield = "long"),
+#'     eligibility_quantile_range = c(0.8, 1.0),
+#'     initial_buffer_period = 12,
+#'     rebalancing_months = c(6, 12),
+#'     selected_benchmark = "ibov",
+#'     main_liquidity_metric = "mean_volfin_3m",
+#'     port_construction_method = "ew"
+#'   )
+#'
+#'   results <- run_port_backtest(
+#'     signals_m_df           = signals_m_df,
+#'     fwd_return_m_df        = fwd_return_m_df,
+#'     liquidity_m_df         = liquidity_m_df,
+#'     volatility_m_df        = volatility_m_df,
+#'     config                 = config,
+#'     benchmark_weights_m_df = benchmark_weights_m_df,
+#'     benchmark_returns_m_xts = benchmark_returns_m_xts,
+#'     verbose = TRUE, parallel = FALSE
+#'   )
+#'
+#'   # Alternatively, drive the backtest from a blended signal (run_sb_backtest output):
+#'   # results <- run_port_backtest(signals_m_df, fwd_return_m_df, liquidity_m_df,
+#'   #                              volatility_m_df, config, sb_backtest_results = sb_results)
 #' }
 #' @export
 setMethod("run_port_backtest",

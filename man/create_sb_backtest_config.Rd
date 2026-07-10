@@ -21,7 +21,8 @@ create_sb_backtest_config(
 )
 }
 \arguments{
-\item{sb_algorithm}{Character string specifying the machine learning algorithm to be used ('glmnet', 'rf', 'xgb', 'nn', 'sw', 'ew', etc.).}
+\item{sb_algorithm}{Character string specifying the signal-blending algorithm. One of 'ols' (default),
+'glmnet', 'rf', 'xgb', 'nn' (ML), or 'ew', 'sw', 'rp', 'hrp', 'mvo', 'mmaf', 'custom_weights' (heuristic/portfolio).}
 
 \item{target_fwd_name}{Name of the target variable in \code{target_m_df}.}
 
@@ -33,9 +34,13 @@ create_sb_backtest_config(
 
 \item{split_method}{Character string indicating the data splitting method ('expanding' or 'rolling').}
 
-\item{chosen_signals_and_positions}{A vector of chosen signals and positions (long, short)}
+\item{chosen_signals_and_positions}{A named vector of chosen signals and their positions ('long'/'short').
+Defaults to NULL, which is coerced to 'all' (use every signal in \code{features_m_df}).}
 
-\item{custom_objective}{Character string specifying the custom objective function ('squared_error', 'pseudo_huber_error', 'absolute_error') or NULL.}
+\item{custom_objective}{Character string, or NULL to auto-set. For ML algorithms: 'squared_error'
+(default), 'pseudo_huber_error' or 'absolute_error' (last two only for 'xgb'/'nn'). For heuristic
+portfolio algorithms ('sw', 'rp', 'hrp', 'mvo', 'mmaf'): a 'max_'/'min_' + heuristic-metric string
+(defaults to 'max_info_ratio' when NULL). See \code{display_valid_custom_objectives()}.}
 
 \item{keras_architecture_parameters}{An object of class \code{keras_architecture_parameters} providing parameters specific to keras-based neural networks.}
 
@@ -52,4 +57,7 @@ An sb_backtest_config object.
 }
 \description{
 Constructs an sb_backtest_config object.
+}
+\seealso{
+\code{\link[=add_tuning_strategy]{add_tuning_strategy()}}, \code{\link[=add_hyperparameter]{add_hyperparameter()}}, \code{\link[=add_concentration_constraint_policy]{add_concentration_constraint_policy()}}, \code{\link[=run_sb_backtest]{run_sb_backtest()}}
 }

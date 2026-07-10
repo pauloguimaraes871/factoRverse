@@ -165,4 +165,15 @@ To be promoted as eligible, assets must meet one of the following criteria:
 \item Assets that fail to meet \strong{user_defined_AND_rules} will always be excluded.
 }
 }
+
+\subsection{Signal Portfolios vs. Stocks}{
+
+The function classifies both stock universes (\code{asset_object = "stocks"}) and signal-portfolio universes
+(\code{asset_object = "signals"}). For stocks, pre-eligibility is the \strong{Only Top Assets} quantile rule on
+\code{exp_ret_score}. For signals, pre-eligibility is instead driven by the statistical significance of the CAPM
+alpha: if a \code{pd_alpha} column is present, the Bayesian rule \code{1 - pd_alpha <= signal_significance_threshold} is
+used; otherwise the frequentist rule \code{adjusted_p_value <= signal_significance_threshold & alpha > 0} is applied
+(using the \code{alpha} column in the no-pooled case, or \code{individual_alpha} in the partial-pooled case). This shared
+logic is why \code{classify_investment_universe()} is reused inside \code{define_signal_eligibility()}.
+}
 }

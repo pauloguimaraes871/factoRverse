@@ -42,6 +42,19 @@ It has at most 5 rows and no duplicates or NAs.}
 
 \item{verbose}{Logical. If TRUE, prints additional information during processing.}
 }
+\value{
+A new \code{meta_dataframe} containing only the ids whose liquidity classification meets or exceeds
+\code{liquidity_floor_rule} (via \code{classify_stock_liquidity()}), with a screening step appended to the
+\code{workflow} log. Errors if every stock is filtered out.
+}
 \description{
 This function filters a \code{meta_dataframe} using \code{classify_stock_liquidity()} to remove illiquid stocks.
+}
+\examples{
+\dontrun{
+# Drop everything less liquid than small caps
+screen_by_liquidity(features_m_df, liquidity_m_df, liquidity_floor_cutoffs,
+                    liquidity_floor_rule = "small_caps")
+}
+
 }

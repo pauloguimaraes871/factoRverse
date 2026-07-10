@@ -9,16 +9,26 @@
 \arguments{
 \item{x}{An object of class \code{ss_backtest_results}.}
 
-\item{plot_id}{A character string or numeric value specifying which plot to display.}
+\item{plot_id}{A character string or numeric value specifying which plot to display (see \verb{@description} for the full list of names).}
 
-\item{palette}{A character string specifying the color palette to use for the plots. Default is "cyberpunk". Supported options include "cyberpunk", "neon", and "extended_neon".}
+\item{palette}{A character string specifying the color palette. Must be one of \code{"cyberpunk"} (dark theme) or \code{"br"} (light theme); any other value is not handled and will error. Default is \code{"cyberpunk"}.}
 
-\item{variable}{A character string specifying the variable to plot (used for certain plot types). Default is NULL.}
+\item{variable}{Character vector of tickers to include, used only by the Bayesian posterior-diagnostic plots (\code{plot_id} 10 and above). If \code{NULL}, an interactive ticker-selection prompt is shown. Ignored for the other plot types.}
 }
 \value{
 Invisibly returns the input object.
 }
 \description{
 Generates various plots to visualize metrics from the \code{ss_backtest_results} object.
-Users can select which plot to display by specifying the \code{plot_id} parameter.
+Users can select which plot to display by specifying the \code{plot_id} parameter (numeric index or exact name);
+if omitted, an interactive menu is shown. Available plots for every \code{ss_backtest_results} object:
+\code{"Time-Series Metrics by Signal"}, \code{"Average Time-Series Metrics by Theme"},
+\code{"Compare Metrics Side-by-Side by Signals"}, \code{"Compare Metrics Side-by-Side by Theme"},
+\code{"Box-Plot by Theme"}, \code{"Box-Plot by Eligibility"}, \code{"Waterfall Plot by Signal"},
+\code{"Waterfall Plot by Theme"}, \code{"Eligibility by Theme"}. When \code{x@p_correction_method == "bayesian"},
+the following posterior-diagnostic plots are also available: \code{"Posterior Individual Alphas"},
+\code{"Posterior Individual Betas"}, \code{"Posterior Random Effects"},
+\code{"Waterfall Plot of Posterior Variance Components"}, \code{"Posterior Regression Lines"},
+\code{"Waterfall Plot of Return Decomposition by Signal"},
+\code{"Posterior Individual Alpha Distributions by Theme and Signal"}.
 }

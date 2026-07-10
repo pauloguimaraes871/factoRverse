@@ -16,8 +16,15 @@
 \item{...}{Additional arguments passed to the plotting method (currently unused).}
 }
 \value{
-A \code{ggplot} object visualizing the bounds.
+Invisibly returns the \code{ggplot} object visualizing the bounds (also printed as a side effect).
 }
 \description{
-Plot the bounds for each hyperparameter in \code{bayesian_opt_strategy}.
+Plot the lower/upper bounds for each hyperparameter in \code{bayesian_opt_strategy}.
 }
+\section{Requirements}{
+
+Requires the suggested packages \code{gridExtra}, \code{scales}, \code{ggdist}, \code{ggraph},
+\code{ggrepel}, \code{igraph}, and \code{RColorBrewer}; if any are missing, an informative
+\code{stop()} is raised.
+}
+

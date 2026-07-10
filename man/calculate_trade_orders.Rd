@@ -30,8 +30,11 @@ calculate_trade_orders(
 \item{verbose}{logical. If TRUE, prints IPO/delisting info to console.}
 }
 \value{
-A data frame with columns including \code{tickers}, \code{bop_port_weights}, \code{eop_port_weights},
-\code{delta}, \code{order}, \code{relative_order_size}, and any liquidity/volatility columns.
+A data frame with one row per ticker in the union of the current and previous universes, including
+\code{tickers}, \code{bop_port_weights}, \code{eop_port_weights}, \code{delta} (EOP minus BOP), \code{order}
+(delta scaled by \code{strategy_aum}), \code{relative_order_size} (order relative to the liquidity metric), an
+\code{obs} tag marking each ticker as \code{"none"}, \code{"delisted"} or \code{"IPO"}, and the joined
+liquidity/volatility columns (delisted names receive imputed liquidity/volatility so costs can still be computed).
 }
 \description{
 This function calculates the required trades to move from a beginning-of-period (BOP)

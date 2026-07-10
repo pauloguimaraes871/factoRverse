@@ -24,6 +24,10 @@ three columns, which are reserved for identifiers.}
 
 \item{lower_quantile_winsorization}{Numeric value for lower winsorization}
 }
+\value{
+A numeric vector of blended-signal predictions (weighted sum of the eligible
+signals, winsorized by the quantile bounds).
+}
 \description{
 This method generates predictions using a signal_port obejct
 based on the provided new feature data. It accommodates different port construction methods.

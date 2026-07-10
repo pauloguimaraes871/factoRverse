@@ -36,6 +36,15 @@
 #' - Assets that meet **user_defined_OR_rules** will always be promoted.
 #' - Assets that fail to meet **user_defined_AND_rules** will always be excluded.
 #'
+#' ## Signal Portfolios vs. Stocks
+#' The function classifies both stock universes (`asset_object = "stocks"`) and signal-portfolio universes
+#' (`asset_object = "signals"`). For stocks, pre-eligibility is the **Only Top Assets** quantile rule on
+#' `exp_ret_score`. For signals, pre-eligibility is instead driven by the statistical significance of the CAPM
+#' alpha: if a `pd_alpha` column is present, the Bayesian rule `1 - pd_alpha <= signal_significance_threshold` is
+#' used; otherwise the frequentist rule `adjusted_p_value <= signal_significance_threshold & alpha > 0` is applied
+#' (using the `alpha` column in the no-pooled case, or `individual_alpha` in the partial-pooled case). This shared
+#' logic is why `classify_investment_universe()` is reused inside `define_signal_eligibility()`.
+#'
 #' @param universe_m_d_ref A data frame of stocks or signals.
 #' @param eligibility_quantile_range A numeric vector of length 2 indicating the range of quantiles to be used for filtering stocks.
 #' @param min_eligible_assets_fallback A numeric value indicating the minimum number of eligible assets to be selected.

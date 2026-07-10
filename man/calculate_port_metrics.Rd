@@ -7,9 +7,12 @@
 calculate_port_metrics(port_weights_m_d_ref, custom_stock_metrics_m_d_ref)
 }
 \arguments{
-\item{port_weights_m_d_ref}{A data frame containing portfolio weights with at least the columns:}
+\item{port_weights_m_d_ref}{A data frame containing portfolio weights. Must include an \code{id} column and an
+\code{eop_port_weights} column (end-of-period weights). May optionally include a \code{bench_weights} column,
+in which case benchmark-weighted metrics (prefixed \code{bench_}) are also computed and merged.}
 
-\item{custom_stock_metrics_m_d_ref}{A data frame containing custom stock metrics with at least the columns:}
+\item{custom_stock_metrics_m_d_ref}{A data frame of custom per-stock metrics. Must include an \code{id} column
+(used for the join) plus one or more numeric metric columns; \code{tickers}/\code{dates}, if present, are ignored.}
 }
 \value{
 A data frame with consolidated portfolio metrics. If benchmark metrics are calculated,

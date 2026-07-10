@@ -2,7 +2,7 @@
 % Please edit documentation in R/time_series_split.R
 \name{time_series_split}
 \alias{time_series_split}
-\title{Time Series Split}
+\title{Time-Series Split for Walk-Forward Validation}
 \usage{
 time_series_split(
   current_date,
@@ -17,27 +17,42 @@ time_series_split(
 )
 }
 \arguments{
-\item{current_date}{A single date in the format '\%Y-\%m-\%d'.}
+\item{current_date}{A single \code{Date} (\code{"\%Y-\%m-\%d"}) for the rebalancing point.}
 
-\item{features_m_df}{A matrix or data frame containing features with columns 'id', 'tickers', and 'dates'.}
+\item{features_m_df}{Data frame/matrix with \code{id}, \code{tickers}, \code{dates} columns.}
 
-\item{target_m_df}{A matrix or data frame containing target variables.}
+\item{target_m_df}{Data frame/matrix of targets aligned row-for-row with \code{features_m_df}.}
 
-\item{dates_m_vector}{A vector of dates in the format '\%Y-\%m-\%d'.}
+\item{dates_m_vector}{Ascending vector of unique panel dates (\code{"\%Y-\%m-\%d"}).}
 
-\item{training_sample_size}{Number of observations to include in the training sample.}
+\item{training_sample_size}{Integer, number of dates in the training window.}
 
-\item{validation_sample_size}{Number of observations to include in the validation sample (default is 0).}
+\item{validation_sample_size}{Integer, dates in the validation window (\code{0} disables it; default \code{0}).}
 
-\item{target_fwd}{The number of periods forward to forecast.}
+\item{target_fwd}{Integer, forecast horizon in periods (the embargo length).}
 
-\item{target_fwd_name}{The name of the target variable.}
+\item{target_fwd_name}{Character, name of the target column to extract.}
 
-\item{split_method}{The method used for splitting the data, either 'expanding' or 'rolling' (default is 'expanding').}
+\item{split_method}{Character, \code{"expanding"} (default) or \code{"rolling"}.}
 }
 \value{
-A list containing the training, validation, and refit samples.
+A named list with \code{training}, \code{refit}, and — when
+\code{validation_sample_size > 0} — \code{validation}. \code{training}/\code{refit}
+each hold raw features, the target vector, and a cleaned \code{full_data_*_clean}
+frame (target + features, no id columns); \code{validation} holds validation
+features and target.
 }
 \description{
-Split time series data into training, validation, and refitting samples, in order to perform a walk-forward expanding or rolling time series validation.
+Splits panel data into training, (optional) validation, and refit samples for one
+\code{current_date} of a walk-forward, expanding- or rolling-window backtest. The
+cut points embed a \code{target_fwd}-period embargo so no sample uses target
+information unobservable at decision time.
 }
+\details{
+Because the target is a \code{target_fwd}-months-forward return, the last usable
+training/validation date is shifted back by \code{target_fwd} periods relative to
+\code{current_date}. The first rebalancing
+(\code{d == training_sample_size + validation_sample_size}) is a special case;
+later rebalances slide the windows forward.
+}
+\keyword{internal}

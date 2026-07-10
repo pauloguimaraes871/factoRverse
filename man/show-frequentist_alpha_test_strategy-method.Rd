@@ -10,5 +10,6 @@
 \item{object}{A \code{frequentist_alpha_test_strategy} object to be displayed.}
 }
 \description{
-Prints the contents of a \code{frequentist_alpha_test_strategy} object, detailing the various parameters and their configurations.
+Prints the contents of a \code{frequentist_alpha_test_strategy} object: a header, followed by the
+inherited \code{alpha_test_strategy} display (main information, model structure, and \code{lmer_control}).
 }

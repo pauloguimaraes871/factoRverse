@@ -9,7 +9,8 @@
 \arguments{
 \item{meta_dataframe}{A \code{meta_dataframe} object.}
 
-\item{...}{A list of feature names or tidyselect helpers to select columns.}
+\item{...}{One or more column names or tidyselect helpers (e.g. \code{dplyr::starts_with("mom")}) passed to
+\code{dplyr::select()} to choose feature columns.}
 }
 \value{
 A new \code{meta_dataframe} object with selected features (always including id, tickers, dates).

@@ -88,7 +88,7 @@ check_inputs_port_backtest(
 
 \item{initial_buffer_period}{A numeric value specifying the number of initial periods to exclude from the backtest.}
 
-\item{port_construction_method}{A character string indicating the portfolio construction method. Allowed values are \code{"ew"}, \code{"sw"}, \code{"cw"}, \code{"cs"}, \code{"rp"}, \code{"mvo"}, or \code{"custom_weights"}.}
+\item{port_construction_method}{A character string indicating the portfolio construction method. Allowed values are \code{"ew"}, \code{"sw"}, \code{"cw"}, \code{"cs"}, \code{"rp"}, \code{"hrp"}, \code{"mvo"}, \code{"mmaf"}, or \code{"custom_weights"}.}
 
 \item{eligibility_quantile_range}{A numeric vector of length 2 specifying the eligibility quantile range used in portfolio construction.}
 

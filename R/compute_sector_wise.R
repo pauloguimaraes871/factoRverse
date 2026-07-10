@@ -7,7 +7,7 @@
 #' @param features_m_df A \code{meta_dataframe} object.
 #' @param sector_column A \code{character} specifying the column name representing sector classification in the dataset.
 #' @param signal A \code{character} specifying the column name on which the function is computed.
-#' @param FUN A \code{character} specifying the function to apply. Options are "median", "mean", "sd", "skew", "sur", "signal_to_noise".
+#' @param FUN A \code{character} specifying the function to apply. Options are "median", "mean", "sd", "signal_to_noise".
 #' @param na.rm A \code{logical} indicating whether to remove NA values (default TRUE).
 #' @param feature_name A \code{character} specifying the name of the feature to be added to the meta_dataframe. If NULL,
 #' the feature name will be set to "<signal>_sector_<FUN>". Default is NULL.

@@ -9,7 +9,7 @@
 \arguments{
 \item{meta_dataframe}{A \code{meta_dataframe} object.}
 
-\item{...}{A list of conditions to filter the data. Those will be passed to \code{dplyr::filter()}.}
+\item{...}{One or more logical conditions passed to \code{dplyr::filter()} (e.g. \code{value > 15}, \code{tickers != "C"}).}
 }
 \value{
 A new \code{meta_dataframe} object with screened data.

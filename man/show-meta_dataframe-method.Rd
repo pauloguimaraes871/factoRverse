@@ -13,7 +13,7 @@
 The method returns the object invisibly.
 }
 \description{
-This method displays a summary of the \code{meta_dataframe} object, including
-sb_backtest_workflow information, number of signals, unique dates, unique tickers,
-total observations, and the first few rows of the data.
+This method displays a summary of the \code{meta_dataframe} object, including its name and current date, the
+signal (or target) columns and their count, the unique dates and tickers, the total number of observations,
+and the first few rows of the data.
 }
