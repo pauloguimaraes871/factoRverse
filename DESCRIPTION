@@ -18,6 +18,8 @@ Description: An end-to-end toolkit for factor-investing research and deployment.
 License: MIT + file LICENSE
 URL: https://github.com/pauloguimaraes871/factoRverse, https://pauloguimaraes871.github.io/factoRverse/
 BugReports: https://github.com/pauloguimaraes871/factoRverse/issues
+Remotes:
+    AnotherSamWilson/ParBayesianOptimization
 SystemRequirements: For the neural-network signal-blending models, Python
     (>= 3.9) with TensorFlow and Keras, configured through the 'tensorflow'
     and 'keras' packages (e.g. keras::install_keras()). For the hierarchical
