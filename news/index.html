@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">factoRverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.4.8</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -33,6 +33,24 @@
     </div>
 
     <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.5.0" id="factorverse-050">factoRverse 0.5.0<a class="anchor" aria-label="anchor" href="#factorverse-050"></a></h2>
+<p>Continuous integration / delivery and packaging improvements. No changes to the analytical API.</p>
+<ul><li>Continuous integration:
+<ul><li>The <code>R-CMD-check</code> workflow now restores the exact <code>renv</code> lockfile and runs <code>R CMD check --as-cran</code> (via <code>rcmdcheck</code>) on Ubuntu and Windows, so CI exercises the same pinned dependency versions the package is tested against.</li>
+<li>Added a <code>test-coverage</code> workflow reporting to Codecov.</li>
+</ul></li>
+<li>Releases:
+<ul><li>Added a tag-triggered <code>release</code> workflow that builds the source tarball and publishes it together with the <code>renv</code> lockfile as release assets, with the release notes taken from this file. Publishing is gated on <code>R CMD check</code> passing on the tagged commit.</li>
+</ul></li>
+<li>Packaging and documentation:
+<ul><li>Declared <code>SystemRequirements</code> for the optional TensorFlow/Keras (Python) and Stan/C++ (via <code>brms</code>) backends.</li>
+<li>Documented the reproducible installation route (release tarball + <code>renv</code> lockfile) in the README.</li>
+<li>Added <code>Remotes:</code> for <code>ParBayesianOptimization</code>, which was archived on CRAN, so <code>devtools::install_github()</code> can resolve it.</li>
+<li>Added test skip guards for when the TensorFlow or Stan backends are unavailable.</li>
+<li>Corrected the CITATION entries with the papers’ SSRN URLs.</li>
+</ul></li>
+</ul></div>
+    <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.4.8" id="factorverse-048">factoRverse 0.4.8<a class="anchor" aria-label="anchor" href="#factorverse-048"></a></h2>
 <p>First public-facing release. Highlights of the documentation and packaging work:</p>
 <ul><li>Added a package website built with pkgdown, with a curated reference index organised around the four core workflows.</li>
@@ -40,7 +58,8 @@
 <li>Added package-level documentation (<code><a href="../reference/factoRverse-package.html">?factoRverse</a></code>) and citation information.</li>
 </ul><p>Earlier versions (0.1.0 through 0.4.7) were developed privately and are not covered by these release notes.</p>
 </div>
-  </main></div>
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside></div>
 
 
     <footer><div class="pkgdown-footer-left">
