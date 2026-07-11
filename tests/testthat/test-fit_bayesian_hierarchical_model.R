@@ -1,4 +1,5 @@
 test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchical model for model spec 1", {
+  skip_if_no_stan()
 
   #Load
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
@@ -238,6 +239,7 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
 })
 
 test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchical model for model spec 2", {
+  skip_if_no_stan()
 
   #Load
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
@@ -452,6 +454,7 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
 })
 
 test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchical model for model spec 3", {
+  skip_if_no_stan()
 
   #Load
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
@@ -669,6 +672,7 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
 })
 
 test_that("fit_bayesian_hierarchical_model adequately ignores extra-prior when fitting bayesian hierarchical model for model spec 3", {
+  skip_if_no_stan()
 
   #Load
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
@@ -936,6 +940,7 @@ test_that("fit_bayesian_hierarchical_model adequately ignores extra-prior when f
 })
 
 test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchical model for model spec 4", {
+  skip_if_no_stan()
 
   #Load
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))
@@ -1151,6 +1156,7 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
 #Tests with plan(multisession)
 
 test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchical model for model spec 2 plan(multisession)", {
+  skip_if_no_stan()
 
   testthat::skip()
 
@@ -1368,6 +1374,7 @@ test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchic
 
 
 test_that("fit_bayesian_hierarchical_model adequately fits a bayesian hierarchical model for model spec 3 plan(multisession)", {
+  skip_if_no_stan()
 
   testthat::skip()
   #Load

@@ -10,13 +10,11 @@ jobs:
   R-CMD-check:
     runs-on: ${{ matrix.config.os }}
     strategy:
+      fail-fast: false
       matrix:
         config:
           - os: ubuntu-latest
           - os: windows-latest
-
-    env:
-      RENV_PATHS_ROOT: ${{ runner.temp }}/renv
 
     steps:
       - name: Checkout repository
@@ -38,8 +36,9 @@ jobs:
       - name: Get R and OS version
         id: get-version
         run: |
-          cat("os-version=", sessionInfo()$running, "\n", sep = "")
-          cat("r-version=", R.Version()$version.string, "\n", sep = "")
+          gh_out <- Sys.getenv("GITHUB_OUTPUT")
+          cat("os-version=", sessionInfo()$running, "\n", sep = "", file = gh_out, append = TRUE)
+          cat("r-version=", as.character(getRversion()), "\n", sep = "", file = gh_out, append = TRUE)
         shell: Rscript {0}
 
       - name: Cache R packages
@@ -57,5 +56,5 @@ jobs:
       - name: Run R CMD check
         run: |
           options(repos = c(CRAN = "https://cloud.r-project.org"))
-          devtools::check(args = c("--no-manual", "--as-cran"))
+          devtools::check(args = c("--no-manual", "--as-cran"), error_on = "error")
         shell: Rscript {0}

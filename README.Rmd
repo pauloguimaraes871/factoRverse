@@ -123,6 +123,30 @@ All other workflows (characteristic portfolios, non-Bayesian signal selection,
 tree- and linear-model signal blending, and portfolio construction) work
 without these extras.
 
+### Reproducible installation (recommended)
+
+`factoRverse` is only guaranteed to work, and its test suite to pass, with the
+exact package versions it was developed and tested against. The ML and Bayesian
+workflows depend on a large, tightly coupled set of packages (TensorFlow/Keras,
+brms/Stan, and their transitive dependencies), so installing current CRAN
+versions can silently change behaviour.
+
+Every GitHub release therefore ships two assets: a source tarball
+`factoRverse_<version>.tar.gz` and an `renv` lockfile `factoRverse_renv.lock`
+pinning every dependency to its tested version. To reproduce the tested
+environment, restore the lockfile before installing the tarball (ideally on the
+R version recorded in the lockfile):
+
+``` r
+# install.packages("renv")
+renv::restore(lockfile = "factoRverse_renv.lock")
+install.packages("factoRverse_<version>.tar.gz", repos = NULL, type = "source")
+```
+
+The `devtools::install_github()` route above pulls current dependency versions
+instead and is offered only for convenience; the pinned-version route is the one
+the maintainer guarantees.
+
 ## A tour of the four workflows
 
 The snippets below sketch the public API end to end. They are illustrative

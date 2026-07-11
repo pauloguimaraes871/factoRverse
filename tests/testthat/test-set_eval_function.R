@@ -762,6 +762,7 @@ test_that("set_eval_function correctly sets a xgboost model (custom_objective = 
 })
 
 test_that("set_eval_function correctly sets a keras nn1 model (custom_objective = squared_error) and no early_stop", {
+  skip_if_no_tensorflow()
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -1028,6 +1029,7 @@ test_that("set_eval_function correctly sets a keras nn1 model (custom_objective 
 })
 
 test_that("set_eval_function correctly sets a keras nn2 model (custom_objective = squared_error) and early_stop", {
+  skip_if_no_tensorflow()
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -1346,6 +1348,7 @@ test_that("set_eval_function correctly sets a keras nn2 model (custom_objective 
 })
 
 test_that("set_eval_function correctly sets a keras nn3 model (custom_objective = pseudo_huber_error) and early_stop", {
+  skip_if_no_tensorflow()
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -1710,6 +1713,7 @@ test_that("set_eval_function correctly sets a keras nn3 model (custom_objective 
 })
 
 test_that("set_eval_function correctly sets a keras nn4 model (custom_objective = squared_error) and early_stop (mphe)", {
+  skip_if_no_tensorflow()
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -2109,6 +2113,7 @@ test_that("set_eval_function correctly sets a keras nn4 model (custom_objective 
 })
 
 test_that("set_eval_function correctly sets a keras nn5 model (custom_objective = squared_error) and early_stop (mse)", {
+  skip_if_no_tensorflow()
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 

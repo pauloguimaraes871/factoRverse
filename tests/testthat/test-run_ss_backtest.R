@@ -788,6 +788,7 @@ test_that("run_ss_backtest works for vanilla pooled frequentist setting when p_c
 })
 
 test_that("run_ss_backtest works for bayesian setting with priors_m_df", {
+  skip_if_no_stan()
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_signal_selection_obj.RData", sep =""))
 
@@ -1111,6 +1112,7 @@ test_that("run_ss_backtest works for bayesian setting with priors_m_df", {
 })
 
 test_that("run_ss_backtest works for bayesian setting with user_priors", {
+  skip_if_no_stan()
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_signal_selection_obj.RData", sep =""))
 

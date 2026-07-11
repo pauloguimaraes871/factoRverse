@@ -10336,6 +10336,7 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, g
 
 #Define your test
 test_that("NN1 (Sequential - Parallel = TRUE) - run_sb_backtest works with rebalancing, 3m target, grid as tuning method, pseudo_huber and hr as chosen eval metric -toy_preprocessed_features_and_targets",{
+  skip_if_no_tensorflow()
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
   future::plan("sequential")
@@ -14172,6 +14173,7 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, b
 
 #Define your test
 test_that("NN (Parallel = FALSE) - run_sb_backtest works with rebalancing, 3m target, bayesian_opt as tuning method, mphe as chosen eval metric and custom_objective pseudo_huber  -toy_preprocessed_features_and_targets",{
+  skip_if_no_tensorflow()
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -16363,6 +16365,7 @@ test_that("update_sb_backtest works for RP and 1m horizon, with new month an emp
 })
 
 test_that("update_sb_backtest works for NN and 3m horizon, with 2 subsequent updates (rebalacing + empty month)", {
+  skip_if_no_tensorflow()
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 

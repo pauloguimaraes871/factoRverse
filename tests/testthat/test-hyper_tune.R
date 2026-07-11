@@ -887,6 +887,7 @@ test_that("random_search/grid_search: hyper_tuning works for XGB when Parallel =
 })
 
 test_that("random_search/grid_search: hyper_tuning works for NN when Parallel = FALSE", {
+  skip_if_no_tensorflow()
 
   #NN2
   ########################
@@ -2870,6 +2871,7 @@ test_that("bayesian_opt: hyper_tuning works for XGB (custom_obj = pseudo-huber e
 })
 
 test_that("bayesian_opt: hyper_tuning works for NN (custom_obj = pseudo-huber error) when Parallel = FALSE", {
+  skip_if_no_tensorflow()
 
   #NN2
   ########################
