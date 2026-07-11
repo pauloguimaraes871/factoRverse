@@ -8,24 +8,17 @@ auditable interface.
 
 `factoRverse` takes a factor strategy from raw firm-level data all the
 way to a deployable portfolio. It packages the modern asset-pricing
-workflow (clean and realistic anomaly construction, the multiple-testing
-/ factor-zoo debate, signal blending through Machine-Learning or the
-classical way, and multiple and out-of-sample robust portfolio
-construction methods) into small, composable, testable functions, with
-strict guardrails against the two cardinal sins of backtesting:
-**look-ahead bias** and **survivorship bias**.
+workflow (anomaly construction, the multiple-testing / factor-zoo
+debate, signal blending, and risk-based portfolio construction) into
+small, composable, testable functions, with strict guardrails against
+the two cardinal sins of backtesting: **look-ahead bias** and
+**survivorship bias**.
 
-It is built around the **metabackesting** idea: at any point in time an
-equity factor investor must decide not only *which* signals to use, but
-*how* to process, select and combine them. Therefore, the package helps
-with experimenting full and deployable end-to-end systems, instead of
-simple backtests. By providing modular functions and S4 objects, all the
-needed steps for developing a quantitative multifactor strategy are easy
-to implement and test: feature engineering, data pre-processing,
-portfolio construction, strategy selection and signal blending
-(including Machine-Learning and Meta-Ensembling). Everything is already
-built for financial time series data, in a walk-forward point-in-time
-manner.
+It is built around the **metafactor** idea: at any point in time an
+equity factor investor must decide *which* signals to use, *how* to
+process them, and *how* to combine them, so the package lets you blend
+not only signals, but also signal-blending methods themselves, all the
+way up to meta-ensembles.
 
 ## Why factoRverse? (FactorOps)
 
@@ -37,8 +30,8 @@ reproducibility and auditing, not just computation:
 
 - **Every artifact carries its own history.** The core S4 objects
   (`meta_dataframe`, `meta_xts`, and the `*_results` objects) store a
-  `workflow` slot recording exactly which steps produced them and when,
-  so any table or backtest can be traced back to its inputs.
+  `workflow` slot recording exactly which steps produced them, so any
+  table or backtest can be traced back to its inputs.
 - **Configuration is modular and swappable.** Each workflow is driven by
   a config object you build with a fluent `create_*_config() |> add_*()`
   pipeline (e.g. an `ss_backtest_config` carries an
@@ -114,6 +107,33 @@ automatically with the package:
 All other workflows (characteristic portfolios, non-Bayesian signal
 selection, tree- and linear-model signal blending, and portfolio
 construction) work without these extras.
+
+### Reproducible installation (recommended)
+
+`factoRverse` is only guaranteed to work, and its test suite to pass,
+with the exact package versions it was developed and tested against. The
+ML and Bayesian workflows depend on a large, tightly coupled set of
+packages (TensorFlow/Keras, brms/Stan, and their transitive
+dependencies), so installing current CRAN versions can silently change
+behaviour.
+
+Every GitHub release therefore ships two assets: a source tarball
+`factoRverse_<version>.tar.gz` and an `renv` lockfile
+`factoRverse_renv.lock` pinning every dependency to its tested version.
+To reproduce the tested environment, restore the lockfile before
+installing the tarball (ideally on the R version recorded in the
+lockfile):
+
+``` r
+
+# install.packages("renv")
+renv::restore(lockfile = "factoRverse_renv.lock")
+install.packages("factoRverse_<version>.tar.gz", repos = NULL, type = "source")
+```
+
+The `devtools::install_github()` route above pulls current dependency
+versions instead and is offered only for convenience; the pinned-version
+route is the one the maintainer guarantees.
 
 ## A tour of the four workflows
 
@@ -302,12 +322,12 @@ framework. Choose a backend with
 The methodology behind the signal-selection and signal-blending
 workflows is developed in two companion papers:
 
-- **Guimarães, P. R. & Kimura, H.** *The Factor Zoo Revisited: Multiple
+- **Guimaraes, P. R. & Kimura, H.** *The Factor Zoo Revisited: Multiple
   Testing, Hierarchical Modelling, and Out-of-Sample Evidence from
   Emerging Markets.* Anchors the signal-selection workflow (FWER/FDR
   control, hierarchical Bayesian partial pooling, walk-forward
   backtesting).
-- **Guimarães, P. R.** *Man vs Machine: can AI-based stock-picking
+- **Guimaraes, P. R.** *Man vs Machine: can AI-based stock-picking
   outperform human skill?* Anchors the machine-learning signal-blending
   and portfolio-construction workflow.
 

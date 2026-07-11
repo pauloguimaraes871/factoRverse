@@ -52,15 +52,15 @@
 <!-- badges: start -->
 
 <p>An end-to-end toolkit for <strong>factor investing</strong> research and deployment: engineer point-in-time signals, tame the factor zoo with disciplined multiple-testing inference, blend signals with machine learning, and build cost- and constraint-aware portfolios, all through one consistent, auditable interface.</p>
-<p><code>factoRverse</code> takes a factor strategy from raw firm-level data all the way to a deployable portfolio. It packages the modern asset-pricing workflow (clean and realistic anomaly construction, the multiple-testing / factor-zoo debate, signal blending through Machine-Learning or the classical way, and multiple and out-of-sample robust portfolio construction methods) into small, composable, testable functions, with strict guardrails against the two cardinal sins of backtesting: <strong>look-ahead bias</strong> and <strong>survivorship bias</strong>.</p>
-<p>It is built around the <strong>metabackesting</strong> idea: at any point in time an equity factor investor must decide not only <em>which</em> signals to use, but <em>how</em> to process, select and combine them. Therefore, the package helps with experimenting full and deployable end-to-end systems, instead of simple backtests. By providing modular functions and S4 objects, all the needed steps for developing a quantitative multifactor strategy are easy to implement and test: feature engineering, data pre-processing, portfolio construction, strategy selection and signal blending (including Machine-Learning and Meta-Ensembling). Everything is already built for financial time series data, in a walk-forward point-in-time manner.</p>
+<p><code>factoRverse</code> takes a factor strategy from raw firm-level data all the way to a deployable portfolio. It packages the modern asset-pricing workflow (anomaly construction, the multiple-testing / factor-zoo debate, signal blending, and risk-based portfolio construction) into small, composable, testable functions, with strict guardrails against the two cardinal sins of backtesting: <strong>look-ahead bias</strong> and <strong>survivorship bias</strong>.</p>
+<p>It is built around the <strong>metafactor</strong> idea: at any point in time an equity factor investor must decide <em>which</em> signals to use, <em>how</em> to process them, and <em>how</em> to combine them, so the package lets you blend not only signals, but also signal-blending methods themselves, all the way up to meta-ensembles.</p>
 <div class="section level2">
 <h2 id="why-factorverse-factorops">Why factoRverse? (FactorOps)<a class="anchor" aria-label="anchor" href="#why-factorverse-factorops"></a>
 </h2>
 <p>If Databricks frames MLOps as <em>DevOps + DataOps + ModelOps</em>, <code>factoRverse</code> adds <strong>PortOps</strong>: the deployment of portfolios given signals developed through models, and calls the whole thing <strong>FactorOps</strong>. In practice this means the package is built for reproducibility and auditing, not just computation:</p>
 <ul>
 <li>
-<strong>Every artifact carries its own history.</strong> The core S4 objects (<code>meta_dataframe</code>, <code>meta_xts</code>, and the <code>*_results</code> objects) store a <code>workflow</code> slot recording exactly which steps produced them and when, so any table or backtest can be traced back to its inputs.</li>
+<strong>Every artifact carries its own history.</strong> The core S4 objects (<code>meta_dataframe</code>, <code>meta_xts</code>, and the <code>*_results</code> objects) store a <code>workflow</code> slot recording exactly which steps produced them, so any table or backtest can be traced back to its inputs.</li>
 <li>
 <strong>Configuration is modular and swappable.</strong> Each workflow is driven by a config object you build with a fluent <code>create_*_config() |&gt; add_*()</code> pipeline (e.g. an <code>ss_backtest_config</code> carries an <code>alpha_test_strategy</code>, which may carry <code>bayesian_model_parameters</code>). Pieces snap together and can be reused across runs.</li>
 <li>
@@ -119,6 +119,17 @@
 </ul>
 <p>All other workflows (characteristic portfolios, non-Bayesian signal selection, tree- and linear-model signal blending, and portfolio construction) work without these extras.</p>
 </div>
+<div class="section level3">
+<h3 id="reproducible-installation-recommended">Reproducible installation (recommended)<a class="anchor" aria-label="anchor" href="#reproducible-installation-recommended"></a>
+</h3>
+<p><code>factoRverse</code> is only guaranteed to work, and its test suite to pass, with the exact package versions it was developed and tested against. The ML and Bayesian workflows depend on a large, tightly coupled set of packages (TensorFlow/Keras, brms/Stan, and their transitive dependencies), so installing current CRAN versions can silently change behaviour.</p>
+<p>Every GitHub release therefore ships two assets: a source tarball <code>factoRverse_&lt;version&gt;.tar.gz</code> and an <code>renv</code> lockfile <code>factoRverse_renv.lock</code> pinning every dependency to its tested version. To reproduce the tested environment, restore the lockfile before installing the tarball (ideally on the R version recorded in the lockfile):</p>
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<code class="sourceCode R"><span><span class="co"># install.packages("renv")</span></span>
+<span><span class="fu">renv</span><span class="fu">::</span><span class="fu"><a href="https://rstudio.github.io/renv/reference/restore.html" class="external-link">restore</a></span><span class="op">(</span>lockfile <span class="op">=</span> <span class="st">"factoRverse_renv.lock"</span><span class="op">)</span></span>
+<span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"factoRverse_&lt;version&gt;.tar.gz"</span>, repos <span class="op">=</span> <span class="cn">NULL</span>, type <span class="op">=</span> <span class="st">"source"</span><span class="op">)</span></span></code></pre></div>
+<p>The <code>devtools::install_github()</code> route above pulls current dependency versions instead and is offered only for convenience; the pinned-version route is the one the maintainer guarantees.</p>
+</div>
 </div>
 <div class="section level2">
 <h2 id="a-tour-of-the-four-workflows">A tour of the four workflows<a class="anchor" aria-label="anchor" href="#a-tour-of-the-four-workflows"></a>
@@ -128,7 +139,7 @@
 <h3 id="id_0-feature-engineering--point-in-time-preprocessing">0. Feature engineering &amp; point-in-time preprocessing<a class="anchor" aria-label="anchor" href="#id_0-feature-engineering--point-in-time-preprocessing"></a>
 </h3>
 <p>Wrap a panel in a validated, self-documenting container, engineer signals from the factor-zoo literature, and preprocess <strong>one date at a time</strong> so no future information leaks into the past.</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/pauloguimaraes871/factoRverse" class="external-link">factoRverse</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">gold_m_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/create_meta_dataframe.html">create_meta_dataframe</a></span><span class="op">(</span><span class="va">raw_panel</span>, meta_dataframe_name <span class="op">=</span> <span class="st">"features"</span><span class="op">)</span></span>
@@ -153,7 +164,7 @@
 <h3 id="id_1-characteristic-portfolios">1. Characteristic portfolios<a class="anchor" aria-label="anchor" href="#id_1-characteristic-portfolios"></a>
 </h3>
 <p>Rank stocks on a signal, invest in the top quantile, and backtest the resulting long-only portfolio with realistic liquidity filters and transaction costs.</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">value_config</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/create_port_backtest_config.html">create_port_backtest_config</a></span><span class="op">(</span></span>
 <span>  chosen_score_metric_and_position <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>book_yield <span class="op">=</span> <span class="st">"long"</span><span class="op">)</span>,</span>
 <span>  eligibility_quantile_range <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.9</span>, <span class="fl">1</span><span class="op">)</span>,          <span class="co"># top decile</span></span>
@@ -186,7 +197,7 @@
 <h3 id="id_2-signal-selection-controlling-the-factor-zoo">2. Signal selection: controlling the factor zoo<a class="anchor" aria-label="anchor" href="#id_2-signal-selection-controlling-the-factor-zoo"></a>
 </h3>
 <p>Which signals are <em>real</em>? Pass the backtested returns of your candidate portfolios through disciplined, walk-forward inference on CAPM alpha, with frequentist multiple-testing control (FWER: Bonferroni/Holm; FDR: BH/BY) or Bayesian hierarchical shrinkage that partially pools alphas within economically motivated <strong>themes</strong>. This is the workflow studied in <em>The Factor Zoo Revisited</em> (see below).</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ss_config</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/create_ss_backtest_config.html">create_ss_backtest_config</a></span><span class="op">(</span></span>
 <span>  initial_sample_size <span class="op">=</span> <span class="fl">80</span>, rebalancing_months <span class="op">=</span> <span class="fl">6</span>,</span>
 <span>  chosen_signals_and_positions <span class="op">=</span> <span class="st">"all"</span>, split_method <span class="op">=</span> <span class="st">"expanding"</span>,</span>
@@ -213,7 +224,7 @@
 <h3 id="id_3-signal-blending-from-heuristics-to-machine-learning">3. Signal blending: from heuristics to machine learning<a class="anchor" aria-label="anchor" href="#id_3-signal-blending-from-heuristics-to-machine-learning"></a>
 </h3>
 <p>Combine the <em>selected</em> signals into one score per stock. Treat signals as assets (equal-weight, risk parity, HRP, MVO), or predict returns with ML (<code>glmnet</code>, <code>ranger</code>, <code>xgboost</code>, <code>keras</code>), all behind one interface, one tuning API (grid / random / Bayesian optimization), and one walk-forward scheme.</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">glmnet_config</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/create_sb_backtest_config.html">create_sb_backtest_config</a></span><span class="op">(</span></span>
 <span>  sb_algorithm <span class="op">=</span> <span class="st">"glmnet"</span>, target_fwd_name <span class="op">=</span> <span class="st">"fwd_act_cum_ret_3m"</span>,</span>
 <span>  training_sample_size <span class="op">=</span> <span class="fl">120</span>, rebalancing_months <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">12</span>,</span>
@@ -237,7 +248,7 @@
 <h3 id="id_4-deploying-the-blended-signal">4. Deploying the blended signal<a class="anchor" aria-label="anchor" href="#id_4-deploying-the-blended-signal"></a>
 </h3>
 <p>The out-of-sample blended score feeds straight back into the portfolio engine: now with the full machinery of concentration, turnover and liquidity constraints, signal shrinkage, transaction costs, an auditable trade log, and portfolio methods from equal-weight to the novel micro-macro allocation framework (MMAF).</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">final_bt</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/run_port_backtest.html">run_port_backtest</a></span><span class="op">(</span></span>
 <span>  signals_m_df        <span class="op">=</span> <span class="va">gold_m_df</span>,</span>
 <span>  fwd_return_m_df     <span class="op">=</span> <span class="va">fwd_1m_returns_m_df</span>,</span>
@@ -259,9 +270,9 @@
 <p>The methodology behind the signal-selection and signal-blending workflows is developed in two companion papers:</p>
 <ul>
 <li>
-<strong>Guimarães, P. R. &amp; Kimura, H.</strong> <em>The Factor Zoo Revisited: Multiple Testing, Hierarchical Modelling, and Out-of-Sample Evidence from Emerging Markets.</em> Anchors the signal-selection workflow (FWER/FDR control, hierarchical Bayesian partial pooling, walk-forward backtesting).</li>
+<strong>Guimaraes, P. R. &amp; Kimura, H.</strong> <em>The Factor Zoo Revisited: Multiple Testing, Hierarchical Modelling, and Out-of-Sample Evidence from Emerging Markets.</em> Anchors the signal-selection workflow (FWER/FDR control, hierarchical Bayesian partial pooling, walk-forward backtesting).</li>
 <li>
-<strong>Guimarães, P. R.</strong> <em>Man vs Machine: can AI-based stock-picking outperform human skill?</em> Anchors the machine-learning signal-blending and portfolio-construction workflow.</li>
+<strong>Guimaraes, P. R.</strong> <em>Man vs Machine: can AI-based stock-picking outperform human skill?</em> Anchors the machine-learning signal-blending and portfolio-construction workflow.</li>
 </ul>
 </div>
 <div class="section level2">
