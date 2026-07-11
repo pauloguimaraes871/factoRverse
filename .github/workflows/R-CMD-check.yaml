@@ -26,6 +26,16 @@ jobs:
           r-version: '4.3'          # match renv.lock (R 4.3.0); bump only with the lock
           use-public-rspm: true
 
+      # Rsymphony (a transitive dep via PortfolioAnalytics -> ROI.plugin.symphony)
+      # links against the COIN-OR SYMPHONY C library. The Linux runner builds it
+      # from source and needs the system library present; Windows uses a prebuilt
+      # binary that bundles it, so this step is Linux-only.
+      - name: Install SYMPHONY system library for Rsymphony (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y coinor-libsymphony-dev
+
       - name: Set up renv and restore (installs the lockfile's renv 1.1.4)
         uses: r-lib/actions/setup-renv@v2
 
