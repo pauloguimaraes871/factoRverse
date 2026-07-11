@@ -26,24 +26,43 @@ jobs:
           r-version: '4.3'          # match renv.lock (R 4.3.0); bump only with the lock
           use-public-rspm: true
 
-      # Two source-built dependencies need system libraries that are not
-      # preinstalled on the Ubuntu runner:
-      #   - Rsymphony (via PortfolioAnalytics -> ROI.plugin.symphony) links the
-      #     COIN-OR SYMPHONY C library (coinor-libsymphony-dev).
-      #   - igraph (via the igraph/ggraph Suggests) links GLPK, i.e.
-      #     libglpk.so.40 (libglpk-dev).
+      # Pandoc is needed to (re)build vignettes/rmarkdown docs during --as-cran.
+      - name: Set up pandoc
+        uses: r-lib/actions/setup-pandoc@v2
+
+      # Source-built dependencies need system libraries not preinstalled on the
+      # Ubuntu runner (renv restore builds from source on Linux):
+      #   - Rsymphony (via PortfolioAnalytics -> ROI.plugin.symphony): SYMPHONY
+      #   - igraph (via igraph/ggraph): GLPK (libglpk.so.40)
+      #   - systemfonts/textshaping/png: fontconfig / harfbuzz / png headers
       # Windows installs prebuilt binaries that bundle these, so this is Linux-only.
       - name: Install system libraries for source builds (Linux)
         if: runner.os == 'Linux'
         run: |
           sudo apt-get update
-          sudo apt-get install -y coinor-libsymphony-dev libglpk-dev
+          sudo apt-get install -y \
+            coinor-libsymphony-dev \
+            libglpk-dev \
+            libfontconfig1-dev \
+            libharfbuzz-dev \
+            libfribidi-dev \
+            libpng-dev
 
       - name: Set up renv and restore (installs the lockfile's renv 1.1.4)
         uses: r-lib/actions/setup-renv@v2
 
+      # rcmdcheck is the check *driver*, not a package dependency, so it is
+      # deliberately absent from renv.lock. Install it into the ephemeral CI
+      # library only; do NOT snapshot it back into the lock.
+      - name: Install check driver (rcmdcheck)
+        run: renv::install("rcmdcheck")
+        shell: Rscript {0}
+
       - name: Run R CMD check
         run: |
           options(repos = c(CRAN = "https://cloud.r-project.org"))
-          devtools::check(args = c("--no-manual", "--as-cran"), error_on = "error")
+          rcmdcheck::rcmdcheck(
+            args = c("--no-manual", "--as-cran"),
+            error_on = "error"
+          )
         shell: Rscript {0}
