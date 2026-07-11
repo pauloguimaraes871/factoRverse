@@ -1,0 +1,129 @@
+name: release
+
+# Tag-triggered release. Bump DESCRIPTION Version, add a matching NEWS.md
+# section, commit, then: git tag vX.Y.Z && git push origin vX.Y.Z
+#
+# The release is GATED on R CMD check: the `release` job needs the `check`
+# job, so the tarball + lockfile are published only if the check passes on the
+# exact tagged commit. The green check is the gate; the tag is the trigger.
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  # --- Gate: full R CMD check against the pinned renv lockfile ----------------
+  check:
+    name: R CMD check (release gate)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up pandoc
+        uses: r-lib/actions/setup-pandoc@v2
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: '4.3'          # match renv.lock; bump only with the lock
+          use-public-rspm: true
+
+      - name: Install system libraries for source builds
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            coinor-libsymphony-dev \
+            libglpk-dev \
+            libfontconfig1-dev \
+            libharfbuzz-dev \
+            libfribidi-dev \
+            libpng-dev
+
+      - name: Set up renv and restore
+        uses: r-lib/actions/setup-renv@v2
+
+      - name: Install check driver (rcmdcheck)
+        run: renv::install("rcmdcheck")
+        shell: Rscript {0}
+
+      - name: Run R CMD check
+        run: |
+          options(repos = c(CRAN = "https://cloud.r-project.org"))
+          rcmdcheck::rcmdcheck(
+            args = c("--no-manual", "--as-cran"),
+            error_on = "error"
+          )
+        shell: Rscript {0}
+
+  # --- Build and publish (only runs if `check` succeeded) --------------------
+  release:
+    name: Build and publish release
+    needs: check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up pandoc
+        uses: r-lib/actions/setup-pandoc@v2
+
+      - name: Set up R
+        uses: r-lib/actions/setup-r@v2
+        with:
+          r-version: '4.3'
+          use-public-rspm: true
+
+      # factoRverse is pure R (no src/) with no vignettes, so building the
+      # source tarball needs no dependencies installed: no renv restore, no
+      # system libraries. This keeps the publish step fast and deterministic.
+      - name: Build source tarball
+        run: R CMD build --no-manual --no-build-vignettes .
+        shell: bash
+
+      - name: Stage release assets and verify tag matches DESCRIPTION
+        id: assets
+        run: |
+          set -euo pipefail
+          version=$(grep '^Version:' DESCRIPTION | sed 's/^Version:[[:space:]]*//')
+          tag_version="${GITHUB_REF_NAME#v}"
+          if [ "$version" != "$tag_version" ]; then
+            echo "::error::Tag ${GITHUB_REF_NAME} (=> ${tag_version}) does not match DESCRIPTION Version ${version}. Bump DESCRIPTION or fix the tag."
+            exit 1
+          fi
+          tarball="factoRverse_${version}.tar.gz"
+          test -f "$tarball" || { echo "::error::Expected ${tarball} not found after R CMD build"; exit 1; }
+          # Ship the lockfile under the asset name the README documents.
+          cp renv.lock "factoRverse_renv.lock"
+          echo "tarball=${tarball}" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+        shell: bash
+
+      - name: Extract release notes from NEWS.md
+        run: |
+          set -euo pipefail
+          version="${{ steps.assets.outputs.version }}"
+          # Escape regex-significant dots, then capture the block from
+          # "# factoRverse <version>" up to the next top-level heading.
+          version_re=$(printf '%s' "$version" | sed 's/\./\\./g')
+          awk -v ver="$version_re" '
+            $0 ~ ("^# factoRverse " ver "([[:space:]]|$)") { capture = 1; next }
+            capture && /^# factoRverse / { exit }
+            capture { print }
+          ' NEWS.md > RELEASE_NOTES.md
+          if [ ! -s RELEASE_NOTES.md ]; then
+            echo "Release ${version}. See NEWS.md for details." > RELEASE_NOTES.md
+          fi
+        shell: bash
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: RELEASE_NOTES.md
+          files: |
+            ${{ steps.assets.outputs.tarball }}
+            factoRverse_renv.lock
+          fail_on_unmatched_files: true

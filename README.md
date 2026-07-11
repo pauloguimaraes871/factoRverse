@@ -6,6 +6,8 @@
 <!-- badges: start -->
 
 [![R-CMD-check](https://github.com/pauloguimaraes871/factoRverse/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/pauloguimaraes871/factoRverse/actions/workflows/R-CMD-check.yaml)
+[![Codecov test
+coverage](https://codecov.io/gh/pauloguimaraes871/factoRverse/graph/badge.svg)](https://app.codecov.io/gh/pauloguimaraes871/factoRverse)
 [![Lifecycle:
 experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
 [![License:
