@@ -2,6 +2,24 @@ url: https://pauloguimaraes871.github.io/factoRverse/
 
 template:
   bootstrap: 5
+  # pkgdown does not execute mermaid fenced code blocks (GitHub does), so the
+  # README diagrams would show as literal code on the site homepage. This
+  # include loads mermaid.js on every page and converts those blocks into
+  # rendered diagrams at page-view time.
+  includes:
+    after_body: >
+      <script type="module">
+        import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+        document.querySelectorAll("pre.mermaid, pre code.language-mermaid, code.mermaid, div.sourceCode.mermaid pre code").forEach((el) => {
+          const pre = el.closest("pre");
+          const host = (pre && pre.closest("div.sourceCode")) || pre || el;
+          const div = document.createElement("div");
+          div.className = "mermaid";
+          div.textContent = el.textContent;
+          host.replaceWith(div);
+        });
+        mermaid.initialize({ startOnLoad: true });
+      </script>
 
 # The FactorOps map is a standalone static page shipped via pkgdown/assets/
 # (copied verbatim to the site root at build time).
