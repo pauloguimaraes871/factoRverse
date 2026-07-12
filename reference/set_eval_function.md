@@ -50,8 +50,7 @@ for Bayesian optimization.
   [`ParBayesianOptimization::bayesOpt()`](https://rdrr.io/pkg/ParBayesianOptimization/man/bayesOpt.html).
 
 Supported algorithms: `"glmnet"`
-([`glmnet::glmnet`](https://glmnet.stanford.edu/reference/glmnet.html)),
-`"rf"`
+([`glmnet::glmnet`](https://rdrr.io/pkg/glmnet/man/glmnet.html)), `"rf"`
 ([`ranger::ranger`](http://imbs-hl.github.io/ranger/reference/ranger.md);
 `mtry` is treated as a proportion of predictors), `"xgb"`
 ([`xgboost::xgb.train`](https://rdrr.io/pkg/xgboost/man/xgb.train.html)),

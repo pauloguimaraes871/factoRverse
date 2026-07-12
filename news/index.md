@@ -1,5 +1,35 @@
 # Changelog
 
+## factoRverse 0.5.1
+
+Packaging and documentation refinements after the 0.5.0 release. No
+changes to the analytical API.
+
+- Dependencies:
+  - Moved `ParBayesianOptimization` (archived on CRAN) from Imports to
+    Suggests. It is only needed for `tuning_method = "bayesian_opt"`,
+    and
+    [`hyper_tune()`](https://pauloguimaraes871.github.io/factoRverse/reference/hyper_tune.md)
+    now fails fast with installation guidance when it is missing. A
+    plain `devtools::install_github()` no longer needs to resolve the
+    archived package; the `renv` lockfile keeps providing it for CI and
+    reproducible installs.
+  - Tests that run Bayesian-optimization tuning are now skipped when
+    `ParBayesianOptimization` is not installed. They continue to run in
+    CI, where the lockfile installs it.
+- Continuous integration:
+  - Authenticated GitHub API calls in the check and release-gate
+    workflows (`GITHUB_PAT`), fixing rate-limit failures when `renv`
+    resolves the `Remotes` field on shared runners.
+- Documentation:
+  - Added the FactorOps map, a visual overview of the four workflows,
+    their features, orchestrated packages, shared engines, and the
+    built-in plot inventory, to the package website, with a navbar
+    entry.
+  - Added a “One interface to the R quant stack” section to the README
+    with a workflow-to-package mapping table.
+  - Mermaid diagrams now render on the package website.
+
 ## factoRverse 0.5.0
 
 Continuous integration / delivery and packaging improvements. No changes
