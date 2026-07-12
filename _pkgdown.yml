@@ -3,6 +3,17 @@ url: https://pauloguimaraes871.github.io/factoRverse/
 template:
   bootstrap: 5
 
+# The FactorOps map is a standalone static page shipped via pkgdown/assets/
+# (copied verbatim to the site root at build time).
+navbar:
+  structure:
+    left: [reference, articles, news]
+    right: [map, search, github]
+  components:
+    map:
+      text: FactorOps map
+      href: factorops-map.html
+
 reference:
 - title: Data structures & meta objects
   desc: >
