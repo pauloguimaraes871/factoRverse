@@ -101,27 +101,13 @@ internal engines are deliberately reused across workflows: the weighting
 engine, the eligibility grammar, and the CAPM metrics engine (dotted
 links below).
 
-``` mermaid
-flowchart TB
-    S0["0 · Data layer<br/>recipes, dplyr, purrr, xts/zoo"]
-    P1["1 · Characteristic portfolios<br/>PortfolioAnalytics, riskParityPortfolio"]
-    P2["2 · Signal selection<br/>lme4, brms/Stan, tidybayes"]
-    P3["3 · Signal blending<br/>glmnet, ranger, xgboost, keras"]
-    P4["4 · Deployment<br/>back into the portfolio engine"]
-
-    S0 --> P1 --> P2 --> P3 --> P4
-
-    subgraph SHARED ["shared engines: same code, several workflows"]
-        SPW(["set_portfolio_weights"])
-        CIU(["classify_investment_universe"])
-        SPF(["summarize_performance"])
-    end
-
-    P1 -.- SPW -.- P3
-    SPW -.- P4
-    P1 -.- CIU -.- P2
-    S0 -.- SPF -.- P2
-```
+| Stage | Workflow | Shared engines | Leverages |
+|---|---|---|---|
+| 0 | Data layer and point-in-time preprocessing | `summarize_performance()` (via `create_target_m_df()`) | recipes, dplyr, purrr, xts/zoo |
+| 1 | Characteristic portfolios (`run_port_backtest()`) | `set_portfolio_weights()`, `classify_investment_universe()` | PortfolioAnalytics, riskParityPortfolio, PerformanceAnalytics |
+| 2 | Signal selection (`run_ss_backtest()`) | `classify_investment_universe()`, `summarize_performance()` | lme4, lmerTest, brms/Stan, tidybayes |
+| 3 | Signal blending (`run_sb_backtest()`) | `set_portfolio_weights()` (heuristic blenders, factor timing) | glmnet, ranger, xgboost, keras/TensorFlow, ParBayesianOptimization |
+| 4 | Deployment (`run_port_backtest()` with `sb_results`) | `set_portfolio_weights()` (third appearance) | PortfolioAnalytics, riskParityPortfolio |
 
 The same symmetry runs through the data model: `stock_universe_m_df`
 (stocks screened by return-score quantiles) and `signal_universe_m_df`
