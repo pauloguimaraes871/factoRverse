@@ -2172,6 +2172,7 @@ skip()
 })
 
 test_that("bayesian_opt: hyper_tuning works for glmnet when Parallel = FALSE", {
+  skip_if_no_parbayes()
 
   #GLMNET
   ########################
@@ -2391,6 +2392,7 @@ test_that("bayesian_opt: hyper_tuning works for glmnet when Parallel = FALSE", {
 })
 
 test_that("bayesian_opt: hyper_tuning works for random_forest when Parallel = FALSE", {
+  skip_if_no_parbayes()
 
   #RANDOM FOREST
   ########################
@@ -2604,6 +2606,7 @@ test_that("bayesian_opt: hyper_tuning works for random_forest when Parallel = FA
 })
 
 test_that("bayesian_opt: hyper_tuning works for XGB (custom_obj = pseudo-huber error) when Parallel = FALSE", {
+  skip_if_no_parbayes()
   #XGB
   ########################
 
@@ -2871,6 +2874,7 @@ test_that("bayesian_opt: hyper_tuning works for XGB (custom_obj = pseudo-huber e
 })
 
 test_that("bayesian_opt: hyper_tuning works for NN (custom_obj = pseudo-huber error) when Parallel = FALSE", {
+  skip_if_no_parbayes()
   skip_if_no_tensorflow()
 
   #NN2
@@ -3147,6 +3151,7 @@ test_that("bayesian_opt: hyper_tuning works for NN (custom_obj = pseudo-huber er
 })
 
 test_that("bayesian_opt: hyper_tuning works for glmnet when Parallel = TRUE", {
+  skip_if_no_parbayes()
 
   doFuture::registerDoFuture()
   future::plan("multisession")
@@ -3377,6 +3382,7 @@ test_that("bayesian_opt: hyper_tuning works for glmnet when Parallel = TRUE", {
 })
 
 test_that("bayesian_opt: hyper_tuning works for random_forest when Parallel = TRUE", {
+  skip_if_no_parbayes()
 
   doFuture::registerDoFuture()
   future::plan("multisession")
@@ -3592,6 +3598,7 @@ test_that("bayesian_opt: hyper_tuning works for random_forest when Parallel = TR
 })
 
 test_that("bayesian_opt: hyper_tuning works for XGB (custom_obj = pseudo-huber error) when Parallel = TRUE", {
+  skip_if_no_parbayes()
 
   doFuture::registerDoFuture()
   future::plan("multisession")
@@ -3862,6 +3869,7 @@ test_that("bayesian_opt: hyper_tuning works for XGB (custom_obj = pseudo-huber e
 })
 
 test_that("Skipped: bayesian_opt: hyper_tuning works for NN (custom_obj = pseudo-huber error) when Parallel = TRUE", {
+  skip_if_no_parbayes()
 skip()
   doFuture::registerDoFuture()
   future::plan("multisession")

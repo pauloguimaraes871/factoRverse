@@ -12496,6 +12496,7 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, r
 ###Bayesian Opt
 #Define your test
 test_that("GLMNET - run_sb_backtest works with rebalancing, 3m target, bayesian_opt as tuning method and rmse as chosen eval metric -toy_preprocessed_features_and_targets",{
+  skip_if_no_parbayes()
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
   #For second rebalancing, bayesian_opt could not converge because FUN was evaluating same results. So a hypothetical variable is added just to test bayes opt dynamic
@@ -12982,6 +12983,7 @@ test_that("GLMNET - run_sb_backtest works with rebalancing, 3m target, bayesian_
 
 #Define your test
 test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, bayesian_opt as tuning method and mphe as chosen eval metric + bayesian signal_selection -toy_preprocessed_features_and_targets",{
+  skip_if_no_parbayes()
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -13589,6 +13591,7 @@ test_that("RF (Parallel) - run_sb_backtest works with rebalancing, 3m target, ba
 
 #Define your test
 test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, bayesian_opt as tuning method, mphe as chosen eval metric and custom_objective pseudo_huber  -toy_preprocessed_features_and_targets",{
+  skip_if_no_parbayes()
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 
@@ -14173,6 +14176,7 @@ test_that("XGB (Parallel) - run_sb_backtest works with rebalancing, 3m target, b
 
 #Define your test
 test_that("NN (Parallel = FALSE) - run_sb_backtest works with rebalancing, 3m target, bayesian_opt as tuning method, mphe as chosen eval metric and custom_objective pseudo_huber  -toy_preprocessed_features_and_targets",{
+  skip_if_no_parbayes()
   skip_if_no_tensorflow()
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
@@ -14803,6 +14807,7 @@ test_that("NN (Parallel = FALSE) - run_sb_backtest works with rebalancing, 3m ta
 
 #Define your test
 test_that("Skipped: NN (Parallel = TRUE) - run_sb_backtest works with rebalancing, 3m target, bayesian_opt as tuning method, mphe as chosen eval metric and custom_objective pseudo_huber  -toy_preprocessed_features_and_targets",{
+  skip_if_no_parbayes()
   skip()
   load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
 

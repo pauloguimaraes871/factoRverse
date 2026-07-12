@@ -31,3 +31,11 @@ skip_if_no_stan <- function() {
   testthat::skip_on_cran()
   testthat::skip_if_not_installed("brms")
 }
+
+## skip_if_no_parbayes
+### Skip tests that run Bayesian-optimization tuning. ParBayesianOptimization
+### is a Suggests dependency that was archived on CRAN, so it must be used
+### conditionally; the renv lockfile still provides it in CI.
+skip_if_no_parbayes <- function() {
+  testthat::skip_if_not_installed("ParBayesianOptimization")
+}
