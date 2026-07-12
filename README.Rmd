@@ -107,11 +107,11 @@ links below).
 
 ``` mermaid
 flowchart TB
-    S0["0 · Data layer: point-in-time preprocessing<br/>compute_* engineering, map_recipe_timewise<br/>uses recipes, dplyr, purrr, xts/zoo"]
-    P1["1 · Characteristic portfolios: run_port_backtest<br/>EW, SW, CW, CS, RP, HRP, MVO, MMAF; costs and trade log<br/>uses PortfolioAnalytics, riskParityPortfolio, PerformanceAnalytics"]
-    P2["2 · Signal selection: run_ss_backtest<br/>FWER and FDR control; hierarchical CAPM; Bayesian priors<br/>uses lme4, lmerTest, brms/Stan, tidybayes"]
-    P3["3 · Signal blending: run_sb_backtest<br/>glmnet, ranger, xgboost, keras; tuning; meta-ensembles<br/>uses ParBayesianOptimization, furrr/doFuture"]
-    P4["4 · Deployment: run_port_backtest with sb_results<br/>blended score drives the final book"]
+    S0["0 · Data layer<br/>recipes, dplyr, purrr, xts/zoo"]
+    P1["1 · Characteristic portfolios<br/>PortfolioAnalytics, riskParityPortfolio"]
+    P2["2 · Signal selection<br/>lme4, brms/Stan, tidybayes"]
+    P3["3 · Signal blending<br/>glmnet, ranger, xgboost, keras"]
+    P4["4 · Deployment<br/>back into the portfolio engine"]
 
     S0 --> P1 --> P2 --> P3 --> P4
 
