@@ -81,19 +81,28 @@ flowchart TD
 
 ## One interface to the R quant stack
 
-Each workflow orchestrates specialist packages behind the same grammar
-(`config` + data, then `run_*()`, then a `*_results` object), and three
-internal engines are deliberately reused across workflows: the weighting
-engine, the eligibility grammar, and the CAPM metrics engine (dotted
-links below).
+Each workflow orchestrates specialist packages behind the same grammar:
+`config` + data, then `run_*()`, then a `*_results` object.
 
-| Stage | Workflow | Shared engines | Leverages |
+| Stage | Workflow | Key features | Leverages |
 |----|----|----|----|
-| 0 | Data layer and point-in-time preprocessing | [`summarize_performance()`](https://pauloguimaraes871.github.io/factoRverse/reference/summarize_performance.md) (via [`create_target_m_df()`](https://pauloguimaraes871.github.io/factoRverse/reference/create_target_m_df.md)) | recipes, dplyr, purrr, xts/zoo |
-| 1 | Characteristic portfolios ([`run_port_backtest()`](https://pauloguimaraes871.github.io/factoRverse/reference/run_port_backtest.md)) | [`set_portfolio_weights()`](https://pauloguimaraes871.github.io/factoRverse/reference/set_portfolio_weights.md), [`classify_investment_universe()`](https://pauloguimaraes871.github.io/factoRverse/reference/classify_investment_universe.md) | PortfolioAnalytics, riskParityPortfolio, PerformanceAnalytics |
-| 2 | Signal selection ([`run_ss_backtest()`](https://pauloguimaraes871.github.io/factoRverse/reference/run_ss_backtest.md)) | [`classify_investment_universe()`](https://pauloguimaraes871.github.io/factoRverse/reference/classify_investment_universe.md), [`summarize_performance()`](https://pauloguimaraes871.github.io/factoRverse/reference/summarize_performance.md) | lme4, lmerTest, brms/Stan, tidybayes |
-| 3 | Signal blending ([`run_sb_backtest()`](https://pauloguimaraes871.github.io/factoRverse/reference/run_sb_backtest.md)) | [`set_portfolio_weights()`](https://pauloguimaraes871.github.io/factoRverse/reference/set_portfolio_weights.md) (heuristic blenders, factor timing) | glmnet, ranger, xgboost, keras/TensorFlow, ParBayesianOptimization |
-| 4 | Deployment ([`run_port_backtest()`](https://pauloguimaraes871.github.io/factoRverse/reference/run_port_backtest.md) with `sb_results`) | [`set_portfolio_weights()`](https://pauloguimaraes871.github.io/factoRverse/reference/set_portfolio_weights.md) (third appearance) | PortfolioAnalytics, riskParityPortfolio |
+| 0 | Data layer and preprocessing | `compute_*` signal engineering; per-date recipes with zero look-ahead; tickers catalog; forward risk-adjusted targets | recipes, dplyr, purrr, xts/zoo |
+| 1 | Characteristic portfolios ([`run_port_backtest()`](https://pauloguimaraes871.github.io/factoRverse/reference/run_port_backtest.md)) | 9 weighting methods (EW to MVO and MMAF); liquidity, turnover and concentration rules; transaction costs and trade log | PortfolioAnalytics, riskParityPortfolio, PerformanceAnalytics |
+| 2 | Signal selection ([`run_ss_backtest()`](https://pauloguimaraes871.github.io/factoRverse/reference/run_ss_backtest.md)) | FWER/FDR control; no-pooled or partial-pooled hierarchical CAPM; Bayesian shrinkage with user or data-informed priors | lme4, lmerTest, brms/Stan, tidybayes |
+| 3 | Signal blending ([`run_sb_backtest()`](https://pauloguimaraes871.github.io/factoRverse/reference/run_sb_backtest.md)) | ML and heuristic blenders; grid, random or Bayesian tuning; feature importance; meta-ensembles | glmnet, ranger, xgboost, keras/TensorFlow, ParBayesianOptimization |
+| 4 | Deployment ([`run_port_backtest()`](https://pauloguimaraes871.github.io/factoRverse/reference/run_port_backtest.md) with `sb_results`) | Blended score drives the final book under full constraints, costs and audit trail | PortfolioAnalytics, riskParityPortfolio |
+
+Under the hood, three modular engines are deliberately reused across
+workflows:
+[`set_portfolio_weights()`](https://pauloguimaraes871.github.io/factoRverse/reference/set_portfolio_weights.md)
+builds every portfolio in workflows 1 and 4 and powers the heuristic
+blenders of workflow 3 (enabling factor timing);
+[`classify_investment_universe()`](https://pauloguimaraes871.github.io/factoRverse/reference/classify_investment_universe.md)
+applies one eligibility grammar to stocks (workflow 1) and to signals
+(workflow 2); and
+[`summarize_performance()`](https://pauloguimaraes871.github.io/factoRverse/reference/summarize_performance.md)
+computes CAPM metrics both for target creation (stage 0) and for signal
+selection (workflow 2).
 
 The same symmetry runs through the data model: `stock_universe_m_df`
 (stocks screened by return-score quantiles) and `signal_universe_m_df`

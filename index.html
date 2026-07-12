@@ -104,7 +104,7 @@
 <div class="section level2">
 <h2 id="one-interface-to-the-r-quant-stack">One interface to the R quant stack<a class="anchor" aria-label="anchor" href="#one-interface-to-the-r-quant-stack"></a>
 </h2>
-<p>Each workflow orchestrates specialist packages behind the same grammar (<code>config</code> + data, then <code>run_*()</code>, then a <code>*_results</code> object), and three internal engines are deliberately reused across workflows: the weighting engine, the eligibility grammar, and the CAPM metrics engine (dotted links below).</p>
+<p>Each workflow orchestrates specialist packages behind the same grammar: <code>config</code> + data, then <code>run_*()</code>, then a <code>*_results</code> object.</p>
 <table class="table">
 <colgroup>
 <col width="25%">
@@ -115,49 +115,44 @@
 <thead><tr>
 <th>Stage</th>
 <th>Workflow</th>
-<th>Shared engines</th>
+<th>Key features</th>
 <th>Leverages</th>
 </tr></thead>
 <tbody>
 <tr>
 <td>0</td>
-<td>Data layer and point-in-time preprocessing</td>
+<td>Data layer and preprocessing</td>
 <td>
-<code><a href="reference/summarize_performance.html">summarize_performance()</a></code> (via <code><a href="reference/create_target_m_df.html">create_target_m_df()</a></code>)</td>
+<code>compute_*</code> signal engineering; per-date recipes with zero look-ahead; tickers catalog; forward risk-adjusted targets</td>
 <td>recipes, dplyr, purrr, xts/zoo</td>
 </tr>
 <tr>
 <td>1</td>
 <td>Characteristic portfolios (<code><a href="reference/run_port_backtest.html">run_port_backtest()</a></code>)</td>
-<td>
-<code><a href="reference/set_portfolio_weights.html">set_portfolio_weights()</a></code>, <code><a href="reference/classify_investment_universe.html">classify_investment_universe()</a></code>
-</td>
+<td>9 weighting methods (EW to MVO and MMAF); liquidity, turnover and concentration rules; transaction costs and trade log</td>
 <td>PortfolioAnalytics, riskParityPortfolio, PerformanceAnalytics</td>
 </tr>
 <tr>
 <td>2</td>
 <td>Signal selection (<code><a href="reference/run_ss_backtest.html">run_ss_backtest()</a></code>)</td>
-<td>
-<code><a href="reference/classify_investment_universe.html">classify_investment_universe()</a></code>, <code><a href="reference/summarize_performance.html">summarize_performance()</a></code>
-</td>
+<td>FWER/FDR control; no-pooled or partial-pooled hierarchical CAPM; Bayesian shrinkage with user or data-informed priors</td>
 <td>lme4, lmerTest, brms/Stan, tidybayes</td>
 </tr>
 <tr>
 <td>3</td>
 <td>Signal blending (<code><a href="reference/run_sb_backtest.html">run_sb_backtest()</a></code>)</td>
-<td>
-<code><a href="reference/set_portfolio_weights.html">set_portfolio_weights()</a></code> (heuristic blenders, factor timing)</td>
+<td>ML and heuristic blenders; grid, random or Bayesian tuning; feature importance; meta-ensembles</td>
 <td>glmnet, ranger, xgboost, keras/TensorFlow, ParBayesianOptimization</td>
 </tr>
 <tr>
 <td>4</td>
 <td>Deployment (<code><a href="reference/run_port_backtest.html">run_port_backtest()</a></code> with <code>sb_results</code>)</td>
-<td>
-<code><a href="reference/set_portfolio_weights.html">set_portfolio_weights()</a></code> (third appearance)</td>
+<td>Blended score drives the final book under full constraints, costs and audit trail</td>
 <td>PortfolioAnalytics, riskParityPortfolio</td>
 </tr>
 </tbody>
 </table>
+<p>Under the hood, three modular engines are deliberately reused across workflows: <code><a href="reference/set_portfolio_weights.html">set_portfolio_weights()</a></code> builds every portfolio in workflows 1 and 4 and powers the heuristic blenders of workflow 3 (enabling factor timing); <code><a href="reference/classify_investment_universe.html">classify_investment_universe()</a></code> applies one eligibility grammar to stocks (workflow 1) and to signals (workflow 2); and <code><a href="reference/summarize_performance.html">summarize_performance()</a></code> computes CAPM metrics both for target creation (stage 0) and for signal selection (workflow 2).</p>
 <p>The same symmetry runs through the data model: <code>stock_universe_m_df</code> (stocks screened by return-score quantiles) and <code>signal_universe_m_df</code> (signals screened by statistical significance) share one eligibility engine. Hyperparameter tuning and Bayesian MCMC parallelize through the <code>future</code> backend.</p>
 <p>Every <code>*_results</code> object also answers <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> with an interactive menu: 76 built-in plots across the five results classes (18 for portfolio backtests, 16 for cohorts, up to 16 for signal selection including posterior diagnostics, up to 18 for signal blending including the feature-importance suite, and 8 for meta-ensembles), all in a consistent palette.</p>
 <p>A richer visual version of this map, with per-workflow features and the full plot inventory, lives on the package website: <a href="https://pauloguimaraes871.github.io/factoRverse/factorops-map.html">FactorOps map</a>.</p>
