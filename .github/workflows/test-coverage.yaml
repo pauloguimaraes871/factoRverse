@@ -58,6 +58,22 @@ jobs:
           print(cov)
         shell: Rscript {0}
 
+      # covr runs the tests in a subprocess that writes to testthat.Rout; on a
+      # test failure the console only shows the wrapper error, not the cause.
+      # clean = FALSE above preserves the renamed .fail file, so surface its
+      # tail here to make failing runs self-documenting.
+      - name: Show testthat failure log
+        if: failure()
+        run: |
+          f=$(find /tmp -name 'testthat.Rout.fail' | head -1)
+          if [ -n "$f" ]; then
+            echo "== $f =="
+            tail -n 120 "$f"
+          else
+            echo "no testthat.Rout.fail found under /tmp"
+          fi
+        shell: bash
+
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
