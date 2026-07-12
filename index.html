@@ -101,10 +101,67 @@
     end</code></pre>
 </div>
 <div class="section level2">
+<h2 id="one-interface-to-the-r-quant-stack">One interface to the R quant stack<a class="anchor" aria-label="anchor" href="#one-interface-to-the-r-quant-stack"></a>
+</h2>
+<p>Each workflow orchestrates specialist packages behind the same grammar (<code>config</code> + data, then <code>run_*()</code>, then a <code>*_results</code> object), and three internal engines are deliberately reused across workflows: the weighting engine, the eligibility grammar, and the CAPM metrics engine (dotted links below).</p>
+<pre class="mermaid"><code>flowchart TB
+    subgraph S0 ["0. Data layer: point-in-time preprocessing"]
+        F0["compute_* signal engineering (self-contained)
+        map_recipe_timewise: any recipes pipeline, one date at a time
+        tickers_catalog, target_m_df
+        uses: recipes, dplyr, purrr, xts/zoo"]
+    end
+
+    subgraph P1 ["1. Characteristic portfolios: run_port_backtest"]
+        F1["EW, SW, CW, CS, HRP, MMAF built in-house
+        RP via riskParityPortfolio; MVO via PortfolioAnalytics
+        liquidity/turnover/concentration rules, costs, trade log
+        uses: PortfolioAnalytics, riskParityPortfolio, PerformanceAnalytics"]
+    end
+
+    subgraph P2 ["2. Signal selection: run_ss_backtest"]
+        F2["FWER (Bonferroni, Holm) and FDR (BH, BY) control
+        hierarchical CAPM: no-pooled or partial-pooled
+        Bayesian shrinkage, user or data-informed priors
+        uses: lme4, lmerTest, brms/Stan, tidybayes"]
+    end
+
+    subgraph P3 ["3. Signal blending: run_sb_backtest"]
+        F3["ML: glmnet, ranger, xgboost, keras/TensorFlow
+        tuning: grid, random, Bayesian (ParBayesianOptimization)
+        heuristic blenders enable factor timing; meta-ensembles
+        feature importance and explain_prediction"]
+    end
+
+    subgraph P4 ["4. Deployment: run_port_backtest(sb_results)"]
+        F4["blended score drives the final book
+        full constraint machinery, costs, audit trail"]
+    end
+
+    SPW(["set_portfolio_weights()
+    one weighting engine"])
+    CIU(["classify_investment_universe()
+    one eligibility grammar"])
+    SPF(["summarize_performance()
+    one CAPM metrics engine"])
+
+    S0 --&gt; P1 --&gt; P2 --&gt; P3 --&gt; P4
+
+    SPW -.-&gt; P1
+    SPW -.-&gt; P3
+    SPW -.-&gt; P4
+    CIU -.-&gt; P1
+    CIU -.-&gt; P2
+    SPF -.-&gt; S0
+    SPF -.-&gt; P2</code></pre>
+<p>The same symmetry runs through the data model: <code>stock_universe_m_df</code> (stocks screened by return-score quantiles) and <code>signal_universe_m_df</code> (signals screened by statistical significance) share one eligibility engine. Hyperparameter tuning and Bayesian MCMC parallelize through the <code>future</code> backend.</p>
+<p>Every <code>*_results</code> object also answers <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> with an interactive menu: 76 built-in plots across the five results classes (18 for portfolio backtests, 16 for cohorts, up to 16 for signal selection including posterior diagnostics, up to 18 for signal blending including the feature-importance suite, and 8 for meta-ensembles), all in a consistent palette.</p>
+</div>
+<div class="section level2">
 <h2 id="installation">Installation<a class="anchor" aria-label="anchor" href="#installation"></a>
 </h2>
 <p>You can install the development version of <code>factoRverse</code> from <a href="https://github.com/pauloguimaraes871/factoRverse" class="external-link">GitHub</a> with:</p>
-<div class="sourceCode" id="cb2"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># install.packages("devtools")</span></span>
 <span><span class="fu">devtools</span><span class="fu">::</span><span class="fu">install_github</span><span class="op">(</span><span class="st">"pauloguimaraes871/factoRverse"</span><span class="op">)</span></span></code></pre></div>
 <div class="section level3">
@@ -124,7 +181,7 @@
 </h3>
 <p><code>factoRverse</code> is only guaranteed to work, and its test suite to pass, with the exact package versions it was developed and tested against. The ML and Bayesian workflows depend on a large, tightly coupled set of packages (TensorFlow/Keras, brms/Stan, and their transitive dependencies), so installing current CRAN versions can silently change behaviour.</p>
 <p>Every GitHub release therefore ships two assets: a source tarball <code>factoRverse_&lt;version&gt;.tar.gz</code> and an <code>renv</code> lockfile <code>factoRverse_renv.lock</code> pinning every dependency to its tested version. To reproduce the tested environment, restore the lockfile before installing the tarball (ideally on the R version recorded in the lockfile):</p>
-<div class="sourceCode" id="cb3"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="co"># install.packages("renv")</span></span>
 <span><span class="fu">renv</span><span class="fu">::</span><span class="fu"><a href="https://rstudio.github.io/renv/reference/restore.html" class="external-link">restore</a></span><span class="op">(</span>lockfile <span class="op">=</span> <span class="st">"factoRverse_renv.lock"</span><span class="op">)</span></span>
 <span><span class="fu"><a href="https://rdrr.io/r/utils/install.packages.html" class="external-link">install.packages</a></span><span class="op">(</span><span class="st">"factoRverse_&lt;version&gt;.tar.gz"</span>, repos <span class="op">=</span> <span class="cn">NULL</span>, type <span class="op">=</span> <span class="st">"source"</span><span class="op">)</span></span></code></pre></div>
@@ -139,7 +196,7 @@
 <h3 id="id_0-feature-engineering--point-in-time-preprocessing">0. Feature engineering &amp; point-in-time preprocessing<a class="anchor" aria-label="anchor" href="#id_0-feature-engineering--point-in-time-preprocessing"></a>
 </h3>
 <p>Wrap a panel in a validated, self-documenting container, engineer signals from the factor-zoo literature, and preprocess <strong>one date at a time</strong> so no future information leaks into the past.</p>
-<div class="sourceCode" id="cb4"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="kw"><a href="https://rdrr.io/r/base/library.html" class="external-link">library</a></span><span class="op">(</span><span class="va"><a href="https://github.com/pauloguimaraes871/factoRverse" class="external-link">factoRverse</a></span><span class="op">)</span></span>
 <span></span>
 <span><span class="va">gold_m_df</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/create_meta_dataframe.html">create_meta_dataframe</a></span><span class="op">(</span><span class="va">raw_panel</span>, meta_dataframe_name <span class="op">=</span> <span class="st">"features"</span><span class="op">)</span></span>
@@ -164,7 +221,7 @@
 <h3 id="id_1-characteristic-portfolios">1. Characteristic portfolios<a class="anchor" aria-label="anchor" href="#id_1-characteristic-portfolios"></a>
 </h3>
 <p>Rank stocks on a signal, invest in the top quantile, and backtest the resulting long-only portfolio with realistic liquidity filters and transaction costs.</p>
-<div class="sourceCode" id="cb5"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">value_config</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/create_port_backtest_config.html">create_port_backtest_config</a></span><span class="op">(</span></span>
 <span>  chosen_score_metric_and_position <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>book_yield <span class="op">=</span> <span class="st">"long"</span><span class="op">)</span>,</span>
 <span>  eligibility_quantile_range <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.9</span>, <span class="fl">1</span><span class="op">)</span>,          <span class="co"># top decile</span></span>
@@ -197,7 +254,7 @@
 <h3 id="id_2-signal-selection-controlling-the-factor-zoo">2. Signal selection: controlling the factor zoo<a class="anchor" aria-label="anchor" href="#id_2-signal-selection-controlling-the-factor-zoo"></a>
 </h3>
 <p>Which signals are <em>real</em>? Pass the backtested returns of your candidate portfolios through disciplined, walk-forward inference on CAPM alpha, with frequentist multiple-testing control (FWER: Bonferroni/Holm; FDR: BH/BY) or Bayesian hierarchical shrinkage that partially pools alphas within economically motivated <strong>themes</strong>. This is the workflow studied in <em>The Factor Zoo Revisited</em> (see below).</p>
-<div class="sourceCode" id="cb6"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">ss_config</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/create_ss_backtest_config.html">create_ss_backtest_config</a></span><span class="op">(</span></span>
 <span>  initial_sample_size <span class="op">=</span> <span class="fl">80</span>, rebalancing_months <span class="op">=</span> <span class="fl">6</span>,</span>
 <span>  chosen_signals_and_positions <span class="op">=</span> <span class="st">"all"</span>, split_method <span class="op">=</span> <span class="st">"expanding"</span>,</span>
@@ -224,7 +281,7 @@
 <h3 id="id_3-signal-blending-from-heuristics-to-machine-learning">3. Signal blending: from heuristics to machine learning<a class="anchor" aria-label="anchor" href="#id_3-signal-blending-from-heuristics-to-machine-learning"></a>
 </h3>
 <p>Combine the <em>selected</em> signals into one score per stock. Treat signals as assets (equal-weight, risk parity, HRP, MVO), or predict returns with ML (<code>glmnet</code>, <code>ranger</code>, <code>xgboost</code>, <code>keras</code>), all behind one interface, one tuning API (grid / random / Bayesian optimization), and one walk-forward scheme.</p>
-<div class="sourceCode" id="cb7"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">glmnet_config</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/create_sb_backtest_config.html">create_sb_backtest_config</a></span><span class="op">(</span></span>
 <span>  sb_algorithm <span class="op">=</span> <span class="st">"glmnet"</span>, target_fwd_name <span class="op">=</span> <span class="st">"fwd_act_cum_ret_3m"</span>,</span>
 <span>  training_sample_size <span class="op">=</span> <span class="fl">120</span>, rebalancing_months <span class="op">=</span> <span class="fl">1</span><span class="op">:</span><span class="fl">12</span>,</span>
@@ -248,7 +305,7 @@
 <h3 id="id_4-deploying-the-blended-signal">4. Deploying the blended signal<a class="anchor" aria-label="anchor" href="#id_4-deploying-the-blended-signal"></a>
 </h3>
 <p>The out-of-sample blended score feeds straight back into the portfolio engine: now with the full machinery of concentration, turnover and liquidity constraints, signal shrinkage, transaction costs, an auditable trade log, and portfolio methods from equal-weight to the novel micro-macro allocation framework (MMAF).</p>
-<div class="sourceCode" id="cb8"><pre class="downlit sourceCode r">
+<div class="sourceCode" id="cb9"><pre class="downlit sourceCode r">
 <code class="sourceCode R"><span><span class="va">final_bt</span> <span class="op">&lt;-</span> <span class="fu"><a href="reference/run_port_backtest.html">run_port_backtest</a></span><span class="op">(</span></span>
 <span>  signals_m_df        <span class="op">=</span> <span class="va">gold_m_df</span>,</span>
 <span>  fwd_return_m_df     <span class="op">=</span> <span class="va">fwd_1m_returns_m_df</span>,</span>

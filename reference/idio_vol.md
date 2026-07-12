@@ -38,5 +38,5 @@ computed variance is negative, `NA_real_` is returned.
 
 ``` r
 idio_vol(c(0.05, 0.06, 0.07), c(0.03, 0.04, 0.05))
-#> [1] NA
+#> [1] 0
 ```
