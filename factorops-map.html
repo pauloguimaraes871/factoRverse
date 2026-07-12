@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>factoRverse: The FactorOps Map</title>
+<style>
+  /* ============ Tokens: committed dark identity (echoes the package's own
+     "cyberpunk" plot palette). Single-theme by design. ============ */
+  :root, :root[data-theme="dark"], :root[data-theme="light"] {
+    --bg: #0B1220;
+    --panel: #121B2E;
+    --panel-2: #0E1626;
+    --line: #223250;
+    --ink: #E8EEF9;
+    --muted: #8DA2C0;
+    --faint: #5D7396;
+    --cyan: #38E1D4;      /* engines, data flow */
+    --magenta: #F05FA0;   /* ML + Bayesian machinery */
+    --amber: #F0B429;     /* shared-engine symmetries ONLY */
+    --green: #7BD88F;     /* infrastructure, checks */
+    --mono: "Cascadia Code", "JetBrains Mono", Consolas, ui-monospace, monospace;
+    --sans: system-ui, "Segoe UI", Roboto, sans-serif;
+  }
+  html { background: var(--bg); }
+  body {
+    background: var(--bg); color: var(--ink);
+    font-family: var(--sans); line-height: 1.55;
+    margin: 0; padding: 0 20px 64px;
+  }
+  .wrap { max-width: 1220px; margin: 0 auto; }
+
+  /* ============ Header ============ */
+  header { padding: 48px 0 8px; }
+  .eyebrow {
+    font-family: var(--mono); font-size: 12px; letter-spacing: .22em;
+    text-transform: uppercase; color: var(--cyan); margin-bottom: 14px;
+  }
+  h1 {
+    font-size: clamp(30px, 5vw, 52px); font-weight: 800; letter-spacing: -.02em;
+    margin: 0 0 10px; text-wrap: balance;
+  }
+  h1 .r { color: var(--cyan); }
+  .thesis {
+    max-width: 68ch; color: var(--muted); font-size: 17px; margin: 0 0 26px;
+  }
+  .thesis strong { color: var(--ink); }
+
+  .stats { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 8px; }
+  .stat {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 6px;
+    padding: 10px 16px; min-width: 108px;
+  }
+  .stat b {
+    display: block; font-size: 24px; font-weight: 800;
+    font-variant-numeric: tabular-nums; letter-spacing: -.01em;
+  }
+  .stat span { font-size: 11.5px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; }
+  .stat.c b { color: var(--cyan); } .stat.m b { color: var(--magenta); }
+  .stat.a b { color: var(--amber); } .stat.g b { color: var(--green); }
+
+  /* ============ Legend ============ */
+  .legend {
+    display: flex; flex-wrap: wrap; gap: 18px; align-items: center;
+    font-size: 12.5px; color: var(--muted);
+    border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+    padding: 12px 2px; margin: 18px 0 34px;
+  }
+  .legend .k { display: inline-flex; align-items: center; gap: 7px; }
+  .dot { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+
+  /* ============ Pipeline spine ============ */
+  .stage { display: grid; grid-template-columns: 64px 1fr; gap: 0 22px; }
+  .rail { position: relative; }
+  .rail::before {
+    content: ""; position: absolute; left: 50%; top: 0; bottom: 0;
+    width: 2px; background: var(--line); transform: translateX(-50%);
+  }
+  .stage:first-of-type .rail::before { top: 26px; }
+  .stage:last-of-type  .rail::before { bottom: auto; height: 26px; }
+  .node {
+    position: relative; z-index: 1; width: 52px; height: 52px; margin: 0 auto;
+    border-radius: 50%; background: var(--panel-2); border: 2px solid var(--cyan);
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-weight: 700; font-size: 18px; color: var(--cyan);
+  }
+  .stage.ml .node { border-color: var(--magenta); color: var(--magenta); }
+
+  .card {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+    padding: 22px 24px 20px; margin-bottom: 30px;
+  }
+  .card h2 {
+    margin: 0 0 2px; font-size: 21px; font-weight: 750; letter-spacing: -.01em;
+    display: flex; flex-wrap: wrap; align-items: baseline; gap: 10px;
+  }
+  .card h2 code {
+    font-family: var(--mono); font-size: 14px; font-weight: 500;
+    color: var(--cyan); background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: 5px; padding: 2px 8px;
+  }
+  .stage.ml .card h2 code { color: var(--magenta); }
+  .card .sub { color: var(--muted); font-size: 14px; margin: 4px 0 16px; max-width: 78ch; }
+
+  .lanes { display: grid; grid-template-columns: 1.05fr 1.5fr .95fr; gap: 18px; }
+  @media (max-width: 900px) { .lanes { grid-template-columns: 1fr; } }
+  .lane h3 {
+    font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
+    color: var(--faint); margin: 0 0 10px; font-weight: 600;
+  }
+  .lane ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 7px; }
+  .lane li { font-size: 13.5px; color: var(--ink); padding-left: 14px; position: relative; }
+  .lane li::before { content: "▸"; position: absolute; left: 0; color: var(--cyan); font-size: 11px; top: 2px; }
+  .stage.ml .lane li::before { color: var(--magenta); }
+  .lane li small { color: var(--muted); }
+
+  .fn { font-family: var(--mono); font-size: 12.5px; color: var(--ink); }
+  .engines li { padding: 6px 10px 6px 12px; background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; }
+  .engines li::before { content: none; }
+  .engines .fn { color: var(--cyan); }
+  .stage.ml .engines .fn { color: var(--magenta); }
+  .engines li.shared { border-color: var(--amber); }
+  .engines li.shared .fn { color: var(--amber); }
+  .engines li .role { display: block; font-size: 11.5px; color: var(--muted); font-family: var(--sans); }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 7px; align-content: flex-start; }
+  .chip {
+    font-family: var(--mono); font-size: 12px; padding: 4px 10px;
+    border-radius: 999px; border: 1px solid var(--line);
+    background: var(--panel-2); color: var(--muted); white-space: nowrap;
+  }
+  .chip.core { border-color: color-mix(in srgb, var(--cyan) 45%, var(--line)); color: var(--cyan); }
+  .chip.ml   { border-color: color-mix(in srgb, var(--magenta) 45%, var(--line)); color: var(--magenta); }
+
+  .sym {
+    margin-top: 16px; padding: 10px 14px; border: 1px dashed var(--amber);
+    border-radius: 8px; font-size: 13px; color: var(--ink); background: rgba(240,180,41,.05);
+  }
+  .sym b { color: var(--amber); }
+  .sym .fn { color: var(--amber); }
+
+  /* ============ Plots gallery ============ */
+  .section-title {
+    margin: 44px 0 6px; font-size: 26px; font-weight: 800; letter-spacing: -.015em;
+  }
+  .section-sub { color: var(--muted); font-size: 15px; margin: 0 0 22px; max-width: 78ch; }
+  .section-sub code { font-family: var(--mono); font-size: 13px; color: var(--cyan); }
+  .plots { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+  .pcard {
+    background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px 20px;
+  }
+  .pcard h3 {
+    margin: 0 0 2px; font-family: var(--mono); font-size: 14px; font-weight: 600; color: var(--cyan);
+  }
+  .pcard .count { font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; margin: 4px 0 2px; }
+  .pcard .count small { font-size: 12px; font-weight: 500; color: var(--muted); letter-spacing: .06em; }
+  .pcard ul { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 5px; }
+  .pcard li { font-size: 12.5px; color: var(--muted); padding-left: 12px; position: relative; }
+  .pcard li::before { content: "•"; position: absolute; left: 0; color: var(--faint); }
+  .pcard li.hl { color: var(--ink); }
+  .pcard li.hl::before { color: var(--magenta); }
+  .pcard .more { margin-top: 8px; font-size: 12px; color: var(--faint); font-style: italic; }
+
+  /* ============ Infra ribbon ============ */
+  .infra {
+    margin-top: 40px; border: 1px solid var(--line); border-radius: 10px;
+    background: linear-gradient(180deg, var(--panel), var(--panel-2));
+    padding: 22px 24px;
+  }
+  .infra h2 { margin: 0 0 14px; font-size: 20px; font-weight: 750; }
+  .infra h2 span { color: var(--green); }
+  .infra-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 12px 26px; }
+  .infra-item { font-size: 13.5px; color: var(--muted); padding-left: 20px; position: relative; }
+  .infra-item::before { content: "✓"; position: absolute; left: 0; color: var(--green); font-weight: 700; }
+  .infra-item b { color: var(--ink); font-weight: 650; }
+
+  footer {
+    margin-top: 34px; font-size: 12.5px; color: var(--faint);
+    display: flex; flex-wrap: wrap; gap: 6px 22px;
+  }
+  footer .fn { color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+
+<header>
+  <div class="eyebrow">FactorOps · one auditable interface from raw panel to deployable book</div>
+  <h1>facto<span class="r">R</span>verse</h1>
+  <p class="thesis">
+    A <strong>central interface to the R quant stack</strong>. Four walk-forward workflows share one
+    grammar (<span class="fn">config + data → run_*() → *_results</span>) and one set of engines,
+    orchestrating twelve specialist packages behind a single, versionable, point-in-time-safe API.
+  </p>
+  <div class="stats">
+    <div class="stat c"><b>4</b><span>workflows</span></div>
+    <div class="stat c"><b>9</b><span>portfolio methods</span></div>
+    <div class="stat m"><b>12</b><span>blending algorithms</span></div>
+    <div class="stat a"><b>76</b><span>built-in plots</span></div>
+    <div class="stat g"><b>227</b><span>locked dependencies</span></div>
+    <div class="stat g"><b>73</b><span>test files</span></div>
+    <div class="stat g"><b>332</b><span>help pages</span></div>
+  </div>
+</header>
+
+<div class="legend">
+  <span class="k"><span class="dot" style="background:var(--cyan)"></span> engines &amp; data flow</span>
+  <span class="k"><span class="dot" style="background:var(--magenta)"></span> ML &amp; Bayesian machinery</span>
+  <span class="k"><span class="dot" style="background:var(--amber)"></span> shared engine: same code, two workflows</span>
+  <span class="k"><span class="dot" style="background:var(--green)"></span> infrastructure</span>
+</div>
+
+<!-- ============ Stage 0 ============ -->
+<div class="stage">
+  <div class="rail"><div class="node">0</div></div>
+  <div class="card">
+    <h2>Data layer &amp; point-in-time preprocessing</h2>
+    <p class="sub">Validated, self-documenting containers; signals engineered with information available at <em>t</em>, never after.</p>
+    <div class="lanes">
+      <div class="lane">
+        <h3>Engines</h3>
+        <ul class="engines">
+          <li><span class="fn">create_meta_dataframe() / create_meta_xts()</span><span class="role">validated S4 containers with a workflow audit slot</span></li>
+          <li><span class="fn">create_tickers_catalog()</span><span class="role">rename-proof perm_ids, listing/delisting bookkeeping</span></li>
+          <li class="shared"><span class="fn">create_target_m_df()</span><span class="role">forward risk-adjusted targets · reuses summarize_performance()</span></li>
+        </ul>
+      </div>
+      <div class="lane">
+        <h3>Features</h3>
+        <ul>
+          <li>Self-contained signal engineering: <span class="fn">compute_formula</span>, <span class="fn">compute_window</span>, <span class="fn">compute_sector_wise</span>, <span class="fn">compute_across</span>, <span class="fn">compute_score</span></li>
+          <li><span class="fn">map_recipe_timewise()</span>: any <span class="fn">recipes</span> pipeline prepped &amp; baked <b>one date at a time</b> (impute, winsorize, custom steps) with zero look-ahead</li>
+          <li>Dozens of forward targets: raw, active, risk-adjusted, multi-horizon</li>
+        </ul>
+      </div>
+      <div class="lane">
+        <h3>Leverages</h3>
+        <div class="chips">
+          <span class="chip core">recipes</span>
+          <span class="chip core">dplyr</span>
+          <span class="chip core">tidyr</span>
+          <span class="chip core">purrr</span>
+          <span class="chip core">xts / zoo</span>
+          <span class="chip">PerformanceAnalytics</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ W1 ============ -->
+<div class="stage">
+  <div class="rail"><div class="node">1</div></div>
+  <div class="card">
+    <h2>Characteristic portfolios <code>run_port_backtest()</code></h2>
+    <p class="sub">Realistic, cost-aware, constraint-aware backtesting of any signal, the same engine that later deploys the final book.</p>
+    <div class="lanes">
+      <div class="lane">
+        <h3>Engines</h3>
+        <ul class="engines">
+          <li class="shared"><span class="fn">set_portfolio_weights()</span><span class="role">★ one weighting engine, reused verbatim by signal blending (W3)</span></li>
+          <li class="shared"><span class="fn">classify_investment_universe()</span><span class="role">★ same eligibility grammar used for stocks here and signals in W2</span></li>
+          <li><span class="fn">estimate_covariance_matrix()</span><span class="role">sample · PCA · shrinkage, active or total returns</span></li>
+        </ul>
+      </div>
+      <div class="lane">
+        <h3>Features</h3>
+        <ul>
+          <li><b>9 construction methods</b>: EW · SW · CW · CS · HRP · MMAF built in-house; RP with tilts &amp; constraints; MVO with box/group/concentration constraints, custom objectives, random/grid/DE search, resampling &amp; shrinkage</li>
+          <li>Transaction costs (direct + dynamic market impact) with a full auditable <b>trade log</b></li>
+          <li>Liquidity floors &amp; caps, turnover buffer zones, user-defined AND/OR eligibility rules</li>
+          <li>Expected-return-score shrinkage &amp; combination; benchmark-relative everything</li>
+          <li>Cohorts: aggregate style portfolios and compare them as a group</li>
+        </ul>
+      </div>
+      <div class="lane">
+        <h3>Leverages</h3>
+        <div class="chips">
+          <span class="chip core">PortfolioAnalytics</span>
+          <span class="chip core">riskParityPortfolio</span>
+          <span class="chip core">PerformanceAnalytics</span>
+          <span class="chip core">xts / zoo</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ W2 ============ -->
+<div class="stage ml">
+  <div class="rail"><div class="node">2</div></div>
+  <div class="card">
+    <h2>Signal selection <code>run_ss_backtest()</code></h2>
+    <p class="sub">Which signals are real? Disciplined, walk-forward inference on CAPM alpha, taming the factor zoo.</p>
+    <div class="lanes">
+      <div class="lane">
+        <h3>Engines</h3>
+        <ul class="engines">
+          <li class="shared"><span class="fn">summarize_performance()</span><span class="role">★ per-signal CAPM metrics; also powers target creation (stage 0)</span></li>
+          <li><span class="fn">fit_frequentist_hierarchical_model()</span><span class="role">partial pooling via lme4 / lmerTest</span></li>
+          <li><span class="fn">fit_bayesian_hierarchical_model()</span><span class="role">brms / Stan MCMC, parallel chains via future</span></li>
+        </ul>
+      </div>
+      <div class="lane">
+        <h3>Features</h3>
+        <ul>
+          <li>Multiple-testing control: <b>FWER</b> (Bonferroni, Holm) and <b>FDR</b> (BH, BY)</li>
+          <li>No-pooled OLS or partial-pooled hierarchical CAPM,4 theme-level specifications</li>
+          <li>Bayesian shrinkage with <b>user priors or data-informed priors</b> derived from an exogenous global dataset</li>
+          <li>Hypothesis testing applied walk-forward, expanding or rolling, at every rebalance</li>
+          <li>Theme representativeness: no economic theme silently drops out</li>
+        </ul>
+      </div>
+      <div class="lane">
+        <h3>Leverages</h3>
+        <div class="chips">
+          <span class="chip ml">lme4</span>
+          <span class="chip ml">lmerTest</span>
+          <span class="chip ml">brms / Stan</span>
+          <span class="chip ml">tidybayes</span>
+          <span class="chip">PerformanceAnalytics</span>
+          <span class="chip">future</span>
+        </div>
+      </div>
+    </div>
+    <div class="sym"><b>Symmetry:</b> <span class="fn">signal_universe_m_df</span> ↔ <span class="fn">stock_universe_m_df</span>: signals are screened with the <em>same</em> eligibility engine that screens stocks: significance gates (p-value or posterior direction) simply replace return-score quantiles.</div>
+  </div>
+</div>
+
+<!-- ============ W3 ============ -->
+<div class="stage ml">
+  <div class="rail"><div class="node">3</div></div>
+  <div class="card">
+    <h2>Signal blending <code>run_sb_backtest()</code></h2>
+    <p class="sub">Combine the selected signals into one score per stock: heuristics to deep learning behind one interface, one tuning API, one walk-forward scheme.</p>
+    <div class="lanes">
+      <div class="lane">
+        <h3>Engines</h3>
+        <ul class="engines">
+          <li><span class="fn">hyper_tune()</span><span class="role">grid · random · Bayesian optimization, parallel via furrr/doFuture</span></li>
+          <li><span class="fn">fit_sb_model()</span><span class="role">one dispatcher over 12 blending algorithms</span></li>
+          <li class="shared"><span class="fn">set_portfolio_weights()</span><span class="role">★ heuristic blenders treat signals as assets: the W1 engine again, enabling factor timing</span></li>
+        </ul>
+      </div>
+      <div class="lane">
+        <h3>Features</h3>
+        <ul>
+          <li><b>ML</b>: OLS · glmnet · random forest · XGBoost · Keras/TensorFlow NN, with tunable hyperparameters, custom objectives (Huber, pinball and more), early stopping, many eval metrics</li>
+          <li><b>Heuristics</b>: EW · SW · RP · HRP · MVO · MMAF · custom weights over the signal universe</li>
+          <li>Interpretability end-to-end: global-surrogate <b>feature importance</b> + <span class="fn">explain_prediction()</span></li>
+          <li><b>Meta-ensembles</b> (<span class="fn">sb_metabacktest</span>): blend the blenders: backtest <em>processes</em>, not signals. Second-level thinking: a system, not a backtest</li>
+        </ul>
+      </div>
+      <div class="lane">
+        <h3>Leverages</h3>
+        <div class="chips">
+          <span class="chip ml">glmnet</span>
+          <span class="chip ml">ranger</span>
+          <span class="chip ml">xgboost</span>
+          <span class="chip ml">keras / TensorFlow</span>
+          <span class="chip ml">ParBayesianOptimization</span>
+          <span class="chip">furrr / doFuture</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ W4 ============ -->
+<div class="stage">
+  <div class="rail"><div class="node">4</div></div>
+  <div class="card">
+    <h2>Deployment <code>run_port_backtest(sb_results)</code></h2>
+    <p class="sub">The out-of-sample blended score feeds straight back into the W1 engine, now with the full machinery of constraints, costs and audit trail, producing the final deployable book. The loop closes.</p>
+    <div class="lanes">
+      <div class="lane">
+        <h3>Engines</h3>
+        <ul class="engines">
+          <li class="shared"><span class="fn">set_portfolio_weights()</span><span class="role">★ third appearance: one engine from research to production</span></li>
+        </ul>
+      </div>
+      <div class="lane">
+        <h3>Features</h3>
+        <ul>
+          <li>Per-stock <span class="fn">exp_ret_score</span> from the blender drives final weights</li>
+          <li>Concentration, turnover &amp; liquidity constraints; signal shrinkage; transaction costs; trade log</li>
+          <li>Every result object carries its full <span class="fn">workflow</span> history and a <span class="fn">backtest_identifier</span>: reproducible, comparable, auditable</li>
+        </ul>
+      </div>
+      <div class="lane">
+        <h3>Leverages</h3>
+        <div class="chips">
+          <span class="chip core">PortfolioAnalytics</span>
+          <span class="chip core">riskParityPortfolio</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ Plots ============ -->
+<h2 class="section-title">76 plots, one verb</h2>
+<p class="section-sub">
+  Every results object answers <code>plot(x)</code> with an interactive menu: pick a number, get a
+  publication-ready ggplot in the package's cyberpunk palette. Configs and tuning strategies plot themselves too.
+</p>
+<div class="plots">
+  <div class="pcard">
+    <h3>port_backtest_results</h3>
+    <div class="count">18 <small>PLOTS</small></div>
+    <ul>
+      <li>Weights: time-series, cross-section, heatmaps, by ticker or group</li>
+      <li>Group composition through time</li>
+      <li>Expected-return score by group &amp; eligibility</li>
+      <li class="hl">Transaction costs &amp; portfolio metrics over time</li>
+      <li>Full portfolio stats panel</li>
+    </ul>
+  </div>
+  <div class="pcard">
+    <h3>port_backtest_cohort</h3>
+    <div class="count">16 <small>PLOTS</small></div>
+    <ul>
+      <li>Raw / net / active return paths across the cohort</li>
+      <li>Cross-sectional performance metrics, 4 variants</li>
+      <li class="hl">Cost decomposition: direct vs market impact</li>
+      <li>Turnover; weights correlogram; weights radar</li>
+    </ul>
+  </div>
+  <div class="pcard">
+    <h3>ss_backtest_results</h3>
+    <div class="count">9-16 <small>PLOTS</small></div>
+    <ul>
+      <li>Signal &amp; theme metrics: time-series, side-by-side, box, waterfall</li>
+      <li>Eligibility by theme</li>
+      <li class="hl">Bayesian mode adds 7: posterior alphas, betas, random effects, variance components, regression lines, return decomposition, alpha distributions by theme</li>
+    </ul>
+  </div>
+  <div class="pcard">
+    <h3>sb_backtest_results</h3>
+    <div class="count">13-18 <small>PLOTS</small></div>
+    <ul>
+      <li>Tuning diagnostics: hyperparameters vs error, validation vs test</li>
+      <li>OOS predictions, errors &amp; consolidated metrics</li>
+      <li class="hl">Feature importance ×8: time-series, side-by-side, box, heatmap, by signal or theme</li>
+      <li class="hl">Explain any single prediction</li>
+    </ul>
+  </div>
+  <div class="pcard">
+    <h3>sb_metabacktest_results</h3>
+    <div class="count">8 <small>PLOTS</small></div>
+    <ul>
+      <li>Combined OOS metrics across blenders</li>
+      <li>Prediction-error correlation between learners</li>
+      <li class="hl">Base learners vs meta-learners over time</li>
+      <li>Hierarchical feature importance</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ============ Infra ============ -->
+<div class="infra">
+  <h2>Built like software, not like a script <span>(the Ops in FactorOps)</span></h2>
+  <div class="infra-grid">
+    <div class="infra-item"><b>Reproducible</b>:renv lockfile pins all 227 dependencies; every release ships tarball + lockfile</div>
+    <div class="infra-item"><b>Versionable</b>:S4 objects carry their full workflow history; named configs propagate into every result</div>
+    <div class="infra-item"><b>Modular</b>:fluent <span class="fn">create_*_config() |&gt; add_*()</span> pipelines; pieces snap together and swap</div>
+    <div class="infra-item"><b>Auditable</b>:trade logs, workflow slots, backtest identifiers; any number traces to its inputs</div>
+    <div class="infra-item"><b>Parallelizable</b>:future / furrr / doFuture across tuning, MCMC and resampling; one <span class="fn">plan()</span> call</div>
+    <div class="infra-item"><b>Tested &amp; checked</b>:73 test files; <span class="fn">R CMD check --as-cran</span> green on Ubuntu &amp; Windows, every push</div>
+    <div class="infra-item"><b>Deployable</b>:tag-triggered releases gated on a passing check; docs auto-published via pkgdown</div>
+    <div class="infra-item"><b>Point-in-time safe</b>:signals at <em>t</em> use only information available at <em>t</em>; guardrails against look-ahead &amp; survivorship bias</div>
+  </div>
+</div>
+
+<footer>
+  <span>factoRverse 0.5.0 · MIT</span>
+  <span class="fn">github.com/pauloguimaraes871/factoRverse</span>
+  <span>Companion papers: The Factor Zoo Revisited · Man vs Machine</span>
+</footer>
+
+</div>
+</body>
+</html>
