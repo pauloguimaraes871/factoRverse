@@ -193,6 +193,13 @@ hyper_tune <- function(tuning_method, ml_algorithm, target_fwd_name,  #General P
     ###Hyperparameter tuning following Bayesian Optimization!
     if(tuning_method == c("bayesian_opt")){
 
+      ###ParBayesianOptimization is a Suggests dependency (archived on CRAN),
+      ###so fail fast with installation guidance when it is missing.
+      if (!requireNamespace("ParBayesianOptimization", quietly = TRUE)) {
+        stop("The 'ParBayesianOptimization' package is required for tuning_method = 'bayesian_opt'. ",
+             "Install it with remotes::install_github('AnotherSamWilson/ParBayesianOptimization').")
+      }
+
       #Apply Bayes Optimization
       if(parallel){
 
