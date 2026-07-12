@@ -106,11 +106,11 @@
 </h2>
 <p>Each workflow orchestrates specialist packages behind the same grammar (<code>config</code> + data, then <code>run_*()</code>, then a <code>*_results</code> object), and three internal engines are deliberately reused across workflows: the weighting engine, the eligibility grammar, and the CAPM metrics engine (dotted links below).</p>
 <pre class="mermaid"><code>flowchart TB
-    S0["0 · Data layer: point-in-time preprocessing&lt;br/&gt;compute_* engineering, map_recipe_timewise&lt;br/&gt;uses recipes, dplyr, purrr, xts/zoo"]
-    P1["1 · Characteristic portfolios: run_port_backtest&lt;br/&gt;EW, SW, CW, CS, RP, HRP, MVO, MMAF; costs and trade log&lt;br/&gt;uses PortfolioAnalytics, riskParityPortfolio, PerformanceAnalytics"]
-    P2["2 · Signal selection: run_ss_backtest&lt;br/&gt;FWER and FDR control; hierarchical CAPM; Bayesian priors&lt;br/&gt;uses lme4, lmerTest, brms/Stan, tidybayes"]
-    P3["3 · Signal blending: run_sb_backtest&lt;br/&gt;glmnet, ranger, xgboost, keras; tuning; meta-ensembles&lt;br/&gt;uses ParBayesianOptimization, furrr/doFuture"]
-    P4["4 · Deployment: run_port_backtest with sb_results&lt;br/&gt;blended score drives the final book"]
+    S0["0 · Data layer&lt;br/&gt;recipes, dplyr, purrr, xts/zoo"]
+    P1["1 · Characteristic portfolios&lt;br/&gt;PortfolioAnalytics, riskParityPortfolio"]
+    P2["2 · Signal selection&lt;br/&gt;lme4, brms/Stan, tidybayes"]
+    P3["3 · Signal blending&lt;br/&gt;glmnet, ranger, xgboost, keras"]
+    P4["4 · Deployment&lt;br/&gt;back into the portfolio engine"]
 
     S0 --&gt; P1 --&gt; P2 --&gt; P3 --&gt; P4
 
@@ -368,7 +368,17 @@
 
 
 
-
-
-  </body>
+  <script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  document.querySelectorAll("pre.mermaid, pre code.language-mermaid, code.mermaid, div.sourceCode.mermaid pre code").forEach((el) => {
+    const pre = el.closest("pre");
+    const host = (pre && pre.closest("div.sourceCode")) || pre || el;
+    const div = document.createElement("div");
+    div.className = "mermaid";
+    div.textContent = el.textContent;
+    host.replaceWith(div);
+  });
+  mermaid.initialize({ startOnLoad: true });
+</script>
+</body>
 </html>

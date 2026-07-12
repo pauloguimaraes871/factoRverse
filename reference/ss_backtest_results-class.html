@@ -108,7 +108,16 @@ It includes information about eligible signals, signal universes, Bayesian fits,
 
 
 
-
-
-  </body></html>
+  <script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
+  document.querySelectorAll("pre.mermaid, pre code.language-mermaid, code.mermaid, div.sourceCode.mermaid pre code").forEach((el) => {
+    const pre = el.closest("pre");
+    const host = (pre && pre.closest("div.sourceCode")) || pre || el;
+    const div = document.createElement("div");
+    div.className = "mermaid";
+    div.textContent = el.textContent;
+    host.replaceWith(div);
+  });
+  mermaid.initialize({ startOnLoad: true });
+</script></body></html>
 
