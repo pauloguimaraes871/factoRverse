@@ -87,27 +87,13 @@ internal engines are deliberately reused across workflows: the weighting
 engine, the eligibility grammar, and the CAPM metrics engine (dotted
 links below).
 
-``` mermaid
-flowchart TB
-    S0["0 · Data layer<br/>recipes, dplyr, purrr, xts/zoo"]
-    P1["1 · Characteristic portfolios<br/>PortfolioAnalytics, riskParityPortfolio"]
-    P2["2 · Signal selection<br/>lme4, brms/Stan, tidybayes"]
-    P3["3 · Signal blending<br/>glmnet, ranger, xgboost, keras"]
-    P4["4 · Deployment<br/>back into the portfolio engine"]
-
-    S0 --> P1 --> P2 --> P3 --> P4
-
-    subgraph SHARED ["shared engines: same code, several workflows"]
-        SPW(["set_portfolio_weights"])
-        CIU(["classify_investment_universe"])
-        SPF(["summarize_performance"])
-    end
-
-    P1 -.- SPW -.- P3
-    SPW -.- P4
-    P1 -.- CIU -.- P2
-    S0 -.- SPF -.- P2
-```
+| Stage | Workflow | Shared engines | Leverages |
+|----|----|----|----|
+| 0 | Data layer and point-in-time preprocessing | [`summarize_performance()`](https://pauloguimaraes871.github.io/factoRverse/reference/summarize_performance.md) (via [`create_target_m_df()`](https://pauloguimaraes871.github.io/factoRverse/reference/create_target_m_df.md)) | recipes, dplyr, purrr, xts/zoo |
+| 1 | Characteristic portfolios ([`run_port_backtest()`](https://pauloguimaraes871.github.io/factoRverse/reference/run_port_backtest.md)) | [`set_portfolio_weights()`](https://pauloguimaraes871.github.io/factoRverse/reference/set_portfolio_weights.md), [`classify_investment_universe()`](https://pauloguimaraes871.github.io/factoRverse/reference/classify_investment_universe.md) | PortfolioAnalytics, riskParityPortfolio, PerformanceAnalytics |
+| 2 | Signal selection ([`run_ss_backtest()`](https://pauloguimaraes871.github.io/factoRverse/reference/run_ss_backtest.md)) | [`classify_investment_universe()`](https://pauloguimaraes871.github.io/factoRverse/reference/classify_investment_universe.md), [`summarize_performance()`](https://pauloguimaraes871.github.io/factoRverse/reference/summarize_performance.md) | lme4, lmerTest, brms/Stan, tidybayes |
+| 3 | Signal blending ([`run_sb_backtest()`](https://pauloguimaraes871.github.io/factoRverse/reference/run_sb_backtest.md)) | [`set_portfolio_weights()`](https://pauloguimaraes871.github.io/factoRverse/reference/set_portfolio_weights.md) (heuristic blenders, factor timing) | glmnet, ranger, xgboost, keras/TensorFlow, ParBayesianOptimization |
+| 4 | Deployment ([`run_port_backtest()`](https://pauloguimaraes871.github.io/factoRverse/reference/run_port_backtest.md) with `sb_results`) | [`set_portfolio_weights()`](https://pauloguimaraes871.github.io/factoRverse/reference/set_portfolio_weights.md) (third appearance) | PortfolioAnalytics, riskParityPortfolio |
 
 The same symmetry runs through the data model: `stock_universe_m_df`
 (stocks screened by return-score quantiles) and `signal_universe_m_df`
