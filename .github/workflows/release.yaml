@@ -19,6 +19,10 @@ jobs:
   check:
     name: R CMD check (release gate)
     runs-on: ubuntu-latest
+    # Authenticate GitHub API calls (e.g. renv resolving the DESCRIPTION
+    # Remotes field); unauthenticated runners share exhausted rate limits.
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4

@@ -9,6 +9,10 @@ on:
 jobs:
   R-CMD-check:
     runs-on: ${{ matrix.config.os }}
+    # Authenticate GitHub API calls (e.g. renv resolving the DESCRIPTION
+    # Remotes field); unauthenticated runners share exhausted rate limits.
+    env:
+      GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
     strategy:
       fail-fast: false
       matrix:
