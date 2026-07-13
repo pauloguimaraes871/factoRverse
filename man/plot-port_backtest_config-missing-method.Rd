@@ -10,7 +10,7 @@
 \item{x}{A \code{port_backtest_config} object containing liquidity floor cutoffs data in the
 \code{liquidity_floor_cutoffs} slot.}
 
-\item{palette}{A character string specifying the color palette to use for the bars. Default is "cyberpunk".}
+\item{palette}{A character string specifying the color palette to use for the bars. Options include "cyberpunk", "br" and "journal". Default is "cyberpunk".}
 
 \item{...}{Additional arguments (currently not used).}
 }

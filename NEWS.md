@@ -1,3 +1,20 @@
+# factoRverse 0.6.0
+
+* New feature: a `"journal"` plotting palette across all `plot()` methods,
+  alongside the existing `"cyberpunk"` and `"br"` themes. The journal theme is
+  a sober, print-oriented light theme in the style of economics and finance
+  journals: white ground, near-black ink, hairline grid, and eight muted
+  categorical hues chosen for separation in grayscale and for colourblind
+  readers. Positive/negative readings map to a muted green and brick red.
+  - The palette is defined once (internal `.journal_palette()`) and consumed
+    by every plot method, so figures stay consistent across the four
+    workflows' results objects.
+  - The journal theme shares the light-theme code paths of `"br"`; the two
+    config-object plots (`plot(<ss_backtest_config>)`,
+    `plot(<sb_backtest_config>)`) treat any non-cyberpunk palette as a
+    generic light theme, as documented.
+  - `"cyberpunk"` and `"br"` output is unchanged.
+
 # factoRverse 0.5.1
 
 Packaging and documentation refinements after the 0.5.0 release. No changes to

@@ -26,7 +26,7 @@
 
 \item{type}{A character string specifying the type of plot to generate. If \code{NULL}, the user will be prompted.}
 
-\item{palette}{A character string specifying the color palette to use for the plots. Default is "cyberpunk". Supported options include "cyberpunk" and "br".}
+\item{palette}{A character string specifying the color palette to use for the plots. Default is "cyberpunk". Supported options include "cyberpunk", "br" and "journal".}
 
 \item{chosen_weights}{A character vector of asset names to include in the weights plot (if \code{type = "weights"}). If \code{NULL}, all assets are included.}
 

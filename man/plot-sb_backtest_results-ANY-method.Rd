@@ -44,7 +44,7 @@ Provide a number (index into the list shown when \code{plot_id} is \code{NULL}),
 
 \item{features_m_df}{A \code{meta_dataframe} containing features used in the backtest. Required for plots like \code{"Explain Prediction"}.}
 
-\item{palette}{Character. Color palette to use for the plot. Options include "cyberpunk" and "br". Default is "cyberpunk".}
+\item{palette}{Character. Color palette to use for the plot. Options include "cyberpunk", "br" and "journal". Default is "cyberpunk".}
 
 \item{ticker_to_explain}{Character. Ticker symbol to explain in the "Explain Prediction" plot.}
 

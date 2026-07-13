@@ -11,7 +11,7 @@
 
 \item{type}{Currently unused. Included for compatibility with other plot methods.}
 
-\item{palette}{Character. Color palette to use for the plot. Options include "cyberpunk" and "br". Default is "cyberpunk". This will be passed to the underlying model's plot method if applicable.}
+\item{palette}{Character. Color palette to use for the plot. Options include "cyberpunk", "br" and "journal". Default is "cyberpunk". This will be passed to the underlying model's plot method if applicable.}
 
 \item{...}{Additional arguments passed to the plot method of the underlying model.}
 }

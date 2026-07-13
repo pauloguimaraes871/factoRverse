@@ -11,7 +11,7 @@
 
 \item{y}{Unused. Included for consistency with the generic \code{plot} method.}
 
-\item{palette}{Character. Color palette to use for the plot. Options include "cyberpunk" and "br". Default is "cyberpunk".}
+\item{palette}{Character. Color palette to use for the plot. Options include "cyberpunk", "br" and "journal". Default is "cyberpunk".}
 
 \item{...}{Additional arguments passed to the plotting method (currently unused).}
 }

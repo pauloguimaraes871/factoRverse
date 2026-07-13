@@ -11,7 +11,7 @@
 
 \item{plot_id}{A character string or numeric value specifying which plot to display (see \verb{@description} for the full list of names).}
 
-\item{palette}{A character string specifying the color palette. Must be one of \code{"cyberpunk"} (dark theme) or \code{"br"} (light theme); any other value is not handled and will error. Default is \code{"cyberpunk"}.}
+\item{palette}{A character string specifying the color palette. Must be one of \code{"cyberpunk"} (dark theme), \code{"br"} (light theme) or \code{"journal"} (sober, print-oriented light theme); any other value is not handled and will error. Default is \code{"cyberpunk"}.}
 
 \item{variable}{Character vector of tickers to include, used only by the Bayesian posterior-diagnostic plots (\code{plot_id} 10 and above). If \code{NULL}, an interactive ticker-selection prompt is shown. Ignored for the other plot types.}
 }

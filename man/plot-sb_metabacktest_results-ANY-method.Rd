@@ -35,7 +35,7 @@
 If \code{NULL} (default), the method lists available plots.
 }}
 
-\item{palette}{Character. Color palette to use for the plot. Options include "cyberpunk" and "br". Default is "cyberpunk".}
+\item{palette}{Character. Color palette to use for the plot. Options include "cyberpunk", "br" and "journal". Default is "cyberpunk".}
 
 \item{chosen_metric}{Character. The specific metric to plot (e.g., "rmse", "mae"). Required for certain plots.}
 

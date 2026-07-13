@@ -1,3 +1,39 @@
+# ===========================================================================
+# Shared plot palettes
+# ===========================================================================
+
+#' Journal colour palette (internal)
+#'
+#' Single source of truth for the "journal" plotting theme: a sober,
+#' print-oriented palette in the style of economics/finance journals (white
+#' ground, near-black navy ink, hairline grid, muted categorical hues).
+#' Individual plot methods map these roles onto their own local colour
+#' variables so the theme stays consistent across every figure.
+#'
+#' @return A named list with scalar colour roles (\code{background},
+#'   \code{text}, \code{grid}, \code{primary}, \code{positive},
+#'   \code{negative}, \code{neutral}) and two colour vectors:
+#'   \code{categorical} (eight hues ordered for maximum separation, including
+#'   in grayscale) and \code{sequential} (a light-to-dark blue ramp for
+#'   gradients and heatmaps).
+#' @noRd
+.journal_palette <- function() {
+  list(
+    background  = "#FFFFFF",
+    text        = "#1A1A2E",
+    grid        = "#E4E4E4",
+    primary     = "#1F4E79",
+    positive    = "#2E7D32",
+    negative    = "#B2182B",
+    neutral     = "#5B6770",
+    categorical = c("#1F4E79", "#B2182B", "#2A7F7F", "#C08A1E",
+                    "#5B6770", "#6A4C93", "#3A7CA5", "#7A5C3E"),
+    sequential  = c("#EAF2F8", "#D3E3F0", "#A9C7E0", "#6FA0C8",
+                    "#3A7CA5", "#1F4E79", "#14385B")
+  )
+}
+
+
 #' Plot method for meta_dataframe objects
 #'
 #' @title Plot meta_dataframe
@@ -325,8 +361,8 @@ setMethod(
 
     }
 
-    if (!palette %in% c("cyberpunk","br")) {
-      stop("palette must be 'cyberpunk' or 'br'")
+    if (!palette %in% c("cyberpunk","br","journal")) {
+      stop("palette must be 'cyberpunk', 'br' or 'journal'")
     }
 
     # Define colors for plotting
@@ -402,6 +438,23 @@ setMethod(
       col_negative  <- "#C2185B"
       col_background <- "#FFFFFF"
       col_text      <- "#002C33"
+
+    }
+
+    if (palette == "journal") {
+
+      ### The journal theme shares the br (light-theme) code paths below; the
+      ### shared branches test `palette %in% c("br", "journal")` and read the
+      ### same variables, so populate them with the journal role colours.
+      jp <- .journal_palette()
+
+      br_palette <- jp$categorical
+
+      col_primary    <- jp$primary
+      col_positive   <- jp$positive
+      col_negative   <- jp$negative
+      col_background <- jp$background
+      col_text       <- jp$text
 
     }
 
@@ -622,7 +675,7 @@ setMethod(
 
         # Choose a color palette (e.g., "Set3" for distinct colors) or any other palette with enough colors
         num_series <- ncol(df_wide) - 1  # Number of unique time series (columns in df_wide excluding 'dates')
-        if (palette == "br") {
+        if (palette %in% c("br", "journal")) {
           color_palette <- br_palette
         } else {
           color_palette <- suppressWarnings(RColorBrewer::brewer.pal(min(num_series, 12), "Set3"))  # Adjust palette size to number of series
@@ -630,7 +683,7 @@ setMethod(
 
         # If more than 12 series, extend the palette by repeating colors (or use a larger palette if available)
         if (num_series > 12) {
-          if (palette == "br"){
+          if (palette %in% c("br", "journal")){
             color_palette <- rep(br_palette, length.out = num_series)
           } else {
             color_palette <- grDevices::colorRampPalette(RColorBrewer::brewer.pal(12, "Set3"))(num_series)
@@ -739,13 +792,13 @@ setMethod(
 
         # Generate color palette based on the number of unique categories
         num_categories <- length(unique(df[[clustering_variables]]))
-        if (palette == "br"){
+        if (palette %in% c("br", "journal")){
           base_palette <- br_palette
         } else {
           base_palette <- suppressWarnings(RColorBrewer::brewer.pal(min(num_categories, 12), "Set3"))
         }
         color_palette <- if (num_categories > 12) {
-          if (palette == "br"){
+          if (palette %in% c("br", "journal")){
            rep(br_palette, length.out = num_categories)
           } else {
             grDevices::colorRampPalette(base_palette)(num_categories)
@@ -795,14 +848,14 @@ setMethod(
 
       # Generate color palette based on the number of unique categories
       num_categories <- length(unique(df[[clustering_variables]]))
-      if (palette == "br"){
+      if (palette %in% c("br", "journal")){
         base_palette <- br_palette
       } else {
         base_palette <- neon_palete
       }
 
       color_palette <- if (num_categories > 12) {
-        if (palette == "br"){
+        if (palette %in% c("br", "journal")){
           rep(br_palette, length.out = num_categories)
         } else {
           rep(neon_palete, length.out = num_categories)
@@ -885,13 +938,13 @@ setMethod(
 
       # Generate color palette based on the number of unique categories
       num_categories <- length(unique(df_fun$Composition_Group))
-      if (palette == "br"){
+      if (palette %in% c("br", "journal")){
         base_palette <- br_palette
       } else {
         base_palette <- RColorBrewer::brewer.pal(min(num_categories, 3), "Set3")
       }
       color_palette <- if (num_categories > 3) {
-        if (palette == "br"){
+        if (palette %in% c("br", "journal")){
           rep(br_palette, length.out = num_categories)
         } else {
           grDevices::colorRampPalette(base_palette)(num_categories)
@@ -1113,7 +1166,7 @@ setMethod(
             ) +
             ggplot2::scale_fill_gradient2(
               low = col_negative,
-              mid = if (palette == "br") "#EBEEF1" else "#8A03C9",
+              mid = if (palette %in% c("br", "journal")) "#EBEEF1" else "#8A03C9",
               high = col_positive, midpoint = 0,
               limits = c(-1, 1), guide = ggplot2::guide_colorbar(title = "Correlation")
             ) +
@@ -1174,7 +1227,7 @@ setMethod(
           ) +
           ggplot2::scale_fill_gradient2(
             low = col_negative,
-            mid = if (palette == "br") "#EBEEF1" else "#8A03C9",
+            mid = if (palette %in% c("br", "journal")) "#EBEEF1" else "#8A03C9",
             high = col_positive, midpoint = 0,
             limits = c(-1, 1), guide = ggplot2::guide_colorbar(title = "Correlation")
           ) +
@@ -1219,6 +1272,9 @@ setMethod(
       if (palette == "br"){
         graphics::par(fg = "#003641", col.axis = "#003641", col.lab = "#003641",
                       col.main = "#003641", col.sub = "#003641", bg = col_background)
+      } else if (palette == "journal"){
+        graphics::par(fg = jp$text, col.axis = jp$text, col.lab = jp$text,
+                      col.main = jp$text, col.sub = jp$text, bg = col_background)
       } else {
         graphics::par(fg = "white", col.axis = "white", col.lab = "white",
                       col.main = "white", col.sub = "white", bg = col_background)
@@ -1263,7 +1319,7 @@ setMethod(
 
       # Set the colors for each row (example: generate colors)
       num_rows <- nrow(actual_data)
-      colors <- if (palette == "br") {
+      colors <- if (palette %in% c("br", "journal")) {
 
         br_palette[seq_len(num_rows)]
 
@@ -1507,6 +1563,9 @@ setMethod(
         # Color palette for bins
         if (palette == "br"){
           color_palette <- c("#49479D", "#4C7C83", "#00C9B8", "#00AE9D", "#94E1D6", "#EBEEA8", "#EBEEA8", "#D6E266", "#A5CD5C", "#7DB61C")
+        } else if (palette == "journal"){
+          ### Ordered bins get the sequential ramp (light-to-dark blue)
+          color_palette <- grDevices::colorRampPalette(jp$sequential)(10)
         } else {
           color_palette <- c(vibrant_purple, cyan, neon_green, neon_yellow, neon_yellow, neon_yellow, neon_orange, neon_red, neon_pink, "#E75480")
         }
@@ -1546,6 +1605,8 @@ setMethod(
         # Color palette for bins
         if (palette == "br"){
           color_palette <- c("#7DB61C", "#A5CD5C",  "#EBEEA8","#94E1D6", "#00C9B8")
+        } else if (palette == "journal"){
+          color_palette <- jp$categorical[1:5]
         } else {
           color_palette <- c(cyan, neon_green, vibrant_purple, neon_pink, vibrant_purple)
         }
@@ -1674,8 +1735,9 @@ setMethod(
 #' @param active_returns Logical or `"yes"/"no"` string. Whether to compute active returns relative to the benchmark when `plot_perf_metric = TRUE`.
 #' @param variable Variable to plot. If `NULL`, user is prompted to select from available columns.
 #' @param chosen_metric Character. Performance metric to plot when `plot_perf_metric = TRUE`. Options include "CAGR", "Volatility", "Sharpe Ratio", etc. If `NULL`, user is prompted.
-#' @param palette Character. Either `"cyberpunk"` (default; dark background,
-#'   neon series colors) or `"br"` (light background, brand palette).
+#' @param palette Character. One of `"cyberpunk"` (default; dark background,
+#'   neon series colors), `"br"` (light background, brand palette) or
+#'   `"journal"` (white background, sober print-oriented colours).
 #' @param ... Currently unused.
 #'
 #' @return Invisibly returns the generated `ggplot` object.
@@ -1759,6 +1821,23 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
                 "#A5CD5C", "#003641", "#00A091",
                 "#4C7C83", "#FF5F1F"
               )
+
+            }
+            if (palette == "journal") {
+
+              jp <- .journal_palette()
+
+              light_gray <- jp$grid
+
+              col_background <- jp$background
+              col_text       <- jp$text
+              col_primary    <- jp$primary
+              col_positive   <- jp$positive
+              col_negative   <- jp$negative
+              vertical_line_color <- jp$text
+
+              ### Recycle the eight journal hues to match the br palette length
+              palette_colors <- rep(jp$categorical, length.out = 23)
 
             }
 
@@ -2369,7 +2448,7 @@ setMethod("plot", signature = c(x = "meta_xts", y = "missing"),
 #' @description Plot the values selected for each hyperparameter in `hyper_grid_domain` for grid search strategy.
 #' @param x An object of class `grid_search_strategy`.
 #' @param y Unused. Included for consistency with the generic `plot` method.
-#' @param palette Character. Color palette to use for the plot. Options include "cyberpunk" and "br". Default is "cyberpunk".
+#' @param palette Character. Color palette to use for the plot. Options include "cyberpunk", "br" and "journal". Default is "cyberpunk".
 #' @return Invisibly returns the `ggplot` object visualizing the hyperparameter grid and its predefined limits (also printed as a side effect).
 #' @section Requirements:
 #' Requires the suggested packages `gridExtra`, `scales`, `ggdist`, `ggraph`,
@@ -2438,6 +2517,23 @@ setMethod("plot", signature(x = "grid_search_strategy", y = "missing"), function
       "#7DB61C", "#A5CD5C", "#003641",
       "#00A091", "#4C7C83", "#FF5F1F"
     )
+
+  }
+  if (palette == "journal") {
+
+    jp <- .journal_palette()
+
+    light_gray <- jp$grid
+
+    col_background <- jp$background
+    col_text       <- jp$text
+    col_primary    <- jp$primary
+    col_positive   <- jp$positive
+    col_negative   <- jp$negative
+    vertical_line_color <- jp$text
+
+    ### Recycle the eight journal hues to match the br palette length
+    palette_colors <- rep(jp$categorical, length.out = 24)
 
   }
 
@@ -2559,7 +2655,7 @@ setMethod("plot", signature(x = "grid_search_strategy", y = "missing"), function
 #'   distribution and plot the resulting histograms/violins for random search.
 #' @param x An object of class `random_search_strategy`.
 #' @param y Unused. Included for consistency with the generic `plot` method.
-#' @param palette Character. Color palette to use for the plot. Options include "cyberpunk" and "br". Default is "cyberpunk".
+#' @param palette Character. Color palette to use for the plot. Options include "cyberpunk", "br" and "journal". Default is "cyberpunk".
 #' @return Invisibly returns the `ggplot` object visualizing the hyperparameter histograms and their predefined limits (also printed as a side effect).
 #' @section Requirements:
 #' Requires the suggested packages `gridExtra`, `scales`, `ggdist`, `ggraph`,
@@ -2633,6 +2729,24 @@ setMethod("plot", signature(x = "random_search_strategy", y = "missing"), functi
       "#7DB61C", "#A5CD5C", "#003641",
       "#00A091", "#4C7C83", "#FF5F1F"
     )
+
+  }
+  if (palette == "journal") {
+
+    jp <- .journal_palette()
+
+    light_gray <- jp$grid
+
+    col_background <- jp$background
+    col_text       <- jp$text
+    col_primary    <- jp$primary
+    col_positive   <- jp$positive
+    col_negative   <- jp$negative
+    vertical_line_color <- jp$text
+    cyan <- jp$sequential[3]
+
+    ### Recycle the eight journal hues to match the br palette length
+    palette_colors <- rep(jp$categorical, length.out = 24)
 
   }
 
@@ -2784,7 +2898,7 @@ setMethod("plot", signature(x = "random_search_strategy", y = "missing"), functi
 #' @description Plot the lower/upper bounds for each hyperparameter in `bayesian_opt_strategy`.
 #' @param x An object of class `bayesian_opt_strategy`.
 #' @param y Unused. Included for consistency with the generic `plot` method.
-#' @param palette Character. Color palette to use for the plot. Options include "cyberpunk" and "br". Default is "cyberpunk".
+#' @param palette Character. Color palette to use for the plot. Options include "cyberpunk", "br" and "journal". Default is "cyberpunk".
 #' @param ... Additional arguments passed to the plotting method (currently unused).
 #' @return Invisibly returns the `ggplot` object visualizing the bounds (also printed as a side effect).
 #' @section Requirements:
@@ -2857,6 +2971,24 @@ setMethod("plot", signature(x = "bayesian_opt_strategy", y = "missing"), functio
       "#7DB61C", "#A5CD5C", "#003641",
       "#00A091", "#4C7C83", "#FF5F1F"
     )
+
+  }
+  if (palette == "journal") {
+
+    jp <- .journal_palette()
+
+    light_gray <- jp$grid
+
+    col_background <- jp$background
+    col_text       <- jp$text
+    col_primary    <- jp$primary
+    col_positive   <- jp$positive
+    col_negative   <- jp$negative
+    vertical_line_color <- jp$text
+    cyan <- jp$sequential[3]
+
+    ### Recycle the eight journal hues to match the br palette length
+    palette_colors <- rep(jp$categorical, length.out = 24)
 
   }
 
@@ -2989,7 +3121,7 @@ setMethod("plot", signature(x = "bayesian_opt_strategy", y = "missing"), functio
 #' @description Calls the appropriate plot method for `tuning_strategy`.
 #' @param x An object of class `sb_backtest_config`.
 #' @param y Unused. Included for consistency with the generic `plot` method.
-#' @param palette Character. Color palette to use for the plot. Options include "cyberpunk" and "br". Default is "cyberpunk".
+#' @param palette Character. Color palette to use for the plot. Options include "cyberpunk", "br" and "journal". Default is "cyberpunk".
 #' @return A `ggplot` object visualizing the hyperparameter histograms with possible limits.
 #' @export
 setMethod("plot", signature(x = "sb_backtest_config", y = "missing"), function(x, y, palette = "cyberpunk"){
@@ -3024,7 +3156,7 @@ setMethod("plot", signature(x = "sb_backtest_config", y = "missing"), function(x
 #'
 #' @param x An object of class \code{sb_model}.
 #' @param type Currently unused. Included for compatibility with other plot methods.
-#' @param palette Character. Color palette to use for the plot. Options include "cyberpunk" and "br". Default is "cyberpunk". This will be passed to the underlying model's plot method if applicable.
+#' @param palette Character. Color palette to use for the plot. Options include "cyberpunk", "br" and "journal". Default is "cyberpunk". This will be passed to the underlying model's plot method if applicable.
 #' @param ... Additional arguments passed to the plot method of the underlying model.
 #'
 #' @export
@@ -3083,7 +3215,7 @@ setMethod(
 #'   test-vs-validation, hyperparameter, and consolidated-vs-validation plots) are omitted.
 #'   Provide a number (index into the list shown when `plot_id` is `NULL`), or `NULL` (default) to list them.
 #' @param features_m_df A \code{meta_dataframe} containing features used in the backtest. Required for plots like `"Explain Prediction"`.
-#' @param palette Character. Color palette to use for the plot. Options include "cyberpunk" and "br". Default is "cyberpunk".
+#' @param palette Character. Color palette to use for the plot. Options include "cyberpunk", "br" and "journal". Default is "cyberpunk".
 #' @param ticker_to_explain Character. Ticker symbol to explain in the "Explain Prediction" plot.
 #' @param date_to_explain Date. Date to explain in the "Explain Prediction" plot.
 #' @return Invisibly returns the input \code{x}.
@@ -3247,6 +3379,29 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
       "#7DB61C", "#A5CD5C", "#003641",
       "#00A091", "#4C7C83"
     )
+
+  }
+  if (palette == "journal") {
+
+    jp <- .journal_palette()
+
+    light_gray <- jp$grid
+
+    col_background <- jp$background
+    col_text       <- jp$text
+    col_primary    <- jp$primary
+    col_secondary  <- jp$categorical[3]
+    col_terciary   <- jp$categorical[6]
+    col_quarternary <- jp$positive
+    col_quinternary <- jp$sequential[7]
+    col_sextenary  <- jp$categorical[4]
+    col_positive   <- jp$positive
+    col_negative   <- jp$negative
+    vertical_line_color <- jp$text
+    cyan <- jp$sequential[3]
+
+    ### Recycle the eight journal hues to match the br palette length
+    palette_colors <- rep(jp$categorical, length.out = 25)
 
   }
 
@@ -4230,7 +4385,7 @@ setMethod("plot", "sb_backtest_results", function(x, plot_id = NULL, features_m_
 #'     - `"Hierarchical Feature Importance"`
 #'   - By number: Provide a number corresponding to the plot (as listed when `plot_id` is `NULL`).
 #'   If `NULL` (default), the method lists available plots.
-#' @param palette Character. Color palette to use for the plot. Options include "cyberpunk" and "br". Default is "cyberpunk".
+#' @param palette Character. Color palette to use for the plot. Options include "cyberpunk", "br" and "journal". Default is "cyberpunk".
 #' @param chosen_metric Character. The specific metric to plot (e.g., "rmse", "mae"). Required for certain plots.
 #' @param chosen_backtests Character vector. Specific backtests to include in the plot.
 #' @param top_n Numeric. If specified, limits the plot to the top N backtests based on the chosen metric.
@@ -4354,6 +4509,28 @@ setMethod("plot", "sb_metabacktest_results", function(x, plot_id = NULL, palette
       "#A5CD5C", "#003641", "#00A091",
       "#4C7C83", "#FF5F1F"
     )
+
+  }
+  if (palette == "journal") {
+
+    jp <- .journal_palette()
+
+    light_gray <- jp$grid
+
+    col_background <- jp$background
+    col_text       <- jp$text
+    col_primary    <- jp$primary
+    col_secondary  <- jp$categorical[3]
+    col_terciary   <- jp$categorical[6]
+    col_quarternary <- jp$positive
+    col_quinternary <- jp$sequential[7]
+    col_sextenary  <- jp$categorical[4]
+    col_positive   <- jp$positive
+    col_negative   <- jp$negative
+    vertical_line_color <- jp$text
+
+    ### Recycle the eight journal hues to match the br palette length
+    palette_colors <- rep(jp$categorical, length.out = 23)
 
   }
 
@@ -4860,7 +5037,7 @@ setMethod("plot", "bayesian_alpha_test_strategy", function(x, ...) {
 #' \code{"Posterior Individual Alpha Distributions by Theme and Signal"}.
 #' @param x An object of class `ss_backtest_results`.
 #' @param plot_id A character string or numeric value specifying which plot to display (see `@description` for the full list of names).
-#' @param palette A character string specifying the color palette. Must be one of `"cyberpunk"` (dark theme) or `"br"` (light theme); any other value is not handled and will error. Default is `"cyberpunk"`.
+#' @param palette A character string specifying the color palette. Must be one of `"cyberpunk"` (dark theme), `"br"` (light theme) or `"journal"` (sober, print-oriented light theme); any other value is not handled and will error. Default is `"cyberpunk"`.
 #' @param variable Character vector of tickers to include, used only by the Bayesian posterior-diagnostic plots (\code{plot_id} 10 and above). If `NULL`, an interactive ticker-selection prompt is shown. Ignored for the other plot types.
 #' @return Invisibly returns the input object.
 #' @export
@@ -4966,6 +5143,29 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL, palette = "
       "#3A7CA5",
       "#4A90C2"
     )
+
+  }
+  if (palette == "journal") {
+
+    jp <- .journal_palette()
+
+    light_gray <- jp$grid
+
+    col_background <- jp$background
+    col_text       <- jp$text
+    col_primary    <- jp$primary
+    col_secondary  <- jp$categorical[3]
+    col_terciary   <- jp$categorical[6]
+    col_quarternary <- jp$positive
+    col_quinternary <- jp$sequential[7]
+    col_sextenary  <- jp$categorical[4]
+    pos_color   <- jp$positive
+    neg_color   <- jp$negative
+    vertical_line_color <- jp$text
+    cyan <- jp$sequential[3]
+
+    ### Recycle the eight journal hues to match the br palette length
+    palette_colors <- rep(jp$categorical, length.out = 35)
 
   }
 
@@ -6238,7 +6438,7 @@ setMethod("plot", "ss_backtest_results", function(x, plot_id = NULL, palette = "
 #'
 #' @param x A \code{port_backtest_config} object containing liquidity floor cutoffs data in the
 #'   \code{liquidity_floor_cutoffs} slot.
-#' @param palette A character string specifying the color palette to use for the bars. Default is "cyberpunk".
+#' @param palette A character string specifying the color palette to use for the bars. Options include "cyberpunk", "br" and "journal". Default is "cyberpunk".
 #' @param ... Additional arguments (currently not used).
 #'
 #' @return A \code{ggplot} object representing the faceted liquidity floor cutoffs plot.
@@ -6355,6 +6555,29 @@ setMethod(
       )
 
     }
+    if (palette == "journal") {
+
+      jp <- .journal_palette()
+
+      light_gray <- jp$grid
+
+      col_background <- jp$background
+      col_text       <- jp$text
+      col_primary    <- jp$primary
+      col_secondary  <- jp$categorical[3]
+      col_terciary   <- jp$categorical[6]
+      col_quarternary <- jp$positive
+      col_quinternary <- jp$sequential[7]
+      col_sextenary  <- jp$categorical[4]
+      col_positive   <- jp$positive
+      col_negative   <- jp$negative
+      vertical_line_color <- jp$text
+      cyan <- jp$sequential[3]
+
+      ### Recycle the eight journal hues to match the br palette length
+      palette_colors <- rep(jp$categorical, length.out = 25)
+
+    }
 
     # Create the faceted bar plot: each facet corresponds to a numeric metric.
     # Within each facet, the x-axis uses new_group which is ordered by Value.
@@ -6410,7 +6633,7 @@ setMethod(
 #'
 #' @param x An object of class \code{"port"}.
 #' @param type A character string specifying the type of plot to generate. If \code{NULL}, the user will be prompted.
-#' @param palette A character string specifying the color palette to use for the plots. Default is "cyberpunk". Supported options include "cyberpunk" and "br".
+#' @param palette A character string specifying the color palette to use for the plots. Default is "cyberpunk". Supported options include "cyberpunk", "br" and "journal".
 #' @param chosen_weights A character vector of asset names to include in the weights plot (if \code{type = "weights"}). If \code{NULL}, all assets are included.
 #' @param chosen_risk_metrics A character vector of risk metrics to include in the risk plots (if applicable). If \code{NULL}, all risk metrics are included.
 #' @param add_bench A logical indicating whether to add benchmark weights to the weights plot (if \code{type = "weights"}). Default is \code{FALSE}.
@@ -6530,6 +6753,29 @@ setMethod(
         "#3A7CA5",
         "#4A90C2"
       )
+
+    }
+    if (palette == "journal") {
+
+      jp <- .journal_palette()
+
+      light_gray <- jp$grid
+
+      col_background <- jp$background
+      col_text       <- jp$text
+      col_primary    <- jp$primary
+      col_secondary  <- jp$categorical[3]
+      col_terciary   <- jp$categorical[6]
+      col_quarternary <- jp$positive
+      col_quinternary <- jp$sequential[7]
+      col_sextenary  <- jp$categorical[4]
+      pos_color  <- col_positive <- jp$positive
+      neg_color <- col_negative  <- jp$negative
+      vertical_line_color <- jp$text
+      cyan <- jp$sequential[3]
+
+      ### Recycle the eight journal hues to match the br palette length
+      palette_colors <- rep(jp$categorical, length.out = 35)
 
     }
 
@@ -7739,6 +7985,29 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_
     )
 
   }
+  if (palette == "journal") {
+
+    jp <- .journal_palette()
+
+    light_gray <- jp$grid
+
+    col_background <- jp$background
+    col_text       <- jp$text
+    col_primary    <- jp$primary
+    col_secondary  <- jp$categorical[3]
+    col_terciary   <- jp$categorical[6]
+    col_quarternary <- jp$positive
+    col_quinternary <- jp$sequential[7]
+    col_sextenary  <- jp$categorical[4]
+    col_positive   <- jp$positive
+    col_negative   <- jp$negative
+    vertical_line_color <- jp$text
+    cyan <- jp$sequential[3]
+
+    ### Recycle the eight journal hues to match the br palette length
+    palette_colors <- rep(jp$categorical, length.out = 25)
+
+  }
 
   # List of available plots
   available_plots <- c(
@@ -8174,6 +8443,29 @@ setMethod("plot", "port_backtest_cohort", function(x, plot_id = NULL, vertical_l
       "#7DB61C", "#A5CD5C", "#003641",
       "#00A091", "#4C7C83"
     )
+
+  }
+  if (palette == "journal") {
+
+    jp <- .journal_palette()
+
+    light_gray <- jp$grid
+
+    col_background <- jp$background
+    col_text       <- jp$text
+    col_primary    <- jp$primary
+    col_secondary  <- jp$categorical[3]
+    col_terciary   <- jp$categorical[6]
+    col_quarternary <- jp$positive
+    col_quinternary <- jp$sequential[7]
+    col_sextenary  <- jp$categorical[4]
+    col_positive   <- jp$positive
+    col_negative   <- jp$negative
+    vertical_line_color <- jp$text
+    cyan <- jp$sequential[3]
+
+    ### Recycle the eight journal hues to match the br palette length
+    palette_colors <- rep(jp$categorical, length.out = 25)
 
   }
 

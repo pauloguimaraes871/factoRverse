@@ -47,8 +47,9 @@ Only applies if \code{cumulative = FALSE}. If \code{NULL}, user is prompted.}
 
 \item{chosen_metric}{Character. Performance metric to plot when \code{plot_perf_metric = TRUE}. Options include "CAGR", "Volatility", "Sharpe Ratio", etc. If \code{NULL}, user is prompted.}
 
-\item{palette}{Character. Either \code{"cyberpunk"} (default; dark background,
-neon series colors) or \code{"br"} (light background, brand palette).}
+\item{palette}{Character. One of \code{"cyberpunk"} (default; dark background,
+neon series colors), \code{"br"} (light background, brand palette) or
+\code{"journal"} (white background, sober print-oriented colours).}
 
 \item{...}{Currently unused.}
 }
