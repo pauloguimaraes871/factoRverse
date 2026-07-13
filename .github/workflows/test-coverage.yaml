@@ -47,8 +47,12 @@ jobs:
       - name: Set up renv and restore
         uses: r-lib/actions/setup-renv@v2
 
+      # covr and xml2 are check/coverage drivers, deliberately absent from
+      # renv.lock. xml2 is a Suggests of testthat/waldo that the test suite
+      # loads lazily; the R-CMD-check job gets it for free as a transitive
+      # dependency of rcmdcheck, but the covr driver does not pull it in.
       - name: Install coverage driver (covr)
-        run: renv::install("covr")
+        run: renv::install(c("covr", "xml2"))
         shell: Rscript {0}
 
       - name: Measure coverage
@@ -65,7 +69,7 @@ jobs:
       - name: Show testthat failure log
         if: failure()
         run: |
-          f=$(find /tmp -name 'testthat.Rout.fail' | head -1)
+          f=$(find /tmp -name 'testthat.Rout.fail' 2>/dev/null | head -1 || true)
           if [ -n "$f" ]; then
             echo "== $f =="
             tail -n 120 "$f"
