@@ -1232,6 +1232,11 @@ idio_vol <- function(ret_values, bench_ret_values, na.rm = TRUE) {
     ##If ret_values = bench_values, return 0
     if (length(ret_values) > 0L && all(ret_values == bench_ret_values)) return(0)
 
+    ##Idiosyncratic volatility needs at least one residual degree of freedom:
+    ##the regression fits an intercept and a slope, so fewer than three
+    ##(non-identical) observations leaves the residual variance undefined.
+    if (length(ret_values) < 3L) return(NA_real_)
+
   ###########
 
 
@@ -1244,7 +1249,17 @@ idio_vol <- function(ret_values, bench_ret_values, na.rm = TRUE) {
   sd_bench  <- stats::sd(bench_ret_values, na.rm = TRUE) #Get standard deviation of benchmark returns
   idio_var <- sd_signal^2 - (out$beta^2) * (sd_bench^2) #Compute idiosyncratic variance
 
-  if (is.na(idio_var) || idio_var < 0) return(NA_real_)
+  if (is.na(idio_var)) return(NA_real_)
+  ### idio_var is total variance minus the variance explained by the benchmark.
+  ### When returns are (near-)collinear with, or invariant to, the benchmark the
+  ### two terms nearly cancel, so floating-point error can leave idio_var as tiny
+  ### noise of either sign (this is BLAS-dependent and differs across platforms).
+  ### The magnitude of that noise scales with the operands, so treat anything
+  ### within a small relative tolerance of zero as exactly zero; only a
+  ### materially negative result (not a valid variance) yields NA.
+  noise_tol <- 1e-8 * max(sd_signal^2, (out$beta^2) * (sd_bench^2), 1)
+  if (abs(idio_var) <= noise_tol) return(0)
+  if (idio_var < 0) return(NA_real_)
   sqrt(idio_var)
   ###########
 
