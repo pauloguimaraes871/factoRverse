@@ -27,7 +27,9 @@ jobs:
       - name: Set up R
         uses: r-lib/actions/setup-r@v2
         with:
-          r-version: '4.3'          # match renv.lock (R 4.3.0); bump only with the lock
+          r-version: '4.3.0'        # exact match to renv.lock; a floating '4.3' lets
+                                    # patch releases drift CI's numerical/deprecation
+                                    # behavior away from the tested environment
           use-public-rspm: true
 
       # Pandoc is needed to (re)build vignettes/rmarkdown docs during --as-cran.
