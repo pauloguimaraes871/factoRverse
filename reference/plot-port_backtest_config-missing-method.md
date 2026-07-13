@@ -26,7 +26,8 @@ plot(x, palette = "cyberpunk", ...)
 - palette:
 
   A character string specifying the color palette to use for the bars.
-  Default is "cyberpunk".
+  Options include "cyberpunk", "br" and "journal". Default is
+  "cyberpunk".
 
 - ...:
 

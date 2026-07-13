@@ -91,8 +91,9 @@ plot(
 
 - palette:
 
-  Character. Either `"cyberpunk"` (default; dark background, neon series
-  colors) or `"br"` (light background, brand palette).
+  Character. One of `"cyberpunk"` (default; dark background, neon series
+  colors), `"br"` (light background, brand palette) or `"journal"`
+  (white background, sober print-oriented colours).
 
 - ...:
 

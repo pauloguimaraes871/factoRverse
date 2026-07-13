@@ -39,8 +39,8 @@ plot(
 - palette:
 
   A character string specifying the color palette to use for the plots.
-  Default is "cyberpunk". Supported options include "cyberpunk" and
-  "br".
+  Default is "cyberpunk". Supported options include "cyberpunk", "br"
+  and "journal".
 
 - chosen_weights:
 

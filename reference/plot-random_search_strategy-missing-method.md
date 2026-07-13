@@ -24,7 +24,7 @@ plot(x, y, palette = "cyberpunk")
 - palette:
 
   Character. Color palette to use for the plot. Options include
-  "cyberpunk" and "br". Default is "cyberpunk".
+  "cyberpunk", "br" and "journal". Default is "cyberpunk".
 
 ## Value
 

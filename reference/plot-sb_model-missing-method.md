@@ -23,8 +23,8 @@ plot(x, type = NULL, palette = "cyberpunk", ...)
 - palette:
 
   Character. Color palette to use for the plot. Options include
-  "cyberpunk" and "br". Default is "cyberpunk". This will be passed to
-  the underlying model's plot method if applicable.
+  "cyberpunk", "br" and "journal". Default is "cyberpunk". This will be
+  passed to the underlying model's plot method if applicable.
 
 - ...:
 

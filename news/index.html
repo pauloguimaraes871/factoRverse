@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">factoRverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.5.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.6.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -33,6 +33,15 @@
       <small>Source: <a href="https://github.com/pauloguimaraes871/factoRverse/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.6.0" id="factorverse-060">factoRverse 0.6.0<a class="anchor" aria-label="anchor" href="#factorverse-060"></a></h2>
+<ul><li>New feature: a <code>"journal"</code> plotting palette across all <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> methods, alongside the existing <code>"cyberpunk"</code> and <code>"br"</code> themes. The journal theme is a sober, print-oriented light theme in the style of economics and finance journals: white ground, near-black ink, hairline grid, and eight muted categorical hues chosen for separation in grayscale and for colourblind readers. Positive/negative readings map to a muted green and brick red.
+<ul><li>The palette is defined once (internal <code>.journal_palette()</code>) and consumed by every plot method, so figures stay consistent across the four workflows’ results objects.</li>
+<li>The journal theme shares the light-theme code paths of <code>"br"</code>; the two config-object plots (<code>plot(&lt;ss_backtest_config&gt;)</code>, <code>plot(&lt;sb_backtest_config&gt;)</code>) treat any non-cyberpunk palette as a generic light theme, as documented.</li>
+<li>
+<code>"cyberpunk"</code> and <code>"br"</code> output is unchanged.</li>
+</ul></li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.5.1" id="factorverse-051">factoRverse 0.5.1<a class="anchor" aria-label="anchor" href="#factorverse-051"></a></h2>
 <p>Packaging and documentation refinements after the 0.5.0 release. No changes to the analytical API.</p>

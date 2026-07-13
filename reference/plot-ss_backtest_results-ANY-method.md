@@ -40,8 +40,9 @@ plot(x, plot_id = NULL, palette = "cyberpunk", variable = NULL)
 - palette:
 
   A character string specifying the color palette. Must be one of
-  `"cyberpunk"` (dark theme) or `"br"` (light theme); any other value is
-  not handled and will error. Default is `"cyberpunk"`.
+  `"cyberpunk"` (dark theme), `"br"` (light theme) or `"journal"`
+  (sober, print-oriented light theme); any other value is not handled
+  and will error. Default is `"cyberpunk"`.
 
 - variable:
 
