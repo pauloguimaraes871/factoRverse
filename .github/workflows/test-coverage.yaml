@@ -55,6 +55,11 @@ jobs:
         run: renv::install(c("covr", "xml2"))
         shell: Rscript {0}
 
+      # .covrignore excludes visualization/display code (plot/print/summary
+      # methods) and the Keras backend file: the former is not meaningfully
+      # unit-testable and the latter cannot run without a Python/TensorFlow
+      # backend on the runner. The reported figure is therefore coverage of the
+      # analytical surface, not of the display layer.
       - name: Measure coverage
         run: |
           cov <- covr::package_coverage(quiet = FALSE, clean = FALSE)

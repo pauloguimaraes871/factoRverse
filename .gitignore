@@ -9,9 +9,6 @@
 src/
 
 
-# Ignore package installation files
-.Rbuildignore
-
 # Ignore CRAN submission files
 cran-comments.md
 
