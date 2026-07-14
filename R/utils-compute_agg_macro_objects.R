@@ -579,6 +579,12 @@ calculate_group_covariance_matrix <- function(eligible_universe_m_d_ref,
     }
   }
 
+  ## Force exact symmetry: entries [i,j] and [j,i] are the same bilinear form
+  ## (w_i' Sigma w_j) computed as two separate matrix products, so they diverge
+  ## at floating-point round-off (~1e-18). Averaging removes that asymmetry,
+  ## which the port-class isSymmetric() validity guard would otherwise reject.
+  group_covariance_matrix <- (group_covariance_matrix + t(group_covariance_matrix)) / 2
+
   return(group_covariance_matrix)
 
 
