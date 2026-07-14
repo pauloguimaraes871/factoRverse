@@ -1,5 +1,25 @@
 # Changelog
 
+## factoRverse 0.6.1
+
+Bug fix for meta-portfolio backtests that use group (sector)
+representativeness.
+
+- [`calculate_group_covariance_matrix()`](https://pauloguimaraes871.github.io/factoRverse/reference/calculate_group_covariance_matrix.md)
+  now returns an exactly symmetric matrix. Each off-diagonal entry
+  `[i, j]` is the bilinear form `w_i' Sigma w_j`, while the mirror entry
+  `[j, i]` was computed as a separate matrix product; in floating point
+  the two diverged by ~1e-18, so the aggregated sector covariance could
+  be asymmetric at the round-off level. When that matrix became the
+  `@covariance_matrix` slot of a macro `port` object, the class validity
+  guard ([`isSymmetric()`](https://rdrr.io/r/base/isSymmetric.html))
+  rejected it with `"covariance_matrix must be symmetric"`,
+  intermittently aborting `rp`, `hrp` and `mmaf` meta-portfolio
+  backtests. The two triangles are now averaged (`(G + t(G)) / 2`)
+  before the matrix is returned. The true aggregate covariance is
+  symmetric, so this removes only round-off; portfolio weights and
+  statistics are unchanged to ~1e-15.
+
 ## factoRverse 0.6.0
 
 - New feature: a `"journal"` plotting palette across all

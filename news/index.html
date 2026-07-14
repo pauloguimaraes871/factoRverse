@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">factoRverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.6.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.6.1</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -33,6 +33,12 @@
       <small>Source: <a href="https://github.com/pauloguimaraes871/factoRverse/blob/main/NEWS.md" class="external-link"><code>NEWS.md</code></a></small>
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.6.1" id="factorverse-061">factoRverse 0.6.1<a class="anchor" aria-label="anchor" href="#factorverse-061"></a></h2>
+<p>Bug fix for meta-portfolio backtests that use group (sector) representativeness.</p>
+<ul><li>
+<code><a href="../reference/calculate_group_covariance_matrix.html">calculate_group_covariance_matrix()</a></code> now returns an exactly symmetric matrix. Each off-diagonal entry <code>[i, j]</code> is the bilinear form <code>w_i' Sigma w_j</code>, while the mirror entry <code>[j, i]</code> was computed as a separate matrix product; in floating point the two diverged by ~1e-18, so the aggregated sector covariance could be asymmetric at the round-off level. When that matrix became the <code>@covariance_matrix</code> slot of a macro <code>port</code> object, the class validity guard (<code><a href="https://rdrr.io/r/base/isSymmetric.html" class="external-link">isSymmetric()</a></code>) rejected it with <code>"covariance_matrix must be symmetric"</code>, intermittently aborting <code>rp</code>, <code>hrp</code> and <code>mmaf</code> meta-portfolio backtests. The two triangles are now averaged (<code>(G + t(G)) / 2</code>) before the matrix is returned. The true aggregate covariance is symmetric, so this removes only round-off; portfolio weights and statistics are unchanged to ~1e-15.</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.6.0" id="factorverse-060">factoRverse 0.6.0<a class="anchor" aria-label="anchor" href="#factorverse-060"></a></h2>
 <ul><li>New feature: a <code>"journal"</code> plotting palette across all <code><a href="https://rdrr.io/r/graphics/plot.default.html" class="external-link">plot()</a></code> methods, alongside the existing <code>"cyberpunk"</code> and <code>"br"</code> themes. The journal theme is a sober, print-oriented light theme in the style of economics and finance journals: white ground, near-black ink, hairline grid, and eight muted categorical hues chosen for separation in grayscale and for colourblind readers. Positive/negative readings map to a muted green and brick red.
