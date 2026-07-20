@@ -369,6 +369,16 @@ workflows is developed in two companion papers:
   outperform human skill?* Anchors the machine-learning signal-blending
   and portfolio-construction workflow.
 
+## Support
+
+`factoRverse` is developed and maintained in the open, free to use. If it
+saves you time or helps your research, you can support its continued
+development and maintenance through [GitHub
+Sponsors](https://github.com/sponsors/pauloguimaraes871). Sponsorship is
+entirely optional and never gates any feature; the best no-cost ways to
+help are equally welcome: star the repo, cite the package (see below),
+and report issues.
+
 ## Citation
 
 If you use `factoRverse` in your research, please cite the package and
