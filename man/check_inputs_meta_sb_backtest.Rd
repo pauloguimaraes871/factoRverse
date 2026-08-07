@@ -19,7 +19,8 @@ check_inputs_meta_sb_backtest(
   base_benchmark_returns_m_xts,
   meta_backtest_returns_m_xts,
   meta_benchmark_returns_m_xts,
-  verbose = TRUE
+  verbose = TRUE,
+  .allow_heterogeneous_base_features = FALSE
 )
 }
 \arguments{
@@ -52,6 +53,15 @@ check_inputs_meta_sb_backtest(
 \item{meta_benchmark_returns_m_xts}{Optional xts object for meta benchmark returns.}
 
 \item{verbose}{A boolean indicating whether to print detailed messages.}
+
+\item{.allow_heterogeneous_base_features}{Logical; if \code{TRUE}, permits base
+learners that were fitted on different feature sets to be stacked together.
+Requires \code{features_passthrough == "none"}, because only then does the meta
+learner ignore \code{features_m_df} entirely and build its design matrix purely
+from the base learners' predictions joined on \code{id}. Defaults to
+\code{FALSE}, which reproduces the historical behaviour exactly. Intended for
+deliberate research designs that blend learners trained on different
+representations of the same investable universe.}
 }
 \value{
 None. Stops execution if validation checks fail.

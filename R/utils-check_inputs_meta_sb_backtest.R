@@ -18,6 +18,14 @@
 #' @param meta_backtest_returns_m_xts Optional xts object for meta backtest returns.
 #' @param meta_benchmark_returns_m_xts Optional xts object for meta benchmark returns.
 #' @param verbose A boolean indicating whether to print detailed messages.
+#' @param .allow_heterogeneous_base_features Logical; if \code{TRUE}, permits base
+#'   learners that were fitted on different feature sets to be stacked together.
+#'   Requires \code{features_passthrough == "none"}, because only then does the meta
+#'   learner ignore \code{features_m_df} entirely and build its design matrix purely
+#'   from the base learners' predictions joined on \code{id}. Defaults to
+#'   \code{FALSE}, which reproduces the historical behaviour exactly. Intended for
+#'   deliberate research designs that blend learners trained on different
+#'   representations of the same investable universe.
 #'
 #' @return None. Stops execution if validation checks fail.
 check_inputs_meta_sb_backtest <- function(
@@ -27,7 +35,8 @@ check_inputs_meta_sb_backtest <- function(
     meta_signal_themes_m_df, meta_custom_signal_weights_m_df, meta_custom_signal_universe_metrics_m_df,
     base_backtest_returns_m_xts, base_benchmark_returns_m_xts,
     meta_backtest_returns_m_xts, meta_benchmark_returns_m_xts,
-    verbose = TRUE
+    verbose = TRUE,
+    .allow_heterogeneous_base_features = FALSE
 ) {
 
 
@@ -222,6 +231,38 @@ check_inputs_meta_sb_backtest <- function(
 
   ##########################
 
+  ##Heterogeneous Base Features (opt-in research relaxation)
+  ##########################
+  ###Validate the relaxation itself, and substitute the guarantee it gives up.
+  if (.allow_heterogeneous_base_features) {
+
+    ####The relaxation is only well-defined when nothing is passed through. With
+    ####features_passthrough != "none", consolidate_oos_sb_outputs_m_df() selects
+    ####pass-through columns from the single supplied features_m_df, so a pool whose
+    ####learners saw different feature sets makes "which learner's features?"
+    ####ill-posed rather than merely unchecked. Fail rather than resolve it silently.
+    if (!(length(config@features_passthrough) == 1 && config@features_passthrough == "none")) {
+      stop(".allow_heterogeneous_base_features = TRUE requires features_passthrough = 'none'.")
+    }
+
+    ####What must hold regardless of which features each learner saw: the meta design
+    ####matrix is assembled by joining base predictions on `id`, so every base learner
+    ####must score exactly the same id set. This is enforced downstream in
+    ####consolidate_oos_sb_outputs_m_df(), but it is the substantive requirement the
+    ####relaxed provenance checks were incidentally standing in for, so it is asserted
+    ####here with a message that says what actually went wrong.
+    base_ids_list <- lapply(
+      base_sb_backtest_results_list,
+      function(x) dplyr::pull(x@oos_sb_outputs_m_df@data, id)
+    )
+    if (!all(purrr::map_lgl(base_ids_list, ~ identical(.x, base_ids_list[[1]])))) {
+      stop("All base_sb_backtest_results must share an identical id set when ",
+           ".allow_heterogeneous_base_features = TRUE.")
+    }
+
+  }
+  ##########################
+
   ##Base Conformity at SB Level
   ##########################
   if (verbose) cat("Checking conformity of base-level sb objects.\n")
@@ -229,11 +270,16 @@ check_inputs_meta_sb_backtest <- function(
   ###In sb_backtest_config, those objects will be necessarilly equal because backtest will be run with objects from arguments
 
   ###chosen_signals_and_positions
-  get_and_check_chosen_signals_and_positions(
-    base_sb_backtest_results_list = base_sb_backtest_results_list,
-    features_passthrough = config@features_passthrough,
-    features_m_df = features_m_df@data
-  )
+  ###Skipped under the relaxation: this is precisely the check that rejects learners
+  ###fitted on different feature sets. Its return value only feeds features_passthrough,
+  ###which the guard above has already pinned to "none".
+  if (!.allow_heterogeneous_base_features) {
+    get_and_check_chosen_signals_and_positions(
+      base_sb_backtest_results_list = base_sb_backtest_results_list,
+      features_passthrough = config@features_passthrough,
+      features_m_df = features_m_df@data
+    )
+  }
 
   ###Between supplied for meta backtest and base learners (and base learners themselves)
   ####in features_m_df object name
