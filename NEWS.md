@@ -1,3 +1,46 @@
+# factoRverse 0.6.1.9000
+
+Development version. Adds an opt-in relaxation that allows a meta learner to
+stack base learners fitted on different feature sets.
+
+* `run_sb_backtest()` (the `sb_metabacktest_config` method) gains
+  `.allow_heterogeneous_base_features`, defaulting to `FALSE`. When `TRUE`, base
+  learners whose `chosen_signals_and_positions` differ may be blended together.
+  This supports research designs that combine learners trained on different
+  representations of the same investable universe — for example heuristic
+  learners fitted on aggregated signal clusters alongside machine-learning
+  learners fitted on the underlying individual signals.
+
+  The relaxation is deliberately narrow. It requires
+  `features_passthrough = "none"`, because only in that configuration does the
+  meta learner ignore `features_m_df` entirely: `consolidate_oos_sb_outputs_m_df()`
+  then builds the meta design matrix purely from the base learners' predictions
+  joined on `id`, so which features each base learner saw is provenance rather
+  than a correctness requirement. With any other `features_passthrough`, the
+  meta learner must select pass-through columns from a single `features_m_df`
+  and a heterogeneous pool makes that ill-posed; the function now errors rather
+  than resolving it silently against one arbitrary learner's feature set.
+
+  In exchange for the relaxed provenance check, the substantive invariant is
+  asserted explicitly: all base learners must score an identical `id` set. This
+  was previously enforced only incidentally, and with a generic message, inside
+  `consolidate_oos_sb_outputs_m_df()`.
+
+  Not relaxed, and still enforced under the flag: the `features_object_name`
+  check, the RP/HRP/MVO `signal_themes`/`backtest_returns` provenance checks,
+  and the `target_object_name`, `target_fwd_name`,
+  `training_sample_size + validation_sample_size` and `dates_testing_sample`
+  invariants.
+
+  `.allow_heterogeneous_base_features = FALSE` reproduces previous behaviour
+  exactly; a regression test asserts that turning the flag on for a homogeneous
+  pool leaves both the meta design matrix and the meta learner's realised
+  out-of-sample predictions bit-identical.
+
+  Note: `explain_prediction()` on an `sb_metabacktest_results` object built from
+  a heterogeneous pool is not supported, since it requires every base learner's
+  feature columns to be present in one supplied `features_m_df`.
+
 # factoRverse 0.6.1
 
 Bug fix for meta-portfolio backtests that use group (sector) representativeness.
