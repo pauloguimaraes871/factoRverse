@@ -17,6 +17,7 @@ A list containing the following elements:
 \item{activation}{The activation function used in the architecture.}
 \item{nn_optimizer}{The optimizer used for training the neural network.}
 \item{batch_norm_option}{Indicates if batch normalization is applied.}
+\item{n_ensembles}{The number of independently initialised networks averaged at refit.}
 }
 \description{
 Converts a \code{keras_architecture_parameters} object to a list.
@@ -24,4 +25,10 @@ Converts a \code{keras_architecture_parameters} object to a list.
 This method extracts the relevant attributes from a \code{keras_architecture_parameters}
 object and returns them as a list, making it easier to work with the parameters
 in a more general R context.
+}
+\details{
+Objects deserialised from artifacts written before \code{n_ensembles} was
+introduced have no such slot, and an S4 prototype does not retrofit one on
+load. Those objects are read as a single network, which is the behaviour they
+were produced under.
 }

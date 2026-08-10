@@ -1,3 +1,59 @@
+#' Predict Method for keras_ensemble Class
+#'
+#' Generates a forecast from an ensemble of independently initialised Keras
+#' networks by averaging the forecasts of its members.
+#'
+#' @param object An instance of the `keras_ensemble` class, as returned in the
+#'   `model_nn` element of [fit_keras_model()] when `n_ensembles > 1`.
+#' @param x A numeric matrix of features, with one row per observation and columns
+#'   in the same order the members were trained on.
+#' @param ... Further arguments passed to the members' own `predict` methods.
+#'
+#' @return A numeric vector with one averaged prediction per row of `x`.
+#'
+#' @details
+#' Forecasts are averaged, not weights: hidden units are permutation symmetric,
+#' so the coordinates of independently initialised networks are not comparable
+#' and averaging weights would be meaningless.
+#'
+#' Averaging is done with [Reduce()] rather than by binding member predictions
+#' into a matrix, because a single-row `x` (a one-asset cross-section, which does
+#' occur at sparse rebalancing dates) would collapse such a matrix to a bare
+#' vector and silently average across members instead of across rows.
+#'
+#' @export
+setMethod("predict",
+          signature = list(object = "keras_ensemble"),
+          function(object, x, ...) {
+
+  if (length(object@members) < 1L) {
+    stop("keras_ensemble contains no members; cannot predict.")
+  }
+
+  ##Collect each member's forecast for the same feature matrix
+  member_predictions <- lapply(object@members, function(member) {
+    prediction <- as.numeric(stats::predict(member, x = x, ...))
+
+    ###A member returning the wrong length would otherwise be recycled into the
+    ###sum and corrupt the average without any warning.
+    if (length(prediction) != nrow(x)) {
+      stop("A keras_ensemble member returned ", length(prediction),
+           " predictions for ", nrow(x), " rows of new data.")
+    }
+    return(prediction)
+  })
+
+  ##Equal-weighted mean across members
+  averaged_prediction <- Reduce(`+`, member_predictions) / length(member_predictions)
+
+  if (any(!is.finite(averaged_prediction))) {
+    warning("keras_ensemble produced non-finite predictions.")
+  }
+
+  return(averaged_prediction)
+})
+
+
 #' Predict method for signal_port class
 #'
 #' This method generates predictions using a signal_port obejct

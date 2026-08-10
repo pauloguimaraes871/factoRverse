@@ -3186,11 +3186,19 @@ setMethod(
 #' @param units A numeric value for the number of units in the new layer.
 #' @param activation A character string specifying the activation function for the new layer (e.g., "relu").
 #' @param batch_norm_option A character string indicating whether to apply batch normalization for the new layer (e.g., "yes").
+#' @param n_ensembles A single integer (>= 1) giving how many independently initialised
+#'   networks are trained at refit time and averaged into one forecast. Defaults to 1,
+#'   a single network, which is what earlier versions always did. Values above 1 remove
+#'   initialisation variance from the forecast, at a proportional cost in refit time:
+#'   Gu, Kelly and Xiu (2020) average 10 networks, Rubesam (2021) averages 50. `NULL` is
+#'   accepted and read as 1, so architectures recovered from runs recorded before this
+#'   argument existed rebuild as the single network they were fitted as.
 #'
 #' @return An object of class `keras_architecture_parameters`.
 #'
 #' @export
-create_keras_architecture <- function(nn_optimizer, units = NULL, activation = NULL, batch_norm_option = NULL) {
+create_keras_architecture <- function(nn_optimizer, units = NULL, activation = NULL, batch_norm_option = NULL,
+                                      n_ensembles = 1) {
   # Check nn_optimizer is valid
   valid_optimizers <- c("Adam", "RMSProp")
   if (!nn_optimizer %in% valid_optimizers) {
@@ -3208,6 +3216,16 @@ create_keras_architecture <- function(nn_optimizer, units = NULL, activation = N
     stop("batch_norm_option should be a logical value.")
   }
 
+  ## Absent means the historical single-network behaviour, so that architectures
+  ## rebuilt from pre-existing workflows are unchanged rather than re-defaulted.
+  if (is.null(n_ensembles)) {
+    n_ensembles <- 1
+  }
+  if (!is.numeric(n_ensembles) || length(n_ensembles) != 1L || is.na(n_ensembles) ||
+      !is.finite(n_ensembles) || n_ensembles < 1 || n_ensembles != round(n_ensembles)) {
+    stop("n_ensembles should be a single finite integer >= 1.")
+  }
+
   # Create new_keras_architecture
   new_keras_architecture_parameters <-
     methods::new("keras_architecture_parameters",
@@ -3215,7 +3233,8 @@ create_keras_architecture <- function(nn_optimizer, units = NULL, activation = N
                  n_layers = length(units),
                  activation = activation,
                  nn_optimizer = nn_optimizer,
-                 batch_norm_option = batch_norm_option
+                 batch_norm_option = batch_norm_option,
+                 n_ensembles = n_ensembles
     )
 
 
@@ -3350,6 +3369,9 @@ setMethod(
 #'     \item \strong{units}: A numeric value for the number of units in the new layer.
 #'     \item \strong{activation}: A character string specifying the activation function for the new layer (e.g., "relu").
 #'     \item \strong{batch_norm_option}: A character string indicating whether to apply batch normalization for the new layer (e.g., "yes").
+#'     \item \strong{n_ensembles}: Optional. A single integer (>= 1) giving how many
+#'       independently initialised networks to train at refit and average. Defaults to 1,
+#'       a single network. See \code{\link{create_keras_architecture}}.
 #'   }
 #' @return An updated `sb_backtest_config` object with the newly created `keras_architecture_parameters`.
 #' @export
@@ -3366,9 +3388,12 @@ setMethod(
     }
 
     # Create the keras architecture parameters using the additional arguments
+    ### n_ensembles is optional: absent means a single network, so callers that
+    ### predate the argument build exactly the architecture they did before.
     keras_architecture_parameters <- create_keras_architecture(
       nn_optimizer = args$nn_optimizer,
-      units = args$units, activation = args$activation, batch_norm_option = args$batch_norm_option
+      units = args$units, activation = args$activation, batch_norm_option = args$batch_norm_option,
+      n_ensembles = args$n_ensembles
     )
 
     # Assign the created keras architecture to the object

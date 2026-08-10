@@ -1579,6 +1579,13 @@ setClass(
 #' @slot activation A character vector containing the activation functions for each layer.
 #' @slot nn_optimizer A character string indicating the optimization algorithm used (length = 1).
 #' @slot batch_norm_option A character vector specifying whether to apply batch normalization for each layer.
+#' @slot n_ensembles A single integer (>= 1) giving how many independently initialised
+#'   networks are trained at refit time and averaged into one forecast. Defaults to 1,
+#'   which trains a single network and reproduces the behaviour of earlier versions
+#'   exactly. Values above 1 follow the practice of averaging over random
+#'   initialisations to remove initialisation variance from the forecast: Gu, Kelly and
+#'   Xiu (2020) average 10 networks per topology, Rubesam (2021) averages 50. Applies to
+#'   the refit only; hyperparameter tuning always fits a single network.
 #'
 #' @export
 setClass(
@@ -1588,8 +1595,64 @@ setClass(
     n_layers = "numeric",         # Total number of layers
     activation = "character",     # Vector of activation functions
     nn_optimizer = "character",    # Optimization algorithm
-    batch_norm_option = "logical" # Vector of batch normalization options
-  )
+    batch_norm_option = "logical", # Vector of batch normalization options
+    n_ensembles = "numeric"       # Number of independently initialised networks to average
+  ),
+  ### The prototype keeps objects built by callers that never mention
+  ### n_ensembles at the historical single-network behaviour. It does NOT repair
+  ### objects deserialised from artifacts written before the slot existed: a
+  ### prototype applies at new(), not at load. Reads go through as.list(), which
+  ### guards for the missing slot.
+  prototype = list(n_ensembles = 1),
+  validity = function(object) {
+    if (!is.numeric(object@n_ensembles) || length(object@n_ensembles) != 1L ||
+        is.na(object@n_ensembles) || !is.finite(object@n_ensembles) ||
+        object@n_ensembles < 1 || object@n_ensembles != round(object@n_ensembles)) {
+      return("n_ensembles must be a single finite integer >= 1.")
+    }
+    return(TRUE)
+  }
+)
+
+
+#keras_ensemble---------------------------------------------------------
+#' @title Ensemble of Independently Initialised Keras Networks
+#' @description
+#' Holds several trained Keras networks that share an architecture and
+#' hyperparameters but differ in their random weight initialisation, and behaves
+#' as a single model through its \code{predict} method.
+#'
+#' @details
+#' A single network fit is one draw from a distribution over networks induced by
+#' the random initialisation, so its forecast carries initialisation variance
+#' that nothing else in the walk-forward scheme removes. Averaging the forecasts
+#' of \code{k} independently initialised members reduces that variance component
+#' by roughly a factor of \code{k}.
+#'
+#' Forecasts are averaged, never weights. Hidden units are permutation
+#' symmetric, so the weights of independently initialised networks are not
+#' comparable coordinate by coordinate and averaging them is meaningless.
+#'
+#' @slot members A list of trained Keras models, each fitted on the same data with
+#'   the same hyperparameters and its own random initialisation.
+#'
+#' @seealso \code{\link{fit_keras_model}}
+#'
+#' @export
+setClass(
+  "keras_ensemble",
+  slots = list(
+    members = "list"
+  ),
+  validity = function(object) {
+    if (length(object@members) < 1L) {
+      return("A keras_ensemble must contain at least one member.")
+    }
+    if (any(vapply(object@members, is.null, logical(1)))) {
+      return("keras_ensemble members must all be fitted models, but some are NULL.")
+    }
+    return(TRUE)
+  }
 )
 
 
@@ -4475,11 +4538,15 @@ setMethod("get_keras_architecture_parameters", "sb_backtest_results", function(o
     stop("keras_architecture_parameters not available for non-neural network algorithms.")
   } else {
 
+    ### Workflows recorded before n_ensembles existed have no such element, and
+    ### `$` returns NULL for it; create_keras_architecture() reads that as the
+    ### single-network setting those runs were produced under.
     keras_architecture_parameters <- create_keras_architecture(
       nn_optimizer = object@sb_backtest_workflow$keras_architecture_parameters$nn_optimizer,
       units = object@sb_backtest_workflow$keras_architecture_parameters$units,
       activation = object@sb_backtest_workflow$keras_architecture_parameters$activation,
-      batch_norm_option = object@sb_backtest_workflow$keras_architecture_parameters$batch_norm_option
+      batch_norm_option = object@sb_backtest_workflow$keras_architecture_parameters$batch_norm_option,
+      n_ensembles = object@sb_backtest_workflow$keras_architecture_parameters$n_ensembles
     )
 
   }
@@ -4494,11 +4561,14 @@ setMethod("get_keras_architecture_parameters", "sb_model", function(object) {
   if(object@sb_algorithm != "nn"){
     stop("keras_architecture_parameters not available for non-neural network algorithms.")
   } else {
+    ### As above: a model fitted before n_ensembles existed reports a single
+    ### network rather than silently adopting a different default.
     keras_architecture_parameters <- create_keras_architecture(
       nn_optimizer = object@keras_architecture_parameters$nn_optimizer,
       units = object@keras_architecture_parameters$units,
       activation = object@keras_architecture_parameters$activation,
-      batch_norm_option = object@keras_architecture_parameters$batch_norm_option
+      batch_norm_option = object@keras_architecture_parameters$batch_norm_option,
+      n_ensembles = object@keras_architecture_parameters$n_ensembles
     )
   }
 
@@ -4523,6 +4593,13 @@ setMethod("get_keras_architecture_parameters", "sb_model", function(object) {
 #' \item{activation}{The activation function used in the architecture.}
 #' \item{nn_optimizer}{The optimizer used for training the neural network.}
 #' \item{batch_norm_option}{Indicates if batch normalization is applied.}
+#' \item{n_ensembles}{The number of independently initialised networks averaged at refit.}
+#'
+#' @details
+#' Objects deserialised from artifacts written before \code{n_ensembles} was
+#' introduced have no such slot, and an S4 prototype does not retrofit one on
+#' load. Those objects are read as a single network, which is the behaviour they
+#' were produced under.
 #'
 #' @export
 setMethod("as.list", "keras_architecture_parameters", function(x) {
@@ -4531,7 +4608,8 @@ setMethod("as.list", "keras_architecture_parameters", function(x) {
     n_layers = x@n_layers,
     activation = x@activation,
     nn_optimizer = x@nn_optimizer,
-    batch_norm_option = x@batch_norm_option
+    batch_norm_option = x@batch_norm_option,
+    n_ensembles = if (methods::.hasSlot(x, "n_ensembles")) x@n_ensembles else 1
   )
 })
 
