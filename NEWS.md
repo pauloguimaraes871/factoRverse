@@ -1,4 +1,4 @@
-# factoRverse 0.6.1.9000
+# factoRverse 0.7.0
 
 ## New features
 
