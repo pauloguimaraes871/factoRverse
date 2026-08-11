@@ -17,7 +17,14 @@ add_hyperparameter(object, hyperparameter, ...)
 
 \S4method{add_hyperparameter}{random_search_strategy}(object, hyperparameter, distribution_choice, pars, ...)
 
-\S4method{add_hyperparameter}{bayesian_opt_strategy}(object, hyperparameter, bounds, ...)
+\S4method{add_hyperparameter}{bayesian_opt_strategy}(
+  object,
+  hyperparameter,
+  bounds,
+  distribution_choice = NULL,
+  pars = NULL,
+  ...
+)
 
 \S4method{add_hyperparameter}{sb_backtest_config}(
   object,
@@ -60,7 +67,8 @@ with the parameters for the chosen distribution (\code{c(min, max)}, \code{c(mea
 \code{c(meanlog, sdlog)}), or the constant value itself when \code{distribution_choice = "constant"}.}
 
 \item{bounds}{A numeric vector of length 2 (\code{c(lower, upper)}), or a list of such
-vectors (one per hyperparameter in \code{hyperparameter}, same order).}
+vectors (one per hyperparameter in \code{hyperparameter}, same order). Omit when
+declaring a constant.}
 }
 \value{
 The input object with \code{hyperparameter_list} (nested inside \code{hyper_grid_domain}
@@ -93,6 +101,15 @@ There is no separate \code{value} argument for \code{distribution_choice = "cons
 pass the constant through \code{pars} (it is stored internally as \code{value}).
 
 \item \code{add_hyperparameter(bayesian_opt_strategy)}: Add/upsert hyperparameter(s) in a \code{bayesian_opt_strategy}'s \code{hyper_grid_domain}.
+
+Supply either \code{bounds}, to have the hyperparameter searched, or
+\code{distribution_choice = "constant"} with \code{pars}, to pin it to a fixed value.
+A pinned hyperparameter is removed from the surrogate's input space at tuning
+time and its value re-inserted when the learner is called, which reduces the
+dimension the Gaussian process must fit and the \code{gsPoints} that follow from
+it. Do not express a constant as a zero-width range: \code{ParBayesianOptimization}
+rescales candidates by \code{upper - lower}, so \code{c(x, x)} yields an all-\code{NaN}
+input with no error, and the hyperparameter still costs a full dimension.
 
 \item \code{add_hyperparameter(sb_backtest_config)}: Add/upsert hyperparameter(s) via a \code{sb_backtest_config}'s attached \code{tuning_strategy}.
 

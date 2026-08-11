@@ -1445,8 +1445,38 @@ setClass(
 
     #Bayesian Optimization
     else if (object@tuning_method == "bayesian_opt") {
-      if (any(sapply(object@hyper_grid_domain@hyperparameter_list, function(x) !is.numeric(x) || length(x) != 2))) {
-        stop("For 'bayesian_opt', each hyperparameters must be a numeric vector of length 2 representing the bounds.")
+      ###Entries are either searched ranges or hyperparameters pinned to a
+      ###constant. A constant is declared exactly as under 'random_search' and
+      ###is removed from the surrogate's input space at tuning time; it must not
+      ###be expressed as a zero-width range, which silently produces an all-NaN
+      ###input and still costs a full dimension of search.
+      hyperparameter_list <- object@hyper_grid_domain@hyperparameter_list
+
+      is_constant_entry <- sapply(hyperparameter_list,
+                                  function(x) is.list(x) && identical(x$distribution_choice, "constant"))
+
+      if (length(hyperparameter_list) != 0) {
+        for (name in names(hyperparameter_list)) {
+          entry <- hyperparameter_list[[name]]
+
+          if (isTRUE(is_constant_entry[[name]])) {
+            if (is.null(entry$value) || !is.numeric(entry$value) || length(entry$value) != 1) {
+              stop("For 'bayesian_opt', a 'constant' hyperparameter must have a single numeric 'value'.")
+            }
+          } else {
+            ###A zero-width range c(x, x) is still accepted here: configurations
+            ###written before constants existed use it to pin a hyperparameter,
+            ###and hyper_tune() converts it to a constant with a warning rather
+            ###than breaking them.
+            if (!is.numeric(entry) || length(entry) != 2) {
+              stop("For 'bayesian_opt', each hyperparameters must be a numeric vector of length 2 representing the bounds, or a constant declared with distribution_choice = 'constant'.")
+            }
+          }
+        }
+
+        if (all(is_constant_entry)) {
+          stop("For 'bayesian_opt', at least one hyperparameter must have a range to search over.")
+        }
       }
     }
 
