@@ -3046,13 +3046,59 @@ setMethod(
 
 
 #' @describeIn add_hyperparameter Add/upsert hyperparameter(s) in a `bayesian_opt_strategy`'s `hyper_grid_domain`.
+#'
+#' Supply either `bounds`, to have the hyperparameter searched, or
+#' `distribution_choice = "constant"` with `pars`, to pin it to a fixed value.
+#' A pinned hyperparameter is removed from the surrogate's input space at tuning
+#' time and its value re-inserted when the learner is called, which reduces the
+#' dimension the Gaussian process must fit and the `gsPoints` that follow from
+#' it. Do not express a constant as a zero-width range: `ParBayesianOptimization`
+#' rescales candidates by `upper - lower`, so `c(x, x)` yields an all-`NaN`
+#' input with no error, and the hyperparameter still costs a full dimension.
+#'
 #' @param bounds A numeric vector of length 2 (`c(lower, upper)`), or a list of such
-#'   vectors (one per hyperparameter in `hyperparameter`, same order).
+#'   vectors (one per hyperparameter in `hyperparameter`, same order). Omit when
+#'   declaring a constant.
 #' @export
 setMethod(
   "add_hyperparameter",
   signature(object = "bayesian_opt_strategy"),
-  function(object, hyperparameter, bounds, ...) {
+  function(object, hyperparameter, bounds, distribution_choice = NULL, pars = NULL, ...) {
+
+    ## Constant declaration, matching the shape random_search already accepts so
+    ## that one configuration reads the same way under either tuning method.
+    if (!is.null(distribution_choice)) {
+      if (!all(distribution_choice == "constant")) {
+        stop("For 'bayesian_opt', distribution_choice may only be 'constant'. Use bounds to search a hyperparameter.")
+      }
+      if (!is.list(pars)) {
+        pars <- list(pars)
+      }
+      if (length(hyperparameter) != length(pars)) {
+        stop("All constant hyperparameters should have a corresponding value in pars.")
+      }
+      ###Finiteness is required here, not just downstream: NA, NaN and Inf are
+      ###all numeric of length 1, so without this a strategy validates cleanly
+      ###and only fails once tuning substitutes the value into the domain
+      ###checks, where it surfaces as "missing value where TRUE/FALSE needed".
+      if (!all(sapply(pars, function(x) is.numeric(x) && length(x) == 1 && is.finite(x)))) {
+        stop("Each constant hyperparameter must have a single finite numeric value in pars.")
+      }
+
+      new_hyperparameter_list <- lapply(pars, function(value) {
+        list(distribution_choice = "constant", value = unname(value))
+      })
+      names(new_hyperparameter_list) <- hyperparameter
+
+      current_hyper_grid_domain <- object@hyper_grid_domain
+      object@hyper_grid_domain <- add_hyperparameter(current_hyper_grid_domain,
+                                                     new_hyperparameter_list = new_hyperparameter_list)
+
+      methods::validObject(object)
+
+      return(object)
+    }
+
     # Logic for bayesian_opt
     if (!is.list(bounds)) {
       bounds <- list(bounds)
