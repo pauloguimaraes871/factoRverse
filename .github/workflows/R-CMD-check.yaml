@@ -15,10 +15,16 @@ jobs:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
     strategy:
       fail-fast: false
+      # Pull requests check Ubuntu only; pushes to main check both.
+      #
+      # Windows takes ~2h against Ubuntu's ~5min, and it is the platform already
+      # covered by the maintainer's local runs, which happen on Windows with the
+      # real Keras and Stan backends that CI skips. Ubuntu is the platform
+      # nothing else exercises, and it builds more from source, so it fails
+      # faster and stricter on dependency problems. Nothing reaches a release
+      # tag without a Windows check, because push-to-main still runs both.
       matrix:
-        config:
-          - os: ubuntu-latest
-          - os: windows-latest
+        config: ${{ github.event_name == 'pull_request' && fromJSON('[{"os":"ubuntu-latest"}]') || fromJSON('[{"os":"ubuntu-latest"},{"os":"windows-latest"}]') }}
 
     steps:
       - name: Checkout repository
