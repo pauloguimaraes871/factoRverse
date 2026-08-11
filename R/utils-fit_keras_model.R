@@ -47,7 +47,7 @@
 #'
 #' @return A list containing:
 #'   \item{model_nn}{When \code{n_ensembles == 1}, the trained Keras model object. When
-#'     \code{n_ensembles > 1}, a \code{\link{keras_ensemble}} holding the trained members,
+#'     \code{n_ensembles > 1}, a \code{\linkS4class{keras_ensemble}} holding the trained members,
 #'     which predicts as their average.}
 #'   \item{fit_nn}{When \code{n_ensembles == 1}, the Keras training \code{history} object
 #'     (per-epoch metrics). When \code{n_ensembles > 1}, a list of one such history per

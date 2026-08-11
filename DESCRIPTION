@@ -36,6 +36,7 @@ Suggests:
     ParBayesianOptimization,
     readxl,
     reticulate,
+    rstan,
     testthat (>= 3.0.0),
     yardstick,
     DT,
