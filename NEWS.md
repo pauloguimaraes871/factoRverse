@@ -1,3 +1,46 @@
+# factoRverse 0.6.1.9000
+
+## New features
+
+* Hyperparameters can now be held constant under `tuning_method = "bayesian_opt"`,
+  using the same declaration `random_search` already accepts:
+
+  ```r
+  add_hyperparameter(strategy, hyperparameter = "subsample",
+                     distribution_choice = "constant", pars = 0.8)
+  ```
+
+  A hyperparameter declared this way is removed from the Gaussian process's
+  input space and its value re-inserted when the learner is called. Both the
+  dimension the surrogate must fit and `gsPoints`, which defaults to
+  `pmax(100, length(bounds)^3)`, fall accordingly: tuning xgb over three
+  hyperparameters with the other five pinned takes `gsPoints` from 512 to the
+  floor of 100. The fixed values are reported in the optimal hyperparameters and
+  recorded in the tuning history, so downstream fitting, plots and summaries see
+  a complete set exactly as before.
+
+  `init_points` is now required to exceed the number of *searched*
+  hyperparameters rather than the number declared, so pinning hyperparameters
+  genuinely reduces the initial design.
+
+## Deprecations
+
+* Collapsing a hyperparameter's bounds to a single point, `c(x, x)`, under
+  `bayesian_opt` now warns. It was the only way to pin a hyperparameter before
+  constants existed, but it does not do what it appears to:
+  `ParBayesianOptimization` rescales candidates by `upper - lower`, so a
+  zero-width range reaches the Gaussian process as an undefined (`NaN`) input,
+  with no error and no warning of its own, while still counting towards the
+  search dimension and `gsPoints`.
+
+  The behaviour of such configurations is **unchanged** in this release. They
+  are not silently reinterpreted as constants, because doing so would alter the
+  searched dimension, and hence the candidates drawn and the hyperparameters
+  selected, for every existing configuration using the idiom. Migrating to
+  `distribution_choice = "constant"` is opt-in and will change tuning results,
+  which is the point: the previous search space contained an undefined
+  dimension.
+
 # factoRverse 0.6.1
 
 Bug fix for meta-portfolio backtests that use group (sector) representativeness.
