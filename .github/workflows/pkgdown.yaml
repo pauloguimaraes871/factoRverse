@@ -46,11 +46,27 @@ jobs:
           snapshot="2026-07-20"
           codename="$(. /etc/os-release && echo "$VERSION_CODENAME")"
           url="https://packagemanager.posit.co/cran/__linux__/${codename}/${snapshot}"
-          profile="$(Rscript -e 'cat(file.path(R.home("etc"), "Rprofile.site"))')"
+
+          # --vanilla is required: this repo's .Rprofile bootstraps renv and
+          # writes its progress to stdout, which would otherwise be captured as
+          # part of the path.
+          profile="$(Rscript --vanilla -e 'cat(file.path(R.home("etc"), "Rprofile.site"))')"
           echo "options(repos = c(CRAN = \"${url}\"))" | sudo tee -a "${profile}" > /dev/null
+
+          # renv autoloads from .Rprofile in this job too, and it takes its
+          # repositories from RENV_CONFIG_REPOS_OVERRIDE ahead of Rprofile.site,
+          # so both have to be pinned or the floating URL wins.
           echo "RSPM=${url}" >> "$GITHUB_ENV"
+          echo "RENV_CONFIG_REPOS_OVERRIDE=${url}" >> "$GITHUB_ENV"
           echo "Pinned package repository: ${url}"
-          Rscript -e 'stopifnot(grepl("2026-07-20", getOption("repos")[["CRAN"]])); cat("repos in effect:", getOption("repos")[["CRAN"]], "\n")'
+
+          # GITHUB_ENV only takes effect in later steps, so pass the same values
+          # explicitly to assert what those steps will actually resolve against.
+          RSPM="${url}" RENV_CONFIG_REPOS_OVERRIDE="${url}" Rscript -e '
+            repo <- getOption("repos")[["CRAN"]]
+            cat("repos in effect:", repo, "\n")
+            stopifnot(grepl("2026-07-20", repo, fixed = TRUE))
+          '
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
