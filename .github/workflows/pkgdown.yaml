@@ -67,8 +67,12 @@ jobs:
         run: pkgdown::build_site_github_pages(new_process = FALSE, install = FALSE)
         shell: Rscript {0}
 
+      # TEMPORARY (revert before merging): pkgdown does not run on pull requests,
+      # so the only way to verify the repository pin on this branch is a manual
+      # dispatch. Without this guard that dispatch would publish branch-built
+      # docs to the live gh-pages site. Build, do not deploy.
       - name: Deploy to GitHub pages
-        if: github.event_name != 'pull_request'
+        if: github.event_name != 'pull_request' && github.event_name != 'workflow_dispatch'
         uses: JamesIves/github-pages-deploy-action@v4.5.0
         with:
           clean: false
