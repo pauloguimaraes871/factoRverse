@@ -76,6 +76,53 @@ test_that("malformed constants are rejected", {
   )
 })
 
+test_that("non-finite constants are rejected at construction", {
+  strategy <- make_bayes_strategy()
+  strategy <- factoRverse::add_hyperparameter(strategy, hyperparameter = "eta",
+                                              bounds = c(0.01, 0.5))
+
+  ### NA, NaN and Inf are all numeric of length 1, so a check that stops at
+  ### numeric-and-scalar lets them through. They then reach the per-hyperparameter
+  ### domain checks, where comparing a missing value against an interval yields
+  ### NA and surfaces as "missing value where TRUE/FALSE needed", an error that
+  ### says nothing about the hyperparameter that caused it. Reject them here,
+  ### where the message can name the problem.
+  for (non_finite_value in list(NA_real_, NaN, Inf, -Inf)) {
+    testthat::expect_error(
+      factoRverse::add_hyperparameter(strategy, hyperparameter = "subsample",
+                                      distribution_choice = "constant",
+                                      pars = non_finite_value),
+      "finite"
+    )
+  }
+})
+
+test_that("non-finite constants are rejected by class validity", {
+  ### The constraint must also hold for objects built by any route that reaches
+  ### validity directly, not only through add_hyperparameter().
+  build_directly <- function(value) {
+    methods::new(
+      "bayesian_opt_strategy",
+      tuning_method = "bayesian_opt",
+      validation_sample_size = 12,
+      chosen_eval_metric = "rmse",
+      hyper_grid_domain = methods::new(
+        "hyper_grid_domain",
+        hyperparameter_list = list(
+          eta = c(0.01, 0.5),
+          subsample = list(distribution_choice = "constant", value = value)
+        )
+      ),
+      early_stop = NULL, n_iter = 2, acq = "ucb", init_points = 4, k_iter = 1
+    )
+  }
+
+  testthat::expect_no_error(build_directly(0.8))
+  for (non_finite_value in list(NA_real_, NaN, Inf)) {
+    testthat::expect_error(build_directly(non_finite_value), "finite")
+  }
+})
+
 test_that("a domain with no searched hyperparameter is rejected", {
   strategy <- make_bayes_strategy()
 

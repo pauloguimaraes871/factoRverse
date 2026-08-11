@@ -723,10 +723,14 @@ check_inputs_sb_backtest <- function(
       stop("hyper_grid_domain_list not in correct format for bayesian_opt tuning.")
     }
 
-    #Check constants carry a single numeric value
+    #Check constants carry a single finite numeric value
+    ###Finiteness matters here specifically: the constant is substituted into
+    ###the per-hyperparameter domain checks below, and comparing a missing value
+    ###against an interval yields NA, which reaches `if()` as an error about
+    ###TRUE/FALSE rather than about the hyperparameter.
     if(!all(sapply(hyper_grid_domain_list[is_constant_hyperparameter],
-                   function(x) is.numeric(x$value) && length(x$value) == 1))){
-      stop("Constant hyperparameters must have a single numeric 'value'.")
+                   function(x) is.numeric(x$value) && length(x$value) == 1 && is.finite(x$value)))){
+      stop("Constant hyperparameters must have a single finite numeric 'value'.")
     }
 
     #Check at least one hyperparameter is searched

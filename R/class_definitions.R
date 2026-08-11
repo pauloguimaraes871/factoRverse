@@ -1460,14 +1460,21 @@ setClass(
           entry <- hyperparameter_list[[name]]
 
           if (isTRUE(is_constant_entry[[name]])) {
-            if (is.null(entry$value) || !is.numeric(entry$value) || length(entry$value) != 1) {
-              stop("For 'bayesian_opt', a 'constant' hyperparameter must have a single numeric 'value'.")
+            ###Finiteness is part of the constraint, not a downstream concern:
+            ###NA, NaN and Inf are all numeric of length 1, and letting them
+            ###through here defers the failure to the domain checks, where a
+            ###comparison against a missing value reports an unrelated error.
+            if (is.null(entry$value) || !is.numeric(entry$value) ||
+                length(entry$value) != 1 || !is.finite(entry$value)) {
+              stop("For 'bayesian_opt', a 'constant' hyperparameter must have a single finite numeric 'value'.")
             }
           } else {
             ###A zero-width range c(x, x) is still accepted here: configurations
-            ###written before constants existed use it to pin a hyperparameter,
-            ###and hyper_tune() converts it to a constant with a warning rather
-            ###than breaking them.
+            ###written before constants existed use it to pin a hyperparameter.
+            ###hyper_tune() leaves such a range in the search space, exactly as
+            ###before, and warns that it should be declared as a constant; it is
+            ###deliberately not reinterpreted, since that would change the
+            ###searched dimension and hence those configurations' results.
             if (!is.numeric(entry) || length(entry) != 2) {
               stop("For 'bayesian_opt', each hyperparameters must be a numeric vector of length 2 representing the bounds, or a constant declared with distribution_choice = 'constant'.")
             }

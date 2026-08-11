@@ -3077,8 +3077,12 @@ setMethod(
       if (length(hyperparameter) != length(pars)) {
         stop("All constant hyperparameters should have a corresponding value in pars.")
       }
-      if (!all(sapply(pars, function(x) is.numeric(x) && length(x) == 1))) {
-        stop("Each constant hyperparameter must have a single numeric value in pars.")
+      ###Finiteness is required here, not just downstream: NA, NaN and Inf are
+      ###all numeric of length 1, so without this a strategy validates cleanly
+      ###and only fails once tuning substitutes the value into the domain
+      ###checks, where it surfaces as "missing value where TRUE/FALSE needed".
+      if (!all(sapply(pars, function(x) is.numeric(x) && length(x) == 1 && is.finite(x)))) {
+        stop("Each constant hyperparameter must have a single finite numeric value in pars.")
       }
 
       new_hyperparameter_list <- lapply(pars, function(value) {
