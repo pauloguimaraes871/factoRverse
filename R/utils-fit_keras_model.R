@@ -73,7 +73,7 @@ fit_keras_model <- function(regularizer_l1, regularizer_l2, droprate, lr, number
                              activation = keras_architecture_parameters$activation[1], #Units and activation may vary by layer
                              input_shape =  ncol(features_matrix_train_clean), #Shape = # of features
                              kernel_regularizer = keras::regularizer_l1_l2(l1 = regularizer_l1, l2 = regularizer_l2)) %>% #L1 and L2 Regularization
-          {if (keras_architecture_parameters$batch_norm_option[1]) keras::layer_batch_normalization() else .}() %>% #Batch normalization
+          {if (keras_architecture_parameters$batch_norm_option[1]) keras::layer_batch_normalization(.) else .} %>% #Batch normalization
           keras::layer_dropout(rate = droprate) %>% #Adds dropout
 
           keras::layer_dense(units = 1) #No activation means linear: f(x) = x
@@ -96,13 +96,13 @@ fit_keras_model <- function(regularizer_l1, regularizer_l2, droprate, lr, number
                              activation = keras_architecture_parameters$activation[1], #Units and activation may vary by layer
                              input_shape =  ncol(features_matrix_train_clean), #Shape = # of features
                              kernel_regularizer = keras::regularizer_l1_l2(l1 = regularizer_l1, l2 = regularizer_l2)) %>% #L1 and L2 Regularization
-          {if (keras_architecture_parameters$batch_norm_option[1]) keras::layer_batch_normalization() else .}() %>% #Batch normalization
+          {if (keras_architecture_parameters$batch_norm_option[1]) keras::layer_batch_normalization(.) else .} %>% #Batch normalization
           keras::layer_dropout(rate = droprate) %>% #Adds dropout
 
           keras::layer_dense(units = keras_architecture_parameters$units[2],
                              activation = keras_architecture_parameters$activation[2], #Units and activation may vary by layer
                              kernel_regularizer = keras::regularizer_l1_l2(l1 = regularizer_l1, l2 = regularizer_l2)) %>%
-          {if (keras_architecture_parameters$batch_norm_option[2]) keras::layer_batch_normalization() else .}() %>% #Batch normalization
+          {if (keras_architecture_parameters$batch_norm_option[2]) keras::layer_batch_normalization(.) else .} %>% #Batch normalization
           keras::layer_dropout(rate = droprate) %>% #Adds dropout
 
           keras::layer_dense(units = 1) #No activation means linear: f(x) = x
@@ -125,19 +125,19 @@ fit_keras_model <- function(regularizer_l1, regularizer_l2, droprate, lr, number
                              activation = keras_architecture_parameters$activation[1], #Units and activation may vary by layer
                              input_shape =  ncol(features_matrix_train_clean), #Shape = # of features
                              kernel_regularizer = keras::regularizer_l1_l2(l1 = regularizer_l1, l2 = regularizer_l2)) %>% #L1 and L2 Regularization
-          {if (keras_architecture_parameters$batch_norm_option[1]) keras::layer_batch_normalization() else .}() %>% #Batch normalization
+          {if (keras_architecture_parameters$batch_norm_option[1]) keras::layer_batch_normalization(.) else .} %>% #Batch normalization
           keras::layer_dropout(rate = droprate) %>% #Adds dropout
 
           keras::layer_dense(units = keras_architecture_parameters$units[2],
                              activation = keras_architecture_parameters$activation[2], #Units and activation may vary by layer
                              kernel_regularizer = keras::regularizer_l1_l2(l1 = regularizer_l1, l2 = regularizer_l2)) %>%
-          {if (keras_architecture_parameters$batch_norm_option[2]) keras::layer_batch_normalization() else .}() %>% #Batch normalization
+          {if (keras_architecture_parameters$batch_norm_option[2]) keras::layer_batch_normalization(.) else .} %>% #Batch normalization
           keras::layer_dropout(rate = droprate) %>% #Adds dropout
 
           keras::layer_dense(units = keras_architecture_parameters$units[3],
                              activation = keras_architecture_parameters$activation[3], #Units and activation may vary by layer
                              kernel_regularizer = keras::regularizer_l1_l2(l1 = regularizer_l1, l2 = regularizer_l2)) %>%
-          {if (keras_architecture_parameters$batch_norm_option[3]) keras::layer_batch_normalization() else .}() %>% #Batch normalization
+          {if (keras_architecture_parameters$batch_norm_option[3]) keras::layer_batch_normalization(.) else .} %>% #Batch normalization
           keras::layer_dropout(rate = droprate) %>% #Adds dropout
 
           keras::layer_dense(units = 1) #No activation means linear: f(x) = x
@@ -160,25 +160,25 @@ fit_keras_model <- function(regularizer_l1, regularizer_l2, droprate, lr, number
                              activation = keras_architecture_parameters$activation[1], #Units and activation may vary by layer
                              input_shape =  ncol(features_matrix_train_clean), #Shape = # of features
                              kernel_regularizer = keras::regularizer_l1_l2(l1 = regularizer_l1, l2 = regularizer_l2)) %>% #L1 and L2 Regularization
-          {if (keras_architecture_parameters$batch_norm_option[1]) keras::layer_batch_normalization() else .}() %>% #Batch normalization
+          {if (keras_architecture_parameters$batch_norm_option[1]) keras::layer_batch_normalization(.) else .} %>% #Batch normalization
           keras::layer_dropout(rate = droprate) %>% #Adds dropout
 
           keras::layer_dense(units = keras_architecture_parameters$units[2],
                              activation = keras_architecture_parameters$activation[2], #Units and activation may vary by layer
                              kernel_regularizer = keras::regularizer_l1_l2(l1 = regularizer_l1, l2 = regularizer_l2)) %>%
-          {if (keras_architecture_parameters$batch_norm_option[2]) keras::layer_batch_normalization() else .}() %>% #Batch normalization
+          {if (keras_architecture_parameters$batch_norm_option[2]) keras::layer_batch_normalization(.) else .} %>% #Batch normalization
           keras::layer_dropout(rate = droprate) %>% #Adds dropout
 
           keras::layer_dense(units = keras_architecture_parameters$units[3],
                              activation = keras_architecture_parameters$activation[3], #Units and activation may vary by layer
                              kernel_regularizer = keras::regularizer_l1_l2(l1 = regularizer_l1, l2 = regularizer_l2)) %>%
-          {if (keras_architecture_parameters$batch_norm_option[3]) keras::layer_batch_normalization() else .}() %>% #Batch normalization
+          {if (keras_architecture_parameters$batch_norm_option[3]) keras::layer_batch_normalization(.) else .} %>% #Batch normalization
           keras::layer_dropout(rate = droprate) %>% #Adds dropout
 
           keras::layer_dense(units = keras_architecture_parameters$units[4],
                              activation = keras_architecture_parameters$activation[4], #Units and activation may vary by layer
                              kernel_regularizer = keras::regularizer_l1_l2(l1 = regularizer_l1, l2 = regularizer_l2)) %>%
-          {if (keras_architecture_parameters$batch_norm_option[4]) keras::layer_batch_normalization() else .}() %>% #Batch normalization
+          {if (keras_architecture_parameters$batch_norm_option[4]) keras::layer_batch_normalization(.) else .} %>% #Batch normalization
           keras::layer_dropout(rate = droprate) %>% #Adds dropout
 
           keras::layer_dense(units = 1) #No activation means linear: f(x) = x
@@ -201,31 +201,31 @@ fit_keras_model <- function(regularizer_l1, regularizer_l2, droprate, lr, number
                              activation = keras_architecture_parameters$activation[1], #Units and activation may vary by layer
                              input_shape =  ncol(features_matrix_train_clean), #Shape = # of features
                              kernel_regularizer = keras::regularizer_l1_l2(l1 = regularizer_l1, l2 = regularizer_l2)) %>% #L1 and L2 Regularization
-          {if (keras_architecture_parameters$batch_norm_option[1]) keras::layer_batch_normalization() else .}() %>% #Batch normalization
+          {if (keras_architecture_parameters$batch_norm_option[1]) keras::layer_batch_normalization(.) else .} %>% #Batch normalization
           keras::layer_dropout(rate = droprate) %>% #Adds dropout
 
           keras::layer_dense(units = keras_architecture_parameters$units[2],
                              activation = keras_architecture_parameters$activation[2], #Units and activation may vary by layer
                              kernel_regularizer = keras::regularizer_l1_l2(l1 = regularizer_l1, l2 = regularizer_l2)) %>%
-          {if (keras_architecture_parameters$batch_norm_option[2]) keras::layer_batch_normalization() else .}() %>% #Batch normalization
+          {if (keras_architecture_parameters$batch_norm_option[2]) keras::layer_batch_normalization(.) else .} %>% #Batch normalization
           keras::layer_dropout(rate = droprate) %>% #Adds dropout
 
           keras::layer_dense(units = keras_architecture_parameters$units[3],
                              activation = keras_architecture_parameters$activation[3], #Units and activation may vary by layer
                              kernel_regularizer = keras::regularizer_l1_l2(l1 = regularizer_l1, l2 = regularizer_l2)) %>%
-          {if (keras_architecture_parameters$batch_norm_option[3]) keras::layer_batch_normalization() else .}() %>% #Batch normalization
+          {if (keras_architecture_parameters$batch_norm_option[3]) keras::layer_batch_normalization(.) else .} %>% #Batch normalization
           keras::layer_dropout(rate = droprate) %>% #Adds dropout
 
           keras::layer_dense(units = keras_architecture_parameters$units[4],
                              activation = keras_architecture_parameters$activation[4], #Units and activation may vary by layer
                              kernel_regularizer = keras::regularizer_l1_l2(l1 = regularizer_l1, l2 = regularizer_l2)) %>%
-          {if (keras_architecture_parameters$batch_norm_option[4]) keras::layer_batch_normalization() else .}() %>% #Batch normalization
+          {if (keras_architecture_parameters$batch_norm_option[4]) keras::layer_batch_normalization(.) else .} %>% #Batch normalization
           keras::layer_dropout(rate = droprate) %>% #Adds dropout
 
           keras::layer_dense(units = keras_architecture_parameters$units[5],
                              activation = keras_architecture_parameters$activation[5], #Units and activation may vary by layer
                              kernel_regularizer = keras::regularizer_l1_l2(l1 = regularizer_l1, l2 = regularizer_l2)) %>%
-          {if (keras_architecture_parameters$batch_norm_option[5]) keras::layer_batch_normalization() else .}() %>% #Batch normalization
+          {if (keras_architecture_parameters$batch_norm_option[5]) keras::layer_batch_normalization(.) else .} %>% #Batch normalization
           keras::layer_dropout(rate = droprate) %>% #Adds dropout
 
           keras::layer_dense(units = 1) #No activation means linear: f(x) = x
