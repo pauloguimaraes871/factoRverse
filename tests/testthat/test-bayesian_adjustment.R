@@ -1,4 +1,5 @@
 test_that("bayesian model correctly shrinks alpha based on conservative priors",{
+  skip_if_no_stan()
 
   #DGP 1
   ##############################
@@ -367,6 +368,7 @@ test_that("bayesian model correctly shrinks alpha based on conservative priors",
 
 ###plan multisession
 test_that("bayesian model correctly shrinks alpha based on conservative priors (plan multisession)",{
+  skip_if_no_stan()
 
   testthat::skip()
 
