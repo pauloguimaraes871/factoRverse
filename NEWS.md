@@ -1,5 +1,32 @@
 # factoRverse 0.6.1.9000
 
+## New features
+
+* Neural-network signal blending can now average over several independently
+  initialised networks at refit time, through the new `n_ensembles` argument of
+  `create_keras_architecture()` (and of `add_keras_architecture()`). A single
+  network fit is one draw from a distribution over networks induced by the
+  random weight initialisation, so its forecast carries initialisation variance
+  that nothing else in the walk-forward scheme removes; averaging the forecasts
+  of `k` independently initialised members reduces that component by roughly a
+  factor of `k`. Gu, Kelly and Xiu (2020) average 10 networks per topology and
+  Rubesam (2021) averages 50.
+
+  `n_ensembles` defaults to `1`, which trains a single network and reproduces
+  the previous behaviour and return values exactly, so existing configurations
+  and stored results are unaffected. Ensembling applies to the refit only:
+  hyperparameter tuning always fits a single network per candidate, so the
+  search cost does not change. With `n_ensembles > 1` the fitted model is a new
+  `keras_ensemble` object whose `predict()` method averages its members'
+  forecasts; forecasts are averaged, never weights, because hidden units are
+  permutation symmetric across initialisations.
+
+  Two consequences worth noting when the feature is switched on: neural-network
+  feature importance is then computed from the ensemble mean via the global
+  surrogate model, and an ensemble mean is less dispersed cross-sectionally than
+  a single draw, which shifts effective weight in an equal-weighted meta-blend
+  unless `normalize_base_predictions` is enabled.
+
 ## Bug fixes
 
 * `fit_keras_model()` now assembles the requested network when

@@ -795,6 +795,20 @@ check_inputs_sb_backtest <- function(
       stop("batch_norm_option should be logical")
     }
 
+    ###n_ensembles is optional: architectures built before it existed simply omit
+    ###it and are fitted as a single network. When supplied it must be a usable
+    ###count of networks, since it drives the refit training loop directly.
+    if(!is.null(keras_architecture_parameters$n_ensembles)){
+      if(!is.numeric(keras_architecture_parameters$n_ensembles) ||
+         length(keras_architecture_parameters$n_ensembles) != 1 ||
+         is.na(keras_architecture_parameters$n_ensembles) ||
+         !is.finite(keras_architecture_parameters$n_ensembles) ||
+         keras_architecture_parameters$n_ensembles < 1 ||
+         keras_architecture_parameters$n_ensembles != round(keras_architecture_parameters$n_ensembles)){
+        stop("n_ensembles should be a single finite integer >= 1.")
+      }
+    }
+
     if(parallel){
       warning("keras models have some limitations regarding parallel computations. Use with care.")
     }

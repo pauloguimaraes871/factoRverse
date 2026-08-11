@@ -217,9 +217,19 @@ fit_sb_model <- function(sb_algorithm, #SB Algorithm
                                           regularizer_l2 = optimal_hyper["regularizer_l2"],
                                           droprate = optimal_hyper["droprate"],
 
+                                          #Initialisation ensembling
+                                          ##Refit only: tuning never passes this, so the
+                                          ##hyperparameter search stays single-network.
+                                          ##Absent from the architecture (raw lists built
+                                          ##before this existed) means a single network.
+                                          n_ensembles = if (is.null(keras_architecture_parameters$n_ensembles)) {
+                                            1
+                                          } else {
+                                            keras_architecture_parameters$n_ensembles
+                                          },
 
                                           verbose = verbose
-                     )$model_nn, #This is a wrapper for keras
+                     )$model_nn, #This is a wrapper for keras. With n_ensembles > 1 this is a keras_ensemble.
 
                      ##Custom Weights
                      custom_weights = set_portfolio_weights(port_construction_method = "custom_weights",

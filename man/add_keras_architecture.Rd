@@ -23,6 +23,9 @@ add_keras_architecture(object, keras_architecture_parameters, ...)
 \item \strong{units}: A numeric value for the number of units in the new layer.
 \item \strong{activation}: A character string specifying the activation function for the new layer (e.g., "relu").
 \item \strong{batch_norm_option}: A character string indicating whether to apply batch normalization for the new layer (e.g., "yes").
+\item \strong{n_ensembles}: Optional. A single integer (>= 1) giving how many
+independently initialised networks to train at refit and average. Defaults to 1,
+a single network. See \code{\link{create_keras_architecture}}.
 }}
 }
 \value{
