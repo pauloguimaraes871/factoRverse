@@ -2885,6 +2885,26 @@ setClass(
       hyperparameter_list <- object@tuning_strategy@hyper_grid_domain@hyperparameter_list
       tuning_method <- object@tuning_strategy@tuning_method
 
+      #Normalize bayesian_opt constants before the per-hyperparameter domain checks
+      ###Mirrors the normalization in check_inputs_sb_backtest(): a constant entry
+      ###is a degenerate domain, and the checks below expect a plain numeric value,
+      ###not the list shape a constant is declared with. is_constant_hyperparameter
+      ###is also needed below so init_points is compared against the searched
+      ###hyperparameters only, not the declared total.
+      is_constant_hyperparameter <- rep(FALSE, length(hyperparameter_list))
+      if(tuning_method == "bayesian_opt" && is.list(hyperparameter_list)){
+        is_constant_hyperparameter <- sapply(
+          hyperparameter_list,
+          function(entry) is.list(entry) && identical(entry$distribution_choice, "constant")
+        )
+        hyperparameter_list <- lapply(hyperparameter_list, function(entry){
+          if(is.list(entry) && identical(entry$distribution_choice, "constant")){
+            return(entry$value)
+          }
+          return(entry)
+        })
+      }
+
       if (length(hyperparameter_list) > 0) {
         for (hyperparameter in names(hyperparameter_list)) {
           #Extract value for grid_searcho or bayesian_opt
@@ -3077,7 +3097,10 @@ setClass(
           }
         }
         #Check if init_points > number of hypers
-        if(tuning_method == "bayesian_opt" && length(hyperparameter_list) >= object@tuning_strategy@init_points){
+        ###Counted against the searched hyperparameters only, matching
+        ###check_inputs_sb_backtest(): constants are removed from the surrogate's
+        ###input space, so they must not inflate this count.
+        if(tuning_method == "bayesian_opt" && sum(!is_constant_hyperparameter) >= object@tuning_strategy@init_points){
           stop("init_points should be greater than the number of hyperparameters")
         }
 

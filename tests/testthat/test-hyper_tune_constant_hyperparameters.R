@@ -257,6 +257,79 @@ test_that("a constant is held fixed and reported among the optimal hyperparamete
 })
 
 
+# sb_backtest_config validity ---------------------------------------------
+
+xgb_mostly_constant_domain <- function() {
+  methods::new(
+    "bayesian_opt_strategy",
+    tuning_method = "bayesian_opt",
+    validation_sample_size = 12,
+    chosen_eval_metric = "rmse",
+    hyper_grid_domain = methods::new(
+      "hyper_grid_domain",
+      hyperparameter_list = list(
+        min_child_weight = list(distribution_choice = "constant", value = 1),
+        max_depth = c(2L, 8L),
+        subsample = list(distribution_choice = "constant", value = 0.8),
+        colsample_bytree = list(distribution_choice = "constant", value = 1),
+        eta = c(0.01, 0.5),
+        alpha = list(distribution_choice = "constant", value = 0),
+        gamma = list(distribution_choice = "constant", value = 0),
+        nrounds = c(100, 200)
+      )
+    ),
+    early_stop = NULL, n_iter = 2, acq = "ucb", init_points = 4, k_iter = 1
+  )
+}
+
+test_that("sb_backtest_config accepts a bayesian_opt constant hyperparameter", {
+  ### Regression test: sb_backtest_config's own validity duplicates the
+  ### per-algorithm domain checks in check_inputs_sb_backtest(), but unlike
+  ### that function it never unwrapped `list(distribution_choice = "constant",
+  ### value = X)` before comparing it against a numeric interval. Comparing a
+  ### list with `<`/`>` throws an uninformative R error, so this combination --
+  ### exactly what the constant-hyperparameter feature exists to enable --
+  ### broke the normal construction path (create_sb_backtest_config()) even
+  ### though check_inputs_sb_backtest() and hyper_tune() already handled it.
+  testthat::expect_no_error(
+    create_sb_backtest_config(
+      sb_algorithm = "xgb",
+      target_fwd_name = "fwd_premium_1m",
+      tuning_strategy = xgb_mostly_constant_domain(),
+      training_sample_size = 4,
+      rebalancing_months = 9
+    )
+  )
+})
+
+test_that("sb_backtest_config counts init_points against searched hyperparameters only", {
+  ### Regression test: the guard used length(hyperparameter_list), the
+  ### declared total including constants, contradicting NEWS.md's claim that
+  ### constants are excluded from this count. Five constants plus three
+  ### searched hyperparameters with init_points = 4 is legal (4 > 3 searched),
+  ### but the old count (4 > 8 total is FALSE) rejected it.
+  make_config <- function(init_points) {
+    strategy <- xgb_mostly_constant_domain()
+    strategy@init_points <- init_points
+    create_sb_backtest_config(
+      sb_algorithm = "xgb",
+      target_fwd_name = "fwd_premium_1m",
+      tuning_strategy = strategy,
+      training_sample_size = 4,
+      rebalancing_months = 9
+    )
+  }
+
+  ### Four initial points against three searched hyperparameters is legal,
+  ### even though the domain declares eight in total.
+  testthat::expect_no_error(make_config(init_points = 4))
+
+  ### Three initial points against three searched hyperparameters is not.
+  testthat::expect_error(make_config(init_points = 3),
+                         "init_points should be greater than the number of hyperparameters")
+})
+
+
 # Input checking ---------------------------------------------------------
 
 test_that("input checking accepts constants and counts only the searched ones", {
