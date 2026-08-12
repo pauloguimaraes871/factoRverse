@@ -1,5 +1,109 @@
 # Changelog
 
+## factoRverse 0.7.0
+
+### New features
+
+- Neural-network signal blending can now average over several
+  independently initialised networks at refit time, through the new
+  `n_ensembles` argument of
+  [`create_keras_architecture()`](https://pauloguimaraes871.github.io/factoRverse/reference/create_keras_architecture.md)
+  (and of
+  [`add_keras_architecture()`](https://pauloguimaraes871.github.io/factoRverse/reference/add_keras_architecture.md)).
+  A single network fit is one draw from a distribution over networks
+  induced by the random weight initialisation, so its forecast carries
+  initialisation variance that nothing else in the walk-forward scheme
+  removes; averaging the forecasts of `k` independently initialised
+  members reduces that component by roughly a factor of `k`. Gu, Kelly
+  and Xiu (2020) average 10 networks per topology and Rubesam (2021)
+  averages 50.
+
+  `n_ensembles` defaults to `1`, which trains a single network and
+  reproduces the previous behaviour and return values exactly, so
+  existing configurations and stored results are unaffected. Ensembling
+  applies to the refit only: hyperparameter tuning always fits a single
+  network per candidate, so the search cost does not change. With
+  `n_ensembles > 1` the fitted model is a new `keras_ensemble` object
+  whose [`predict()`](https://rdrr.io/r/stats/predict.html) method
+  averages its members’ forecasts; forecasts are averaged, never
+  weights, because hidden units are permutation symmetric across
+  initialisations.
+
+  Two consequences worth noting when the feature is switched on:
+  neural-network feature importance is then computed from the ensemble
+  mean via the global surrogate model, and an ensemble mean is less
+  dispersed cross-sectionally than a single draw, which shifts effective
+  weight in an equal-weighted meta-blend unless
+  `normalize_base_predictions` is enabled.
+
+- Hyperparameters can now be held constant under
+  `tuning_method = "bayesian_opt"`, using the same declaration
+  `random_search` already accepts:
+
+  ``` r
+
+  add_hyperparameter(strategy, hyperparameter = "subsample",
+                     distribution_choice = "constant", pars = 0.8)
+  ```
+
+  A hyperparameter declared this way is removed from the Gaussian
+  process’s input space and its value re-inserted when the learner is
+  called. Both the dimension the surrogate must fit and `gsPoints`,
+  which defaults to `pmax(100, length(bounds)^3)`, fall accordingly:
+  tuning xgb over three hyperparameters with the other five pinned takes
+  `gsPoints` from 512 to the floor of 100. The fixed values are reported
+  in the optimal hyperparameters and recorded in the tuning history, so
+  downstream fitting, plots and summaries see a complete set exactly as
+  before.
+
+  `init_points` is now required to exceed the number of *searched*
+  hyperparameters rather than the number declared, so pinning
+  hyperparameters genuinely reduces the initial design.
+
+### Deprecations
+
+- Collapsing a hyperparameter’s bounds to a single point, `c(x, x)`,
+  under `bayesian_opt` now warns. It was the only way to pin a
+  hyperparameter before constants existed, but it does not do what it
+  appears to: `ParBayesianOptimization` rescales candidates by
+  `upper - lower`, so a zero-width range reaches the Gaussian process as
+  an undefined (`NaN`) input, with no error and no warning of its own,
+  while still counting towards the search dimension and `gsPoints`.
+
+  The behaviour of such configurations is **unchanged** in this release.
+  They are not silently reinterpreted as constants, because doing so
+  would alter the searched dimension, and hence the candidates drawn and
+  the hyperparameters selected, for every existing configuration using
+  the idiom. Migrating to `distribution_choice = "constant"` is opt-in
+  and will change tuning results, which is the point: the previous
+  search space contained an undefined dimension.
+
+### Bug fixes
+
+- [`fit_keras_model()`](https://pauloguimaraes871.github.io/factoRverse/reference/fit_keras_model.md)
+  now assembles the requested network when `batch_norm_option` is
+  `FALSE` for a layer. The inline selection of the optional
+  batch-normalization layer called the piped model as a function on the
+  `FALSE` branch, which aborted layer assembly part way through. The
+  returned network then consisted of the first dense layer alone, with
+  no output unit, so it produced one prediction per hidden unit per row
+  instead of one prediction per row. The failure was silent in both
+  directions: the assembly error was reported through
+  [`message()`](https://rdrr.io/r/base/message.html) and execution
+  continued, and training then appeared to succeed because the loss
+  broadcast the `(n, units)` output against the `(n,)` target.
+
+  This affected every topology (1 to 5 layers) at any layer whose
+  `batch_norm_option` was `FALSE`. Neural-network results produced with
+  such a configuration were generated by a network that was not the one
+  specified, and should be regenerated. Configurations with
+  `batch_norm_option = TRUE` on every layer were assembled correctly and
+  are unaffected; their results are unchanged.
+
+  New tests assert the assembled depth, a single output unit, and one
+  prediction per row scored, for all five topologies under all-`TRUE`,
+  all-`FALSE` and mixed `batch_norm_option`.
+
 ## factoRverse 0.6.1
 
 Bug fix for meta-portfolio backtests that use group (sector)

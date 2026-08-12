@@ -13,7 +13,7 @@ random_search_strategy, bayesian_opt_strategy), or a sb_backtest_config."></head
 
     <a class="navbar-brand me-2" href="../index.html">factoRverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.6.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.7.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -61,7 +61,14 @@ in a <code>hyper_grid_domain</code>, dispatching on where it lives: a bare
 <span><span class="fu">add_hyperparameter</span><span class="op">(</span><span class="va">object</span>, <span class="va">hyperparameter</span>, <span class="va">distribution_choice</span>, <span class="va">pars</span>, <span class="va">...</span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S4 method for class 'bayesian_opt_strategy'</span></span>
-<span><span class="fu">add_hyperparameter</span><span class="op">(</span><span class="va">object</span>, <span class="va">hyperparameter</span>, <span class="va">bounds</span>, <span class="va">...</span><span class="op">)</span></span>
+<span><span class="fu">add_hyperparameter</span><span class="op">(</span></span>
+<span>  <span class="va">object</span>,</span>
+<span>  <span class="va">hyperparameter</span>,</span>
+<span>  <span class="va">bounds</span>,</span>
+<span>  distribution_choice <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  pars <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  <span class="va">...</span></span>
+<span><span class="op">)</span></span>
 <span></span>
 <span><span class="co"># S4 method for class 'sb_backtest_config'</span></span>
 <span><span class="fu">add_hyperparameter</span><span class="op">(</span></span>
@@ -122,7 +129,8 @@ with the parameters for the chosen distribution (<code>c(min, max)</code>, <code
 
 <dt id="arg-bounds">bounds<a class="anchor" aria-label="anchor" href="#arg-bounds"></a></dt>
 <dd><p>A numeric vector of length 2 (<code>c(lower, upper)</code>), or a list of such
-vectors (one per hyperparameter in <code>hyperparameter</code>, same order).</p></dd>
+vectors (one per hyperparameter in <code>hyperparameter</code>, same order). Omit when
+declaring a constant.</p></dd>
 
 </dl></div>
     <div class="section level2">
@@ -146,7 +154,15 @@ directly if you already have the hyperparameter list in the shape
 <li><p><code>add_hyperparameter(random_search_strategy)</code>: Add/upsert hyperparameter(s) in a <code>random_search_strategy</code>'s <code>hyper_grid_domain</code>.</p>
 <p>There is no separate <code>value</code> argument for <code>distribution_choice = "constant"</code>:
 pass the constant through <code>pars</code> (it is stored internally as <code>value</code>).</p></li>
-<li><p><code>add_hyperparameter(bayesian_opt_strategy)</code>: Add/upsert hyperparameter(s) in a <code>bayesian_opt_strategy</code>'s <code>hyper_grid_domain</code>.</p></li>
+<li><p><code>add_hyperparameter(bayesian_opt_strategy)</code>: Add/upsert hyperparameter(s) in a <code>bayesian_opt_strategy</code>'s <code>hyper_grid_domain</code>.</p>
+<p>Supply either <code>bounds</code>, to have the hyperparameter searched, or
+<code>distribution_choice = "constant"</code> with <code>pars</code>, to pin it to a fixed value.
+A pinned hyperparameter is removed from the surrogate's input space at tuning
+time and its value re-inserted when the learner is called, which reduces the
+dimension the Gaussian process must fit and the <code>gsPoints</code> that follow from
+it. Do not express a constant as a zero-width range: <code>ParBayesianOptimization</code>
+rescales candidates by <code>upper - lower</code>, so <code>c(x, x)</code> yields an all-<code>NaN</code>
+input with no error, and the hyperparameter still costs a full dimension.</p></li>
 <li><p><code>add_hyperparameter(sb_backtest_config)</code>: Add/upsert hyperparameter(s) via a <code>sb_backtest_config</code>'s attached <code>tuning_strategy</code>.</p>
 <p>Delegates to whichever strategy-specific method matches <code>object@tuning_strategy</code>'s
 class; supply only the argument(s) relevant to that strategy's <code>tuning_method</code>

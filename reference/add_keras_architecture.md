@@ -48,6 +48,11 @@ add_keras_architecture(object, keras_architecture_parameters = NULL, ...)
   - **batch_norm_option**: A character string indicating whether to
     apply batch normalization for the new layer (e.g., "yes").
 
+  - **n_ensembles**: Optional. A single integer (\>= 1) giving how many
+    independently initialised networks to train at refit and average.
+    Defaults to 1, a single network. See
+    [`create_keras_architecture`](https://pauloguimaraes871.github.io/factoRverse/reference/create_keras_architecture.md).
+
 ## Value
 
 An updated object of class `sb_backtest_config` with the

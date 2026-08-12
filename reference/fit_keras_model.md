@@ -23,6 +23,7 @@ fit_keras_model(
   features_matrix_train_clean,
   target_vector_train,
   verbose,
+  n_ensembles = 1,
   ...
 )
 ```
@@ -83,6 +84,24 @@ fit_keras_model(
 
   Integer. Verbosity level during training.
 
+- n_ensembles:
+
+  Integer \>= 1. Number of independently initialised networks to train
+  and average. Each member sees the same data and the same
+  hyperparameters and differs only in its random weight initialisation
+  and its own early-stopping decision; forecasts are averaged, never
+  weights. Defaults to 1, which trains a single network and returns
+  exactly what earlier versions returned. Values above 1 follow Gu,
+  Kelly and Xiu (2020), who average 10 networks per topology, and
+  Rubesam (2021), who averages 50, both to remove the variance a single
+  random initialisation injects into the forecast.
+
+  This is a deliberate function argument rather than a field read off
+  `keras_architecture_parameters`: the tuning path reaches this function
+  with the same architecture specification as the refit, so reading it
+  from there would make every candidate evaluation ensemble too and
+  multiply the search cost by `n_ensembles`. Only the refit passes it.
+
 - ...:
 
   Additional arguments consumed only when early stopping is active:
@@ -96,11 +115,16 @@ A list containing:
 
 - model_nn:
 
-  The trained Keras model object.
+  When `n_ensembles == 1`, the trained Keras model object. When
+  `n_ensembles > 1`, a
+  [`keras_ensemble`](https://pauloguimaraes871.github.io/factoRverse/reference/keras_ensemble-class.md)
+  holding the trained members, which predicts as their average.
 
 - fit_nn:
 
-  The Keras training `history` object (per-epoch metrics).
+  When `n_ensembles == 1`, the Keras training `history` object
+  (per-epoch metrics). When `n_ensembles > 1`, a list of one such
+  history per member, since members may stop at different epochs.
 
 ## Details
 

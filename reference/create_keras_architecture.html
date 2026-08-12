@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">factoRverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.6.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.7.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -44,7 +44,8 @@
 <span>  <span class="va">nn_optimizer</span>,</span>
 <span>  units <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  activation <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  batch_norm_option <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  batch_norm_option <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  n_ensembles <span class="op">=</span> <span class="fl">1</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -66,6 +67,16 @@
 
 <dt id="arg-batch-norm-option">batch_norm_option<a class="anchor" aria-label="anchor" href="#arg-batch-norm-option"></a></dt>
 <dd><p>A character string indicating whether to apply batch normalization for the new layer (e.g., "yes").</p></dd>
+
+
+<dt id="arg-n-ensembles">n_ensembles<a class="anchor" aria-label="anchor" href="#arg-n-ensembles"></a></dt>
+<dd><p>A single integer (&gt;= 1) giving how many independently initialised
+networks are trained at refit time and averaged into one forecast. Defaults to 1,
+a single network, which is what earlier versions always did. Values above 1 remove
+initialisation variance from the forecast, at a proportional cost in refit time:
+Gu, Kelly and Xiu (2020) average 10 networks, Rubesam (2021) averages 50. <code>NULL</code> is
+accepted and read as 1, so architectures recovered from runs recorded before this
+argument existed rebuild as the single network they were fitted as.</p></dd>
 
 </dl></div>
     <div class="section level2">

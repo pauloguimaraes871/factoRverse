@@ -44,3 +44,14 @@ A list containing the following elements:
 - batch_norm_option:
 
   Indicates if batch normalization is applied.
+
+- n_ensembles:
+
+  The number of independently initialised networks averaged at refit.
+
+## Details
+
+Objects deserialised from artifacts written before `n_ensembles` was
+introduced have no such slot, and an S4 prototype does not retrofit one
+on load. Those objects are read as a single network, which is the
+behaviour they were produced under.

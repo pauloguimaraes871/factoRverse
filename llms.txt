@@ -1023,6 +1023,9 @@ predictions.
 - [`keras_architecture_parameters-class`](https://pauloguimaraes871.github.io/factoRverse/reference/keras_architecture_parameters-class.md)
   : Keras Architecture Parameters
 
+- [`keras_ensemble-class`](https://pauloguimaraes871.github.io/factoRverse/reference/keras_ensemble-class.md)
+  : Ensemble of Independently Initialised Keras Networks
+
 - [`signal_port_parameters-class`](https://pauloguimaraes871.github.io/factoRverse/reference/signal_port_parameters-class.md)
   : Signal Portfolio Parameters
 
@@ -1250,6 +1253,9 @@ factoRverse objects.
 
 - [`plot(`*`<ss_backtest_config>`*`,`*`<ANY>`*`)`](https://pauloguimaraes871.github.io/factoRverse/reference/plot_ss_backtest_config.md)
   : Plot Priors from ss_backtest_config
+
+- [`predict(`*`<keras_ensemble>`*`)`](https://pauloguimaraes871.github.io/factoRverse/reference/predict-keras_ensemble-method.md)
+  : Predict Method for keras_ensemble Class
 
 - [`predict(`*`<sb_backtest_results>`*`)`](https://pauloguimaraes871.github.io/factoRverse/reference/predict-sb_backtest_results-method.md)
   : Predict Method for sb_backtest_results Class

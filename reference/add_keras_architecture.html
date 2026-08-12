@@ -11,7 +11,7 @@ When keras_architecture_parameters is not provided, a new one will be created us
 
     <a class="navbar-brand me-2" href="../index.html">factoRverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.6.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.7.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -72,6 +72,9 @@ When <code>keras_architecture_parameters</code> is not provided, a new one will 
 <li><p><strong>units</strong>: A numeric value for the number of units in the new layer.</p></li>
 <li><p><strong>activation</strong>: A character string specifying the activation function for the new layer (e.g., "relu").</p></li>
 <li><p><strong>batch_norm_option</strong>: A character string indicating whether to apply batch normalization for the new layer (e.g., "yes").</p></li>
+<li><p><strong>n_ensembles</strong>: Optional. A single integer (&gt;= 1) giving how many
+independently initialised networks to train at refit and average. Defaults to 1,
+a single network. See <code><a href="create_keras_architecture.html">create_keras_architecture</a></code>.</p></li>
 </ul></dd>
 
 </dl></div>

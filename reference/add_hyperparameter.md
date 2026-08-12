@@ -21,7 +21,14 @@ add_hyperparameter(object, hyperparameter, grid, ...)
 add_hyperparameter(object, hyperparameter, distribution_choice, pars, ...)
 
 # S4 method for class 'bayesian_opt_strategy'
-add_hyperparameter(object, hyperparameter, bounds, ...)
+add_hyperparameter(
+  object,
+  hyperparameter,
+  bounds,
+  distribution_choice = NULL,
+  pars = NULL,
+  ...
+)
 
 # S4 method for class 'sb_backtest_config'
 add_hyperparameter(
@@ -90,7 +97,8 @@ add_hyperparameter(
 - bounds:
 
   A numeric vector of length 2 (`c(lower, upper)`), or a list of such
-  vectors (one per hyperparameter in `hyperparameter`, same order).
+  vectors (one per hyperparameter in `hyperparameter`, same order). Omit
+  when declaring a constant.
 
 ## Value
 
@@ -126,6 +134,16 @@ everything already present under an unrelated name is left untouched.
 
 - `add_hyperparameter(bayesian_opt_strategy)`: Add/upsert
   hyperparameter(s) in a `bayesian_opt_strategy`'s `hyper_grid_domain`.
+
+  Supply either `bounds`, to have the hyperparameter searched, or
+  `distribution_choice = "constant"` with `pars`, to pin it to a fixed
+  value. A pinned hyperparameter is removed from the surrogate's input
+  space at tuning time and its value re-inserted when the learner is
+  called, which reduces the dimension the Gaussian process must fit and
+  the `gsPoints` that follow from it. Do not express a constant as a
+  zero-width range: `ParBayesianOptimization` rescales candidates by
+  `upper - lower`, so `c(x, x)` yields an all-`NaN` input with no error,
+  and the hyperparameter still costs a full dimension.
 
 - `add_hyperparameter(sb_backtest_config)`: Add/upsert hyperparameter(s)
   via a `sb_backtest_config`'s attached `tuning_strategy`.

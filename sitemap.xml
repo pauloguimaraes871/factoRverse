@@ -175,6 +175,7 @@
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/is_portfolio_policies.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/is_tuning_strategy.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/keras_architecture_parameters-class.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/keras_ensemble-class.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/liquidity_constraint_policy-class.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/lookup_catalog.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/map_recipe_timewise.html</loc></url>
@@ -187,6 +188,7 @@
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/mmaf_sub_port_config-class.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/mvo_parameters-class.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/oos_sb_outputs_m_df-class.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/partition_hyper_grid_domain_list.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/pipe.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/plot-bayesian_alpha_test_strategy-ANY-method.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/plot-bayesian_opt_strategy-missing-method.html</loc></url>
@@ -209,6 +211,7 @@
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/port_backtest_cohort-class.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/port_backtest_config-class.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/port_backtest_results-class.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/predict-keras_ensemble-method.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/predict-sb_backtest_results-method.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/predict-sb_model-method.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/predict-signal_port-method.html</loc></url>

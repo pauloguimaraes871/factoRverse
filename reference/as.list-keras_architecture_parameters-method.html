@@ -13,7 +13,7 @@ in a more general R context."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">factoRverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.6.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.7.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -80,7 +80,17 @@ for a Keras model.</p></dd>
 <dt>batch_norm_option</dt>
 <dd><p>Indicates if batch normalization is applied.</p></dd>
 
+<dt>n_ensembles</dt>
+<dd><p>The number of independently initialised networks averaged at refit.</p></dd>
+
 </dl></div>
+    <div class="section level2">
+    <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
+    <p>Objects deserialised from artifacts written before <code>n_ensembles</code> was
+introduced have no such slot, and an S4 prototype does not retrofit one on
+load. Those objects are read as a single network, which is the behaviour they
+were produced under.</p>
+    </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>

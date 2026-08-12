@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">factoRverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.6.1</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.7.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -61,6 +61,16 @@
 
 <dt><code>batch_norm_option</code></dt>
 <dd><p>A character vector specifying whether to apply batch normalization for each layer.</p></dd>
+
+
+<dt><code>n_ensembles</code></dt>
+<dd><p>A single integer (&gt;= 1) giving how many independently initialised
+networks are trained at refit time and averaged into one forecast. Defaults to 1,
+which trains a single network and reproduces the behaviour of earlier versions
+exactly. Values above 1 follow the practice of averaging over random
+initialisations to remove initialisation variance from the forecast: Gu, Kelly and
+Xiu (2020) average 10 networks per topology, Rubesam (2021) averages 50. Applies to
+the refit only; hyperparameter tuning always fits a single network.</p></dd>
 
 
 </dl></div>
