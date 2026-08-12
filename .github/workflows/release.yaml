@@ -47,6 +47,29 @@ jobs:
             libfribidi-dev \
             libpng-dev
 
+      # renv reads RENV_CONFIG_REPOS_OVERRIDE ahead of the lockfile's own
+      # Repositories entry (renv/activate.R), and `use-public-rspm: true` points
+      # it at PPM's floating `latest` snapshot. That is what broke the "pinned"
+      # lockfile: PPM moved to a newer TBB ABI and the pinned rstan 2.32.7
+      # binary stopped loading. Pin both variables to the dated snapshot that
+      # matches renv.lock so restores are actually reproducible.
+      # The Linux codename is read from the runner rather than hard-coded, so a
+      # future ubuntu-latest bump degrades to source builds instead of pulling
+      # binaries built for the wrong distro.
+      - name: Pin package repositories to a dated PPM snapshot
+        shell: bash
+        run: |
+          snapshot="2026-07-20"
+          if [ "$RUNNER_OS" = "Linux" ]; then
+            codename="$(. /etc/os-release && echo "$VERSION_CODENAME")"
+            url="https://packagemanager.posit.co/cran/__linux__/${codename}/${snapshot}"
+          else
+            url="https://packagemanager.posit.co/cran/${snapshot}"
+          fi
+          echo "RSPM=${url}" >> "$GITHUB_ENV"
+          echo "RENV_CONFIG_REPOS_OVERRIDE=${url}" >> "$GITHUB_ENV"
+          echo "Pinned package repository: ${url}"
+
       - name: Set up renv and restore
         uses: r-lib/actions/setup-renv@v2
 

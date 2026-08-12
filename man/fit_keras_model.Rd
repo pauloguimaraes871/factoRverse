@@ -18,6 +18,7 @@ fit_keras_model(
   features_matrix_train_clean,
   target_vector_train,
   verbose,
+  n_ensembles = 1,
   ...
 )
 }
@@ -48,6 +49,21 @@ fit_keras_model(
 
 \item{verbose}{Integer. Verbosity level during training.}
 
+\item{n_ensembles}{Integer >= 1. Number of independently initialised networks to train
+and average. Each member sees the same data and the same hyperparameters and differs
+only in its random weight initialisation and its own early-stopping decision;
+forecasts are averaged, never weights. Defaults to 1, which trains a single network
+and returns exactly what earlier versions returned. Values above 1 follow Gu, Kelly
+and Xiu (2020), who average 10 networks per topology, and Rubesam (2021), who
+averages 50, both to remove the variance a single random initialisation injects into
+the forecast.
+
+This is a deliberate function argument rather than a field read off
+\code{keras_architecture_parameters}: the tuning path reaches this function with the
+same architecture specification as the refit, so reading it from there would make
+every candidate evaluation ensemble too and multiply the search cost by
+\code{n_ensembles}. Only the refit passes it.}
+
 \item{...}{Additional arguments consumed only when early stopping is active:
 \code{features_validation_sample_clean}, \code{target_validation_sample}, and
 \code{chosen_eval_metric_translated} (its \code{$name}/\code{$mode} configure
@@ -55,8 +71,12 @@ fit_keras_model(
 }
 \value{
 A list containing:
-\item{model_nn}{The trained Keras model object.}
-\item{fit_nn}{The Keras training \code{history} object (per-epoch metrics).}
+\item{model_nn}{When \code{n_ensembles == 1}, the trained Keras model object. When
+\code{n_ensembles > 1}, a \code{\linkS4class{keras_ensemble}} holding the trained members,
+which predicts as their average.}
+\item{fit_nn}{When \code{n_ensembles == 1}, the Keras training \code{history} object
+(per-epoch metrics). When \code{n_ensembles > 1}, a list of one such history per
+member, since members may stop at different epochs.}
 }
 \description{
 Builds and trains a feed-forward Keras neural network (1--5 dense layers) for signal

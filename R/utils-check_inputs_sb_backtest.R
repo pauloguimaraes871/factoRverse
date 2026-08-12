@@ -700,18 +700,42 @@ check_inputs_sb_backtest <- function(
   #Check for correct format in case tuning method is Bayesian Optimization
   if(!sb_algorithm %in% c("ols", "ew", "sw", "rp", "hrp", "mvo", "mmaf", "custom_weights") &&
      tuning_method == c("bayesian_opt")){
+    ###Entries are either searched ranges or hyperparameters pinned to a
+    ###constant. Constants are removed from the surrogate's input space at
+    ###tuning time, so only the searched ones need to look like bounds.
+    is_constant_hyperparameter <- sapply(
+      hyper_grid_domain_list,
+      function(x) is.list(x) && identical(x$distribution_choice, "constant")
+    )
+    searched_hyper_grid_domain_list <- hyper_grid_domain_list[!is_constant_hyperparameter]
+
     if(any(
       #Check if hyper_grid_domain_list is a list
       !is.list(hyper_grid_domain_list),
-      #Check if hyper_grid_domain_list elements have length of 2 (boundaries)
-      !all(sapply(hyper_grid_domain_list, function(x) length(x) == 2)),
-      #Check if hyper_grid_domain_list elements are vectors
-      !all(sapply(hyper_grid_domain_list, function(x) is.vector(x))),
-      #Check if hyper_grid_domain_list contains numeric values
-      !all(sapply(hyper_grid_domain_list, function(x) is.numeric(x)))
+      #Check if searched elements have length of 2 (boundaries)
+      !all(sapply(searched_hyper_grid_domain_list, function(x) length(x) == 2)),
+      #Check if searched elements are vectors
+      !all(sapply(searched_hyper_grid_domain_list, function(x) is.vector(x))),
+      #Check if searched elements contain numeric values
+      !all(sapply(searched_hyper_grid_domain_list, function(x) is.numeric(x)))
     )
     ){
       stop("hyper_grid_domain_list not in correct format for bayesian_opt tuning.")
+    }
+
+    #Check constants carry a single finite numeric value
+    ###Finiteness matters here specifically: the constant is substituted into
+    ###the per-hyperparameter domain checks below, and comparing a missing value
+    ###against an interval yields NA, which reaches `if()` as an error about
+    ###TRUE/FALSE rather than about the hyperparameter.
+    if(!all(sapply(hyper_grid_domain_list[is_constant_hyperparameter],
+                   function(x) is.numeric(x$value) && length(x$value) == 1 && is.finite(x$value)))){
+      stop("Constant hyperparameters must have a single finite numeric 'value'.")
+    }
+
+    #Check at least one hyperparameter is searched
+    if(length(searched_hyper_grid_domain_list) == 0){
+      stop("At least one hyperparameter must have a range for bayesian_opt tuning.")
     }
 
     if(!acq %in% c("ucb", "ei", "poi")){
@@ -720,7 +744,10 @@ check_inputs_sb_backtest <- function(
     if(any(!is.numeric(init_points), !is.numeric(n_iter), !is.numeric(k_iter))){
       stop("n_iter, k_iter and init_points must be numeric.")
     }
-    if(init_points <= length(hyper_grid_domain_list)){
+    ###Counted against the searched hyperparameters only. bayesOpt needs more
+    ###initial points than dimensions it actually optimizes; requiring points
+    ###for pinned hyperparameters would cancel the saving they exist to give.
+    if(init_points <= length(searched_hyper_grid_domain_list)){
       stop("init_points must be greater than number of hyperparameters")
     }
     if(n_iter < k_iter){
@@ -793,6 +820,20 @@ check_inputs_sb_backtest <- function(
 
     if(!all(is.logical(keras_architecture_parameters$batch_norm_option))){
       stop("batch_norm_option should be logical")
+    }
+
+    ###n_ensembles is optional: architectures built before it existed simply omit
+    ###it and are fitted as a single network. When supplied it must be a usable
+    ###count of networks, since it drives the refit training loop directly.
+    if(!is.null(keras_architecture_parameters$n_ensembles)){
+      if(!is.numeric(keras_architecture_parameters$n_ensembles) ||
+         length(keras_architecture_parameters$n_ensembles) != 1 ||
+         is.na(keras_architecture_parameters$n_ensembles) ||
+         !is.finite(keras_architecture_parameters$n_ensembles) ||
+         keras_architecture_parameters$n_ensembles < 1 ||
+         keras_architecture_parameters$n_ensembles != round(keras_architecture_parameters$n_ensembles)){
+        stop("n_ensembles should be a single finite integer >= 1.")
+      }
     }
 
     if(parallel){
@@ -890,6 +931,22 @@ check_inputs_sb_backtest <- function(
 
   #Hyper domain
   ##################
+  #Normalize bayesian_opt constants before the per-hyperparameter domain checks
+  ###Each check below reads its entry as a numeric range and tests it against an
+  ###admissible interval. A hyperparameter pinned to a constant is a degenerate
+  ###domain, and the same interval test applies to its single value, so it is
+  ###substituted here rather than special-cased at each of the twelve sites.
+  ###Only bayesian_opt needs this: random_search already unpacks the constant
+  ###shape itself, and grid_search entries are plain numeric vectors.
+  if(tuning_method == "bayesian_opt" && is.list(hyper_grid_domain_list)){
+    hyper_grid_domain_list <- lapply(hyper_grid_domain_list, function(entry){
+      if(is.list(entry) && identical(entry$distribution_choice, "constant")){
+        return(entry$value)
+      }
+      return(entry)
+    })
+  }
+
   #Check for correct domains in hyper_grid_domain_list
 
   #GLMNET

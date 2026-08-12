@@ -255,6 +255,7 @@ test_that("define_signal_elibility throws errors for when a backtest has NAs", {
 })
 
 test_that("define_signal_elibility works for bayesian setting", {
+  skip_if_no_stan()
 
   #Create signals_m_d_ref_test
   load(paste(test_path(),"/testdata/","artificial_signal_selection_obj.RData", sep =""))

@@ -25,9 +25,51 @@ jobs:
 
       - uses: r-lib/actions/setup-pandoc@v2
 
+      # Deliberately NOT pinned to 4.3.0, unlike the three renv-based workflows.
+      # Those restore exact locked versions, so an old R is fine. This job
+      # resolves dependencies with pak, which always takes each package's
+      # current version, and in 2026 Matrix requires R >= 4.4 (and R 4.3 maps to
+      # Bioconductor 3.18, which is no longer served). Pinning R here makes the
+      # dependency graph unsolvable. Pinning R would require moving this job to
+      # renv restore as well.
       - uses: r-lib/actions/setup-r@v2
         with:
           use-public-rspm: true
+
+      # This job does not use renv, so RENV_CONFIG_REPOS_OVERRIDE (which pins the
+      # check workflows) has no effect here: pak resolves against the `repos`
+      # option that `use-public-rspm: true` writes into Rprofile.site. Pin that
+      # to the same dated snapshot as renv.lock, otherwise the site build drifts
+      # onto a newer RcppParallel/oneTBB than the rstan binary was built against
+      # and loading the package namespace fails. Appending wins because
+      # Rprofile.site is sourced top to bottom.
+      - name: Pin package repositories to a dated PPM snapshot
+        shell: bash
+        run: |
+          snapshot="2026-07-20"
+          codename="$(. /etc/os-release && echo "$VERSION_CODENAME")"
+          url="https://packagemanager.posit.co/cran/__linux__/${codename}/${snapshot}"
+
+          # --vanilla is required: this repo's .Rprofile bootstraps renv and
+          # writes its progress to stdout, which would otherwise be captured as
+          # part of the path.
+          profile="$(Rscript --vanilla -e 'cat(file.path(R.home("etc"), "Rprofile.site"))')"
+          echo "options(repos = c(CRAN = \"${url}\"))" | sudo tee -a "${profile}" > /dev/null
+
+          # renv autoloads from .Rprofile in this job too, and it takes its
+          # repositories from RENV_CONFIG_REPOS_OVERRIDE ahead of Rprofile.site,
+          # so both have to be pinned or the floating URL wins.
+          echo "RSPM=${url}" >> "$GITHUB_ENV"
+          echo "RENV_CONFIG_REPOS_OVERRIDE=${url}" >> "$GITHUB_ENV"
+          echo "Pinned package repository: ${url}"
+
+          # GITHUB_ENV only takes effect in later steps, so pass the same values
+          # explicitly to assert what those steps will actually resolve against.
+          RSPM="${url}" RENV_CONFIG_REPOS_OVERRIDE="${url}" Rscript -e '
+            repo <- getOption("repos")[["CRAN"]]
+            cat("repos in effect:", repo, "\n")
+            stopifnot(grepl("2026-07-20", repo, fixed = TRUE))
+          '
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
