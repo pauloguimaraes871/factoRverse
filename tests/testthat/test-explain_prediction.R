@@ -230,13 +230,19 @@ test_that("explain_prediction works for a meta_sb_backtest_results object", {
   expect_equal(results$TotalContribution[1], intercept)
   expect_equal(results %>% dplyr::filter(ContributionType == "Most Important Positive") %>% dplyr::pull(TotalContribution) %>% sum(),
                most_imp_pos$imp_times_value %>% sum())
-  # Compare on a stable key (feature name): when the meta-model's contributions
-  # are near zero, ordering the rows by descending contribution is dominated by
-  # floating-point noise and is not reproducible across BLAS backends, so sort
-  # both sides by `tickers` and compare the (feature, contribution) set instead.
-  expect_equal(results %>% dplyr::filter(ContributionType == "Most Important Positive") %>% dplyr::select(tickers, TotalContribution) %>% dplyr::arrange(tickers),
-               most_imp_pos %>% dplyr::select(features, imp_times_value) %>% dplyr::rename(tickers = features, TotalContribution = imp_times_value) %>%
-                 dplyr::arrange(tickers)
+  # Contributions at numerical-zero scale can change sign across BLAS backends,
+  # so verify the feature bucket only for values that are materially non-zero.
+  contribution_tolerance <- 1e-12
+  expect_equal(
+    results %>%
+      dplyr::filter(ContributionType == "Most Important Positive", abs(TotalContribution) > contribution_tolerance) %>%
+      dplyr::select(tickers, TotalContribution) %>%
+      dplyr::arrange(tickers),
+    most_imp_pos %>%
+      dplyr::select(features, imp_times_value) %>%
+      dplyr::rename(tickers = features, TotalContribution = imp_times_value) %>%
+      dplyr::filter(abs(TotalContribution) > contribution_tolerance) %>%
+      dplyr::arrange(tickers)
   )
   expect_equal(results %>% dplyr::filter(ContributionType == "Less Important Positive") %>% dplyr::select(tickers, TotalContribution) %>% dplyr::pull(TotalContribution),
                less_imp_pos$imp_times_value %>% sum()
