@@ -4272,6 +4272,76 @@ setMethod(
 )
 
 
+# sub_port_config--------------------------------------------------------
+#' @title Create a Sub Portfolio Configuration
+#'
+#' @description Constructor for a `sub_port_config` object, the specification of one
+#' inner portfolio built by a layered (`*af`) portfolio construction method. It says
+#' which construction method the recursive `set_portfolio_weights()` call must use, and
+#' carries the parameters of that method.
+#'
+#' @param port_construction_method A character string with the method used to build the
+#' sub-portfolio. Must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'hrp' or 'mvo'.
+#' @param mvo_parameters An object of class `mvo_parameters`. Only used when
+#' `port_construction_method` is 'mvo'. If missing for 'mvo', a default is created.
+#' @param rp_parameters An object of class `rp_parameters`. Only used when
+#' `port_construction_method` is 'rp'. If missing for 'rp', a default is created.
+#' @param hrp_parameters An object of class `hrp_parameters`. Only used when
+#' `port_construction_method` is 'hrp'. If missing for 'hrp', a default is created.
+#' @param class A character string naming the class to instantiate. Defaults to
+#' `"sub_port_config"`. Any class extending it (e.g. `"mmaf_sub_port_config"`) is accepted,
+#' which lets each layered method keep a self-documenting class name while sharing one
+#' configuration contract.
+#'
+#' @return An S4 object of class `sub_port_config` (or of the requested subclass).
+#' @export
+#'
+create_sub_port_config <- function(port_construction_method,
+                                   mvo_parameters = NULL,
+                                   rp_parameters = NULL,
+                                   hrp_parameters = NULL,
+                                   class = "sub_port_config") {
+
+  ## Requested class must extend sub_port_config
+  ###################
+  if (length(class) != 1 || !is.character(class) || is.na(class)) {
+    stop("class must be a single non-NA character string.")
+  }
+  if (!methods::extends(class, "sub_port_config")) {
+    stop("class must be 'sub_port_config' or a class extending it.")
+  }
+  ###################
+
+  ## Fill in defaults for the method actually being used
+  ###################
+  ### Mirrors create_port_backtest_config: a method-specific parameter object is never
+  ### required from the caller, only honoured when supplied.
+  if (port_construction_method == "mvo" && is.null(mvo_parameters)) {
+    mvo_parameters <- create_mvo_parameters()
+  }
+  if (port_construction_method == "rp" && is.null(rp_parameters)) {
+    rp_parameters <- create_rp_parameters()
+  }
+  if (port_construction_method == "hrp" && is.null(hrp_parameters)) {
+    hrp_parameters <- create_hrp_parameters()
+  }
+  ###################
+
+  ## Build and validate
+  ###################
+  obj <- methods::new(
+    class,
+    port_construction_method = port_construction_method,
+    mvo_parameters = mvo_parameters,
+    rp_parameters = rp_parameters,
+    hrp_parameters = hrp_parameters
+  )
+  methods::validObject(obj)
+  obj
+  ###################
+}
+
+
 # mmaf_parameters--------------------------------------------------------
 #' @title Create MMAF (Micro Macro Allocation Framework) Parameters
 #'

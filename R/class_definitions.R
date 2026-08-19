@@ -1981,10 +1981,61 @@ setClass(
 )
 
 
+#sub_port_config-----------------------------------------------------------
+#' @title Sub Portfolio Configuration
+#' @description An S4 class to represent the configuration of a sub-portfolio built by a
+#' layered portfolio construction method (the `*af` family). A layered method calls
+#' `set_portfolio_weights()` recursively on a block of the universe, and one
+#' `sub_port_config` fully specifies how that inner call must be made: which construction
+#' method to use, and the parameters of that method.
+#'
+#' @details
+#' This is the shared configuration type for every layered method. `mmaf_sub_port_config`
+#' extends it without adding structure and is kept as the name used by
+#' `mmaf_parameters`.
+#'
+#' Only the parameter object matching `port_construction_method` is used. The remaining
+#' parameter slots are ignored, so a configuration carrying, say, `rp_parameters` while
+#' `port_construction_method` is `"ew"` is valid but inert.
+#'
+#' @slot port_construction_method A character string indicating the method used for constructing the sub-portfolio.
+#' Must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'hrp' or 'mvo'.
+#' @slot mvo_parameters An object of class `mvo_parameters` representing the parameters for mean-variance optimization. This is only relevant for 'mvo'.
+#' @slot rp_parameters An object of class `rp_parameters` representing the parameters for risk parity. This is only relevant for 'rp'.
+#' @slot hrp_parameters An object of class `hrp_parameters` representing the parameters for hierarchical risk parity. This is only relevant for 'hrp'.
+#'
+#' @export
+#'
+setClass(
+  "sub_port_config",
+  slots = c(
+    port_construction_method = "character",
+    mvo_parameters = "ANY",
+    rp_parameters = "ANY",
+    hrp_parameters = "ANY"
+  ),
+  prototype = list(
+    mvo_parameters = NULL,
+    rp_parameters = NULL,
+    hrp_parameters = NULL
+  ),
+  validity = function(object){
+
+    validate_sub_port_config(object)
+
+  }
+)
+
+
 #mmaf_sub_port_config------------------------------------------------------
 #' @title MMAF Sub Portfolio Configuration
 #' @description An S4 class to represent the configuration of micro or macro portfolios
 #' in the MMAF portfolio construction method.
+#'
+#' @details
+#' Extends [sub_port_config-class] without adding slots or validity rules. It exists so
+#' that MMAF configurations keep a distinct, self-documenting class name while sharing a
+#' single configuration contract with every other layered (`*af`) method.
 #'
 #' @slot port_construction_method A character string indicating the method used for constructing micro portfolios.
 #' @slot mvo_parameters An object of class `mvo_parameters` representing the parameters for mean-variance optimization. This is only relevant for 'mvo'.
@@ -1995,34 +2046,7 @@ setClass(
 #'
 setClass(
   "mmaf_sub_port_config",
-  slots = c(
-    port_construction_method = "character",
-    mvo_parameters = "ANY",
-    rp_parameters = "ANY",
-    hrp_parameters = "ANY"
-  ),
-  validity = function(object){
-
-    #Just check that _parameters slots have the appropriate S4 class
-    if (object@port_construction_method == "mvo"){
-      if (!is.null(object@mvo_parameters) && !methods::is(object@mvo_parameters, "mvo_parameters")){
-        stop("mvo_parameters must be of class 'mvo_parameters' when port_construction_method is 'mvo'.")
-      }
-    }
-
-    if (object@port_construction_method == "rp"){
-      if (!is.null(object@rp_parameters) && !methods::is(object@rp_parameters, "rp_parameters")){
-        stop("rp_parameters must be of class 'rp_parameters' when port_construction_method is 'rp'.")
-      }
-    }
-
-    if (object@port_construction_method == "hrp"){
-      if (!is.null(object@hrp_parameters) && !methods::is(object@hrp_parameters, "hrp_parameters")){
-        stop("hrp_parameters must be of class 'hrp_parameters' when port_construction_method is 'hrp'.")
-      }
-    }
-
-  }
+  contains = "sub_port_config"
 )
 
 

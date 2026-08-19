@@ -1206,3 +1206,74 @@ validate_port_construction_methods <- function(
 
 }
 
+
+
+#validate_sub_port_config-------------------------------------------------------
+#' Validate a Sub Portfolio Configuration
+#'
+#' @description
+#' Validates a `sub_port_config` (or any class extending it, such as
+#' `mmaf_sub_port_config`). It is the single validity contract shared by every layered
+#' (`*af`) portfolio construction method, so that a sub-portfolio is specified the same
+#' way regardless of which method builds it.
+#'
+#' @param object An object of class `sub_port_config` or of a class extending it.
+#'
+#' @return `TRUE` invisibly if the configuration is valid. Stops with an informative
+#' message otherwise.
+#'
+#' @details
+#' Checks performed:
+#' \itemize{
+#'   \item `port_construction_method` is a single, non-`NA` character among the methods
+#'         a sub-portfolio may use ('ew', 'sw', 'cw', 'cs', 'rp', 'hrp', 'mvo').
+#'         Layered methods are excluded on purpose: nesting one layered method inside
+#'         another is not supported.
+#'   \item the parameter object matching that method, when supplied, has the expected S4
+#'         class. Parameter objects that do not match the method are left untouched
+#'         (they are inert, not invalid).
+#' }
+validate_sub_port_config <- function(object){
+
+  ## Method must be a single, usable character
+  ###################
+  port_construction_method <- object@port_construction_method
+
+  if (length(port_construction_method) != 1 ||
+      !is.character(port_construction_method) ||
+      is.na(port_construction_method)){
+    stop("port_construction_method must be a single non-NA character string.")
+  }
+
+  ### Layered methods are deliberately absent: a sub-portfolio may not itself be layered
+  if (!port_construction_method %in% c("ew", "sw", "cw", "cs", "rp", "hrp", "mvo")){
+    stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'hrp' or 'mvo'.")
+  }
+  ###################
+
+  ## Parameter object matching the method must have the expected class
+  ###################
+  ### Only the parameters of the chosen method are consulted, so a mismatched
+  ### (but well-formed) parameter object stays inert rather than invalid.
+  parameter_slot <- c(mvo = "mvo_parameters",
+                      rp  = "rp_parameters",
+                      hrp = "hrp_parameters")
+  parameter_class <- c(mvo = "mvo_parameters",
+                       rp  = "rp_parameters",
+                       hrp = "hrp_parameters")
+
+  if (port_construction_method %in% names(parameter_slot)){
+
+    slot_name <- parameter_slot[[port_construction_method]]
+    expected_class <- parameter_class[[port_construction_method]]
+    supplied_parameters <- methods::slot(object, slot_name)
+
+    if (!is.null(supplied_parameters) && !methods::is(supplied_parameters, expected_class)){
+      stop(paste0(slot_name, " must be of class '", expected_class,
+                  "' when port_construction_method is '", port_construction_method, "'."))
+    }
+  }
+  ###################
+
+  invisible(TRUE)
+}
