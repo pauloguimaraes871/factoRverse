@@ -1,5 +1,5 @@
 #Baseline behaviour
-test_that("compute_short_leg_scores recovers the plain reciprocal under default etas", {
+test_that("compute_short_leg_scores defaults to a benchmark-proportional anchor tilted by badness", {
 
   exp_ret_score_raw <- c(A = 0.67, B = 1.16, C = 2.40, D = 0.85)
   bench_weights     <- c(A = 0.110, B = 0.002, C = 0.045, D = 0.008)
@@ -7,11 +7,39 @@ test_that("compute_short_leg_scores recovers the plain reciprocal under default 
   scores <- compute_short_leg_scores(exp_ret_score_raw = exp_ret_score_raw,
                                      bench_weights = bench_weights)
 
-  #Defaults are badness_tilt_eta = 1 and bench_weight_tilt_eta = 0, so g^0 = 1
-  expect_equal(scores, 1 / exp_ret_score_raw)
+  #Defaults are both exponents at 1, so the score is b * badness
+  expect_equal(scores, bench_weights * (1 / exp_ret_score_raw))
   expect_named(scores, c("A", "B", "C", "D"))
   expect_true(all(scores > 0))
   expect_true(all(is.finite(scores)))
+})
+
+test_that("compute_short_leg_scores recovers the plain reciprocal when the benchmark term is switched off", {
+
+  exp_ret_score_raw <- c(A = 0.67, B = 1.16, C = 2.40, D = 0.85)
+  bench_weights     <- c(A = 0.110, B = 0.002, C = 0.045, D = 0.008)
+
+  scores <- compute_short_leg_scores(exp_ret_score_raw = exp_ret_score_raw,
+                                     bench_weights = bench_weights,
+                                     bench_weight_tilt_eta = 0)
+
+  #b^0 = 1, leaving pure badness
+  expect_equal(scores, 1 / exp_ret_score_raw)
+})
+
+test_that("the benchmark term alone reproduces benchmark weights exactly", {
+
+  exp_ret_score_raw <- c(A = 0.67, B = 1.16, C = 2.40)
+  bench_weights     <- c(A = 0.110, B = 0.002, C = 0.045)
+
+  scores <- compute_short_leg_scores(exp_ret_score_raw = exp_ret_score_raw,
+                                     bench_weights = bench_weights,
+                                     badness_tilt_eta = 0,
+                                     bench_weight_tilt_eta = 1)
+
+  #This is the budget-maximizing anchor: s proportional to b, exactly
+  expect_equal(scores, bench_weights)
+  expect_equal(scores / sum(scores), bench_weights / sum(bench_weights))
 })
 
 test_that("compute_short_leg_scores is monotone decreasing in the expected return score", {
@@ -22,7 +50,7 @@ test_that("compute_short_leg_scores is monotone decreasing in the expected retur
   scores <- compute_short_leg_scores(exp_ret_score_raw = exp_ret_score_raw,
                                      bench_weights = bench_weights)
 
-  #A worse stock must always earn a larger underweight score
+  #With equal benchmark weights, a worse stock must earn a larger underweight score
   expect_true(all(diff(scores) < 0))
 
   #The reciprocal is exact, so the score ratio is the inverse score ratio
@@ -65,16 +93,17 @@ test_that("badness_tilt_eta below 1 flattens the score distribution", {
 
   expect_lt(flat[["bad"]] / flat[["good"]], linear[["bad"]] / linear[["good"]])
 
-  #At eta = 0 every name carries the same badness contribution
+  #At eta = 0 every name carries the same badness contribution, leaving only the
+  #benchmark anchor
   neutral <- compute_short_leg_scores(exp_ret_score_raw, bench_weights,
                                       badness_tilt_eta = 0)
-  expect_equal(unname(neutral), c(1, 1))
+  expect_equal(neutral, bench_weights)
 })
 
 #Benchmark weight tilt
 test_that("bench_weight_tilt_eta shifts score mass toward large index names", {
 
-  #Identical scores isolate the benchmark tilt
+  #Identical scores isolate the benchmark term
   exp_ret_score_raw <- c(mega = 1.0, mid = 1.0, small = 1.0, tiny = 1.0)
   bench_weights     <- c(mega = 0.12, mid = 0.03, small = 0.01, tiny = 0.002)
 
@@ -83,37 +112,38 @@ test_that("bench_weight_tilt_eta shifts score mass toward large index names", {
   tilted  <- compute_short_leg_scores(exp_ret_score_raw, bench_weights,
                                       bench_weight_tilt_eta = 1)
 
-  #With no tilt, equal scores stay equal
+  #With the benchmark term off, equal scores stay equal
   expect_equal(unname(neutral), rep(1, 4))
 
-  #With a positive tilt, the ordering follows benchmark weight
+  #At an exponent of 1 the ordering is the benchmark ordering, exactly
+  expect_equal(tilted, bench_weights)
   expect_true(all(diff(tilted) < 0))
-  expect_gt(tilted[["mega"]], tilted[["tiny"]])
 
-  #A negative tilt reverses it, protecting mega caps from underweight
+  #A negative exponent reverses it, protecting mega caps from underweight
   protective <- compute_short_leg_scores(exp_ret_score_raw, bench_weights,
                                          bench_weight_tilt_eta = -1)
   expect_lt(protective[["mega"]], protective[["tiny"]])
 })
 
-test_that("bench_weight_tilt_eta is inert when benchmark weights carry no information", {
+test_that("bench_weight_tilt_eta is inert when benchmark weights are all equal", {
 
   exp_ret_score_raw <- c(A = 0.5, B = 1.5, C = 2.0)
-
-  #Identical benchmark weights give a zero-variance transform, so g is all ones
   identical_weights <- c(A = 0.02, B = 0.02, C = 0.02)
-  expect_equal(
-    compute_short_leg_scores(exp_ret_score_raw, identical_weights,
-                             bench_weight_tilt_eta = 2),
-    compute_short_leg_scores(exp_ret_score_raw, identical_weights,
-                             bench_weight_tilt_eta = 0)
-  )
 
-  #A single name transforms to 1 as well
+  #A constant benchmark term is a constant multiplier, so it vanishes once the
+  #scores are normalized downstream
+  tilted  <- compute_short_leg_scores(exp_ret_score_raw, identical_weights,
+                                      bench_weight_tilt_eta = 2)
+  neutral <- compute_short_leg_scores(exp_ret_score_raw, identical_weights,
+                                      bench_weight_tilt_eta = 0)
+
+  expect_equal(tilted / sum(tilted), neutral / sum(neutral))
+
+  #A single name is likewise inert after normalization
   single <- compute_short_leg_scores(exp_ret_score_raw = c(A = 0.5),
                                      bench_weights = c(A = 0.11),
                                      bench_weight_tilt_eta = 3)
-  expect_equal(unname(single), 1 / 0.5)
+  expect_equal(unname(single / sum(single)), 1)
 })
 
 test_that("the two tilts combine multiplicatively", {
@@ -194,5 +224,5 @@ test_that("compute_short_leg_scores tolerates unnamed input", {
                                      bench_weights = c(0.02, 0.03))
 
   expect_null(names(scores))
-  expect_equal(scores, c(2, 1 / 1.5))
+  expect_equal(scores, c(0.02 * 2, 0.03 / 1.5))
 })

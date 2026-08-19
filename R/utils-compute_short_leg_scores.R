@@ -10,7 +10,7 @@
 #' @details
 #' The score is the product of two strictly positive terms, each with its own exponent:
 #'
-#' \deqn{short\_score_i = badness_i ^ {badness\_tilt\_eta} \times g_i ^ {bench\_weight\_tilt\_eta}}
+#' \deqn{short\_score_i = b_i ^ {bench\_weight\_tilt\_eta} \times badness_i ^ {badness\_tilt\_eta}}
 #'
 #' \describe{
 #'   \item{\code{badness_i = 1 / exp_ret_score_raw_i}}{The reciprocal is the canonical
@@ -18,12 +18,10 @@
 #'     maps \eqn{z > 0} to \eqn{1 + z} and \eqn{z < 0} to \eqn{1 / (1 - z)}, so
 #'     \eqn{f(-z) = 1 / f(z)} identically. The reciprocal of a score is therefore exactly
 #'     the score the same signal would produce under the opposite position.}
-#'   \item{\code{g_i = signal_transform(bench_weights)}}{The winsorized cross-sectional
-#'     transform of the benchmark weight, computed within the short block. Using the
-#'     transform rather than the raw weight compresses the spread between a mega cap and
-#'     a small constituent, which is what makes \code{bench_weight_tilt_eta} a smooth
-#'     dial instead of a switch, and which naturally mutes the effect on benchmarks that
-#'     are not concentrated.}
+#'   \item{\code{b_i}}{The raw benchmark weight, which anchors the short leg on the
+#'     position actually held. The raw weight is used rather than a cross-sectional
+#'     transform of it because only the raw weight makes the budget-maximizing point
+#'     exactly representable, see below.}
 #' }
 #'
 #' **The scaler is deliberately absent.** The long leg uses
@@ -34,15 +32,27 @@
 #' side effect of a plumbing decision. Any scaler that is itself return-predictive must
 #' not reach the short leg.
 #'
-#' **What each exponent actually does.** \code{bench_weight_tilt_eta} is the *budget*
-#' dial: it moves desired underweight toward high-benchmark-weight names, where the
-#' \eqn{u_i \le b_i} cap applied downstream by
-#' \code{\link{compute_short_leg_underweights}} is far from binding, so more of the
-#' available budget converts into realized underweight. \code{badness_tilt_eta} is the
-#' *conviction-concentration* dial: it punishes the worst names disproportionately and
-#' borderline names disproportionately less, but because it concentrates the score
-#' distribution it pushes more names past their cap, so it does not increase (and
-#' usually mildly decreases) the realized active budget.
+#' **What each exponent actually does.** Downstream,
+#' \code{\link{compute_short_leg_underweights}} spends a budget \eqn{T = \sum_i b_i}
+#' subject to \eqn{u_i \le b_i}. Because \eqn{\sum_i T s_i = T = \sum_i b_i}, the budget
+#' is fully spent if and only if the normalized short weights are benchmark-proportional
+#' (\eqn{s \propto b}), and any departure from proportionality strictly loses budget.
+#' That gives both exponents a clean reading:
+#'
+#' \itemize{
+#'   \item \code{bench_weight_tilt_eta} sets the *basis*. At 1 the benchmark term alone
+#'         is exactly proportional to \eqn{b}, which is the budget-maximizing anchor. At
+#'         0 the benchmark is ignored entirely and the score is pure badness.
+#'   \item \code{badness_tilt_eta} then walks the *budget-versus-grading frontier*. At 0
+#'         (with \code{bench_weight_tilt_eta = 1}) the whole budget is spent, which is
+#'         also the ungraded case where every ineligible constituent is sold in full.
+#'         Raising it concentrates underweight on the worst names and monotonically
+#'         gives up budget in exchange, which is the graded behaviour this construction
+#'         exists to produce.
+#' }
+#'
+#' Maximum budget and graded underweights are therefore mutually exclusive by
+#' construction, and \code{badness_tilt_eta} is the parameter that prices the trade.
 #'
 #' @param exp_ret_score_raw Numeric vector of unscaled expected return scores
 #'   (the \code{exp_ret_score_raw} column, never the scaled \code{exp_ret_score}).
@@ -52,15 +62,11 @@
 #'   same order. Must be strictly positive and finite: every asset in the short block is
 #'   by definition a benchmark constituent.
 #' @param badness_tilt_eta Numeric scalar exponent applied to the badness score.
-#'   Defaults to 1 (no extra tilt). Values above 1 concentrate underweight on the worst
-#'   names; values below 1 flatten it toward an equal underweight.
-#' @param bench_weight_tilt_eta Numeric scalar exponent applied to the transformed
-#'   benchmark weight. Defaults to 0, which switches the benchmark tilt off entirely
-#'   (\eqn{g^0 = 1}). Positive values shift underweight toward large index names.
-#' @param lower_quantile_winsorization Numeric in (0, 1). Lower winsorization quantile
-#'   passed to \code{\link{signal_transform}} when transforming benchmark weights.
-#' @param upper_quantile_winsorization Numeric in (0, 1). Upper winsorization quantile
-#'   passed to \code{\link{signal_transform}} when transforming benchmark weights.
+#'   Defaults to 1. Values above 1 concentrate underweight on the worst names at the cost
+#'   of budget; 0 removes the conviction tilt entirely.
+#' @param bench_weight_tilt_eta Numeric scalar exponent applied to the benchmark weight.
+#'   Defaults to 1, the benchmark-proportional anchor. 0 removes the benchmark term
+#'   (\eqn{b^0 = 1}), leaving a pure badness score.
 #'
 #' @return A named numeric vector of strictly positive short-leg scores, with the same
 #'   length and names as \code{exp_ret_score_raw}. The scores are not normalized: the
@@ -70,9 +76,7 @@
 compute_short_leg_scores <- function(exp_ret_score_raw,
                                      bench_weights,
                                      badness_tilt_eta = 1,
-                                     bench_weight_tilt_eta = 0,
-                                     lower_quantile_winsorization = 0.025,
-                                     upper_quantile_winsorization = 0.975){
+                                     bench_weight_tilt_eta = 1){
 
   # Validate inputs-------------------------------------------------------------
 
@@ -122,25 +126,14 @@ compute_short_leg_scores <- function(exp_ret_score_raw,
     ## Badness: the score the same signal would give under the opposite position
     badness <- 1 / exp_ret_score_raw
 
-    ## Benchmark weight tilt, computed within the short block
-    ### signal_transform() already handles the degenerate cases: a single element
-    ### returns 1, and a zero-variance vector returns all ones. In both cases the
-    ### tilt correctly becomes inert rather than undefined.
-    if (bench_weight_tilt_eta == 0){
-      ### Skip the transform entirely when the tilt is off: g^0 = 1 regardless
-      bench_weight_score <- rep(1, length(bench_weights))
-    } else {
-      bench_weight_score <- signal_transform(
-        bench_weights,
-        lower_quantile_winsorization = lower_quantile_winsorization,
-        upper_quantile_winsorization = upper_quantile_winsorization
-      )
-    }
+    ## Benchmark anchor: the raw weight, so that an exponent of 1 reproduces
+    ## benchmark proportionality exactly, which is the budget-maximizing point
+    bench_weight_score <- bench_weights
 
   # Combine and return----------------------------------------------------------
 
     ## Two positive scores, two exponents
-    short_scores <- (badness ^ badness_tilt_eta) * (bench_weight_score ^ bench_weight_tilt_eta)
+    short_scores <- (bench_weight_score ^ bench_weight_tilt_eta) * (badness ^ badness_tilt_eta)
 
     ## Preserve identifiers when the caller supplied them
     names(short_scores) <- names(exp_ret_score_raw)

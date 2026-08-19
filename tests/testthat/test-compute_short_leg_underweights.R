@@ -208,7 +208,7 @@ test_that("compute_short_leg_underweights rejects a malformed ceiling", {
 })
 
 #Interaction with the score tilts
-test_that("bench_weight_tilt_eta moves the realized budget toward its proportional maximum, then away", {
+test_that("badness_tilt_eta walks the budget-versus-grading frontier monotonically", {
 
   #A realistic block: a few large constituents whose caps do not bind, and many
   #small ones whose caps do
@@ -219,31 +219,53 @@ test_that("bench_weight_tilt_eta moves the realized budget toward its proportion
     paste0("T", 1:n)
   )
   exp_ret_score_raw <- stats::setNames(stats::runif(n, 0.35, 2.5), paste0("T", 1:n))
+  short_budget <- sum(bench_weights)
 
-  budget_for <- function(badness_eta, bench_eta){
+  result_for <- function(badness_eta, bench_eta = 1){
     scores <- compute_short_leg_scores(exp_ret_score_raw, bench_weights,
                                        badness_tilt_eta = badness_eta,
+                                       bench_weight_tilt_eta = bench_eta)
+    compute_short_leg_underweights(scores, bench_weights)
+  }
+
+  #At the benchmark-proportional anchor the whole budget is spent, which is also
+  #the ungraded case: every constituent is sold in full
+  anchor <- result_for(badness_eta = 0)
+  expect_equal(anchor$active_budget, short_budget)
+  expect_equal(anchor$n_zeroed, n)
+
+  #Raising the conviction tilt monotonically gives up budget in exchange for grading
+  budgets <- vapply(c(0, 0.25, 0.5, 1, 2), function(e) result_for(e)$active_budget,
+                    numeric(1))
+  expect_true(all(diff(budgets) < 0))
+
+  #And grading is what is bought: far fewer names are sold in full
+  expect_lt(result_for(1)$n_zeroed, anchor$n_zeroed)
+})
+
+test_that("moving the basis away from benchmark proportionality loses budget in either direction", {
+
+  set.seed(7)
+  n <- 60
+  bench_weights <- stats::setNames(
+    c(0.11, 0.08, 0.06, 0.05, stats::runif(n - 4, 0.001, 0.012)),
+    paste0("T", 1:n)
+  )
+  exp_ret_score_raw <- stats::setNames(stats::runif(n, 0.35, 2.5), paste0("T", 1:n))
+
+  budget_for <- function(bench_eta){
+    scores <- compute_short_leg_scores(exp_ret_score_raw, bench_weights,
+                                       badness_tilt_eta = 0,
                                        bench_weight_tilt_eta = bench_eta)
     compute_short_leg_underweights(scores, bench_weights)$active_budget
   }
 
-  base <- budget_for(1, 0)
-
-  #Raising the tilt from zero moves score mass toward the large names, i.e. toward
-  #benchmark proportionality, so more of the budget converts into underweight
-  expect_gt(budget_for(1, 1), base)
-
-  #But the relationship is NOT monotone. The transformed benchmark weight is not
-  #proportional to the benchmark weight, so a large exponent overshoots
-  #proportionality and concentrates the underweight on a handful of mega caps,
-  #whose caps then bind and discard the rest of the budget.
-  expect_lt(budget_for(1, 5), budget_for(1, 1))
-  expect_lt(budget_for(1, 5), base)
-
-  #The badness tilt concentrates the distribution instead, pushing more names past
-  #their cap, so it monotonically gives up budget
-  expect_lt(budget_for(2, 0), base)
-  expect_lt(budget_for(3, 0), budget_for(2, 0))
+  #U = T is attained only at proportionality, so any exponent other than 1 loses
+  peak <- budget_for(1)
+  expect_equal(peak, sum(bench_weights))
+  expect_lt(budget_for(0.5), peak)
+  expect_lt(budget_for(2), peak)
+  expect_lt(budget_for(0), peak)
 })
 
 test_that("the realized budget can never exceed the short budget under any tilt", {
