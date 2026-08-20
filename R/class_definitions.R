@@ -3736,8 +3736,8 @@ setClass(
   validity = function(object) {
 
    # port_construction_method must be one of the allowed
-    if (!object@port_construction_method %in% c("ew","sw","cw","cs","rp","mvo","custom_weights", "hrp", "mmaf")) {
-      stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'mvo', 'custom_weights', 'hrp' or 'mmaf'.")
+    if (!object@port_construction_method %in% c("ew","sw","cw","cs","rp","mvo","custom_weights", "hrp", "mmaf", "slsaf")) {
+      stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'mvo', 'custom_weights', 'hrp', 'mmaf' or 'slsaf'.")
     }
 
     #weights and eligible_assets
@@ -3917,6 +3917,23 @@ setClass(
           (!identical(names(object@micro), "bottom_up") ||
            length(object@micro) != 1)) {
         stop("For 'bottom_up' mmaf_method, micro must be a list with one element named 'bottom_up'.")
+      }
+    }
+
+    # Check for slsaf
+    if (object@port_construction_method == "slsaf") {
+      ## Both legs are reported, and either may legitimately be absent: there is no short
+      ## leg when every constituent is eligible, and no long leg when no budget was released
+      if (!is.list(object@micro) ||
+          !identical(sort(names(object@micro)), c("long", "short"))) {
+        stop("For 'slsaf', micro must be a list with elements named 'long' and 'short'.")
+      }
+      if (!all(purrr::map_lgl(object@micro, function(x) is.null(x) || inherits(x, "port")))) {
+        stop("For 'slsaf', each element of micro must be a 'port' object or NULL.")
+      }
+      ## A benchmark is what the whole construction is relative to
+      if (is.null(object@selected_benchmark_port)) {
+        stop("selected_benchmark_port must be provided for 'slsaf'.")
       }
     }
 
