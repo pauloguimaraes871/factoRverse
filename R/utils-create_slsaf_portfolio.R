@@ -197,17 +197,16 @@ create_slsaf_portfolio <- function(universe_m_d_ref,
     } else {
 
       ### Score the short block
-      #### The scaler must not reach the short leg, so the raw score is used. When it is
-      #### absent (a direct call rather than the backtest pipeline) fall back to the
-      #### final score, which is identical whenever no scaler was configured.
-      if ("exp_ret_score_raw" %in% colnames(short_universe_m_d_ref)){
-        short_exp_ret_score_raw <- short_universe_m_d_ref %>% dplyr::pull(exp_ret_score_raw)
-      } else {
-        if ("scaler" %in% colnames(short_universe_m_d_ref)){
-          stop("exp_ret_score_raw is required when a scaler is present: the short leg must not invert the scaler.")
-        }
-        short_exp_ret_score_raw <- short_universe_m_d_ref %>% dplyr::pull(exp_ret_score)
+      #### The short leg is always reconstructed from the unscaled score. Falling back to
+      #### exp_ret_score when exp_ret_score_raw is absent would be safe only if a scaler
+      #### could be reliably detected, and a universe that was scaled and then had its
+      #### scaler column dropped would silently invert it. The reciprocal identity
+      #### 1/f(z) = f(-z) is also a property of the raw score specifically, so requiring
+      #### it keeps the contract aligned with its justification.
+      if (!"exp_ret_score_raw" %in% colnames(short_universe_m_d_ref)){
+        stop("exp_ret_score_raw is required for slsaf: the short leg is built from the unscaled score so that a scaler is never inverted.")
       }
+      short_exp_ret_score_raw <- short_universe_m_d_ref %>% dplyr::pull(exp_ret_score_raw)
 
       short_bench_weights <- bench_weights_all[short_tickers]
 

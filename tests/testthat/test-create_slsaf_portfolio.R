@@ -293,17 +293,48 @@ test_that("create_slsaf_portfolio validates its inputs", {
     "must be an object of class 'sub_port_config'"
   )
 
-  #A scaler must never be inverted into the short leg
-  scaled_universe_m_d_ref <- universe_m_d_ref
-  scaled_universe_m_d_ref$scaler <- 1
-  scaled_universe_m_d_ref$exp_ret_score_raw <- NULL
+  #The short leg is always built from the unscaled score, so its absence is an error
+  #rather than a fallback: a universe that was scaled and then had its scaler column
+  #dropped would otherwise invert the scaler silently
+  unscaled_missing_m_d_ref <- universe_m_d_ref
+  unscaled_missing_m_d_ref$exp_ret_score_raw <- NULL
   expect_error(
-    create_slsaf_portfolio(universe_m_d_ref = scaled_universe_m_d_ref,
+    create_slsaf_portfolio(universe_m_d_ref = unscaled_missing_m_d_ref,
                            selected_benchmark = "ibov",
                            long_port_config = create_sub_port_config("sw"),
                            verbose = FALSE),
-    "must not invert the scaler"
+    "exp_ret_score_raw is required for slsaf"
   )
+})
+
+test_that("the short leg uses the unscaled score, never the scaled one", {
+
+  universe_m_d_ref <- build_slsaf_universe()
+
+  #Apply a scaler that is itself return-predictive. Inverting it into the short leg
+  #would underweight exactly the names the scaler says are attractive.
+  scaled_universe_m_d_ref <- universe_m_d_ref
+  scaled_universe_m_d_ref$scaler <- c(2.0, 0.5, 1.5, 0.4, 1.0)
+  scaled_universe_m_d_ref$exp_ret_score <-
+    scaled_universe_m_d_ref$exp_ret_score_raw * scaled_universe_m_d_ref$scaler
+
+  scaled <- create_slsaf_portfolio(
+    universe_m_d_ref = scaled_universe_m_d_ref,
+    selected_benchmark = "ibov",
+    long_port_config = create_sub_port_config("ew"),
+    verbose = FALSE
+  )
+  unscaled <- create_slsaf_portfolio(
+    universe_m_d_ref = universe_m_d_ref,
+    selected_benchmark = "ibov",
+    long_port_config = create_sub_port_config("ew"),
+    verbose = FALSE
+  )
+
+  #The scaler changes the long leg (through eligibility and scores) but must leave the
+  #underweights untouched, since they are built from the raw score alone
+  expect_equal(scaled$underweights, unscaled$underweights)
+  expect_equal(scaled$active_budget, unscaled$active_budget)
 })
 
 #Integration with set_portfolio_weights
