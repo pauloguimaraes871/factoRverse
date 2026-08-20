@@ -2,6 +2,69 @@
 
 ## New features
 
+* New portfolio construction method `"slsaf"`, the Simulated Long-Short
+  Allocation Framework, configured through the new `slsaf_parameters` object
+  (`create_slsaf_parameters()`, `add_slsaf_parameters()`). It addresses a
+  structural defect of benchmark-relative construction: when a single name
+  carries a large index weight, most methods cannot express a meaningful active
+  position in it, so mega caps are persistently underweighted regardless of how
+  attractive they are.
+
+  The method builds a long-only portfolio as the benchmark plus a
+  self-financing active overlay. `classify_investment_universe()` gains
+  `include_benchmark_in_universe`, which splits the universe into a long block
+  (what the eligibility cascade is willing to buy) and a short block (index
+  constituents it rejected, which may only be underweighted). Underweights are
+  graded by conviction and capped by the position actually held,
+  `u_i = min(T * s_i, b_i)`, and the budget they release is spent on the long
+  block. Four properties hold by construction and are asserted before any
+  portfolio is returned: active weights sum to zero, weights sum to one with no
+  renormalization, a rejected constituent is never overweighted nor shorted, and
+  an eligible name is never underweighted.
+
+  Two exponents shape the short leg, and they are not symmetric.
+  `bench_weight_tilt_eta` sets the basis: because the budget is fully spent if
+  and only if the short weights are benchmark-proportional, an exponent of 1
+  sits exactly on that maximum, which is also the ungraded corner where every
+  rejected constituent is sold in full. It is a basis rather than a budget dial,
+  and no directional claim about it is safe once the second tilt is active.
+  `badness_tilt_eta` then walks the budget-versus-grading frontier away from that
+  anchor, concentrating underweight on the worst names and giving up budget in
+  exchange. Maximum budget and graded underweights are mutually exclusive.
+
+  The short leg is always reconstructed from `exp_ret_score_raw`, never from the
+  scaled score, so a return-predictive scaler such as `1 / idio_vol` is never
+  inverted into "underweight the low-volatility names the most".
+
+  Since eligibility governs what may be bought rather than what may be
+  underweighted, a rule other than the score can push high-scoring constituents
+  into the short block; a liquidity floor strict enough to exclude index
+  heavyweights can turn the method against its own signal. `create_slsaf_portfolio()`
+  therefore warns when the underweighted names score better on average than the
+  overweighted ones.
+
+  Nine `slsaf`-specific plots are added to `plot(port_backtest_results)`, along
+  with two `summary()` tables, all contrasting the two legs: the weight
+  decomposition, benchmark coverage, leg scores as a series and as a
+  distribution, tracking error attribution, sector and capitalization
+  composition, the per-constituent underweight intensity profile, and the
+  budget-versus-grading view. Per-rebalance diagnostics travel in
+  `port_stats_m_df` as `slsaf_short_budget`, `slsaf_active_budget`,
+  `slsaf_n_long`, `slsaf_n_short` and `slsaf_n_zeroed`, so the endogenous active
+  budget is visible rather than inferred.
+
+  `concentration_constraint_policy` and `turnover_constraint_policy` are
+  rejected for this method: the overlay already determines every active weight,
+  and the turnover buffer gates on `bop_port_weights > 0`, which holds for every
+  constituent not fully sold, so the whole short block would drain into the long
+  block.
+
+## Bug fixes
+
+* The `"Stats Summary"` table of `summary(port_backtest_results)` referenced
+  `port_stats_m_df` without it ever being extracted from the object, so the
+  table could never render for any portfolio construction method.
+
 * Neural-network signal blending can now average over several independently
   initialised networks at refit time, through the new `n_ensembles` argument of
   `create_keras_architecture()` (and of `add_keras_architecture()`). A single

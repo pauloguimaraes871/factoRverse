@@ -21,6 +21,7 @@ create_port_backtest_config(
   rp_parameters = NULL,
   hrp_parameters = NULL,
   mmaf_parameters = NULL,
+  slsaf_parameters = NULL,
   main_liquidity_metric,
   liquidity_floor_cutoffs = NULL,
   liquidity_constraint_policy = NULL,
@@ -71,6 +72,9 @@ If missing and port_construction_method is "hrp", a default is created.}
 
 \item{mmaf_parameters}{An object of class \code{mmaf_parameters} for micro-macro allocation framework portfolios. Only required if \code{port_construction_method} is "mmaf".
 If missing and port_construction_method is "mmaf", a default is created (and \code{enable_group_representativeness} defaults to \code{TRUE}).}
+
+\item{slsaf_parameters}{An object of class \code{slsaf_parameters} for simulated long-short allocation framework portfolios. Only required if \code{port_construction_method} is "slsaf".
+If missing and port_construction_method is "slsaf", a default is created with a signal-weighted long leg.}
 
 \item{main_liquidity_metric}{A character string indicating which liquidity metric (i.e. column in liquidity_m_df) to use.}
 

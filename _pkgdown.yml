@@ -210,12 +210,17 @@ reference:
   - create_mvo_parameters
   - add_mmaf_parameters
   - create_mmaf_parameters
+  - add_slsaf_parameters
+  - create_slsaf_parameters
+  - create_sub_port_config
   - "port-class"
   - "rp_parameters-class"
   - "hrp_parameters-class"
   - "mvo_parameters-class"
   - "mmaf_parameters-class"
+  - "sub_port_config-class"
   - "mmaf_sub_port_config-class"
+  - "slsaf_parameters-class"
 
 - title: "Workflow 2: Signal selection (the factor zoo)"
   desc: >
