@@ -3454,12 +3454,13 @@ setClass(
 #' @slot rebalancing_months A numeric value representing the number of months for rebalancing.
 #' @slot cov_est_method An object of class `cov_est_method` representing the covariance estimation method and relevant parameters. Current methods are: 'sample', 'ewma', 'cc' (constant correlation),
 #' 'pca1', 'pca2', 'shrink_id' (shrinkage to identity matrix), 'shrink_cc' (shrinkage to constant correlation). This is only relevant for the covariance-based methods 'rp', 'hrp', 'mvo' and 'mmaf'.
-#' @slot port_construction_method A character string representing the type of portfolio. Must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'hrp', 'mvo' or 'mmaf' ('custom_weights' is not supported for this config). For signal portfolios,
+#' @slot port_construction_method A character string representing the type of portfolio. Must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'hrp', 'mvo', 'mmaf' or 'slsaf' ('custom_weights' is not supported for this config). For signal portfolios,
 #' 'cw' and 'cs' are not applicable. For signal portfolios, this is inferred based on sb_algorithm.
 #' @slot mvo_parameters An object of class `mvo_parameters` representing the parameters for mean-variance optimization. This is only relevant for 'mvo'.
 #' @slot rp_parameters An object of class `rp_parameters` representing the parameters for risk parity. This is only relevant for 'rp'.
 #' @slot hrp_parameters An object of class `hrp_parameters` representing the parameters for hierarchical risk parity. This is only relevant for 'hrp'.
 #' @slot mmaf_parameters An object of class `mmaf_parameters` representing the parameters for the MMAF method. This is only relevant for 'mmaf'.
+#' @slot slsaf_parameters An object of class `slsaf_parameters` representing the parameters for the SLSAF method. This is only relevant for 'slsaf'.
 #' @slot main_liquidity_metric A character string indicating which of the variables in `liquidity_m_df` should be ultimately used.
 #' @slot liquidity_floor_cutoffs Mandatory if `turnover_constraint_policy` and/or `liquidity_constraint_policy` are provided.
 #' A data.frame containing a liquidity_classification column and liquidity metrics that define cutoff values to classify stocks according to liquidity.
