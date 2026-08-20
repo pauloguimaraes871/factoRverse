@@ -252,6 +252,120 @@ test_that("create_slsaf_portfolio renormalizes and warns when constituents are a
   expect_equal(sum(results$weights), 1, tolerance = 1e-10)
 })
 
+test_that("a renormalized benchmark is persisted into the returned universe", {
+
+  universe_m_d_ref <- build_slsaf_universe()
+  truncated_universe_m_d_ref <- universe_m_d_ref[universe_m_d_ref$tickers != "Stock B", ]
+
+  #The original column does not sum to one, so the write-back below is a real change
+  expect_lt(sum(truncated_universe_m_d_ref$ibov_bench_weights), 1 - 1e-4)
+
+  expect_warning(
+    results <- create_slsaf_portfolio(
+      universe_m_d_ref = truncated_universe_m_d_ref,
+      selected_benchmark = "ibov",
+      long_port_config = create_sub_port_config("sw"),
+      verbose = FALSE
+    ),
+    "Renormalizing"
+  )
+
+  #set_portfolio_weights() rebuilds the benchmark portfolio and every active statistic
+  #from this column, and the leg diagnostics read it back as bench_weight. Normalizing
+  #only a local vector would report active weights measured against a benchmark other
+  #than the one the weights were actually constructed against.
+  returned_bench <- results$universe_m_d_ref$ibov_bench_weights
+  expect_equal(sum(returned_bench), 1, tolerance = 1e-10)
+  expect_equal(sum(results$universe_m_d_ref$weights - returned_bench), 0, tolerance = 1e-10)
+})
+
+test_that("the normalization threshold matches the tolerance the final invariant uses", {
+
+  #Since the overlay is self-financing, sum(w) = sum(b) exactly. Gating normalization at
+  #a looser tolerance than the sum-to-one assertion was therefore non-monotone in data
+  #quality: a benchmark file merely rounded to four decimals skipped normalization and
+  #died at the assertion, while a materially incomplete one normalized and passed.
+  build_scaled_benchmark <- function(bench_total){
+    tickers <- c("SHORT1", "SHORT2", "LONG1")
+    data.frame(
+      id      = paste0(tickers, "-2020-01-15"),
+      tickers = tickers,
+      dates   = rep(as.Date("2020-01-15"), 3),
+      exp_ret_score_raw  = c(0.5, 0.8, 2.0),
+      exp_ret_score      = c(0.5, 0.8, 2.0),
+      ibov_bench_weights = c(0.30, 0.20, 0.50) * bench_total,
+      is_long_candidate  = c(0L, 0L, 1L),
+      is_short_candidate = c(1L, 1L, 0L),
+      is_eligible        = c(1, 1, 1),
+      stringsAsFactors = FALSE
+    )
+  }
+
+  #Rounding noise is absorbed quietly: there is nothing here to tell the user about
+  expect_no_warning(
+    rounded <- create_slsaf_portfolio(
+      universe_m_d_ref = build_scaled_benchmark(0.99995),
+      selected_benchmark = "ibov",
+      long_port_config = create_sub_port_config("sw"),
+      verbose = FALSE
+    )
+  )
+  expect_equal(sum(rounded$weights), 1, tolerance = 1e-12)
+  expect_equal(sum(rounded$universe_m_d_ref$ibov_bench_weights), 1, tolerance = 1e-12)
+
+  #A gap large enough to mean genuinely absent constituents still warns
+  expect_warning(
+    incomplete <- create_slsaf_portfolio(
+      universe_m_d_ref = build_scaled_benchmark(0.98),
+      selected_benchmark = "ibov",
+      long_port_config = create_sub_port_config("sw"),
+      verbose = FALSE
+    ),
+    "Renormalizing"
+  )
+  expect_equal(sum(incomplete$weights), 1, tolerance = 1e-12)
+})
+
+test_that("the construction invariants describe the weights actually returned", {
+
+  #Names sold in full leave arithmetic crumbs where an exact zero is meant. Cleaning them
+  #after the assertions would leave the invariants describing a different vector from the
+  #one returned, so the cleanup runs first and the checks cover it.
+  n_rest <- 57
+  tickers <- c("VALE3", "BRAP4", paste0("REST", seq_len(n_rest)), "GOOD")
+
+  universe_m_d_ref <- data.frame(
+    id      = paste0(tickers, "-2020-01-15"),
+    tickers = tickers,
+    dates   = rep(as.Date("2020-01-15"), length(tickers)),
+    exp_ret_score_raw  = c(0.67, 1.16, rep(1.0, n_rest), 2.50),
+    exp_ret_score      = c(0.67, 1.16, rep(1.0, n_rest), 2.50),
+    ibov_bench_weights = c(0.110, 0.002, rep(0.604 / n_rest, n_rest), 0.284),
+    is_long_candidate  = c(rep(0L, n_rest + 2), 1L),
+    is_short_candidate = c(rep(1L, n_rest + 2), 0L),
+    is_eligible        = rep(1, length(tickers)),
+    stringsAsFactors = FALSE
+  )
+
+  results <- create_slsaf_portfolio(
+    universe_m_d_ref = universe_m_d_ref,
+    selected_benchmark = "ibov",
+    long_port_config = create_sub_port_config("sw"),
+    bench_weight_tilt_eta = 0,
+    verbose = FALSE
+  )
+
+  returned_weights <- results$universe_m_d_ref$weights
+  returned_bench   <- results$universe_m_d_ref$ibov_bench_weights
+
+  #Every crumb is an exact zero, not a residue sitting just under the cleaning tolerance
+  expect_true(all(returned_weights == 0 | returned_weights > 1e-8))
+
+  #And the identities hold on that same cleaned vector, not on a pre-clean one
+  expect_equal(sum(returned_weights), 1, tolerance = 1e-12)
+  expect_equal(sum(returned_weights - returned_bench), 0, tolerance = 1e-12)
+})
+
 #Validation
 test_that("create_slsaf_portfolio validates its inputs", {
 

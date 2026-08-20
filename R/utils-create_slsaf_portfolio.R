@@ -171,11 +171,30 @@ create_slsaf_portfolio <- function(universe_m_d_ref,
     if (bench_weights_total <= tol_empty){
       stop("Benchmark weights in universe_m_d_ref sum to zero.")
     }
-    if (abs(bench_weights_total - 1) > 1e-4){
-      warning(paste0("Benchmark weights in universe_m_d_ref sum to ",
-                     round(bench_weights_total, 6),
-                     ", not 1. Renormalizing: some constituents are absent from the universe."))
+
+    ### Normalization must cover every gap the final sum-to-one assertion would reject.
+    ### Gating it at a looser tolerance than the assertion is non-monotone in data
+    ### quality: sum(w) = sum(b) exactly, because the overlay is self-financing, so a
+    ### benchmark file rounded to four decimals (0.99995) would skip normalization and
+    ### then die at the assertion, while a worse file (0.98) would normalize and pass.
+    ### The warning stays at the looser threshold, where the gap means constituents are
+    ### genuinely absent rather than merely rounded.
+    if (abs(bench_weights_total - 1) > tol_check){
+
+      if (abs(bench_weights_total - 1) > 1e-4){
+        warning(paste0("Benchmark weights in universe_m_d_ref sum to ",
+                       round(bench_weights_total, 6),
+                       ", not 1. Renormalizing: some constituents are absent from the universe."))
+      }
+
       bench_weights_all <- bench_weights_all / bench_weights_total
+
+      #### Persist the normalization. Downstream, set_portfolio_weights() rebuilds the
+      #### benchmark portfolio and every active statistic from this column, and the leg
+      #### diagnostics read it back as bench_weight. Leaving the original in place would
+      #### report active weights measured against a different benchmark from the one the
+      #### weights were actually constructed against.
+      universe_m_d_ref[[bench_weights_col]] <- bench_weights_all
     }
     names(bench_weights_all) <- universe_m_d_ref %>% dplyr::pull(tickers)
 
@@ -377,6 +396,16 @@ create_slsaf_portfolio <- function(universe_m_d_ref,
 
   # Verify the construction-----------------------------------------------------
 
+    ## Clean tiny numerical crumbs left by the arithmetic above, before anything is
+    ## asserted. Mutating the vector afterwards would leave the invariants describing a
+    ## portfolio other than the one returned: zeroing enough positions can move the sum
+    ## by more than the tolerance the sum-to-one check just accepted.
+    final_weights[abs(final_weights) < tol_empty] <- 0
+
+    ### Re-derive the overlay from the cleaned weights, so the self-financing check below
+    ### describes the portfolio being returned rather than the pre-clean one
+    active_weights <- final_weights - bench_weights_all
+
     ## The overlay must be self-financing
     if (abs(sum(active_weights)) > tol_check){
       stop(paste0("Active weights must sum to zero, got ", sum(active_weights), "."))
@@ -399,9 +428,6 @@ create_slsaf_portfolio <- function(universe_m_d_ref,
       stop("Long-block weights must never fall below benchmark weights.")
     }
 
-    ## Clean tiny numerical crumbs left by the arithmetic above
-    final_weights[abs(final_weights) < tol_empty] <- 0
-
   # Merge back and return-------------------------------------------------------
 
     ## Attach weights to the universe
@@ -413,6 +439,18 @@ create_slsaf_portfolio <- function(universe_m_d_ref,
         by = "tickers"
       )
     universe_m_d_ref$weights[which(is.na(universe_m_d_ref$weights))] <- 0
+
+    ## Assert the identities on the object that actually leaves this function, not on the
+    ## local vectors. Everything downstream reads the benchmark back out of this column,
+    ## so this is the check that catches a normalization that failed to persist.
+    returned_bench_total <- sum(universe_m_d_ref[[bench_weights_col]])
+    if (abs(returned_bench_total - 1) > tol_check){
+      stop(paste0("Returned benchmark weights must sum to 1, got ", returned_bench_total, "."))
+    }
+    returned_active_total <- sum(universe_m_d_ref$weights - universe_m_d_ref[[bench_weights_col]])
+    if (abs(returned_active_total) > tol_check){
+      stop(paste0("Returned active weights must sum to zero, got ", returned_active_total, "."))
+    }
 
     ## Message
     if (isTRUE(verbose)) {
