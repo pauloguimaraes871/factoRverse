@@ -67,6 +67,32 @@ test_that("validate_slsaf_parameters requires a usable long leg", {
   )
 })
 
+test_that("validate_slsaf_parameters rejects a ridge-penalized long leg", {
+
+  #The target_weights column is joined into the universe only when the top-level
+  #ridge_pen is set, and under slsaf that stays NULL because the MVO parameters travel
+  #inside long_port_config. Accepting the penalty here would let the configuration build
+  #and then fail deep inside the recursive MVO call on a column that was never joined.
+  expect_error(
+    create_slsaf_parameters(
+      long_port_config = create_sub_port_config(
+        "mvo", mvo_parameters = create_mvo_parameters(ridge_pen = 0.5)
+      )
+    ),
+    "ridge_pen is not supported for the slsaf long leg"
+  )
+
+  #An unpenalized MVO long leg remains valid
+  expect_s4_class(
+    create_slsaf_parameters(
+      long_port_config = create_sub_port_config(
+        "mvo", mvo_parameters = create_mvo_parameters()
+      )
+    ),
+    "slsaf_parameters"
+  )
+})
+
 test_that("validate_slsaf_parameters rejects malformed exponents", {
 
   #A negative badness exponent would grant the largest underweight to the best-scoring

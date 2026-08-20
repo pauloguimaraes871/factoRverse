@@ -57,7 +57,12 @@
   rejected for this method: the overlay already determines every active weight,
   and the turnover buffer gates on `bop_port_weights > 0`, which holds for every
   constituent not fully sold, so the whole short block would drain into the long
-  block.
+  block. A `ridge_pen` on an MVO long leg is rejected as well: `target_weights`
+  is joined into the universe only when the top-level ridge penalty is set, which
+  never happens under `slsaf`, and routing a target into the long block is not
+  merely plumbing, since the target is defined over the whole universe while the
+  long block is a strict subset and renormalizing it changes what the penalty
+  shrinks towards.
 
 ## Bug fixes
 

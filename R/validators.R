@@ -1303,6 +1303,19 @@ validate_slsaf_parameters <- function(object){
     stop("long_port_config must be of class 'sub_port_config'.")
   }
   validate_sub_port_config(object@long_port_config)
+
+  ### A ridge penalty on the long leg is accepted by the config but cannot run. The
+  ### target_weights column is joined into the universe by classify_investment_universe()
+  ### only when the top-level ridge_pen is set, and under slsaf that stays NULL because
+  ### the MVO parameters travel inside long_port_config. The recursive MVO call would then
+  ### select a column that was never joined. Routing a target into the long block is not a
+  ### matter of plumbing: the target is defined over the whole universe while the long
+  ### block is a strict subset, so it would have to be renormalized, which changes what
+  ### the penalty shrinks towards. Reject until that contract is designed.
+  if (!is.null(object@long_port_config@mvo_parameters) &&
+      !is.null(object@long_port_config@mvo_parameters@ridge_pen)){
+    stop("ridge_pen is not supported for the slsaf long leg: no target portfolio is routed to the long block.")
+  }
   ###################
 
   ## Score exponents
