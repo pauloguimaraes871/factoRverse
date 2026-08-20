@@ -231,16 +231,20 @@ test_that("create_slsaf_portfolio returns the benchmark when there is no short b
   expect_null(results$micro$long)
 })
 
-test_that("create_slsaf_portfolio renormalizes and warns when constituents are absent", {
+test_that("create_slsaf_portfolio renormalizes and warns on a small coverage gap", {
 
   universe_m_d_ref <- build_slsaf_universe()
 
-  #Drop a constituent from the universe: its benchmark weight is then unallocated
-  truncated_universe_m_d_ref <- universe_m_d_ref[universe_m_d_ref$tickers != "Stock B", ]
+  #A gap of 0.1%: too large to be rounding, so a constituent is genuinely under-covered,
+  #but small enough that renormalizing repairs the identity rather than redefining the
+  #index being tracked
+  gapped_universe_m_d_ref <- universe_m_d_ref
+  gapped_universe_m_d_ref$ibov_bench_weights <-
+    gapped_universe_m_d_ref$ibov_bench_weights * 0.999
 
   expect_warning(
     results <- create_slsaf_portfolio(
-      universe_m_d_ref = truncated_universe_m_d_ref,
+      universe_m_d_ref = gapped_universe_m_d_ref,
       selected_benchmark = "ibov",
       long_port_config = create_sub_port_config("sw"),
       verbose = FALSE
@@ -248,21 +252,59 @@ test_that("create_slsaf_portfolio renormalizes and warns when constituents are a
     "Renormalizing"
   )
 
-  #The identity sum(w) = 1 must survive the missing constituent
+  #The identity sum(w) = 1 must survive the gap
   expect_equal(sum(results$weights), 1, tolerance = 1e-10)
+})
+
+test_that("create_slsaf_portfolio refuses a benchmark it would have to redefine", {
+
+  universe_m_d_ref <- build_slsaf_universe()
+
+  #Dropping Stock B removes 20% of the index. Renormalizing that away would inflate every
+  #surviving weight by a fifth and measure every active statistic against a benchmark
+  #that exists nowhere, announced only by a warning buried in backtest output
+  truncated_universe_m_d_ref <- universe_m_d_ref[universe_m_d_ref$tickers != "Stock B", ]
+
+  expect_error(
+    create_slsaf_portfolio(
+      universe_m_d_ref = truncated_universe_m_d_ref,
+      selected_benchmark = "ibov",
+      long_port_config = create_sub_port_config("sw"),
+      verbose = FALSE
+    ),
+    "Too much of the index is missing"
+  )
+
+  #Weights summing above 1 are not a coverage gap at all but duplicated or overstated
+  #constituents, so they are refused from the other side with their own diagnosis
+  inflated_universe_m_d_ref <- universe_m_d_ref
+  inflated_universe_m_d_ref$ibov_bench_weights <-
+    inflated_universe_m_d_ref$ibov_bench_weights * 1.05
+
+  expect_error(
+    create_slsaf_portfolio(
+      universe_m_d_ref = inflated_universe_m_d_ref,
+      selected_benchmark = "ibov",
+      long_port_config = create_sub_port_config("sw"),
+      verbose = FALSE
+    ),
+    "duplicated or overstated"
+  )
 })
 
 test_that("a renormalized benchmark is persisted into the returned universe", {
 
   universe_m_d_ref <- build_slsaf_universe()
-  truncated_universe_m_d_ref <- universe_m_d_ref[universe_m_d_ref$tickers != "Stock B", ]
+  gapped_universe_m_d_ref <- universe_m_d_ref
+  gapped_universe_m_d_ref$ibov_bench_weights <-
+    gapped_universe_m_d_ref$ibov_bench_weights * 0.999
 
   #The original column does not sum to one, so the write-back below is a real change
-  expect_lt(sum(truncated_universe_m_d_ref$ibov_bench_weights), 1 - 1e-4)
+  expect_lt(sum(gapped_universe_m_d_ref$ibov_bench_weights), 1 - 1e-4)
 
   expect_warning(
     results <- create_slsaf_portfolio(
-      universe_m_d_ref = truncated_universe_m_d_ref,
+      universe_m_d_ref = gapped_universe_m_d_ref,
       selected_benchmark = "ibov",
       long_port_config = create_sub_port_config("sw"),
       verbose = FALSE
@@ -313,10 +355,11 @@ test_that("the normalization threshold matches the tolerance the final invariant
   expect_equal(sum(rounded$weights), 1, tolerance = 1e-12)
   expect_equal(sum(rounded$universe_m_d_ref$ibov_bench_weights), 1, tolerance = 1e-12)
 
-  #A gap large enough to mean genuinely absent constituents still warns
+  #A gap large enough to mean genuinely absent constituents still warns, provided it is
+  #still inside the allowance
   expect_warning(
     incomplete <- create_slsaf_portfolio(
-      universe_m_d_ref = build_scaled_benchmark(0.98),
+      universe_m_d_ref = build_scaled_benchmark(0.999),
       selected_benchmark = "ibov",
       long_port_config = create_sub_port_config("sw"),
       verbose = FALSE
@@ -324,6 +367,27 @@ test_that("the normalization threshold matches the tolerance the final invariant
     "Renormalizing"
   )
   expect_equal(sum(incomplete$weights), 1, tolerance = 1e-12)
+
+  #The three bands are ordered, so the allowance boundary is the only place behaviour
+  #changes: just inside it renormalizes, just outside it refuses
+  expect_warning(
+    create_slsaf_portfolio(
+      universe_m_d_ref = build_scaled_benchmark(1 - 1.9e-3),
+      selected_benchmark = "ibov",
+      long_port_config = create_sub_port_config("sw"),
+      verbose = FALSE
+    ),
+    "Renormalizing"
+  )
+  expect_error(
+    create_slsaf_portfolio(
+      universe_m_d_ref = build_scaled_benchmark(1 - 2.1e-3),
+      selected_benchmark = "ibov",
+      long_port_config = create_sub_port_config("sw"),
+      verbose = FALSE
+    ),
+    "renormalization allowance"
+  )
 })
 
 test_that("the construction invariants describe the weights actually returned", {

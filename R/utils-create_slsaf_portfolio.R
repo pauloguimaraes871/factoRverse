@@ -97,9 +97,11 @@ create_slsaf_portfolio <- function(universe_m_d_ref,
                                    parallel = FALSE,
                                    verbose = TRUE){
 
-  ## Tolerances: one for declaring a budget economically empty, one for assertions
+  ## Tolerances: one for declaring a budget economically empty, one for assertions, and
+  ## one bounding how far the benchmark may be renormalized before the input is refused
   tol_empty <- 1e-8
   tol_check <- 1e-6
+  tol_bench_gap <- 2e-3
 
   # Initial Setup---------------------------------------------------------------
 
@@ -163,25 +165,45 @@ create_slsaf_portfolio <- function(universe_m_d_ref,
 
     ## Benchmark weights
     ### Constituents absent from the universe cannot be represented, so their weight is
-    ### unallocated and the identity sum(w) = sum(b) = 1 would silently fail. Renormalize
-    ### over what the universe actually covers, loudly.
+    ### unallocated and the identity sum(w) = sum(b) = 1 would silently fail. Small gaps
+    ### are repaired by renormalizing over what the universe actually covers; large ones
+    ### are refused.
     bench_weights_all <- universe_m_d_ref[[bench_weights_col]]
     bench_weights_total <- sum(bench_weights_all)
+    bench_weights_gap <- abs(bench_weights_total - 1)
 
     if (bench_weights_total <= tol_empty){
       stop("Benchmark weights in universe_m_d_ref sum to zero.")
     }
 
-    ### Normalization must cover every gap the final sum-to-one assertion would reject.
-    ### Gating it at a looser tolerance than the assertion is non-monotone in data
-    ### quality: sum(w) = sum(b) exactly, because the overlay is self-financing, so a
-    ### benchmark file rounded to four decimals (0.99995) would skip normalization and
-    ### then die at the assertion, while a worse file (0.98) would normalize and pass.
-    ### The warning stays at the looser threshold, where the gap means constituents are
-    ### genuinely absent rather than merely rounded.
-    if (abs(bench_weights_total - 1) > tol_check){
+    ### Past this point renormalization stops being a numerical repair and becomes the
+    ### substitution of a different index: every surviving weight is inflated by the gap,
+    ### so active weights, tracking error and the whole benchmark-relative premise would
+    ### be measured against a benchmark that exists nowhere, announced only by a warning
+    ### buried in backtest output. Refuse instead. The check is symmetric because a sum
+    ### above 1 is not a coverage gap at all but duplicated or overstated weights, which
+    ### is a corrupted input rather than an incomplete one.
+    if (bench_weights_gap > tol_bench_gap){
+      stop(paste0("Benchmark weights in universe_m_d_ref sum to ",
+                  round(bench_weights_total, 6), ", which is further from 1 than the ",
+                  tol_bench_gap, " renormalization allowance. ",
+                  if (bench_weights_total < 1){
+                    "Too much of the index is missing from the universe to track it: renormalizing would silently redefine the benchmark."
+                  } else {
+                    "Benchmark weights above 1 indicate duplicated or overstated constituents rather than an incomplete universe."
+                  }))
+    }
 
-      if (abs(bench_weights_total - 1) > 1e-4){
+    ### Below the refusal threshold, normalization must still cover every gap the final
+    ### sum-to-one assertion would reject. Gating it at a looser tolerance than the
+    ### assertion is non-monotone in data quality: sum(w) = sum(b) exactly, because the
+    ### overlay is self-financing, so a benchmark file rounded to four decimals (0.99995)
+    ### would skip normalization and then die at the assertion, while a worse file would
+    ### normalize and pass. The warning sits between the two, where the gap is too large
+    ### to be rounding and so means a constituent is genuinely absent.
+    if (bench_weights_gap > tol_check){
+
+      if (bench_weights_gap > 1e-4){
         warning(paste0("Benchmark weights in universe_m_d_ref sum to ",
                        round(bench_weights_total, 6),
                        ", not 1. Renormalizing: some constituents are absent from the universe."))
@@ -193,7 +215,9 @@ create_slsaf_portfolio <- function(universe_m_d_ref,
       #### benchmark portfolio and every active statistic from this column, and the leg
       #### diagnostics read it back as bench_weight. Leaving the original in place would
       #### report active weights measured against a different benchmark from the one the
-      #### weights were actually constructed against.
+      #### weights were actually constructed against. The refusal above is what keeps this
+      #### persistence bounded: the stored benchmark can differ from the source file by at
+      #### most tol_bench_gap, which cannot move a conclusion.
       universe_m_d_ref[[bench_weights_col]] <- bench_weights_all
     }
     names(bench_weights_all) <- universe_m_d_ref %>% dplyr::pull(tickers)

@@ -36,6 +36,16 @@
   scaled score, so a return-predictive scaler such as `1 / idio_vol` is never
   inverted into "underweight the low-volatility names the most".
 
+  Because every active weight is expressed against the index position, the
+  benchmark must actually sum to one. Gaps within `2e-3` are renormalized over
+  the covered universe and persisted, so the weights and the statistics reported
+  about them describe the same benchmark; gaps below `1e-4` are treated as
+  rounding and repaired silently, and anything between the two warns. Larger gaps
+  are refused rather than repaired: renormalizing them would inflate every
+  surviving weight enough to measure tracking error against an index that exists
+  nowhere. The refusal is symmetric, since a benchmark summing above one is not
+  an incomplete universe but duplicated or overstated constituents.
+
   Since eligibility governs what may be bought rather than what may be
   underweighted, a rule other than the score can push high-scoring constituents
   into the short block; a liquidity floor strict enough to exclude index
