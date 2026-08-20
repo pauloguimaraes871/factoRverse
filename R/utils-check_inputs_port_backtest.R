@@ -46,6 +46,10 @@
 #' @param macro_exp_ret_score_tilt Logical. If TRUE, applies expected return score tilt in macro-level RP.
 #' @param macro_exp_ret_score_tilt_eta Numeric. Exponent for expected return score tilt in macro-level RP.
 #' @param macro_linkage Character. Linkage method for hierarchical clustering in macro-level HRP.
+#' @param long_port_construction_method Character. Method used to build the long leg when
+#' \code{port_construction_method} is \code{"slsaf"}. Must be one of \code{"ew"}, \code{"sw"},
+#' \code{"cw"}, \code{"cs"}, \code{"rp"}, \code{"hrp"} or \code{"mvo"}: a layered method may
+#' not itself be nested inside another one.
 #' @param cov_estimation_method A character string specifying the covariance estimation method. Required when \code{port_construction_method} is \code{"rp"} or \code{"mvo"}.
 #' @param cov_matrix_sample_size A numeric value indicating the sample size used for covariance matrix estimation. Required when \code{port_construction_method} is \code{"rp"} or \code{"mvo"}.
 #' @param active_returns A logical value indicating whether active returns are used. If \code{TRUE}, \code{daily_bench_returns_m_xts} must be provided.
@@ -99,6 +103,8 @@ check_inputs_port_backtest <- function(
   macro_n_resamples, macro_exp_ret_score_jitter, macro_cov_eigval_jitter,
   macro_rp_method, macro_exp_ret_score_tilt,  macro_exp_ret_score_tilt_eta,
   macro_linkage,
+  # SLSAF Parameters
+  long_port_construction_method = NULL,
   # Covariance Estimation
   cov_estimation_method, cov_matrix_sample_size, active_returns, cov_matrix_benchmark,
   daily_stock_returns_m_xts, daily_bench_returns_m_xts, benchmark_returns_m_xts,
@@ -969,9 +975,56 @@ check_inputs_port_backtest <- function(
     stop("port_construction_method can't be missing")
   }
 
-  if(!port_construction_method %in% c("ew", "sw", "cw", "cs", "rp", "hrp", "mvo", "mmaf", "custom_weights")){
-    stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'hrp', 'mmaf', 'mvo' or 'custom_weights'")
+  if(!port_construction_method %in% c("ew", "sw", "cw", "cs", "rp", "hrp", "mvo", "mmaf", "slsaf", "custom_weights")){
+    stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'hrp', 'mmaf', 'mvo', 'slsaf' or 'custom_weights'")
   }
+
+  #SLSAF
+  ###################################
+  if(port_construction_method == "slsaf"){
+
+    ##The whole construction is an overlay on benchmark positions
+    if(is.null(selected_benchmark)){
+      stop("selected_benchmark can't be missing if port_construction_method is 'slsaf'")
+    }
+    if(is.null(benchmark_weights_m_df)){
+      stop("benchmark_weights_m_df can't be missing if port_construction_method is 'slsaf'")
+    }
+
+    ##The long leg must be configured, and may not itself be a layered method
+    if(is.null(long_port_construction_method) || long_port_construction_method == "none"){
+      stop("long_port_construction_method can't be missing if port_construction_method is 'slsaf'")
+    }
+    if(!long_port_construction_method %in% c("ew", "sw", "cw", "cs", "rp", "hrp", "mvo")){
+      stop("long_port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'hrp' or 'mvo'")
+    }
+
+    ##The overlay already determines every active weight, so a concentration policy
+    ##would either duplicate it or silently fight it
+    if(!is.null(concentration_constraint_policy)){
+      stop("concentration_constraint_policy is not supported for 'slsaf': the active weights are already set by the long/short overlay")
+    }
+
+    ##The buffer rule gates on bop_port_weights > 0, which under this construction holds
+    ##for every constituent that was not fully sold, so essentially the whole short block
+    ##would be promoted into the long block and the underweights would silently vanish.
+    ##Supporting it would require a "was overweight last period" reference instead.
+    if(!is.null(turnover_constraint_policy)){
+      stop("turnover_constraint_policy is not supported for 'slsaf'")
+    }
+
+    ##The long leg drives the covariance requirement
+    if(long_port_construction_method %in% c("rp", "hrp", "mvo")){
+      if(is.null(cov_estimation_method) || is.null(cov_matrix_sample_size) ||
+         is.null(daily_stock_returns_m_xts)){
+        stop("cov_estimation_method, cov_matrix_sample_size and daily_stock_returns_m_xts can't be missing when the slsaf long leg is 'rp', 'hrp' or 'mvo'")
+      }
+      if(active_returns && is.null(daily_bench_returns_m_xts)){
+        stop("daily_bench_returns_m_xts can't be NULL if active_returns is TRUE")
+      }
+    }
+  }
+  ###################################
 
   #Covariance matrix (RP, HRP, MVO or MMAF)
   if(port_construction_method %in% c("rp", "hrp", "mvo", "mmaf")){

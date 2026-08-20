@@ -470,6 +470,10 @@ setMethod("run_port_backtest",
             mmaf_method <- "bottom_up"
             top_down_proxy_port_method <- "ew"
             mmaf_group_col <- NULL
+            sub_port_configs <- NULL
+            bench_weight_tilt_eta <- 1
+            badness_tilt_eta <- 1
+            max_short_budget <- NULL
             micro_port_construction_method <- NULL #Micro portfolio construction method
             macro_port_construction_method <- NULL
             macro_concentration_constraint_policy <- NULL
@@ -746,6 +750,30 @@ setMethod("run_port_backtest",
 
                 micro_port_construction_method <- "none"
                 macro_port_construction_method <- "none"
+
+              }
+
+              #####SLSAF Parameters
+              if (port_construction_method %in% c("slsaf")){
+
+                slsaf_parameters <- config@slsaf_parameters
+
+                ###### The long leg is passed as a configuration object rather than as
+                ###### flattened arguments, so an inner portfolio is always parameterized
+                ###### from its own settings
+                sub_port_configs <- list(long = slsaf_parameters@long_port_config)
+
+                bench_weight_tilt_eta <- slsaf_parameters@bench_weight_tilt_eta
+                badness_tilt_eta      <- slsaf_parameters@badness_tilt_eta
+                max_short_budget      <- slsaf_parameters@max_short_budget
+
+                ###### The long leg method drives covariance requirements downstream, so
+                ###### surface it through the same channel the other methods use
+                long_port_construction_method <- slsaf_parameters@long_port_config@port_construction_method
+
+              } else {
+
+                long_port_construction_method <- "none"
 
               }
 
@@ -1044,6 +1072,12 @@ setMethod("run_port_backtest",
               macro_exp_ret_score_jitter = macro_exp_ret_score_jitter, macro_cov_eigval_jitter = macro_cov_eigval_jitter,
               macro_rp_method = macro_rp_method, macro_exp_ret_score_tilt = macro_exp_ret_score_tilt, macro_exp_ret_score_tilt_eta = macro_exp_ret_score_tilt_eta,
               macro_linkage = macro_linkage,
+              #Layered methods
+              sub_port_configs = sub_port_configs,
+              #SLSAF Parameters
+              long_port_construction_method = long_port_construction_method,
+              bench_weight_tilt_eta = bench_weight_tilt_eta, badness_tilt_eta = badness_tilt_eta,
+              max_short_budget = max_short_budget,
               #Covariance Estimation
               cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, active_returns = active_returns, cov_matrix_benchmark = cov_matrix_benchmark,
               daily_stock_returns_m_xts = daily_stock_returns_m_xts, daily_bench_returns_m_xts = daily_bench_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,
@@ -1247,6 +1281,16 @@ setMethod("run_port_backtest",
 #' @param macro_exp_ret_score_tilt Logical. If TRUE, applies expected return score tilt in macro-level RP.
 #' @param macro_exp_ret_score_tilt_eta Numeric. Exponent for expected return score tilt in macro-level RP.
 #' @param macro_linkage Character. Linkage method for hierarchical clustering in macro-level HRP.
+#' @param long_port_construction_method Character. Method used to build the long leg when
+#' `port_construction_method` is "slsaf". Resolved from the `slsaf_parameters` of the config.
+#' @param sub_port_configs A named list of `sub_port_config` objects describing the inner
+#' portfolios of a layered method. Resolved from the config; "slsaf" reads `$long`.
+#' @param bench_weight_tilt_eta Numeric exponent applied to the benchmark weight in the
+#' "slsaf" short-leg score.
+#' @param badness_tilt_eta Numeric exponent applied to the badness score in the "slsaf"
+#' short leg.
+#' @param max_short_budget Optional numeric in (0, 1] capping the "slsaf" realized active
+#' budget.
 #' @param cov_estimation_method Character. Method to estimate covariance matrix: "sample", "shrinkage", etc.
 #' @param cov_matrix_sample_size Integer. Sample size for covariance estimation.
 #' @param active_returns Logical. If TRUE, uses benchmark-adjusted returns.
@@ -1310,6 +1354,11 @@ run_port_backtest_internal <- function(
   macro_n_resamples = 0, macro_exp_ret_score_jitter = 0, macro_cov_eigval_jitter = 0,
   macro_rp_method = "cyclical-spinu", macro_exp_ret_score_tilt = "none",  macro_exp_ret_score_tilt_eta = NULL,
   macro_linkage = "single",
+  #Layered methods
+  sub_port_configs = NULL,
+  #SLSAF
+  long_port_construction_method = NULL,
+  bench_weight_tilt_eta = 1, badness_tilt_eta = 1, max_short_budget = NULL,
   #Covariance Estimation
   cov_estimation_method = "sample", cov_matrix_sample_size = 252, active_returns = FALSE, cov_matrix_benchmark = NULL,
   daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL, benchmark_returns_m_xts = NULL,
@@ -1368,6 +1417,8 @@ run_port_backtest_internal <- function(
       macro_n_resamples = macro_n_resamples, macro_exp_ret_score_jitter = macro_exp_ret_score_jitter, macro_cov_eigval_jitter = macro_cov_eigval_jitter,
       macro_rp_method = macro_rp_method, macro_exp_ret_score_tilt = macro_exp_ret_score_tilt, macro_exp_ret_score_tilt_eta = macro_exp_ret_score_tilt_eta,
       macro_linkage = macro_linkage,
+      #SLSAF Parameters
+      long_port_construction_method = long_port_construction_method,
       #Covariance Estimation
       cov_estimation_method = cov_estimation_method, cov_matrix_sample_size = cov_matrix_sample_size, active_returns = active_returns, cov_matrix_benchmark = cov_matrix_benchmark,
       daily_stock_returns_m_xts = daily_stock_returns_m_xts, daily_bench_returns_m_xts = daily_bench_returns_m_xts, benchmark_returns_m_xts = benchmark_returns_m_xts,
@@ -1547,7 +1598,19 @@ run_port_backtest_internal <- function(
         cat(paste0(" ", chosen_scaler, " (Shrinkage: ", scaler_shrinkage, ")"))
         cat("\n")
       }
-      if (port_construction_method %in% c("mmaf", "hrp", "rp", "mvo")){
+      if (port_construction_method == "slsaf"){
+        ## Report the two dials and the long leg, since the realized active budget is
+        ## endogenous and these are what govern it
+        cat(paste("  Long Leg Method:", long_port_construction_method))
+        cat("\n")
+        cat(paste("  Benchmark Weight Tilt Eta:", bench_weight_tilt_eta))
+        cat(paste("  Badness Tilt Eta:", badness_tilt_eta))
+        cat("\n")
+        cat(paste("  Max Short Budget:", if (is.null(max_short_budget)) "None (endogenous)" else max_short_budget))
+        cat("\n")
+      }
+      if (port_construction_method %in% c("mmaf", "hrp", "rp", "mvo") ||
+          (port_construction_method == "slsaf" && long_port_construction_method %in% c("rp", "hrp", "mvo"))){
         cat("  Covariance Matrix:")
         cat(paste("   Estimation Method:", cov_estimation_method))
         cat(paste("   Sample Size:", cov_matrix_sample_size))
@@ -1786,7 +1849,12 @@ run_port_backtest_internal <- function(
 
           #User defined rules
           user_defined_AND_rules_m_d_ref = user_defined_AND_rules_m_d_ref,
-          user_defined_OR_rules_m_d_ref = user_defined_OR_rules_m_d_ref
+          user_defined_OR_rules_m_d_ref = user_defined_OR_rules_m_d_ref,
+
+          ##Long/short block split
+          ##A benchmark-relative long/short method must cover the whole benchmark in
+          ##order to be able to express an underweight
+          include_benchmark_in_universe = (port_construction_method == "slsaf")
         )
 
         #####Subset Daily Stock Returns
@@ -1835,6 +1903,11 @@ run_port_backtest_internal <- function(
           n_random_ports = n_random_ports, random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method,
           ridge_pen = ridge_pen,
           n_resamples = n_resamples, exp_ret_score_jitter = exp_ret_score_jitter, cov_eigval_jitter = cov_eigval_jitter,
+          #Layered methods
+          sub_port_configs = sub_port_configs,
+          #SLSAF
+          bench_weight_tilt_eta = bench_weight_tilt_eta, badness_tilt_eta = badness_tilt_eta,
+          max_short_budget = max_short_budget,
           #MMAF
           mmaf_method = mmaf_method, top_down_proxy_port_method = top_down_proxy_port_method, mmaf_group_col = mmaf_group_col,
           micro_port_construction_method = micro_port_construction_method, #Micro portfolio construction method

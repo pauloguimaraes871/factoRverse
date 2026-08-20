@@ -2050,6 +2050,64 @@ setClass(
 )
 
 
+#slsaf_parameters-------------------------------------------------------
+#' Define the `slsaf_parameters` S4 Class
+#'
+#' S4 class holding the configuration of the Simulated Long-Short Allocation Framework,
+#' a long-only benchmark-relative method that expresses conviction as an active overlay:
+#' benchmark constituents outside the eligible set are underweighted according to
+#' conviction, capped by the position actually held, and the budget released is spent on
+#' the eligible names.
+#'
+#' @details
+#' The short leg is fully specified by the class and has no method of its own to choose:
+#' it is always signal weighted on the score built by
+#' \code{\link{compute_short_leg_scores}}, since a risk-based method would grant the
+#' largest underweight to the name contributing least to active risk. Only the long leg
+#' is configurable.
+#'
+#' The two exponents divide as follows. `bench_weight_tilt_eta` sets the basis: at 1 the
+#' benchmark term is exactly proportional to benchmark weight, which is the point where
+#' the whole available budget converts into realized underweight, and which is also the
+#' ungraded case where every ineligible constituent is sold in full. `badness_tilt_eta`
+#' then walks the budget-versus-grading frontier away from that anchor, concentrating
+#' underweight on the worst names and monotonically giving up budget in exchange.
+#' Maximum budget and graded underweights are mutually exclusive by construction.
+#'
+#' @slot long_port_config An object of class `sub_port_config` describing how the long
+#' leg is built. Any non-layered method is allowed.
+#' @slot bench_weight_tilt_eta A numeric exponent applied to the benchmark weight in the
+#' short-leg score. Defaults to 1.
+#' @slot badness_tilt_eta A numeric exponent applied to the badness score in the short
+#' leg. Must be non-negative; defaults to 1.
+#' @slot max_short_budget An optional numeric in (0, 1] capping the realized active
+#' budget, or NULL to leave it endogenous.
+#'
+#' @return An S4 object of class `slsaf_parameters`.
+#'
+#' @export
+setClass(
+  "slsaf_parameters",
+  slots = c(
+    long_port_config      = "ANY",
+    bench_weight_tilt_eta = "numeric",
+    badness_tilt_eta      = "numeric",
+    max_short_budget      = "ANY"
+  ),
+  prototype = list(
+    long_port_config      = NULL,
+    bench_weight_tilt_eta = 1,
+    badness_tilt_eta      = 1,
+    max_short_budget      = NULL
+  ),
+  validity = function(object){
+
+    validate_slsaf_parameters(object)
+
+  }
+)
+
+
 
 
 #concentration_constraint_policy----------------------------------------
@@ -3460,6 +3518,7 @@ setClass(
     rp_parameters = "ANY",
     hrp_parameters = "ANY",
     mmaf_parameters = "ANY",
+    slsaf_parameters = "ANY",
     main_liquidity_metric = "character",
     liquidity_floor_cutoffs = "ANY",
     liquidity_constraint_policy = "ANY",
@@ -3484,8 +3543,8 @@ setClass(
       stop("chosen_score_metric_and_position must be NULL when port_construction_method is custom_weights")
     }
 
-    if (!object@port_construction_method %in% c("ew", "sw", "cw", "cs", "rp", "mvo", "hrp", "mmaf")){
-      stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'mvo', 'hrp' or 'mmaf'.")
+    if (!object@port_construction_method %in% c("ew", "sw", "cw", "cs", "rp", "mvo", "hrp", "mmaf", "slsaf")){
+      stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'mvo', 'hrp', 'mmaf' or 'slsaf'.")
     }
 
     #Check if eligibility_quantile_range has length of 2 between 0 and 1
@@ -3575,6 +3634,35 @@ setClass(
     if (!is.null(object@mmaf_parameters)){
       if(!inherits(object@mmaf_parameters, "mmaf_parameters")){
         stop("mmaf_parameters must be an object of class mmaf_parameters.")
+      }
+    }
+    ####SLSAF Pars
+    if (!is.null(object@slsaf_parameters)){
+      if(!inherits(object@slsaf_parameters, "slsaf_parameters")){
+        stop("slsaf_parameters must be an object of class slsaf_parameters.")
+      }
+    }
+
+    ###SLSAF is benchmark-relative by construction: it expresses conviction as an
+    ###overlay on benchmark positions, so it cannot be built without one
+    if (object@port_construction_method == "slsaf"){
+      if (is.null(object@slsaf_parameters)){
+        stop("slsaf_parameters must be provided when port_construction_method is 'slsaf'.")
+      }
+      if (is.null(object@selected_benchmark)){
+        stop("selected_benchmark must be provided when port_construction_method is 'slsaf'.")
+      }
+      ####The overlay already determines every active weight, so a concentration policy
+      ####would either duplicate it or silently fight it
+      if (!is.null(object@concentration_constraint_policy)){
+        stop("concentration_constraint_policy is not supported for 'slsaf': the active weights are already set by the long/short overlay.")
+      }
+      ####See the note in classify_investment_universe(): the buffer rule gates on
+      ####bop_port_weights > 0, which under this construction is true for every
+      ####constituent not fully sold, so the whole short block would drain into the
+      ####long block
+      if (!is.null(object@turnover_constraint_policy)){
+        stop("turnover_constraint_policy is not supported for 'slsaf'.")
       }
     }
 

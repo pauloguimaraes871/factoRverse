@@ -1277,3 +1277,60 @@ validate_sub_port_config <- function(object){
 
   invisible(TRUE)
 }
+
+
+#validate_slsaf_parameters------------------------------------------------------
+#' Validate SLSAF Parameters
+#'
+#' @description
+#' Validates an `slsaf_parameters` object, the configuration of the Simulated Long-Short
+#' Allocation Framework.
+#'
+#' @param object An object of class `slsaf_parameters`.
+#'
+#' @return `TRUE` invisibly if the configuration is valid. Stops with an informative
+#' message otherwise.
+validate_slsaf_parameters <- function(object){
+
+  ## Long leg configuration
+  ###################
+  ### The short leg has no method to configure: it is always signal weighted on the
+  ### badness score, so only the long leg carries a sub-portfolio configuration.
+  if (is.null(object@long_port_config)){
+    stop("long_port_config is required for slsaf portfolios.")
+  }
+  if (!methods::is(object@long_port_config, "sub_port_config")){
+    stop("long_port_config must be of class 'sub_port_config'.")
+  }
+  validate_sub_port_config(object@long_port_config)
+  ###################
+
+  ## Score exponents
+  ###################
+  if (length(object@bench_weight_tilt_eta) != 1 || !is.finite(object@bench_weight_tilt_eta)){
+    stop("bench_weight_tilt_eta must be a single finite numeric value.")
+  }
+  if (length(object@badness_tilt_eta) != 1 || !is.finite(object@badness_tilt_eta)){
+    stop("badness_tilt_eta must be a single finite numeric value.")
+  }
+
+  ### A negative badness exponent would grant the largest underweight to the names with
+  ### the best scores, which inverts the meaning of the leg
+  if (object@badness_tilt_eta < 0){
+    stop("badness_tilt_eta must be non-negative: a negative exponent would underweight the best-scoring names the most.")
+  }
+  ###################
+
+  ## Active budget ceiling
+  ###################
+  if (!is.null(object@max_short_budget)){
+    if (!is.numeric(object@max_short_budget) || length(object@max_short_budget) != 1 ||
+        !is.finite(object@max_short_budget) ||
+        object@max_short_budget <= 0 || object@max_short_budget > 1){
+      stop("max_short_budget must be NULL or a single numeric value in (0, 1].")
+    }
+  }
+  ###################
+
+  invisible(TRUE)
+}
