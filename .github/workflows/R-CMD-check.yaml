@@ -24,7 +24,14 @@ jobs:
       # faster and stricter on dependency problems. Nothing reaches a release
       # tag without a Windows check, because push-to-main still runs both.
       matrix:
-        config: ${{ github.event_name == 'pull_request' && fromJSON('[{"os":"ubuntu-latest"}]') || fromJSON('[{"os":"ubuntu-latest"},{"os":"windows-latest"}]') }}
+        # The Ubuntu runner is pinned rather than floating on ubuntu-latest. R is
+        # pinned to an exact 4.3.0 below to match renv.lock, and r-hub publishes no
+        # 4.3.0 binary for ubuntu-24.04, so when GitHub moved ubuntu-latest from
+        # 22.04 to 24.04 every job failed in "Set up R" before running any code.
+        # Pinning the R version while leaving the OS floating is what made an
+        # upstream image bump able to invalidate the pin. Bump this only together
+        # with r-version and renv.lock.
+        config: ${{ github.event_name == 'pull_request' && fromJSON('[{"os":"ubuntu-22.04"}]') || fromJSON('[{"os":"ubuntu-22.04"},{"os":"windows-latest"}]') }}
 
     steps:
       - name: Checkout repository

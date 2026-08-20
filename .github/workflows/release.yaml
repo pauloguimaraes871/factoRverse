@@ -18,7 +18,8 @@ jobs:
   # --- Gate: full R CMD check against the pinned renv lockfile ----------------
   check:
     name: R CMD check (release gate)
-    runs-on: ubuntu-latest
+    # Pinned, not floating: see .github/workflows/R-CMD-check.yaml.
+    runs-on: ubuntu-22.04
     # Authenticate GitHub API calls (e.g. renv resolving the DESCRIPTION
     # Remotes field); unauthenticated runners share exhausted rate limits.
     env:
@@ -90,7 +91,8 @@ jobs:
   release:
     name: Build and publish release
     needs: check
-    runs-on: ubuntu-latest
+    # Pinned, not floating: see .github/workflows/R-CMD-check.yaml.
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
