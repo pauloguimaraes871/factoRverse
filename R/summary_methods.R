@@ -2620,6 +2620,15 @@ setMethod("summary", "port_backtest_results", function(object, summary_id = NULL
     "Transactions Log"
   )
 
+  # SLSAF portfolios split the universe into a long block that may be bought and a short
+  # block that may only be underweighted, so their leg accounting is only offered when
+  # the method is in use
+  if (identical(object@port_construction_method, "slsaf")) {
+    available_tables <- c(available_tables,
+                          "SLSAF Leg Summary",
+                          "SLSAF Underweight Profile")
+  }
+
   # Print summary header
   cat("==============================\n")
   cat("Port Backtest Results Summary\n")
@@ -2666,6 +2675,9 @@ setMethod("summary", "port_backtest_results", function(object, summary_id = NULL
   stock_universe_m_df <- object@stock_universe_m_df
   final_stock_universe_m_d_ref <- object@final_stock_universe_m_d_ref
   transactions_log <- object@transactions_log@data
+  ## Pre-existing omission: the "Stats Summary" table referenced this without it ever
+  ## being extracted, so that table could never render
+  port_stats_m_df <- object@port_stats_m_df
 
   # Display the selected table
 
@@ -2715,6 +2727,49 @@ setMethod("summary", "port_backtest_results", function(object, summary_id = NULL
   } else if (table_name == "Final Stock Universe Summary"){
 
     summary(final_stock_universe_m_d_ref)
+
+  } else if (grepl("^SLSAF ", table_name)){
+
+    ## Both tables are ordinary meta_dataframe summaries over frames built by the same
+    ## helper the plots use, so the leg accounting is defined in exactly one place
+    slsaf_benchmark <- object@port_backtest_config@selected_benchmark
+
+    if (is.null(slsaf_benchmark)){
+      stop("SLSAF summaries require the backtest to carry a selected_benchmark.")
+    }
+
+    slsaf_plot_objects <- build_slsaf_plot_m_dfs(
+      stock_universe_m_df = stock_universe_m_df,
+      selected_benchmark = slsaf_benchmark
+    )
+
+    if (table_name == "SLSAF Leg Summary"){
+
+      ### One row per rebalance date and leg: how many names, how much of the index,
+      ### how much active weight, what the leg scores and what share of active risk it
+      ### carries. Reading the score columns against each other is the check that the
+      ### portfolio is selling worse names than it is buying.
+      leg_summary_m_df <- slsaf_plot_objects$diagnostics$leg_summary %>%
+        dplyr::mutate(
+          dates = as.Date(dates),
+          tickers = leg,
+          id = paste0(tickers, "-", dates)
+        ) %>%
+        dplyr::select(dplyr::any_of(c("id", "tickers", "dates", "n_assets", "bench_mass",
+                                      "port_mass", "active_weight", "n_zeroed",
+                                      "mean_exp_ret_score", "wmean_exp_ret_score",
+                                      "rrc_share", "active_share"))) %>%
+        dplyr::arrange(id)
+
+      summary(suppressMessages(create_meta_dataframe(leg_summary_m_df)))
+
+    } else if (table_name == "SLSAF Underweight Profile"){
+
+      ### One row per short-block constituent and date: how much of its index position
+      ### was given up and whether the cap took the whole thing
+      summary(slsaf_plot_objects$underweight)
+
+    }
 
   } else if (table_name == "Transactions Log"){
 

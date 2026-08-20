@@ -341,6 +341,40 @@ create_slsaf_portfolio <- function(universe_m_d_ref,
     final_weights <- bench_weights_all + active_weights
     final_weights[setdiff(names(final_weights), c(long_tickers, short_tickers))] <- 0
 
+  # Diagnose the leg score ordering---------------------------------------------
+
+    ## The construction never depends on the two blocks being ordered by score, but the
+    ## economics do. Eligibility governs what may be bought, so a rule that excludes a
+    ## high-scoring name for reasons other than its score, most often a strict liquidity
+    ## floor, pushes it into the short block while it remains an index position. On a
+    ## narrow universe that can invert the ordering outright, and the portfolio then
+    ## underweights precisely the names the signal likes. Nothing else in the pipeline
+    ## would surface that, so compare what is being sold against what is being bought.
+    if (length(short_tickers) > 0 && active_budget > tol_empty){
+
+      short_exp_ret_score <- short_universe_m_d_ref %>% dplyr::pull(exp_ret_score)
+      long_exp_ret_score  <- long_universe_m_d_ref %>% dplyr::pull(exp_ret_score)
+
+      ### Weight each leg by the active exposure actually taken in it
+      sold_weights   <- underweights[short_tickers]
+      bought_weights <- long_weights[long_tickers]
+
+      if (sum(sold_weights) > tol_empty && sum(bought_weights) > tol_empty){
+
+        sold_score   <- stats::weighted.mean(short_exp_ret_score, sold_weights)
+        bought_score <- stats::weighted.mean(long_exp_ret_score, bought_weights)
+
+        if (isTRUE(sold_score > bought_score)){
+          warning(paste0(
+            "slsaf: the underweighted names score better on average than the overweighted ones (",
+            round(sold_score, 4), " sold vs ", round(bought_score, 4), " bought). ",
+            "This usually means an eligibility rule other than the score, such as a liquidity floor, ",
+            "is pushing high-scoring constituents into the short block."
+          ))
+        }
+      }
+    }
+
   # Verify the construction-----------------------------------------------------
 
     ## The overlay must be self-financing

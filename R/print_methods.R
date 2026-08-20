@@ -1894,6 +1894,52 @@ setMethod("show", "mmaf_parameters", function(object) {
 })
 
 
+#slsaf_parameters-----------------------------------------
+#' @title Show SLSAF Parameters
+#' @description Prints the contents of an `slsaf_parameters` object: the long leg
+#' configuration, the two score exponents and the active budget ceiling. The short leg
+#' has no configuration of its own, since it is always signal weighted on the badness
+#' score.
+#' @param object An `slsaf_parameters` object.
+#' @method show slsaf_parameters
+#' @export
+setMethod("show", "slsaf_parameters", function(object) {
+  cat("\nSimulated Long-Short Allocation Framework (SLSAF) Parameters:\n")
+
+  cat("\nLong Leg Configuration:\n")
+  cat(" Construction Method: ", object@long_port_config@port_construction_method, "\n")
+  if (!is.null(object@long_port_config@mvo_parameters)){
+    cat(" MVO Parameters:\n")
+    .print_mvo_parameters(object@long_port_config@mvo_parameters, hide_title = TRUE)
+  }
+  if (!is.null(object@long_port_config@rp_parameters)){
+    cat(" RP Parameters:\n")
+    .print_rp_parameters(object@long_port_config@rp_parameters, hide_title = TRUE)
+  }
+  if (!is.null(object@long_port_config@hrp_parameters)){
+    cat(" HRP Parameters:\n")
+    .print_hrp_parameters(object@long_port_config@hrp_parameters, hide_title = TRUE)
+  }
+
+  cat("\nShort Leg Configuration:\n")
+  cat(" Construction Method:  sw (fixed: the underweight must follow conviction)\n")
+  cat(" Benchmark Weight Tilt Eta: ", object@bench_weight_tilt_eta, "\n")
+  cat(" Badness Tilt Eta:          ", object@badness_tilt_eta, "\n")
+
+  ## The exponents behave asymmetrically and it is worth saying so where they are read
+  if (isTRUE(all.equal(object@bench_weight_tilt_eta, 1)) &&
+      isTRUE(all.equal(object@badness_tilt_eta, 0))){
+    cat("  -> At this setting every ineligible constituent is sold in full (ungraded).\n")
+  }
+  if (object@badness_tilt_eta > 0){
+    cat("  -> Underweight is graded by conviction, at the cost of active budget.\n")
+  }
+
+  cat("\nActive Budget Ceiling: ",
+      if (is.null(object@max_short_budget)) "None (endogenous)" else object@max_short_budget, "\n")
+})
+
+
 #concentration_constraint_policy--------------------------
 #' @title Show Concentration Constraint Policy
 #' @description Prints the contents of a `concentration_constraint_policy` object,
