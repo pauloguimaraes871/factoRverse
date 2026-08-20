@@ -17,9 +17,7 @@ on:
 
 jobs:
   test-coverage:
-    # Pinned, not floating: r-version is an exact match to renv.lock and no such
-    # binary exists for ubuntu-24.04. See .github/workflows/R-CMD-check.yaml.
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
     steps:

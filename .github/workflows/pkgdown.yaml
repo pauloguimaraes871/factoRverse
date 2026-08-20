@@ -14,9 +14,7 @@ permissions:
 
 jobs:
   pkgdown:
-    # Pinned, not floating: r-version is an exact match to renv.lock and no such
-    # binary exists for ubuntu-24.04. See .github/workflows/R-CMD-check.yaml.
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
     # Only restrict concurrency for non-PR jobs
     concurrency:
       group: pkgdown-${{ github.event_name != 'pull_request' || github.run_id }}
