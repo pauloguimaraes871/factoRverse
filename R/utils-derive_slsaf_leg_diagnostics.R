@@ -20,8 +20,10 @@
 #' @param stock_universe_m_df A `stock_universe_m_df`, `meta_dataframe` or `data.frame`
 #'   carrying the backtest universe. Must contain `dates`, `tickers`, `weights`,
 #'   `is_long_candidate`, `is_short_candidate` and the benchmark weight column.
-#'   Optional columns enrich the output: `exp_ret_score`, `act_rel_risk_contr`,
-#'   `act_weights`, `liquidity_classification`, and any group column.
+#'   Optional columns enrich the output: `exp_ret_score`, `exp_ret_score_raw`,
+#'   `act_rel_risk_contr`, `act_weights`, `liquidity_classification`, and any group
+#'   column. The underweight profile's `badness` is graded from `exp_ret_score_raw`,
+#'   the column the short leg is built from, and is `NA` when that column is absent.
 #' @param selected_benchmark Character scalar naming the benchmark, used to locate the
 #'   `<selected_benchmark>_bench_weights` column.
 #' @param group_col Optional character naming the column to use for the sector
@@ -79,6 +81,15 @@ derive_slsaf_leg_diagnostics <- function(stock_universe_m_df,
     ## Optional enrichments
     has_exp_ret_score <- "exp_ret_score" %in% colnames(universe_m_df)
     has_liquidity     <- "liquidity_classification" %in% colnames(universe_m_df)
+
+    ### The short leg is built from the unscaled score, so its badness must be diagnosed
+    ### from the same column. Reporting 1 / exp_ret_score instead would invert a scaler:
+    ### under a return-predictive scaler such as 1 / idio_vol the raw and scaled rankings
+    ### differ, and the underweight profile would then show an ordering that is not the
+    ### one the underweights were graded by. There is no reliable way to detect after the
+    ### fact whether a scaler was applied, so when the raw column is absent the badness is
+    ### reported as unavailable rather than guessed from the scaled score.
+    has_exp_ret_score_raw <- "exp_ret_score_raw" %in% colnames(universe_m_df)
 
     ### Active risk contributions are filled with zeros when the backtest ran without a
     ### covariance matrix, so an all-zero column means "no risk model" rather than "no
@@ -245,11 +256,12 @@ derive_slsaf_leg_diagnostics <- function(stock_universe_m_df,
         relative_trim = (bench_weight - weights) / bench_weight,
         ### The cap binds exactly when the whole index position was sold
         is_capped     = weights <= 1e-10,
-        badness       = if (has_exp_ret_score) 1 / exp_ret_score else NA_real_
+        ### Graded from the unscaled score, exactly as the short leg was built
+        badness       = if (has_exp_ret_score_raw) 1 / exp_ret_score_raw else NA_real_
       ) %>%
       dplyr::select(dplyr::any_of(c("dates", "tickers", "bench_weight", "weights",
                                     "underweight", "relative_trim", "is_capped",
-                                    "badness", "exp_ret_score",
+                                    "badness", "exp_ret_score_raw", "exp_ret_score",
                                     "liquidity_classification"))) %>%
       dplyr::arrange(dates, dplyr::desc(relative_trim)) %>%
       as.data.frame()

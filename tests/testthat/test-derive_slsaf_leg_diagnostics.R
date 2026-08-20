@@ -8,6 +8,8 @@ build_slsaf_diagnostics_universe <- function(){
       tickers = tickers,
       dates   = rep(as.Date(current_date), length(tickers)),
       exp_ret_score = c(short_scores, long_scores),
+      ##No scaler in this fixture, so the raw and scaled scores coincide
+      exp_ret_score_raw = c(short_scores, long_scores),
       ibov_bench_weights = c(short_weights, long_weights),
       is_long_candidate  = c(rep(0L, length(short_weights)), rep(1L, length(long_weights))),
       is_short_candidate = c(rep(1L, length(short_weights)), rep(0L, length(long_weights))),
@@ -144,6 +146,43 @@ test_that("the underweight profile reports relative trim and capping per constit
   second_s1 <- profile[profile$dates == as.Date("2020-02-15") & profile$tickers == "S1", ]
   expect_equal(second_s1$relative_trim, 1)
   expect_true(second_s1$is_capped)
+})
+
+test_that("badness is graded from the unscaled score, never from the scaled one", {
+
+  universe_m_df <- build_slsaf_diagnostics_universe()
+
+  #A return-predictive scaler such as 1 / idio_vol reorders the two short names: S1 is
+  #the worse name on the raw score but the better one once scaled. The short leg is built
+  #from the raw score, so the profile must follow it. Reading the scaled column instead
+  #would draw an underweight chart whose badness ordering is the reverse of the ordering
+  #the underweights were actually graded by, contradicting the guarantee the method makes.
+  is_s1 <- universe_m_df@data$tickers == "S1"
+  is_s2 <- universe_m_df@data$tickers == "S2"
+  universe_m_df@data$exp_ret_score[is_s1] <- 4.0
+  universe_m_df@data$exp_ret_score[is_s2] <- 0.1
+
+  profile <- derive_slsaf_leg_diagnostics(universe_m_df, "ibov")$underweight_profile
+
+  first_s1 <- profile[profile$dates == as.Date("2020-01-15") & profile$tickers == "S1", ]
+  first_s2 <- profile[profile$dates == as.Date("2020-01-15") & profile$tickers == "S2", ]
+
+  #Raw scores are 0.5 and 0.8, so S1 stays the worse name
+  expect_equal(first_s1$badness, 1 / 0.5)
+  expect_equal(first_s2$badness, 1 / 0.8)
+  expect_gt(first_s1$badness, first_s2$badness)
+})
+
+test_that("badness is unavailable rather than guessed when the raw score is absent", {
+
+  universe_m_df <- build_slsaf_diagnostics_universe()
+  universe_m_df@data$exp_ret_score_raw <- NULL
+
+  profile <- derive_slsaf_leg_diagnostics(universe_m_df, "ibov")$underweight_profile
+
+  #There is no reliable way to tell after the fact whether a scaler was applied, so
+  #falling back to the scaled score could silently invert the ordering
+  expect_true(all(is.na(profile$badness)))
 })
 
 #Absent risk model

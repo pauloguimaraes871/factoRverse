@@ -14,8 +14,10 @@ derive_slsaf_leg_diagnostics(
 \item{stock_universe_m_df}{A \code{stock_universe_m_df}, \code{meta_dataframe} or \code{data.frame}
 carrying the backtest universe. Must contain \code{dates}, \code{tickers}, \code{weights},
 \code{is_long_candidate}, \code{is_short_candidate} and the benchmark weight column.
-Optional columns enrich the output: \code{exp_ret_score}, \code{act_rel_risk_contr},
-\code{act_weights}, \code{liquidity_classification}, and any group column.}
+Optional columns enrich the output: \code{exp_ret_score}, \code{exp_ret_score_raw},
+\code{act_rel_risk_contr}, \code{act_weights}, \code{liquidity_classification}, and any group
+column. The underweight profile's \code{badness} is graded from \code{exp_ret_score_raw},
+the column the short leg is built from, and is \code{NA} when that column is absent.}
 
 \item{selected_benchmark}{Character scalar naming the benchmark, used to locate the
 \verb{<selected_benchmark>_bench_weights} column.}
