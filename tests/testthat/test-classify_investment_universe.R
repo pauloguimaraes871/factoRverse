@@ -1604,3 +1604,203 @@ test_that("apply_stocks_pre_eligibility works for categorical variables", {
 
 
 
+
+#Benchmark block union
+test_that("include_benchmark_in_universe partitions the universe into long and short blocks", {
+
+  load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
+
+  current_date <- "2001-04-15"
+  signals_m_d_ref <- signals_m_df[which(signals_m_df$dates == current_date),]
+  stock_universe_m_d_ref <- signals_m_d_ref %>% dplyr::select(-Alpha, -Beta, -Gamma)
+  stock_universe_m_d_ref$exp_ret_score <- c(1.2, 0.2, 0.05, 0.04, 3)
+
+  benchmark_weights_m_d_ref <- benchmark_weights_m_df[which(benchmark_weights_m_df$dates == current_date),]
+  eligibility_quantile_range <- c(0.6, 1)
+
+  #Baseline: the regular cascade promotes only the top scores
+  baseline <- classify_investment_universe(
+    universe_m_d_ref = stock_universe_m_d_ref,
+    eligibility_quantile_range = eligibility_quantile_range,
+    selected_benchmark = "ibov",
+    benchmark_weights_m_d_ref = benchmark_weights_m_d_ref,
+    verbose = FALSE
+  )
+
+  expect_equal(baseline$is_eligible, c(1, 0, 0, 0, 1))
+  expect_false("is_long_candidate" %in% colnames(baseline))
+  expect_false("is_short_candidate" %in% colnames(baseline))
+
+  #With the union, every benchmark constituent enters the universe
+  results <- classify_investment_universe(
+    universe_m_d_ref = stock_universe_m_d_ref,
+    eligibility_quantile_range = eligibility_quantile_range,
+    selected_benchmark = "ibov",
+    benchmark_weights_m_d_ref = benchmark_weights_m_d_ref,
+    include_benchmark_in_universe = TRUE,
+    verbose = FALSE
+  )
+
+  #The long block is exactly what the cascade produced on its own
+  expect_equal(results$is_long_candidate, as.integer(baseline$is_eligible))
+
+  #The short block is what the benchmark holds and the cascade rejected
+  expect_equal(results$is_short_candidate, c(0L, 1L, 1L, 1L, 0L))
+
+  #All five constituents are now represented
+  expect_equal(results$is_eligible, rep(1, 5))
+
+  #The blocks partition the eligible universe
+  expect_true(all(results$is_long_candidate + results$is_short_candidate <= 1L))
+  expect_equal(results$is_eligible,
+               pmax(results$is_long_candidate, results$is_short_candidate))
+
+  #And is_eligible stays the last column, as every downstream consumer expects
+  expect_identical(utils::tail(names(results), 1), "is_eligible")
+})
+
+test_that("include_benchmark_in_universe leaves non-constituents out of the universe", {
+
+  load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
+
+  current_date <- "2001-04-15"
+  signals_m_d_ref <- signals_m_df[which(signals_m_df$dates == current_date),]
+  stock_universe_m_d_ref <- signals_m_d_ref %>% dplyr::select(-Alpha, -Beta, -Gamma)
+  stock_universe_m_d_ref$exp_ret_score <- c(1.2, 0.2, 0.05, 0.04, 3)
+
+  #Stock C is dropped from the index while staying in the universe. Benchmark weights
+  #are renormalized so they still sum to 1, as classify_investment_universe requires.
+  benchmark_weights_m_d_ref <- benchmark_weights_m_df[which(benchmark_weights_m_df$dates == current_date),]
+  benchmark_weights_m_d_ref$ibov[which(benchmark_weights_m_d_ref$tickers == "Stock C")] <- 0
+  benchmark_weights_m_d_ref$ibov <- benchmark_weights_m_d_ref$ibov / sum(benchmark_weights_m_d_ref$ibov)
+
+  results <- classify_investment_universe(
+    universe_m_d_ref = stock_universe_m_d_ref,
+    eligibility_quantile_range = c(0.6, 1),
+    selected_benchmark = "ibov",
+    benchmark_weights_m_d_ref = benchmark_weights_m_d_ref,
+    include_benchmark_in_universe = TRUE,
+    verbose = FALSE
+  )
+
+  #A name that is neither held by the benchmark nor promoted has nothing to express
+  stock_c <- which(results$tickers == "Stock C")
+  expect_equal(results$is_short_candidate[stock_c], 0L)
+  expect_equal(results$is_long_candidate[stock_c], 0L)
+  expect_equal(results$is_eligible[stock_c], 0)
+
+  #A non-constituent that IS promoted stays in the long block, as a pure active position
+  stock_universe_m_d_ref$exp_ret_score <- c(1.2, 0.2, 5, 0.04, 3)
+  results_promoted <- classify_investment_universe(
+    universe_m_d_ref = stock_universe_m_d_ref,
+    eligibility_quantile_range = c(0.6, 1),
+    selected_benchmark = "ibov",
+    benchmark_weights_m_d_ref = benchmark_weights_m_d_ref,
+    include_benchmark_in_universe = TRUE,
+    verbose = FALSE
+  )
+  expect_equal(results_promoted$is_long_candidate[stock_c], 1L)
+  expect_equal(results_promoted$is_short_candidate[stock_c], 0L)
+})
+
+test_that("a constituent failing the liquidity floor lands in the short block, not the long one", {
+
+  load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
+
+  current_date <- "2001-04-15"
+  signals_m_d_ref <- signals_m_df[which(signals_m_df$dates == current_date),]
+  stock_universe_m_d_ref <- signals_m_d_ref %>% dplyr::select(-Alpha, -Beta, -Gamma)
+  stock_universe_m_d_ref$exp_ret_score <- c(1.2, 0.2, 0.05, 0.04, 3)
+
+  liquidity_m_d_ref <- liquidity_m_df[which(liquidity_m_df$dates == current_date),]
+  benchmark_weights_m_d_ref <- benchmark_weights_m_df[which(benchmark_weights_m_df$dates == current_date),]
+
+  #A floor strict enough to exclude part of the index: Stocks C and E fail on presence
+  #and Stock D on traded volume
+  strict_liquidity_policy <- liquidity_constraint_policy
+  strict_liquidity_policy$liquidity_floor_rule <- "small_caps"
+
+  results <- classify_investment_universe(
+    universe_m_d_ref = stock_universe_m_d_ref,
+    eligibility_quantile_range = c(0.2, 1),
+    liquidity_constraint_policy = strict_liquidity_policy,
+    liquidity_floor_cutoffs = liquidity_floor_cutoffs_df,
+    liquidity_m_d_ref = liquidity_m_d_ref,
+    selected_benchmark = "ibov",
+    benchmark_weights_m_d_ref = benchmark_weights_m_d_ref,
+    include_benchmark_in_universe = TRUE,
+    verbose = FALSE
+  )
+
+  #Being too illiquid to buy is not a reason to stop representing an index position:
+  #such a name must be underweightable, never buyable
+  illiquid <- which(results$liquidity_floor == 0)
+  expect_setequal(results$tickers[illiquid], c("Stock C", "Stock D", "Stock E"))
+
+  expect_true(all(results$is_long_candidate[illiquid] == 0L))
+  expect_true(all(results$is_short_candidate[illiquid] == 1L))
+  expect_true(all(results$is_eligible[illiquid] == 1))
+})
+
+test_that("include_benchmark_in_universe validates its own preconditions", {
+
+  load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
+
+  current_date <- "2001-04-15"
+  signals_m_d_ref <- signals_m_df[which(signals_m_df$dates == current_date),]
+  stock_universe_m_d_ref <- signals_m_d_ref %>% dplyr::select(-Alpha, -Beta, -Gamma)
+  stock_universe_m_d_ref$exp_ret_score <- c(1.2, 0.2, 0.05, 0.04, 3)
+  benchmark_weights_m_d_ref <- benchmark_weights_m_df[which(benchmark_weights_m_df$dates == current_date),]
+
+  #The flag must never be coerced silently
+  expect_error(
+    classify_investment_universe(universe_m_d_ref = stock_universe_m_d_ref,
+                                 eligibility_quantile_range = c(0.6, 1),
+                                 include_benchmark_in_universe = NA,
+                                 verbose = FALSE),
+    "must be a single non-NA logical value"
+  )
+  expect_error(
+    classify_investment_universe(universe_m_d_ref = stock_universe_m_d_ref,
+                                 eligibility_quantile_range = c(0.6, 1),
+                                 include_benchmark_in_universe = "yes",
+                                 verbose = FALSE),
+    "must be a single non-NA logical value"
+  )
+
+  #A benchmark is what defines the short block, so both it and its weights are required
+  expect_error(
+    classify_investment_universe(universe_m_d_ref = stock_universe_m_d_ref,
+                                 eligibility_quantile_range = c(0.6, 1),
+                                 include_benchmark_in_universe = TRUE,
+                                 verbose = FALSE),
+    "selected_benchmark must be provided"
+  )
+  expect_error(
+    classify_investment_universe(universe_m_d_ref = stock_universe_m_d_ref,
+                                 eligibility_quantile_range = c(0.6, 1),
+                                 selected_benchmark = "ibov",
+                                 include_benchmark_in_universe = TRUE,
+                                 verbose = FALSE),
+    "benchmark_weights_m_d_ref must be provided"
+  )
+
+  #An asset with no benchmark weight cannot be classified into either block. The
+  #remaining weights are renormalized so this exercises the missing-asset guard rather
+  #than the pre-existing sum-to-1 guard.
+  incomplete_benchmark_weights <- benchmark_weights_m_d_ref[
+    which(benchmark_weights_m_d_ref$tickers != "Stock C"), ]
+  incomplete_benchmark_weights$ibov <- incomplete_benchmark_weights$ibov /
+    sum(incomplete_benchmark_weights$ibov)
+  incomplete_benchmark_weights$smll <- incomplete_benchmark_weights$smll /
+    sum(incomplete_benchmark_weights$smll)
+  expect_error(
+    classify_investment_universe(universe_m_d_ref = stock_universe_m_d_ref,
+                                 eligibility_quantile_range = c(0.6, 1),
+                                 selected_benchmark = "ibov",
+                                 benchmark_weights_m_d_ref = incomplete_benchmark_weights,
+                                 include_benchmark_in_universe = TRUE,
+                                 verbose = FALSE),
+    "no benchmark weight and cannot be split"
+  )
+})

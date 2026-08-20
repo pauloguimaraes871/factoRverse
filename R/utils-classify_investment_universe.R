@@ -96,6 +96,14 @@
 #' The rule will be appended to the filter as a regular promotion rule, accumulating with other rules.
 #' @param user_defined_OR_rules_m_d_ref Optional. A named list of named data frames containing a column with tickers, columns with metrics to be passed to the final data frame, and a column that describes the filter with the same name as the list element.
 #'All tickers in the current stock universe must have a unique correspondence in this data frame.
+#' @param include_benchmark_in_universe Logical. If TRUE, every benchmark constituent is
+#' added to the eligible universe and the universe is split into two conviction blocks:
+#' `is_long_candidate` (the outcome of the regular promotion cascade, i.e. what may be
+#' bought) and `is_short_candidate` (benchmark constituents the cascade rejected, i.e.
+#' what may only be underweighted). `is_eligible` becomes the union of the two. This is
+#' required by long/short layered methods such as `slsaf`, which must represent the whole
+#' benchmark in order to express an underweight. Requires `selected_benchmark` and
+#' `benchmark_weights_m_d_ref`. Defaults to FALSE, leaving eligibility unchanged.
 #' @param asset_object A character indicating whether the analysis is being applied to "stocks" or "signal_portfolios"
 #' @param verbose A logical indicating whether to print messages during the function execution.
 #' @export
@@ -109,6 +117,7 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
                                          is_mmaf = FALSE, #Concentration policy
                                          target_port_m_d_ref = NULL, ridge_pen = NULL, #Shrinkage
                                          user_defined_AND_rules_m_d_ref = NULL, user_defined_OR_rules_m_d_ref = NULL, #User defined rules
+                                         include_benchmark_in_universe = FALSE, #Long/short block split
                                          asset_object = "stocks", use_raw_for_eligibility = FALSE, verbose = TRUE
 
 ){
@@ -127,6 +136,15 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
   #Throw an error if use_raw_for_eligibility is TRUE and asset_object is signals
   if (!is.null(use_raw_for_eligibility) && use_raw_for_eligibility && asset_object == "signals"){
     stop("use_raw_for_eligibility is TRUE but asset_object is signals.")
+  }
+
+  #Check include_benchmark_in_universe, which must never be coerced silently
+  if (length(include_benchmark_in_universe) != 1 || !is.logical(include_benchmark_in_universe) ||
+      is.na(include_benchmark_in_universe)){
+    stop("include_benchmark_in_universe must be a single non-NA logical value")
+  }
+  if (isTRUE(include_benchmark_in_universe) && asset_object == "signals"){
+    stop("include_benchmark_in_universe is only available for stocks")
   }
 
   ##Check if liquidity_m_d_ref is for only one date
@@ -503,6 +521,79 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
 
   #Rearrange
   universe_m_d_ref <- universe_m_d_ref %>% dplyr::mutate(is_eligible = dplyr::if_else(is_eligible >= 1, 1, 0)) #Take the resulting sum and turn into binary
+
+  ##Benchmark block union (long/short layered methods)
+  ########################
+  ###A layered long/short method such as 'slsaf' must cover the whole benchmark. A
+  ###constituent that failed the promotion cascade is not something to buy, but it is
+  ###something to underweight, so it still has to be represented in the portfolio
+  ###universe. Every promotion rule above keeps defining what may be bought (the long
+  ###block); the union below only adds what the benchmark already holds (the short block).
+  if (isTRUE(include_benchmark_in_universe)){
+
+    ####A benchmark and its weights are what define the short block
+    if (is.null(selected_benchmark)){
+      stop("selected_benchmark must be provided when include_benchmark_in_universe is TRUE")
+    }
+    bench_weights_col <- paste0(selected_benchmark, "_bench_weights")
+    if (!bench_weights_col %in% colnames(universe_m_d_ref)){
+      stop(paste0("benchmark_weights_m_d_ref must be provided when include_benchmark_in_universe is TRUE: ",
+                  bench_weights_col, " not found in universe_m_d_ref"))
+    }
+
+    ####An asset with no benchmark weight cannot be classified into either block
+    missing_bench_weights <- universe_m_d_ref %>%
+      dplyr::filter(is.na(!!rlang::sym(bench_weights_col))) %>%
+      dplyr::pull(tickers)
+    if (length(missing_bench_weights) > 0){
+      stop(paste0("The following assets have no benchmark weight and cannot be split into long/short blocks: ",
+                  paste(missing_bench_weights, collapse = ", ")))
+    }
+
+    ####Split the eligible universe into the two conviction blocks
+    universe_m_d_ref <- universe_m_d_ref %>%
+      dplyr::mutate(
+        is_long_candidate  = as.integer(is_eligible),
+        is_short_candidate = as.integer(!!rlang::sym(bench_weights_col) > 0 & is_long_candidate == 0L),
+        is_eligible        = pmax(is_long_candidate, is_short_candidate)
+      )
+
+    ####The blocks must partition the eligible universe: no asset may be in both, and
+    ####nothing eligible may fall outside both
+    if (any(universe_m_d_ref$is_long_candidate + universe_m_d_ref$is_short_candidate > 1L)){
+      stop("is_long_candidate and is_short_candidate must be mutually exclusive")
+    }
+    if (any(universe_m_d_ref$is_eligible == 1 &
+            universe_m_d_ref$is_long_candidate == 0L &
+            universe_m_d_ref$is_short_candidate == 0L)){
+      stop("is_eligible must be the union of is_long_candidate and is_short_candidate")
+    }
+
+    ####A long block is required: there is nothing to fund with the released budget otherwise
+    if (sum(universe_m_d_ref$is_long_candidate) == 0){
+      stop("No long candidates found: the promotion cascade left no asset to overweight")
+    }
+
+    ####Message
+    if (isTRUE(verbose)){
+      cat(crayon::yellow(
+        paste0("Benchmark block union: ", sum(universe_m_d_ref$is_long_candidate),
+               " long candidate(s) and ", sum(universe_m_d_ref$is_short_candidate),
+               " benchmark constituent(s) added as short candidate(s).")
+      ))
+      cat("\n")
+    }
+
+    ####NOTE: 'turnover_constraint_policy' is rejected upstream for these methods. Were
+    ####it ever allowed, the buffer rule would need a different membership test: it gates
+    ####promotion on 'was_in_old_portfolio = bop_port_weights > 0', and under a long/short
+    ####construction every constituent that was not fully sold has a positive weight, so
+    ####essentially the whole short block would qualify and silently drain into the long
+    ####block. The correct reference there is "was overweight last period"
+    ####(bop_port_weights > benchmark weight), i.e. "was in the long block".
+  }
+  ########################
+
   universe_m_d_ref <- universe_m_d_ref %>% dplyr::relocate(is_eligible, .after = dplyr::last_col()) #Relocate to last column
 
   #If use_raw_for_eligibility is TRUE, bring back exp_ret_score values from pre_eligibility_m_d_ref
