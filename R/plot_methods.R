@@ -8475,19 +8475,41 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_
 
     } else if (plot_name == "SLSAF Budget and Grading"){
 
-      ## The budget available, the budget actually realized, and how many constituents
-      ## were sold in full. The gap between the two budget lines is the capping loss.
+      ## The budget available against the budget actually realized. The gap between the
+      ## two lines is the whole point of the plot: it is the capping loss, what the
+      ## grading gives up by refusing to sell more of a constituent than the benchmark
+      ## actually holds. The count of fully sold names is deliberately not drawn here,
+      ## because a count on a weight axis would need a second scale, and the underweight
+      ## intensity profile already shows where the cap binds.
       if (is.null(port_stats_m_df)){
         stop("No port_stats available to plot.")
       }
 
+      budget_cols <- c("slsaf_short_budget", "slsaf_active_budget")
+      if (!all(budget_cols %in% colnames(port_stats_m_df@data))){
+        stop("port_stats does not carry the slsaf budget diagnostics.")
+      }
+
+      ### Two series in long form, keyed by the series name, which is how every other
+      ### multi-series plot in this file is assembled
       slsaf_stats_m_df <- port_stats_m_df
-      slsaf_stats_m_df@data <- slsaf_stats_m_df@data %>%
-        dplyr::select(dplyr::any_of(c("id", "tickers", "dates", "slsaf_short_budget",
-                                      "slsaf_active_budget", "slsaf_n_zeroed")))
+      slsaf_stats_m_df@data <- port_stats_m_df@data %>%
+        dplyr::select(dplyr::all_of(c("dates", budget_cols))) %>%
+        tidyr::pivot_longer(cols = dplyr::all_of(budget_cols),
+                            names_to = "tickers", values_to = "budget") %>%
+        dplyr::mutate(
+          tickers = dplyr::recode(tickers,
+                                  slsaf_short_budget  = "Budget available",
+                                  slsaf_active_budget = "Budget realized"),
+          dates   = as.Date(dates),
+          id      = paste0(tickers, "-", dates)
+        ) %>%
+        dplyr::relocate(id, tickers, dates) %>%
+        dplyr::arrange(id) %>%
+        as.data.frame()
 
       plot(slsaf_stats_m_df, type = "time_series", clustering_variables = "tickers",
-           variable = "slsaf_active_budget", calc_stat = "mean", palette = palette)
+           variable = "budget", calc_stat = "mean", palette = palette)
 
     }
 

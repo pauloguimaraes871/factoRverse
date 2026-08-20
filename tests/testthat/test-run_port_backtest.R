@@ -9233,6 +9233,13 @@ test_that("run_port_backtest works for a slsaf strategy with a signal-weighted l
     constituents <- which(bench_weights > 0)
     expect_true(all(universe_m_d_ref$is_eligible[constituents] == 1))
   }
+
+  #Both budget series must be available to the budget plot: the gap between them is the
+  #capping loss, which is what that plot exists to show. The plot method itself cannot be
+  #asserted on, because every plot method in this package prompts and returns NULL.
+  expect_true(all(c("slsaf_short_budget", "slsaf_active_budget") %in% names(port_stats_m_df)))
+  expect_false(isTRUE(all.equal(port_stats_m_df$slsaf_short_budget,
+                                port_stats_m_df$slsaf_active_budget)))
 })
 
 test_that("run_port_backtest works for a slsaf strategy with a risk-parity long leg", {
