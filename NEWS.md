@@ -1,4 +1,4 @@
-# factoRverse 0.7.0
+# factoRverse 0.8.0
 
 ## New features
 
@@ -79,6 +79,10 @@
 * The `"Stats Summary"` table of `summary(port_backtest_results)` referenced
   `port_stats_m_df` without it ever being extracted from the object, so the
   table could never render for any portfolio construction method.
+
+# factoRverse 0.7.0
+
+## New features
 
 * Neural-network signal blending can now average over several independently
   initialised networks at refit time, through the new `n_ensembles` argument of
