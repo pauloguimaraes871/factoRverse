@@ -49,6 +49,7 @@ check_inputs_port_backtest(
   macro_exp_ret_score_tilt,
   macro_exp_ret_score_tilt_eta,
   macro_linkage,
+  long_port_construction_method = NULL,
   cov_estimation_method,
   cov_matrix_sample_size,
   active_returns,
@@ -165,6 +166,11 @@ check_inputs_port_backtest(
 \item{macro_exp_ret_score_tilt_eta}{Numeric. Exponent for expected return score tilt in macro-level RP.}
 
 \item{macro_linkage}{Character. Linkage method for hierarchical clustering in macro-level HRP.}
+
+\item{long_port_construction_method}{Character. Method used to build the long leg when
+\code{port_construction_method} is \code{"slsaf"}. Must be one of \code{"ew"}, \code{"sw"},
+\code{"cw"}, \code{"cs"}, \code{"rp"}, \code{"hrp"} or \code{"mvo"}: a layered method may
+not itself be nested inside another one.}
 
 \item{cov_estimation_method}{A character string specifying the covariance estimation method. Required when \code{port_construction_method} is \code{"rp"} or \code{"mvo"}.}
 

@@ -3553,8 +3553,9 @@ setMethod(
   "add_cov_est_method", signature(object = "port_backtest_config", cov_est_method = "cov_est_method"),
   function(object, cov_est_method, ...) {
     # Check for port construction method
-    if (!object@port_construction_method %in% c("rp", "hrp", "mvo", "mmaf")) {
-      stop("Covariance estimation method is only available for 'rp', 'hrp', 'mvo' and 'mmaf' strategies.")
+    # slsaf is included because its long leg may itself be covariance-based
+    if (!object@port_construction_method %in% c("rp", "hrp", "mvo", "mmaf", "slsaf")) {
+      stop("Covariance estimation method is only available for 'rp', 'hrp', 'mvo', 'mmaf' and 'slsaf' strategies.")
     }
 
     # Check for existence of selected_benchmark
@@ -3580,8 +3581,9 @@ setMethod(
   "add_cov_est_method", signature(object = "port_backtest_config", cov_est_method = "missing"),
   function(object, cov_est_method, cov_estimation_method = "sample", cov_matrix_sample_size = 252, active_returns = TRUE, cov_matrix_benchmark = NULL, ...) {
     # Check for sb algo
-    if (!object@port_construction_method %in% c("rp", "hrp", "mvo", "mmaf")) {
-      stop("Covariance estimation method is only available for 'rp', 'hrp', 'mvo' and 'mmaf' strategies.")
+    # slsaf is included because its long leg may itself be covariance-based
+    if (!object@port_construction_method %in% c("rp", "hrp", "mvo", "mmaf", "slsaf")) {
+      stop("Covariance estimation method is only available for 'rp', 'hrp', 'mvo', 'mmaf' and 'slsaf' strategies.")
     }
 
     # Check for existence of selected_benchmark
@@ -4272,6 +4274,191 @@ setMethod(
 )
 
 
+# sub_port_config--------------------------------------------------------
+#' @title Create a Sub Portfolio Configuration
+#'
+#' @description Constructor for a `sub_port_config` object, the specification of one
+#' inner portfolio built by a layered (`*af`) portfolio construction method. It says
+#' which construction method the recursive `set_portfolio_weights()` call must use, and
+#' carries the parameters of that method.
+#'
+#' @param port_construction_method A character string with the method used to build the
+#' sub-portfolio. Must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'hrp' or 'mvo'.
+#' @param mvo_parameters An object of class `mvo_parameters`. Only used when
+#' `port_construction_method` is 'mvo'. If missing for 'mvo', a default is created.
+#' @param rp_parameters An object of class `rp_parameters`. Only used when
+#' `port_construction_method` is 'rp'. If missing for 'rp', a default is created.
+#' @param hrp_parameters An object of class `hrp_parameters`. Only used when
+#' `port_construction_method` is 'hrp'. If missing for 'hrp', a default is created.
+#' @param class A character string naming the class to instantiate. Defaults to
+#' `"sub_port_config"`. Any class extending it (e.g. `"mmaf_sub_port_config"`) is accepted,
+#' which lets each layered method keep a self-documenting class name while sharing one
+#' configuration contract.
+#'
+#' @return An S4 object of class `sub_port_config` (or of the requested subclass).
+#' @export
+#'
+create_sub_port_config <- function(port_construction_method,
+                                   mvo_parameters = NULL,
+                                   rp_parameters = NULL,
+                                   hrp_parameters = NULL,
+                                   class = "sub_port_config") {
+
+  ## Requested class must extend sub_port_config
+  ###################
+  if (length(class) != 1 || !is.character(class) || is.na(class)) {
+    stop("class must be a single non-NA character string.")
+  }
+  if (!methods::extends(class, "sub_port_config")) {
+    stop("class must be 'sub_port_config' or a class extending it.")
+  }
+  ###################
+
+  ## Fill in defaults for the method actually being used
+  ###################
+  ### Mirrors create_port_backtest_config: a method-specific parameter object is never
+  ### required from the caller, only honoured when supplied.
+  if (port_construction_method == "mvo" && is.null(mvo_parameters)) {
+    mvo_parameters <- create_mvo_parameters()
+  }
+  if (port_construction_method == "rp" && is.null(rp_parameters)) {
+    rp_parameters <- create_rp_parameters()
+  }
+  if (port_construction_method == "hrp" && is.null(hrp_parameters)) {
+    hrp_parameters <- create_hrp_parameters()
+  }
+  ###################
+
+  ## Build and validate
+  ###################
+  obj <- methods::new(
+    class,
+    port_construction_method = port_construction_method,
+    mvo_parameters = mvo_parameters,
+    rp_parameters = rp_parameters,
+    hrp_parameters = hrp_parameters
+  )
+  methods::validObject(obj)
+  obj
+  ###################
+}
+
+
+# slsaf_parameters-------------------------------------------------------
+#' @title Create SLSAF (Simulated Long-Short Allocation Framework) Parameters
+#'
+#' @description Constructor for an `slsaf_parameters` object, the configuration of a
+#' long-only benchmark-relative portfolio built as a benchmark position plus a
+#' self-financing active overlay.
+#'
+#' @details
+#' Only the long leg is configurable. The short leg is always signal weighted on the
+#' badness score from \code{\link{compute_short_leg_scores}}, because a risk-based method
+#' would grant the largest underweight to the name contributing least to active risk.
+#'
+#' On the exponents: `bench_weight_tilt_eta = 1` is the benchmark-proportional anchor,
+#' where the whole available budget converts into realized underweight and every
+#' ineligible constituent is sold in full. `badness_tilt_eta` moves away from that
+#' anchor, concentrating underweight on the worst names and giving up budget in
+#' exchange. Tracking error is otherwise governed by `eligibility_quantile_range` (which
+#' sets how much benchmark mass falls outside the eligible set) and by how concentrated
+#' the long leg is.
+#'
+#' @param long_port_construction_method A character string with the method used to build
+#' the long leg. Must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'hrp' or 'mvo'. Ignored if
+#' `long_port_config` is supplied.
+#' @param long_port_config An object of class `sub_port_config`. If missing, one is
+#' created from `long_port_construction_method`.
+#' @param bench_weight_tilt_eta A numeric exponent applied to the benchmark weight in the
+#' short-leg score. Defaults to 1.
+#' @param badness_tilt_eta A non-negative numeric exponent applied to the badness score.
+#' Defaults to 1.
+#' @param max_short_budget An optional numeric in (0, 1] capping the realized active
+#' budget. Defaults to NULL, leaving it endogenous.
+#'
+#' @return An S4 object of class `slsaf_parameters`.
+#' @export
+#'
+create_slsaf_parameters <- function(long_port_construction_method = "sw",
+                                    long_port_config = NULL,
+                                    bench_weight_tilt_eta = 1,
+                                    badness_tilt_eta = 1,
+                                    max_short_budget = NULL) {
+
+  ## Build the long leg configuration when one was not supplied directly
+  if (is.null(long_port_config)) {
+    long_port_config <- create_sub_port_config(
+      port_construction_method = long_port_construction_method
+    )
+  }
+
+  ## Build and validate
+  slsaf_params <- methods::new(
+    "slsaf_parameters",
+    long_port_config      = long_port_config,
+    bench_weight_tilt_eta = bench_weight_tilt_eta,
+    badness_tilt_eta      = badness_tilt_eta,
+    max_short_budget      = max_short_budget
+  )
+  methods::validObject(slsaf_params)
+
+  return(slsaf_params)
+}
+
+
+#' @title Add slsaf_parameters to a backtest config
+#'
+#' @description
+#' Either add an existing `slsaf_parameters` object to a `port_backtest_config`, or
+#' create one dynamically from the same arguments as
+#' \code{\link{create_slsaf_parameters}}.
+#'
+#' @param object An object of class `port_backtest_config`.
+#' @param slsaf_params An object of class `slsaf_parameters`, or missing if a new one is
+#' to be created.
+#' @param ... Additional arguments passed to \code{\link{create_slsaf_parameters}} when
+#' `slsaf_params` is missing.
+#'
+#' @return An updated `port_backtest_config` with the `slsaf_parameters` added.
+#' @export
+setGeneric("add_slsaf_parameters", function(object, slsaf_params, ...) {
+  standardGeneric("add_slsaf_parameters")
+})
+
+
+#' @describeIn add_slsaf_parameters Add an existing `slsaf_parameters` object.
+#' @export
+setMethod(
+  "add_slsaf_parameters",
+  signature(object = "port_backtest_config", slsaf_params = "slsaf_parameters"),
+  function(object, slsaf_params, ...) {
+
+    if (object@port_construction_method != "slsaf") {
+      stop("SLSAF parameters can only be added when port_construction_method = 'slsaf'.")
+    }
+
+    object@slsaf_parameters <- slsaf_params
+    methods::validObject(object)
+
+    return(object)
+  }
+)
+
+
+#' @describeIn add_slsaf_parameters Dynamically create an `slsaf_parameters` object and add it.
+#' @export
+setMethod(
+  "add_slsaf_parameters",
+  signature(object = "port_backtest_config", slsaf_params = "missing"),
+  function(object, slsaf_params, ...) {
+
+    slsaf_params <- create_slsaf_parameters(...)
+
+    add_slsaf_parameters(object, slsaf_params)
+  }
+)
+
+
 # mmaf_parameters--------------------------------------------------------
 #' @title Create MMAF (Micro Macro Allocation Framework) Parameters
 #'
@@ -4765,6 +4952,8 @@ setMethod(
 #' If missing and port_construction_method is "hrp", a default is created.
 #' @param mmaf_parameters An object of class `mmaf_parameters` for micro-macro allocation framework portfolios. Only required if `port_construction_method` is "mmaf".
 #' If missing and port_construction_method is "mmaf", a default is created (and `enable_group_representativeness` defaults to `TRUE`).
+#' @param slsaf_parameters An object of class `slsaf_parameters` for simulated long-short allocation framework portfolios. Only required if `port_construction_method` is "slsaf".
+#' If missing and port_construction_method is "slsaf", a default is created with a signal-weighted long leg.
 #' @param main_liquidity_metric A character string indicating which liquidity metric (i.e. column in liquidity_m_df) to use.
 #' @param liquidity_floor_cutoffs An object (e.g., a data frame) containing liquidity cutoff values.
 #' @param liquidity_constraint_policy An object of class `liquidity_constraint_policy` (optional).
@@ -4816,6 +5005,7 @@ create_port_backtest_config <- function(chosen_score_metric_and_position = NULL,
                                         rp_parameters = NULL,
                                         hrp_parameters = NULL,
                                         mmaf_parameters = NULL,
+                                        slsaf_parameters = NULL,
                                         main_liquidity_metric,
                                         liquidity_floor_cutoffs = NULL,
                                         liquidity_constraint_policy = NULL,
@@ -4885,6 +5075,16 @@ create_port_backtest_config <- function(chosen_score_metric_and_position = NULL,
     )
   }
 
+  # If the method is slsaf and no slsaf_parameters are provided, create defaults
+  if (port_construction_method == "slsaf" && is.null(slsaf_parameters)) {
+    slsaf_parameters <- create_slsaf_parameters(
+      long_port_construction_method = "sw",
+      bench_weight_tilt_eta = 1,
+      badness_tilt_eta = 1,
+      max_short_budget = NULL
+    )
+  }
+
   # If method is mmaf and enable_group_representativeness is NULL, set it to TRUE and message
   if (port_construction_method == "mmaf" && is.null(enable_group_representativeness)) {
     enable_group_representativeness <- TRUE
@@ -4909,6 +5109,7 @@ create_port_backtest_config <- function(chosen_score_metric_and_position = NULL,
     rp_parameters = rp_parameters,
     hrp_parameters = hrp_parameters,
     mmaf_parameters = mmaf_parameters,
+    slsaf_parameters = slsaf_parameters,
     main_liquidity_metric = main_liquidity_metric,
     liquidity_floor_cutoffs = liquidity_floor_cutoffs,
     liquidity_constraint_policy = liquidity_constraint_policy,

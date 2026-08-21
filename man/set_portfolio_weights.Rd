@@ -33,6 +33,10 @@ set_portfolio_weights(
   exp_ret_score_tilt_eta = NULL,
   linkage = "single",
   custom_weights_m_d_ref = NULL,
+  sub_port_configs = NULL,
+  bench_weight_tilt_eta = 1,
+  badness_tilt_eta = 1,
+  max_short_budget = NULL,
   mmaf_method = "bottom_up",
   top_down_proxy_port_method,
   mmaf_group_col,
@@ -74,6 +78,7 @@ set_portfolio_weights(
 \item{\code{hrp}}{Hierarchical Risk-Parity Portfolio}
 \item{\code{mvo}}{Mean-Variance (resampled) Optimization}
 \item{\code{mmaf}}{Micro-Macro Allocation Framework Portfolio}
+\item{\code{slsaf}}{Simulated Long-Short Allocation Framework Portfolio}
 \item{\code{custom_weights}}{User-supplied weights, via \code{custom_weights_m_d_ref}}
 }}
 
@@ -128,6 +133,21 @@ matrix eigenvalues during resampling. Defaults to \code{0}.}
 \item{linkage}{Character. Linkage method for hierarchical clustering in Risk Parity. Defaults to \code{"single"}.}
 
 \item{custom_weights_m_d_ref}{A meta dataframe containing custom user-defined weights. Required when \code{port_construction_method = "custom_weights"}. Must contain columns \code{tickers}, \code{dates}, and \code{weights}.}
+
+\item{sub_port_configs}{A named list of \code{sub_port_config} objects describing the inner
+portfolios of a layered method. \code{slsaf} reads \code{sub_port_configs$long}. Each inner call
+is parameterized from its own configuration rather than from the parent method's
+arguments.}
+
+\item{bench_weight_tilt_eta}{Numeric exponent applied to the benchmark weight in the
+\code{slsaf} short-leg score. Defaults to 1, the benchmark-proportional anchor.}
+
+\item{badness_tilt_eta}{Numeric exponent applied to the badness score in the \code{slsaf}
+short leg. Defaults to 1. Higher values concentrate underweight on the worst names
+and give up active budget in exchange.}
+
+\item{max_short_budget}{Optional numeric in (0, 1]. Ceiling on the \code{slsaf} realized
+active budget.}
 
 \item{mmaf_method}{Character. Method for Micro-Macro Allocation Framework. Options are \code{"bottom_up"} or \code{"top_down"}. Defaults to \code{"bottom_up"}.}
 

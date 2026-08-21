@@ -8031,6 +8031,27 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_
     "Port Stats"
   )
 
+  # SLSAF portfolios carry a dimension no other method has, the split of the universe
+  # into a long block that may be bought and a short block that may only be
+  # underweighted. Almost every question worth asking of such a portfolio is a contrast
+  # between those two blocks, so those plots are appended only when the method is in use.
+  is_slsaf <- identical(x@port_construction_method, "slsaf")
+
+  if (isTRUE(is_slsaf)) {
+    available_plots <- c(
+      available_plots,
+      "SLSAF Weight Decomposition",
+      "SLSAF Benchmark Coverage by Leg",
+      "SLSAF Expected Return Score by Leg",
+      "SLSAF Expected Return Score Distribution by Leg",
+      "SLSAF Tracking Error Contribution by Leg",
+      "SLSAF Sector Composition by Leg",
+      "SLSAF Capitalization Profile by Leg",
+      "SLSAF Underweight Intensity Profile",
+      "SLSAF Budget and Grading"
+    )
+  }
+
 
   if (is.null(plot_id)) {
     cat("\nPlease choose a plot to display:\n")
@@ -8348,6 +8369,148 @@ setMethod("plot", "port_backtest_results", function(x, plot_id = NULL, vertical_
       plot(port_stats_m_df, palette = palette)
     } else {
       stop("No port_stats available to plot.")
+    }
+
+  } else if (grepl("^SLSAF ", plot_name)){
+
+    # SLSAF leg contrasts------------------------------------------------------
+
+      ## Everything below is rendered by the ordinary meta_dataframe plot methods over
+      ## purpose-built frames, so no bespoke plotting logic is introduced. The frames
+      ## are keyed by leg, by budget component or by asset, depending on the question.
+      slsaf_benchmark <- x@port_backtest_config@selected_benchmark
+
+      if (is.null(slsaf_benchmark)){
+        stop("SLSAF plots require the backtest to carry a selected_benchmark.")
+      }
+
+      slsaf_plot_objects <- build_slsaf_plot_m_dfs(
+        stock_universe_m_df = stock_universe_m_df,
+        selected_benchmark = slsaf_benchmark,
+        group_col = if (exists("group_col")) group_col else NULL
+      )
+
+    if (plot_name == "SLSAF Weight Decomposition"){
+
+      ## Where every unit of portfolio weight comes from. The three components sum to
+      ## 1: the index positions the short leg kept, the index positions the long leg
+      ## already held, and the active weight the long leg received on top.
+      plot(slsaf_plot_objects$budget, type = "time_series", clustering_variables = "tickers",
+           variable = "weight", calc_stat = "sum", palette = palette)
+
+    } else if (plot_name == "SLSAF Benchmark Coverage by Leg"){
+
+      ## How much of the index the eligibility cascade is willing to buy, against how
+      ## much it will only ever underweight. This is the single number that governs how
+      ## much active budget the method can release.
+      plot(slsaf_plot_objects$coverage, type = "time_series", clustering_variables = "tickers",
+           variable = "bench_mass", calc_stat = "sum", palette = palette)
+
+    } else if (plot_name == "SLSAF Expected Return Score by Leg"){
+
+      ## The sanity check that matters most: the names being sold should score worse
+      ## than the names being bought. Weighted by the active exposure actually taken,
+      ## so it answers "what am I buying against what am I selling" rather than "what
+      ## sits in each block". An eligibility rule other than the score, most often a
+      ## strict liquidity floor, can invert this.
+      plot(slsaf_plot_objects$leg_score, type = "time_series", clustering_variables = "tickers",
+           variable = "wmean_exp_ret_score", calc_stat = "mean", palette = palette)
+
+    } else if (plot_name == "SLSAF Expected Return Score Distribution by Leg"){
+
+      ## The same comparison as a distribution rather than a mean, which shows overlap
+      ## between the blocks that a mean would hide
+      plot(slsaf_plot_objects$universe_with_leg, type = "boxplot",
+           clustering_variables = "leg", variable = "exp_ret_score",
+           calc_stat = "mean", palette = palette)
+
+    } else if (plot_name == "SLSAF Tracking Error Contribution by Leg"){
+
+      ## Which leg actually drives active risk. Read against the leg's share of gross
+      ## active weight: a leg carrying far more risk than weight is the one to examine.
+      if (all(is.na(slsaf_plot_objects$diagnostics$leg_summary$rrc_share))){
+        stop(paste0("No active risk contributions available: this backtest ran without a ",
+                    "covariance matrix, so tracking error cannot be attributed. Supply ",
+                    "daily_stock_returns_m_xts to enable this plot."))
+      }
+
+      plot(slsaf_plot_objects$leg_risk, type = "time_series", clustering_variables = "tickers",
+           variable = "rrc_share", calc_stat = "sum", palette = palette)
+
+    } else if (plot_name == "SLSAF Sector Composition by Leg"){
+
+      ## Sector composition within each block, so a structural sector bet created by the
+      ## eligibility split rather than by conviction becomes visible
+      slsaf_group_col <- if (!is.null(group_col)) group_col else "sectors"
+
+      if (!slsaf_group_col %in% names(slsaf_plot_objects$universe_with_leg@data)){
+        stop("No sector column available in the stock universe for this plot.")
+      }
+
+      plot(slsaf_plot_objects$universe_with_leg, type = "composition",
+           variable = slsaf_group_col, custom_filter = "leg",
+           filter_values = c("Long leg", "Short leg"), palette = palette)
+
+    } else if (plot_name == "SLSAF Capitalization Profile by Leg"){
+
+      ## Whether underweights are concentrating in small caps, which is the expected
+      ## degradation mode: small index positions are the ones the cap sells in full
+      if (!"liquidity_classification" %in% names(slsaf_plot_objects$universe_with_leg@data)){
+        stop(paste0("No liquidity_classification column available: supply a ",
+                    "liquidity_constraint_policy to enable this plot."))
+      }
+
+      plot(slsaf_plot_objects$universe_with_leg, type = "composition",
+           variable = "liquidity_classification", custom_filter = "leg",
+           filter_values = c("Long leg", "Short leg"), palette = palette)
+
+    } else if (plot_name == "SLSAF Underweight Intensity Profile"){
+
+      ## Per constituent, how much of its index position was given up against how bad
+      ## the signal said it was. This is where the two exponents and the cap become
+      ## directly visible: a flat cloud at 1 means the cap is dominating and the
+      ## grading the method exists to produce has collapsed.
+      plot(slsaf_plot_objects$underweight, type = "regression",
+           variable = "badness", dep_y = "relative_trim", palette = palette)
+
+    } else if (plot_name == "SLSAF Budget and Grading"){
+
+      ## The budget available against the budget actually realized. The gap between the
+      ## two lines is the whole point of the plot: it is the capping loss, what the
+      ## grading gives up by refusing to sell more of a constituent than the benchmark
+      ## actually holds. The count of fully sold names is deliberately not drawn here,
+      ## because a count on a weight axis would need a second scale, and the underweight
+      ## intensity profile already shows where the cap binds.
+      if (is.null(port_stats_m_df)){
+        stop("No port_stats available to plot.")
+      }
+
+      budget_cols <- c("slsaf_short_budget", "slsaf_active_budget")
+      if (!all(budget_cols %in% colnames(port_stats_m_df@data))){
+        stop("port_stats does not carry the slsaf budget diagnostics.")
+      }
+
+      ### Two series in long form, keyed by the series name, which is how every other
+      ### multi-series plot in this file is assembled
+      slsaf_stats_m_df <- port_stats_m_df
+      slsaf_stats_m_df@data <- port_stats_m_df@data %>%
+        dplyr::select(dplyr::all_of(c("dates", budget_cols))) %>%
+        tidyr::pivot_longer(cols = dplyr::all_of(budget_cols),
+                            names_to = "tickers", values_to = "budget") %>%
+        dplyr::mutate(
+          tickers = dplyr::recode(tickers,
+                                  slsaf_short_budget  = "Budget available",
+                                  slsaf_active_budget = "Budget realized"),
+          dates   = as.Date(dates),
+          id      = paste0(tickers, "-", dates)
+        ) %>%
+        dplyr::relocate(id, tickers, dates) %>%
+        dplyr::arrange(id) %>%
+        as.data.frame()
+
+      plot(slsaf_stats_m_df, type = "time_series", clustering_variables = "tickers",
+           variable = "budget", calc_stat = "mean", palette = palette)
+
     }
 
   } else {

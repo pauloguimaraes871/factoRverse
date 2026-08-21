@@ -1206,3 +1206,144 @@ validate_port_construction_methods <- function(
 
 }
 
+
+
+#validate_sub_port_config-------------------------------------------------------
+#' Validate a Sub Portfolio Configuration
+#'
+#' @description
+#' Validates a `sub_port_config` (or any class extending it, such as
+#' `mmaf_sub_port_config`). It is the single validity contract shared by every layered
+#' (`*af`) portfolio construction method, so that a sub-portfolio is specified the same
+#' way regardless of which method builds it.
+#'
+#' @param object An object of class `sub_port_config` or of a class extending it.
+#'
+#' @return `TRUE` invisibly if the configuration is valid. Stops with an informative
+#' message otherwise.
+#'
+#' @details
+#' Checks performed:
+#' \itemize{
+#'   \item `port_construction_method` is a single, non-`NA` character among the methods
+#'         a sub-portfolio may use ('ew', 'sw', 'cw', 'cs', 'rp', 'hrp', 'mvo').
+#'         Layered methods are excluded on purpose: nesting one layered method inside
+#'         another is not supported.
+#'   \item the parameter object matching that method, when supplied, has the expected S4
+#'         class. Parameter objects that do not match the method are left untouched
+#'         (they are inert, not invalid).
+#' }
+validate_sub_port_config <- function(object){
+
+  ## Method must be a single, usable character
+  ###################
+  port_construction_method <- object@port_construction_method
+
+  if (length(port_construction_method) != 1 ||
+      !is.character(port_construction_method) ||
+      is.na(port_construction_method)){
+    stop("port_construction_method must be a single non-NA character string.")
+  }
+
+  ### Layered methods are deliberately absent: a sub-portfolio may not itself be layered
+  if (!port_construction_method %in% c("ew", "sw", "cw", "cs", "rp", "hrp", "mvo")){
+    stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'hrp' or 'mvo'.")
+  }
+  ###################
+
+  ## Parameter object matching the method must have the expected class
+  ###################
+  ### Only the parameters of the chosen method are consulted, so a mismatched
+  ### (but well-formed) parameter object stays inert rather than invalid.
+  parameter_slot <- c(mvo = "mvo_parameters",
+                      rp  = "rp_parameters",
+                      hrp = "hrp_parameters")
+  parameter_class <- c(mvo = "mvo_parameters",
+                       rp  = "rp_parameters",
+                       hrp = "hrp_parameters")
+
+  if (port_construction_method %in% names(parameter_slot)){
+
+    slot_name <- parameter_slot[[port_construction_method]]
+    expected_class <- parameter_class[[port_construction_method]]
+    supplied_parameters <- methods::slot(object, slot_name)
+
+    if (!is.null(supplied_parameters) && !methods::is(supplied_parameters, expected_class)){
+      stop(paste0(slot_name, " must be of class '", expected_class,
+                  "' when port_construction_method is '", port_construction_method, "'."))
+    }
+  }
+  ###################
+
+  invisible(TRUE)
+}
+
+
+#validate_slsaf_parameters------------------------------------------------------
+#' Validate SLSAF Parameters
+#'
+#' @description
+#' Validates an `slsaf_parameters` object, the configuration of the Simulated Long-Short
+#' Allocation Framework.
+#'
+#' @param object An object of class `slsaf_parameters`.
+#'
+#' @return `TRUE` invisibly if the configuration is valid. Stops with an informative
+#' message otherwise.
+validate_slsaf_parameters <- function(object){
+
+  ## Long leg configuration
+  ###################
+  ### The short leg has no method to configure: it is always signal weighted on the
+  ### badness score, so only the long leg carries a sub-portfolio configuration.
+  if (is.null(object@long_port_config)){
+    stop("long_port_config is required for slsaf portfolios.")
+  }
+  if (!methods::is(object@long_port_config, "sub_port_config")){
+    stop("long_port_config must be of class 'sub_port_config'.")
+  }
+  validate_sub_port_config(object@long_port_config)
+
+  ### A ridge penalty on the long leg is accepted by the config but cannot run. The
+  ### target_weights column is joined into the universe by classify_investment_universe()
+  ### only when the top-level ridge_pen is set, and under slsaf that stays NULL because
+  ### the MVO parameters travel inside long_port_config. The recursive MVO call would then
+  ### select a column that was never joined. Routing a target into the long block is not a
+  ### matter of plumbing: the target is defined over the whole universe while the long
+  ### block is a strict subset, so it would have to be renormalized, which changes what
+  ### the penalty shrinks towards. Reject until that contract is designed.
+  if (!is.null(object@long_port_config@mvo_parameters) &&
+      !is.null(object@long_port_config@mvo_parameters@ridge_pen)){
+    stop("ridge_pen is not supported for the slsaf long leg: no target portfolio is routed to the long block.")
+  }
+  ###################
+
+  ## Score exponents
+  ###################
+  if (length(object@bench_weight_tilt_eta) != 1 || !is.finite(object@bench_weight_tilt_eta)){
+    stop("bench_weight_tilt_eta must be a single finite numeric value.")
+  }
+  if (length(object@badness_tilt_eta) != 1 || !is.finite(object@badness_tilt_eta)){
+    stop("badness_tilt_eta must be a single finite numeric value.")
+  }
+
+  ### A negative badness exponent would grant the largest underweight to the names with
+  ### the best scores, which inverts the meaning of the leg
+  if (object@badness_tilt_eta < 0){
+    stop("badness_tilt_eta must be non-negative: a negative exponent would underweight the best-scoring names the most.")
+  }
+  ###################
+
+  ## Active budget ceiling
+  ###################
+  if (!is.null(object@max_short_budget)){
+    if (!is.numeric(object@max_short_budget) || length(object@max_short_budget) != 1 ||
+        !is.finite(object@max_short_budget) ||
+        object@max_short_budget <= 0 || object@max_short_budget > 1){
+      stop("max_short_budget must be NULL or a single numeric value in (0, 1].")
+    }
+  }
+  ###################
+
+  invisible(TRUE)
+}

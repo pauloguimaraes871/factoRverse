@@ -13,6 +13,7 @@
 #'   \item{\code{hrp}}{Hierarchical Risk-Parity Portfolio}
 #'   \item{\code{mvo}}{Mean-Variance (resampled) Optimization}
 #'   \item{\code{mmaf}}{Micro-Macro Allocation Framework Portfolio}
+#'   \item{\code{slsaf}}{Simulated Long-Short Allocation Framework Portfolio}
 #'   \item{\code{custom_weights}}{User-supplied weights, via \code{custom_weights_m_d_ref}}
 #' }
 #' @param liquidity_m_d_ref An optional data frame or matrix containing liquidity metrics for the signals, used for capitalization weighting and scaling. Defaults to \code{NULL}.
@@ -34,6 +35,17 @@
 #' @param exp_ret_score_tilt_eta  Numeric. The intensity of the tilt effect when using `exp_ret_score_tilt`. Higher values increase the tilt effect.
 #' @param linkage Character. Linkage method for hierarchical clustering in Risk Parity. Defaults to `"single"`.
 #' @param custom_weights_m_d_ref A meta dataframe containing custom user-defined weights. Required when `port_construction_method = "custom_weights"`. Must contain columns `tickers`, `dates`, and `weights`.
+#' @param sub_port_configs A named list of `sub_port_config` objects describing the inner
+#'   portfolios of a layered method. `slsaf` reads `sub_port_configs$long`. Each inner call
+#'   is parameterized from its own configuration rather than from the parent method's
+#'   arguments.
+#' @param bench_weight_tilt_eta Numeric exponent applied to the benchmark weight in the
+#'   `slsaf` short-leg score. Defaults to 1, the benchmark-proportional anchor.
+#' @param badness_tilt_eta Numeric exponent applied to the badness score in the `slsaf`
+#'   short leg. Defaults to 1. Higher values concentrate underweight on the worst names
+#'   and give up active budget in exchange.
+#' @param max_short_budget Optional numeric in (0, 1]. Ceiling on the `slsaf` realized
+#'   active budget.
 #' @param n_random_ports An optional numeric value indicating the number of random portfolios to generate for optimization methods. Defaults to \code{NULL}.
 #' @param random_ports_method An optional character string specifying the method for risk parity optimization. Defaults to \code{NULL}.
 #' @param opt_objective Objective of mean-tracking error optimization. Defaults to \code{NULL}.
@@ -86,6 +98,10 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
                                   rp_method = "cyclical-spinu", exp_ret_score_tilt = NULL, exp_ret_score_tilt_eta = NULL,
                                   linkage = "single", #Risk Parity
                                   custom_weights_m_d_ref = NULL, #Custom Weights
+                                  ## Layered methods
+                                  sub_port_configs = NULL,
+                                  ## SLSAF
+                                  bench_weight_tilt_eta = 1, badness_tilt_eta = 1, max_short_budget = NULL,
                                   ## MMAF
                                   mmaf_method = "bottom_up", top_down_proxy_port_method, mmaf_group_col,
                                   micro_port_construction_method = NULL, #Micro portfolio construction method
@@ -143,7 +159,14 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
       )
     } else {
       covariance_matrix <- NULL
-      if(port_construction_method %in% c("rp", "hrp", "mvo", "mmaf")){
+      ### A layered method needs a covariance matrix only when one of its inner
+      ### portfolios does, so resolve the requirement from the sub-configurations
+      requires_covariance <- port_construction_method %in% c("rp", "hrp", "mvo", "mmaf") ||
+        (port_construction_method == "slsaf" &&
+           !is.null(sub_port_configs$long) &&
+           sub_port_configs$long@port_construction_method %in% c("rp", "hrp", "mvo"))
+
+      if(requires_covariance){
         stop("Covariance matrix estimation requires returns data.")
       }
     }
@@ -236,6 +259,25 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
       n_random_ports = n_random_ports,  random_ports_method = random_ports_method, opt_objective = opt_objective, opt_method = opt_method, #MVO methods
       ridge_pen = ridge_pen, #Ridge penalty
       n_resamples = n_resamples, exp_ret_score_jitter = exp_ret_score_jitter, cov_eigval_jitter = cov_eigval_jitter #MVO
+    ),
+
+    #Simulated Long-Short Allocation Framework
+    slsaf = create_slsaf_portfolio(
+      universe_m_d_ref = universe_m_d_ref, #Signal Universe, already split into blocks
+      selected_benchmark = selected_benchmark,
+      long_port_config = sub_port_configs$long, #Long leg method and its parameters
+      bench_weight_tilt_eta = bench_weight_tilt_eta, badness_tilt_eta = badness_tilt_eta, #Short leg score
+      max_short_budget = max_short_budget, #Active budget ceiling
+      covariance_matrix = covariance_matrix,
+      eligible_returns_m_xts_upd_ref = eligible_returns_m_xts_upd_ref,
+      selected_benchmark_m_xts_upd_ref = selected_benchmark_m_xts_upd_ref,
+      active_returns = active_returns, #Returns to estimate cov matrix
+      cov_estimation_method = cov_estimation_method,
+      cov_matrix_sample_size = cov_matrix_sample_size, #How to estimate covariance matrix?
+      groups_m_d_ref = groups_m_d_ref,
+      liquidity_m_d_ref = liquidity_m_d_ref, cap_weighting_metric = cap_weighting_metric,
+      lower_quantile_winsorization = lower_quantile_winsorization, upper_quantile_winsorization = upper_quantile_winsorization,
+      parallel = parallel, verbose = verbose
     ),
 
     #Micro-Macro Allocation Framework
@@ -533,6 +575,23 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
 
   port_stats <- stats_res$port_stats
 
+    #### Layered methods report their own diagnostics alongside the standard statistics.
+    #### Living in port_stats means they are collected per rebalance date into
+    #### port_stats_m_df for free, and stay auditable next to the metrics they explain.
+    if (port_construction_method == "slsaf"){
+      port_stats <- cbind(
+        port_stats,
+        data.frame(
+          slsaf_short_budget   = port_results_list$short_budget,
+          slsaf_active_budget  = port_results_list$active_budget,
+          slsaf_n_long         = port_results_list$n_long,
+          slsaf_n_short        = port_results_list$n_short,
+          slsaf_n_zeroed       = port_results_list$n_zeroed,
+          stringsAsFactors = FALSE
+        )
+      )
+    }
+
     #### If level is 'port' and a benchmark is provided to port_stats, add act_weights and act_rel_risk_contr columns
     if (level %in% c("port", "sub_port") && !is.null(selected_benchmark)){
       universe_m_d_ref <- universe_m_d_ref %>%
@@ -559,7 +618,7 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
                             universe_m_d_ref = suppressMessages(create_meta_dataframe(universe_m_d_ref %>% dplyr::arrange(id))), ##Re-order according to id
                             port_construction_method = port_construction_method,
                             eligible_assets = eligible_assets,
-                            exp_ret_score = if (port_construction_method %in% c("sw", "cs", "mvo", "mmaf") || (port_construction_method %in% c("rp", "hrp") && !is.null(exp_ret_score_tilt) && exp_ret_score_tilt != "none")){
+                            exp_ret_score = if (port_construction_method %in% c("sw", "cs", "mvo", "mmaf", "slsaf") || (port_construction_method %in% c("rp", "hrp") && !is.null(exp_ret_score_tilt) && exp_ret_score_tilt != "none")){
                               eligible_universe_m_d_ref %>% dplyr::pull(exp_ret_score)
                             } else NULL,
                             covariance_matrix = covariance_matrix,
@@ -575,7 +634,7 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
                             group_col = group_col,
                             mmaf_method = if (port_construction_method == "mmaf") mmaf_method else NULL,
                             group_cov_matrix = group_cov_matrix,
-                            micro = if (port_construction_method == "mmaf") port_results_list$micro else NULL,
+                            micro = if (port_construction_method %in% c("mmaf", "slsaf")) port_results_list$micro else NULL,
                             macro = macro_port_obj,
                             port_stats = port_stats,
                             selected_benchmark_port = selected_benchmark_port_obj,

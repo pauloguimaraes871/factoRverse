@@ -8,6 +8,11 @@
 An S4 class to represent the configuration of micro or macro portfolios
 in the MMAF portfolio construction method.
 }
+\details{
+Extends \linkS4class{sub_port_config} without adding slots or validity rules. It exists so
+that MMAF configurations keep a distinct, self-documenting class name while sharing a
+single configuration contract with every other layered (\verb{*af}) method.
+}
 \section{Slots}{
 
 \describe{

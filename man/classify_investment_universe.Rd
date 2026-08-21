@@ -26,6 +26,7 @@ classify_investment_universe(
   ridge_pen = NULL,
   user_defined_AND_rules_m_d_ref = NULL,
   user_defined_OR_rules_m_d_ref = NULL,
+  include_benchmark_in_universe = FALSE,
   asset_object = "stocks",
   use_raw_for_eligibility = FALSE,
   verbose = TRUE
@@ -110,6 +111,15 @@ The rule will be appended to the filter as a regular promotion rule, accumulatin
 
 \item{user_defined_OR_rules_m_d_ref}{Optional. A named list of named data frames containing a column with tickers, columns with metrics to be passed to the final data frame, and a column that describes the filter with the same name as the list element.
 All tickers in the current stock universe must have a unique correspondence in this data frame.}
+
+\item{include_benchmark_in_universe}{Logical. If TRUE, every benchmark constituent is
+added to the eligible universe and the universe is split into two conviction blocks:
+\code{is_long_candidate} (the outcome of the regular promotion cascade, i.e. what may be
+bought) and \code{is_short_candidate} (benchmark constituents the cascade rejected, i.e.
+what may only be underweighted). \code{is_eligible} becomes the union of the two. This is
+required by long/short layered methods such as \code{slsaf}, which must represent the whole
+benchmark in order to express an underweight. Requires \code{selected_benchmark} and
+\code{benchmark_weights_m_d_ref}. Defaults to FALSE, leaving eligibility unchanged.}
 
 \item{asset_object}{A character indicating whether the analysis is being applied to "stocks" or "signal_portfolios"}
 

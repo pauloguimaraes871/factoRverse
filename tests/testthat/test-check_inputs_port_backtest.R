@@ -5103,7 +5103,7 @@ test_that("check_inputs_port_backtest throws an error when port_construction_met
       user_defined_AND_rules_m_df = NULL,
       port_construction_method = "RP",
       verbose = TRUE
-    ), "port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'hrp', 'mmaf', 'mvo' or 'custom_weights'"
+    ), "port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'hrp', 'mmaf', 'mvo', 'slsaf' or 'custom_weights'"
   )
 
   #cov_est_method missing
@@ -7386,3 +7386,120 @@ test_that("check_inputs_port_backtest throws an error when transaction_cost_pars
 
 
 
+
+#SLSAF
+test_that("check_inputs_port_backtest validates slsaf-specific requirements", {
+
+  #Load
+  load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
+
+  #Override arguments while preserving NULLs, which utils::modifyList would drop
+  with_slsaf_args <- function(base_args, overrides){
+    for (arg_name in names(overrides)) base_args[arg_name] <- overrides[arg_name]
+    base_args
+  }
+
+  #Shared arguments, so each expectation isolates the condition under test
+  slsaf_args <- list(
+    signals_m_df = signals_m_df,
+    oos_predictions_m_df = NULL,
+    min_eligible_assets_fallback = NULL,
+    scaler_m_df = NULL,
+    chosen_scaler = NULL,
+    scaler_shrinkage = NULL,
+    use_raw_for_eligibility = NULL,
+    chosen_score_metric_and_position = c(Alpha = "long"),
+    rebalancing_months = 7,
+    initial_buffer_period = 2,
+    macro_concentration_constraint_policy = NULL,
+    micro_port_construction_method = NULL,
+    macro_port_construction_method = NULL,
+    ridge_pen = NULL,
+    macro_ridge_pen = NULL,
+    eligibility_quantile_range = c(0.5, 0.75),
+    daily_stock_returns_m_xts = daily_stock_returns_m_xts,
+    daily_bench_returns_m_xts = daily_benchmark_returns_m_xts,
+    cov_matrix_benchmark = "ibov",
+    cov_matrix_sample_size = 100,
+    cov_estimation_method = "sample",
+    active_returns = TRUE,
+    selected_benchmark = "ibov",
+    benchmark_returns_m_xts = benchmark_returns_m_xts,
+    stock_groups_m_df = stock_groups_m_df,
+    liquidity_m_df = liquidity_m_df,
+    main_liquidity_metric = "mean_volfin_3m",
+    volatility_m_df = volatility_m_df,
+    benchmark_weights_m_df = benchmark_weights_m_df,
+    custom_stock_weights_m_df = NULL,
+    custom_stock_metrics_m_df = NULL,
+    concentration_constraint_policy = NULL,
+    liquidity_constraint_policy = NULL,
+    turnover_constraint_policy = NULL,
+    liquidity_floor_cutoffs = NULL,
+    user_defined_OR_rules_m_df = NULL,
+    user_defined_AND_rules_m_df = NULL,
+    exp_ret_score_tilt = NULL,
+    exp_ret_score_tilt_eta = NULL,
+    fwd_return_m_df = target_m_df,
+    enable_group_representativeness = NULL,
+    port_construction_method = "slsaf",
+    long_port_construction_method = "sw",
+    transaction_costs_parameters = transaction_costs_parameters,
+    verbose = FALSE
+  )
+
+  #A benchmark and its weights are what the whole construction is relative to
+  expect_error(
+    do.call(check_inputs_port_backtest,
+            with_slsaf_args(slsaf_args, list(selected_benchmark = NULL,
+                                               benchmark_weights_m_df = NULL,
+                                               benchmark_returns_m_xts = NULL,
+                                               cov_matrix_benchmark = NULL,
+                                               active_returns = FALSE))),
+    "selected_benchmark can't be missing if port_construction_method is 'slsaf'"
+  )
+
+  #The long leg must be configured, and may not itself be a layered method
+  expect_error(
+    do.call(check_inputs_port_backtest,
+            with_slsaf_args(slsaf_args, list(long_port_construction_method = NULL))),
+    "long_port_construction_method can't be missing"
+  )
+  expect_error(
+    do.call(check_inputs_port_backtest,
+            with_slsaf_args(slsaf_args, list(long_port_construction_method = "mmaf"))),
+    "long_port_construction_method must be one of"
+  )
+
+  #The overlay already sets every active weight
+  expect_error(
+    do.call(check_inputs_port_backtest,
+            with_slsaf_args(slsaf_args,
+                              list(concentration_constraint_policy = list(
+                                benchmark = "ibov",
+                                max_abs_active_individual_weight = 0.02)))),
+    "concentration_constraint_policy is not supported for 'slsaf'"
+  )
+
+  #The turnover buffer would promote the whole short block into the long block
+  expect_error(
+    do.call(check_inputs_port_backtest,
+            with_slsaf_args(slsaf_args,
+                              list(turnover_constraint_policy = turnover_constraint_policy,
+                                   liquidity_floor_cutoffs = liquidity_floor_cutoffs_df))),
+    "turnover_constraint_policy is not supported for 'slsaf'"
+  )
+
+  #A covariance-based long leg needs returns data
+  expect_error(
+    do.call(check_inputs_port_backtest,
+            with_slsaf_args(slsaf_args,
+                              list(long_port_construction_method = "rp",
+                                   daily_stock_returns_m_xts = NULL,
+                                   daily_bench_returns_m_xts = NULL))),
+    "can't be missing when the slsaf long leg is 'rp', 'hrp' or 'mvo'"
+  )
+
+  #A well-formed slsaf configuration passes
+  expect_silent(suppressMessages(do.call(check_inputs_port_backtest, slsaf_args)))
+})

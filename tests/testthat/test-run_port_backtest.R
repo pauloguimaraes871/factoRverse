@@ -9151,3 +9151,466 @@ test_that("update_port_backtest throws errors for uncompatible objects", {
 
 
 })
+
+#SLSAF
+test_that("run_port_backtest works for a slsaf strategy with a signal-weighted long leg", {
+
+  load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
+
+  chosen_score_metric_and_position <- c(roe_3m = "long")
+  port_config <- create_port_backtest_config(
+    chosen_score_metric_and_position = chosen_score_metric_and_position,
+    eligibility_quantile_range = c(0.67, 1.0),
+    selected_benchmark = "ibov",
+    initial_buffer_period = 5,
+    rebalancing_months = 4,
+    port_construction_method = "slsaf",
+    main_liquidity_metric = "mean_volfin_3m",
+    config_name = "slsaf_model"
+  ) %>%
+    add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1,
+                                     lambda = "dynamic", strategy_aum = 25000)
+
+  #meta_dataframes
+  signals_m_df <- create_meta_dataframe(signals_m_df, type = "signals")
+  fwd_return_m_df <- create_meta_dataframe(fwd_return_m_df, type = "target")
+  liquidity_m_df <- create_meta_dataframe(liquidity_m_df)
+  volatility_m_df <- create_meta_dataframe(volatility_m_df)
+  benchmark_weights_m_df <- create_meta_dataframe(benchmark_weights_m_df, type = "weights")
+  benchmark_returns_m_xts <- create_meta_xts(benchmark_returns_m_xts["2022-10-15/2023-04-15"])
+
+  suppressWarnings(
+    results <- run_port_backtest(signals_m_df = signals_m_df,
+                                 fwd_return_m_df = fwd_return_m_df,
+                                 liquidity_m_df = liquidity_m_df,
+                                 volatility_m_df = volatility_m_df,
+                                 config = port_config,
+                                 benchmark_weights_m_df = benchmark_weights_m_df,
+                                 benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                 verbose = FALSE)
+  )
+
+  expect_s4_class(results, "port_backtest_results")
+  expect_equal(results@port_construction_method, "slsaf")
+
+  #The final portfolio is a valid slsaf portfolio with both legs reported
+  final_port <- results@final_stock_port
+  expect_equal(final_port@port_construction_method, "slsaf")
+  expect_named(final_port@micro, c("long", "short"))
+  expect_s4_class(final_port@micro$long, "port")
+  expect_s4_class(final_port@micro$short, "port")
+
+  #The diagnostics reach port_stats_m_df, which is what makes the endogenous active
+  #budget visible per rebalance date
+  port_stats_m_df <- results@port_stats_m_df@data
+  expect_true(all(c("slsaf_short_budget", "slsaf_active_budget", "slsaf_n_long",
+                    "slsaf_n_short", "slsaf_n_zeroed") %in% names(port_stats_m_df)))
+  expect_true(all(port_stats_m_df$slsaf_active_budget <= port_stats_m_df$slsaf_short_budget + 1e-8))
+  expect_true(all(port_stats_m_df$slsaf_n_long > 0))
+
+  #Every rebalance date must satisfy the construction invariants
+  stock_universe_m_df <- results@stock_universe_m_df@data
+  rebalance_dates <- unique(stock_universe_m_df$dates)
+
+  for (rebalance_date in rebalance_dates){
+
+    universe_m_d_ref <- stock_universe_m_df %>% dplyr::filter(dates == rebalance_date)
+
+    bench_weights <- universe_m_d_ref$ibov_bench_weights
+    weights <- universe_m_d_ref$weights
+    long  <- which(universe_m_d_ref$is_long_candidate == 1L)
+    short <- which(universe_m_d_ref$is_short_candidate == 1L)
+
+    ##The overlay is self-financing and the portfolio is long-only
+    expect_equal(sum(weights), 1, tolerance = 1e-6)
+    expect_true(all(weights >= 0))
+
+    ##A disliked constituent is never overweighted, an eligible name never underweighted
+    expect_true(all(weights[short] <= bench_weights[short] + 1e-8))
+    expect_true(all(weights[long] >= bench_weights[long] - 1e-8))
+
+    ##The whole benchmark is represented, which is what makes an underweight expressible
+    constituents <- which(bench_weights > 0)
+    expect_true(all(universe_m_d_ref$is_eligible[constituents] == 1))
+  }
+
+  #Both budget series must be available to the budget plot: the gap between them is the
+  #capping loss, which is what that plot exists to show. The plot method itself cannot be
+  #asserted on, because every plot method in this package prompts and returns NULL.
+  expect_true(all(c("slsaf_short_budget", "slsaf_active_budget") %in% names(port_stats_m_df)))
+  expect_false(isTRUE(all.equal(port_stats_m_df$slsaf_short_budget,
+                                port_stats_m_df$slsaf_active_budget)))
+})
+
+test_that("run_port_backtest works for a slsaf strategy with a risk-parity long leg", {
+
+  load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
+
+  chosen_score_metric_and_position <- c(roe_3m = "long")
+  port_config <- create_port_backtest_config(
+    chosen_score_metric_and_position = chosen_score_metric_and_position,
+    eligibility_quantile_range = c(0.67, 1.0),
+    selected_benchmark = "ibov",
+    initial_buffer_period = 5,
+    rebalancing_months = 4,
+    port_construction_method = "slsaf",
+    main_liquidity_metric = "mean_volfin_3m",
+    config_name = "slsaf_rp_model"
+  ) %>%
+    add_slsaf_parameters(long_port_construction_method = "rp",
+                         badness_tilt_eta = 2,
+                         max_short_budget = 0.20) %>%
+    add_cov_est_method(cov_estimation_method = "ewma", cov_matrix_sample_size = 52,
+                       active_returns = TRUE) %>%
+    add_liquidity_floor_cutoffs(
+      metric_name = c("mean_volfin_3m", "presence"),
+      metric_cutoffs = list(
+        c(micro_caps = 1, small_caps = 50000, mid_caps = 100000, large_caps = 200000, mega_caps = 500000),
+        c(micro_caps = 97.5, small_caps = 100, mid_caps = 100, large_caps = 100, mega_caps = 100)
+      )
+    ) %>%
+    add_liquidity_constraint_policy(liquidity_floor_rule = "micro_caps") %>%
+    add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1,
+                                     lambda = "dynamic", strategy_aum = 25000)
+
+  #meta_dataframes
+  signals_m_df <- create_meta_dataframe(signals_m_df, type = "signals")
+  fwd_return_m_df <- create_meta_dataframe(fwd_return_m_df, type = "target")
+  liquidity_m_df <- create_meta_dataframe(liquidity_m_df)
+  volatility_m_df <- create_meta_dataframe(volatility_m_df)
+  benchmark_weights_m_df <- create_meta_dataframe(benchmark_weights_m_df, type = "weights")
+  benchmark_returns_m_xts <- create_meta_xts(benchmark_returns_m_xts, asset_type = "benchmark")
+  #Groups are needed to fill NAs in the daily returns sample during covariance estimation
+  stock_groups_m_df <- create_meta_dataframe(stock_groups_m_df, type = "groups")
+  daily_stock_returns_m_xts <- suppressWarnings(
+    create_meta_xts(daily_stock_returns_m_xts, type = "returns", asset_type = "stocks",
+                    meta_xts_name = "B3")
+  )
+  daily_bench_returns_m_xts_mocked <- suppressWarnings(
+    create_meta_xts(xts::xts(data.frame(
+      ibov = rnorm(n = nrow(daily_stock_returns_m_xts@data), mean = 0, sd = 0.5),
+      smll = rnorm(n = nrow(daily_stock_returns_m_xts@data), mean = 0, sd = 0.5),
+      idiv = rnorm(n = nrow(daily_stock_returns_m_xts@data), mean = 0, sd = 0.5)
+    ), order.by = zoo::index(daily_stock_returns_m_xts@data)
+    ), type = "returns", asset_type = "benchmark", meta_xts_name = "B3")
+  )
+
+  suppressWarnings(
+    results <- run_port_backtest(signals_m_df = signals_m_df,
+                                 fwd_return_m_df = fwd_return_m_df,
+                                 liquidity_m_df = liquidity_m_df,
+                                 volatility_m_df = volatility_m_df,
+                                 config = port_config,
+                                 benchmark_weights_m_df = benchmark_weights_m_df,
+                                 benchmark_returns_m_xts = benchmark_returns_m_xts,
+                                 stock_groups_m_df = stock_groups_m_df,
+                                 daily_stock_returns_m_xts = daily_stock_returns_m_xts,
+                                 daily_bench_returns_m_xts = daily_bench_returns_m_xts_mocked,
+                                 verbose = FALSE)
+  )
+
+  expect_s4_class(results, "port_backtest_results")
+
+  #The long leg was built with a covariance matrix, so risk contributions exist
+  final_port <- results@final_stock_port
+  expect_equal(final_port@micro$long@port_construction_method, "rp")
+  expect_false(is.null(final_port@micro$long@covariance_matrix))
+
+  #The ceiling binds the realized active budget at every rebalance date
+  port_stats_m_df <- results@port_stats_m_df@data
+  expect_true(all(port_stats_m_df$slsaf_active_budget <= 0.20 + 1e-8))
+
+  #And the construction still holds end to end
+  stock_universe_m_df <- results@stock_universe_m_df@data
+  for (rebalance_date in unique(stock_universe_m_df$dates)){
+    universe_m_d_ref <- stock_universe_m_df %>% dplyr::filter(dates == rebalance_date)
+    expect_equal(sum(universe_m_d_ref$weights), 1, tolerance = 1e-6)
+    expect_true(all(universe_m_d_ref$weights >= 0))
+  }
+})
+
+#SLSAF updates
+test_that("update_port_backtest works for a slsaf strategy, with new month a rebalancing month", {
+
+  load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
+
+  #April is month 4, so the incoming month triggers a rebalancing and the slsaf
+  #construction runs on the new date
+  chosen_score_metric_and_position <- c(roe_3m = "long")
+  port_config <- create_port_backtest_config(
+    chosen_score_metric_and_position = chosen_score_metric_and_position,
+    eligibility_quantile_range = c(0.67, 1.0),
+    selected_benchmark = "ibov",
+    initial_buffer_period = 5,
+    rebalancing_months = 4,
+    port_construction_method = "slsaf",
+    main_liquidity_metric = "mean_volfin_3m",
+    config_name = "slsaf_update_model"
+  ) %>%
+    add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1,
+                                     lambda = "dynamic", strategy_aum = 25000)
+
+  #meta_dataframes truncated at 2023-03-15
+  signals_m_df_old <- create_meta_dataframe(
+    signals_m_df %>% dplyr::filter(!dates == "2023-04-15"), type = "signals", meta_dataframe_name = "signals")
+  fwd_return_m_df_old <- create_meta_dataframe(
+    fwd_return_m_df %>% dplyr::filter(!dates == "2023-04-15") %>%
+      dplyr::mutate(fwd_return_1m = dplyr::if_else(dates == "2023-03-15", NA_real_, fwd_return_1m)),
+    type = "target", meta_dataframe_name = "fwd")
+  liquidity_m_df_old <- create_meta_dataframe(
+    liquidity_m_df %>% dplyr::filter(!dates == "2023-04-15"), meta_dataframe_name = "liq")
+  volatility_m_df_old <- create_meta_dataframe(
+    volatility_m_df %>% dplyr::filter(!dates == "2023-04-15"), meta_dataframe_name = "vol")
+  benchmark_returns_m_xts_old <- create_meta_xts(
+    benchmark_returns_m_xts["2022-10-15/2023-03-15"], asset_type = "benchmark",
+    meta_xts_name = "bench_returns")
+  benchmark_weights_m_df_old <- create_meta_dataframe(
+    benchmark_weights_m_df %>% dplyr::filter(!dates == "2023-04-15"), meta_dataframe_name = "bench_weights")
+
+  suppressWarnings(
+    results <- run_port_backtest(signals_m_df = signals_m_df_old,
+                                 fwd_return_m_df = fwd_return_m_df_old,
+                                 liquidity_m_df = liquidity_m_df_old,
+                                 volatility_m_df = volatility_m_df_old,
+                                 config = port_config,
+                                 benchmark_weights_m_df = benchmark_weights_m_df_old,
+                                 benchmark_returns_m_xts = benchmark_returns_m_xts_old,
+                                 verbose = FALSE)
+  )
+
+  #A new batch of data arrives
+  signals_m_df_new <- create_meta_dataframe(signals_m_df, type = "signals", meta_dataframe_name = "signals")
+  fwd_return_m_df_new <- create_meta_dataframe(fwd_return_m_df, type = "target", meta_dataframe_name = "fwd")
+  liquidity_m_df_new <- create_meta_dataframe(liquidity_m_df, meta_dataframe_name = "liq")
+  volatility_m_df_new <- create_meta_dataframe(volatility_m_df, meta_dataframe_name = "vol")
+  benchmark_returns_m_xts_new <- create_meta_xts(benchmark_returns_m_xts, asset_type = "benchmark",
+                                                 meta_xts_name = "bench_returns")
+  benchmark_weights_m_df_new <- create_meta_dataframe(benchmark_weights_m_df, meta_dataframe_name = "bench_weights")
+
+  #The same backtest run once over the whole panel
+  suppressWarnings(
+    new_results <- run_port_backtest(signals_m_df = signals_m_df_new,
+                                     fwd_return_m_df = fwd_return_m_df_new,
+                                     liquidity_m_df = liquidity_m_df_new,
+                                     volatility_m_df = volatility_m_df_new,
+                                     config = port_config,
+                                     benchmark_weights_m_df = benchmark_weights_m_df_new,
+                                     benchmark_returns_m_xts = benchmark_returns_m_xts_new,
+                                     verbose = FALSE)
+  )
+
+  #The truncated backtest brought forward
+  suppressWarnings(
+    updated_results <- update_port_backtest(signals_m_df = signals_m_df_new,
+                                            fwd_return_m_df = fwd_return_m_df_new,
+                                            liquidity_m_df = liquidity_m_df_new,
+                                            volatility_m_df = volatility_m_df_new,
+                                            old_results = results,
+                                            benchmark_weights_m_df = benchmark_weights_m_df_new,
+                                            benchmark_returns_m_xts = benchmark_returns_m_xts_new)
+  )
+
+  #Updating must be indistinguishable from running the whole panel at once
+  expect_equal(new_results@port_weights_m_df@data, updated_results@port_weights_m_df@data)
+  expect_equal(new_results@port_costs_m_xts@data, updated_results@port_costs_m_xts@data)
+  expect_equal(new_results@port_returns_m_xts@data, updated_results@port_returns_m_xts@data)
+  expect_equal(new_results@port_stats_m_df@data, updated_results@port_stats_m_df@data)
+  expect_equal(new_results@transactions_log@data, updated_results@transactions_log@data)
+  expect_equal(new_results@stock_universe_m_df@data, updated_results@stock_universe_m_df@data)
+  expect_equal(new_results@final_stock_port, updated_results@final_stock_port)
+  expect_equal(updated_results@port_backtest_config@initial_buffer_period,
+               length(unique(signals_m_df_new@data$dates)) - 1)
+
+  #consolidate_backtest_results() binds old and new runs with bind_rows(), which fills
+  #absent columns with NA rather than failing. slsaf is the first method to add columns
+  #to both consolidated frames, so assert they survived the merge intact.
+  consolidated_universe_m_df <- updated_results@stock_universe_m_df@data
+  expect_true(all(c("is_long_candidate", "is_short_candidate") %in% names(consolidated_universe_m_df)))
+  expect_false(any(is.na(consolidated_universe_m_df$is_long_candidate)))
+  expect_false(any(is.na(consolidated_universe_m_df$is_short_candidate)))
+
+  consolidated_port_stats_m_df <- updated_results@port_stats_m_df@data
+  slsaf_stats_cols <- c("slsaf_short_budget", "slsaf_active_budget", "slsaf_n_long",
+                        "slsaf_n_short", "slsaf_n_zeroed")
+  expect_true(all(slsaf_stats_cols %in% names(consolidated_port_stats_m_df)))
+  expect_false(any(is.na(consolidated_port_stats_m_df[, slsaf_stats_cols])))
+
+  #The incoming month must actually have been rebuilt, otherwise this test would pass
+  #without ever running the slsaf construction on new data
+  expect_true(as.Date("2023-04-15") %in% unique(consolidated_universe_m_df$dates))
+  expect_gte(length(unique(consolidated_universe_m_df$dates)), 2)
+
+  #And the construction still holds on every rebalance date of the consolidated run
+  for (rebalance_date in unique(consolidated_universe_m_df$dates)){
+
+    universe_m_d_ref <- consolidated_universe_m_df %>% dplyr::filter(dates == rebalance_date)
+
+    bench_weights <- universe_m_d_ref$ibov_bench_weights
+    weights <- universe_m_d_ref$weights
+    long  <- which(universe_m_d_ref$is_long_candidate == 1L)
+    short <- which(universe_m_d_ref$is_short_candidate == 1L)
+
+    expect_equal(sum(weights), 1, tolerance = 1e-6)
+    expect_true(all(weights >= 0))
+    expect_true(all(weights[short] <= bench_weights[short] + 1e-8))
+    expect_true(all(weights[long] >= bench_weights[long] - 1e-8))
+  }
+})
+
+test_that("update_port_backtest works for a slsaf strategy, with new month a post-rebalancing month", {
+
+  load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
+
+  #February is month 2, so the incoming April date is NOT a rebalancing month and the
+  #update exercises the pickup branch, where no portfolio is rebuilt
+  chosen_score_metric_and_position <- c(roe_3m = "long")
+  port_config <- create_port_backtest_config(
+    chosen_score_metric_and_position = chosen_score_metric_and_position,
+    eligibility_quantile_range = c(0.67, 1.0),
+    selected_benchmark = "ibov",
+    initial_buffer_period = 4,
+    rebalancing_months = 2,
+    port_construction_method = "slsaf",
+    main_liquidity_metric = "mean_volfin_3m",
+    config_name = "slsaf_pickup_model"
+  ) %>%
+    add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1,
+                                     lambda = "dynamic", strategy_aum = 25000)
+
+  #meta_dataframes truncated at 2023-02-15
+  signals_m_df_old <- create_meta_dataframe(
+    signals_m_df %>% dplyr::filter(!dates %in% c("2023-03-15", "2023-04-15")),
+    type = "signals", meta_dataframe_name = "signals")
+  fwd_return_m_df_old <- create_meta_dataframe(
+    fwd_return_m_df %>% dplyr::filter(!dates %in% c("2023-03-15", "2023-04-15")) %>%
+      dplyr::mutate(fwd_return_1m = dplyr::if_else(dates == "2023-02-15", NA_real_, fwd_return_1m)),
+    type = "target", meta_dataframe_name = "fwd")
+  liquidity_m_df_old <- create_meta_dataframe(
+    liquidity_m_df %>% dplyr::filter(!dates %in% c("2023-03-15", "2023-04-15")), meta_dataframe_name = "liq")
+  volatility_m_df_old <- create_meta_dataframe(
+    volatility_m_df %>% dplyr::filter(!dates %in% c("2023-03-15", "2023-04-15")), meta_dataframe_name = "vol")
+  benchmark_returns_m_xts_old <- create_meta_xts(
+    benchmark_returns_m_xts["2022-10-15/2023-02-15"], asset_type = "benchmark",
+    meta_xts_name = "bench_returns")
+  benchmark_weights_m_df_old <- create_meta_dataframe(
+    benchmark_weights_m_df %>% dplyr::filter(!dates %in% c("2023-03-15", "2023-04-15")),
+    meta_dataframe_name = "bench_weights")
+
+  suppressWarnings(
+    results <- run_port_backtest(signals_m_df = signals_m_df_old,
+                                 fwd_return_m_df = fwd_return_m_df_old,
+                                 liquidity_m_df = liquidity_m_df_old,
+                                 volatility_m_df = volatility_m_df_old,
+                                 config = port_config,
+                                 benchmark_weights_m_df = benchmark_weights_m_df_old,
+                                 benchmark_returns_m_xts = benchmark_returns_m_xts_old,
+                                 verbose = FALSE)
+  )
+
+  #A new batch of data arrives, one month at a time
+  signals_m_df_mid <- create_meta_dataframe(
+    signals_m_df %>% dplyr::filter(!dates == "2023-04-15"), type = "signals", meta_dataframe_name = "signals")
+  fwd_return_m_df_mid <- create_meta_dataframe(
+    fwd_return_m_df %>% dplyr::filter(!dates == "2023-04-15") %>%
+      dplyr::mutate(fwd_return_1m = dplyr::if_else(dates == "2023-03-15", NA_real_, fwd_return_1m)),
+    type = "target", meta_dataframe_name = "fwd")
+  liquidity_m_df_mid <- create_meta_dataframe(
+    liquidity_m_df %>% dplyr::filter(!dates == "2023-04-15"), meta_dataframe_name = "liq")
+  volatility_m_df_mid <- create_meta_dataframe(
+    volatility_m_df %>% dplyr::filter(!dates == "2023-04-15"), meta_dataframe_name = "vol")
+  benchmark_returns_m_xts_mid <- create_meta_xts(
+    benchmark_returns_m_xts["2022-10-15/2023-03-15"], asset_type = "benchmark",
+    meta_xts_name = "bench_returns")
+  benchmark_weights_m_df_mid <- create_meta_dataframe(
+    benchmark_weights_m_df %>% dplyr::filter(!dates == "2023-04-15"), meta_dataframe_name = "bench_weights")
+
+  #The same backtest run once over the whole panel
+  suppressWarnings(
+    new_results <- run_port_backtest(signals_m_df = signals_m_df_mid,
+                                     fwd_return_m_df = fwd_return_m_df_mid,
+                                     liquidity_m_df = liquidity_m_df_mid,
+                                     volatility_m_df = volatility_m_df_mid,
+                                     config = port_config,
+                                     benchmark_weights_m_df = benchmark_weights_m_df_mid,
+                                     benchmark_returns_m_xts = benchmark_returns_m_xts_mid,
+                                     verbose = FALSE)
+  )
+
+  #The truncated backtest brought forward into a non-rebalancing month
+  suppressWarnings(
+    updated_results <- update_port_backtest(signals_m_df = signals_m_df_mid,
+                                            fwd_return_m_df = fwd_return_m_df_mid,
+                                            liquidity_m_df = liquidity_m_df_mid,
+                                            volatility_m_df = volatility_m_df_mid,
+                                            old_results = results,
+                                            benchmark_weights_m_df = benchmark_weights_m_df_mid,
+                                            benchmark_returns_m_xts = benchmark_returns_m_xts_mid)
+  )
+
+  #Updating must be indistinguishable from running the whole panel at once, including
+  #when no portfolio is rebuilt and the old one is simply carried forward
+  expect_equal(new_results@port_weights_m_df@data, updated_results@port_weights_m_df@data)
+  expect_equal(new_results@port_costs_m_xts@data, updated_results@port_costs_m_xts@data)
+  expect_equal(new_results@port_returns_m_xts@data, updated_results@port_returns_m_xts@data)
+  expect_equal(new_results@port_stats_m_df@data, updated_results@port_stats_m_df@data)
+  expect_equal(new_results@transactions_log@data, updated_results@transactions_log@data)
+  expect_equal(new_results@stock_universe_m_df@data, updated_results@stock_universe_m_df@data)
+  expect_equal(new_results@final_stock_port, updated_results@final_stock_port)
+
+  #The pickup branch is where a schema mismatch would go unnoticed, since no new
+  #slsaf universe or diagnostics are produced for the carried-forward date
+  consolidated_universe_m_df <- updated_results@stock_universe_m_df@data
+
+  #Confirm this really is the pickup branch: the incoming month was carried forward
+  #rather than rebuilt, while earlier dates did run the slsaf construction
+  expect_false(as.Date("2023-03-15") %in% unique(consolidated_universe_m_df$dates))
+  expect_gte(length(unique(consolidated_universe_m_df$dates)), 1)
+  expect_true(all(c("is_long_candidate", "is_short_candidate") %in% names(consolidated_universe_m_df)))
+  expect_false(any(is.na(consolidated_universe_m_df$is_long_candidate)))
+  expect_false(any(is.na(consolidated_universe_m_df$is_short_candidate)))
+
+  consolidated_port_stats_m_df <- updated_results@port_stats_m_df@data
+  slsaf_stats_cols <- c("slsaf_short_budget", "slsaf_active_budget", "slsaf_n_long",
+                        "slsaf_n_short", "slsaf_n_zeroed")
+  expect_true(all(slsaf_stats_cols %in% names(consolidated_port_stats_m_df)))
+  expect_false(any(is.na(consolidated_port_stats_m_df[, slsaf_stats_cols])))
+
+  #A second update, now bringing in a rebalancing month on top of a pickup
+  signals_m_df_new <- create_meta_dataframe(signals_m_df, type = "signals", meta_dataframe_name = "signals")
+  fwd_return_m_df_new <- create_meta_dataframe(fwd_return_m_df, type = "target", meta_dataframe_name = "fwd")
+  liquidity_m_df_new <- create_meta_dataframe(liquidity_m_df, meta_dataframe_name = "liq")
+  volatility_m_df_new <- create_meta_dataframe(volatility_m_df, meta_dataframe_name = "vol")
+  benchmark_returns_m_xts_new <- create_meta_xts(benchmark_returns_m_xts, asset_type = "benchmark",
+                                                 meta_xts_name = "bench_returns")
+  benchmark_weights_m_df_new <- create_meta_dataframe(benchmark_weights_m_df, meta_dataframe_name = "bench_weights")
+
+  suppressWarnings(
+    new_results2 <- run_port_backtest(signals_m_df = signals_m_df_new,
+                                      fwd_return_m_df = fwd_return_m_df_new,
+                                      liquidity_m_df = liquidity_m_df_new,
+                                      volatility_m_df = volatility_m_df_new,
+                                      config = port_config,
+                                      benchmark_weights_m_df = benchmark_weights_m_df_new,
+                                      benchmark_returns_m_xts = benchmark_returns_m_xts_new,
+                                      verbose = FALSE)
+  )
+
+  suppressWarnings(
+    updated_results2 <- update_port_backtest(signals_m_df = signals_m_df_new,
+                                             fwd_return_m_df = fwd_return_m_df_new,
+                                             liquidity_m_df = liquidity_m_df_new,
+                                             volatility_m_df = volatility_m_df_new,
+                                             old_results = updated_results,
+                                             benchmark_weights_m_df = benchmark_weights_m_df_new,
+                                             benchmark_returns_m_xts = benchmark_returns_m_xts_new)
+  )
+
+  #Two successive updates must still reproduce the single full run exactly
+  expect_equal(new_results2@port_weights_m_df@data, updated_results2@port_weights_m_df@data)
+  expect_equal(new_results2@port_costs_m_xts@data, updated_results2@port_costs_m_xts@data)
+  expect_equal(new_results2@port_returns_m_xts@data, updated_results2@port_returns_m_xts@data)
+  expect_equal(new_results2@port_stats_m_df@data, updated_results2@port_stats_m_df@data)
+  expect_equal(new_results2@transactions_log@data, updated_results2@transactions_log@data)
+  expect_equal(new_results2@stock_universe_m_df@data, updated_results2@stock_universe_m_df@data)
+  expect_equal(new_results2@final_stock_port, updated_results2@final_stock_port)
+})

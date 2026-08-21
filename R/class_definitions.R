@@ -1981,10 +1981,61 @@ setClass(
 )
 
 
+#sub_port_config-----------------------------------------------------------
+#' @title Sub Portfolio Configuration
+#' @description An S4 class to represent the configuration of a sub-portfolio built by a
+#' layered portfolio construction method (the `*af` family). A layered method calls
+#' `set_portfolio_weights()` recursively on a block of the universe, and one
+#' `sub_port_config` fully specifies how that inner call must be made: which construction
+#' method to use, and the parameters of that method.
+#'
+#' @details
+#' This is the shared configuration type for every layered method. `mmaf_sub_port_config`
+#' extends it without adding structure and is kept as the name used by
+#' `mmaf_parameters`.
+#'
+#' Only the parameter object matching `port_construction_method` is used. The remaining
+#' parameter slots are ignored, so a configuration carrying, say, `rp_parameters` while
+#' `port_construction_method` is `"ew"` is valid but inert.
+#'
+#' @slot port_construction_method A character string indicating the method used for constructing the sub-portfolio.
+#' Must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'hrp' or 'mvo'.
+#' @slot mvo_parameters An object of class `mvo_parameters` representing the parameters for mean-variance optimization. This is only relevant for 'mvo'.
+#' @slot rp_parameters An object of class `rp_parameters` representing the parameters for risk parity. This is only relevant for 'rp'.
+#' @slot hrp_parameters An object of class `hrp_parameters` representing the parameters for hierarchical risk parity. This is only relevant for 'hrp'.
+#'
+#' @export
+#'
+setClass(
+  "sub_port_config",
+  slots = c(
+    port_construction_method = "character",
+    mvo_parameters = "ANY",
+    rp_parameters = "ANY",
+    hrp_parameters = "ANY"
+  ),
+  prototype = list(
+    mvo_parameters = NULL,
+    rp_parameters = NULL,
+    hrp_parameters = NULL
+  ),
+  validity = function(object){
+
+    validate_sub_port_config(object)
+
+  }
+)
+
+
 #mmaf_sub_port_config------------------------------------------------------
 #' @title MMAF Sub Portfolio Configuration
 #' @description An S4 class to represent the configuration of micro or macro portfolios
 #' in the MMAF portfolio construction method.
+#'
+#' @details
+#' Extends [sub_port_config-class] without adding slots or validity rules. It exists so
+#' that MMAF configurations keep a distinct, self-documenting class name while sharing a
+#' single configuration contract with every other layered (`*af`) method.
 #'
 #' @slot port_construction_method A character string indicating the method used for constructing micro portfolios.
 #' @slot mvo_parameters An object of class `mvo_parameters` representing the parameters for mean-variance optimization. This is only relevant for 'mvo'.
@@ -1995,32 +2046,63 @@ setClass(
 #'
 setClass(
   "mmaf_sub_port_config",
+  contains = "sub_port_config"
+)
+
+
+#slsaf_parameters-------------------------------------------------------
+#' Define the `slsaf_parameters` S4 Class
+#'
+#' S4 class holding the configuration of the Simulated Long-Short Allocation Framework,
+#' a long-only benchmark-relative method that expresses conviction as an active overlay:
+#' benchmark constituents outside the eligible set are underweighted according to
+#' conviction, capped by the position actually held, and the budget released is spent on
+#' the eligible names.
+#'
+#' @details
+#' The short leg is fully specified by the class and has no method of its own to choose:
+#' it is always signal weighted on the score built by
+#' \code{\link{compute_short_leg_scores}}, since a risk-based method would grant the
+#' largest underweight to the name contributing least to active risk. Only the long leg
+#' is configurable.
+#'
+#' The two exponents divide as follows. `bench_weight_tilt_eta` sets the basis: at 1 the
+#' benchmark term is exactly proportional to benchmark weight, which is the point where
+#' the whole available budget converts into realized underweight, and which is also the
+#' ungraded case where every ineligible constituent is sold in full. `badness_tilt_eta`
+#' then walks the budget-versus-grading frontier away from that anchor, concentrating
+#' underweight on the worst names and monotonically giving up budget in exchange.
+#' Maximum budget and graded underweights are mutually exclusive by construction.
+#'
+#' @slot long_port_config An object of class `sub_port_config` describing how the long
+#' leg is built. Any non-layered method is allowed.
+#' @slot bench_weight_tilt_eta A numeric exponent applied to the benchmark weight in the
+#' short-leg score. Defaults to 1.
+#' @slot badness_tilt_eta A numeric exponent applied to the badness score in the short
+#' leg. Must be non-negative; defaults to 1.
+#' @slot max_short_budget An optional numeric in (0, 1] capping the realized active
+#' budget, or NULL to leave it endogenous.
+#'
+#' @return An S4 object of class `slsaf_parameters`.
+#'
+#' @export
+setClass(
+  "slsaf_parameters",
   slots = c(
-    port_construction_method = "character",
-    mvo_parameters = "ANY",
-    rp_parameters = "ANY",
-    hrp_parameters = "ANY"
+    long_port_config      = "ANY",
+    bench_weight_tilt_eta = "numeric",
+    badness_tilt_eta      = "numeric",
+    max_short_budget      = "ANY"
+  ),
+  prototype = list(
+    long_port_config      = NULL,
+    bench_weight_tilt_eta = 1,
+    badness_tilt_eta      = 1,
+    max_short_budget      = NULL
   ),
   validity = function(object){
 
-    #Just check that _parameters slots have the appropriate S4 class
-    if (object@port_construction_method == "mvo"){
-      if (!is.null(object@mvo_parameters) && !methods::is(object@mvo_parameters, "mvo_parameters")){
-        stop("mvo_parameters must be of class 'mvo_parameters' when port_construction_method is 'mvo'.")
-      }
-    }
-
-    if (object@port_construction_method == "rp"){
-      if (!is.null(object@rp_parameters) && !methods::is(object@rp_parameters, "rp_parameters")){
-        stop("rp_parameters must be of class 'rp_parameters' when port_construction_method is 'rp'.")
-      }
-    }
-
-    if (object@port_construction_method == "hrp"){
-      if (!is.null(object@hrp_parameters) && !methods::is(object@hrp_parameters, "hrp_parameters")){
-        stop("hrp_parameters must be of class 'hrp_parameters' when port_construction_method is 'hrp'.")
-      }
-    }
+    validate_slsaf_parameters(object)
 
   }
 )
@@ -3372,12 +3454,13 @@ setClass(
 #' @slot rebalancing_months A numeric value representing the number of months for rebalancing.
 #' @slot cov_est_method An object of class `cov_est_method` representing the covariance estimation method and relevant parameters. Current methods are: 'sample', 'ewma', 'cc' (constant correlation),
 #' 'pca1', 'pca2', 'shrink_id' (shrinkage to identity matrix), 'shrink_cc' (shrinkage to constant correlation). This is only relevant for the covariance-based methods 'rp', 'hrp', 'mvo' and 'mmaf'.
-#' @slot port_construction_method A character string representing the type of portfolio. Must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'hrp', 'mvo' or 'mmaf' ('custom_weights' is not supported for this config). For signal portfolios,
+#' @slot port_construction_method A character string representing the type of portfolio. Must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'hrp', 'mvo', 'mmaf' or 'slsaf' ('custom_weights' is not supported for this config). For signal portfolios,
 #' 'cw' and 'cs' are not applicable. For signal portfolios, this is inferred based on sb_algorithm.
 #' @slot mvo_parameters An object of class `mvo_parameters` representing the parameters for mean-variance optimization. This is only relevant for 'mvo'.
 #' @slot rp_parameters An object of class `rp_parameters` representing the parameters for risk parity. This is only relevant for 'rp'.
 #' @slot hrp_parameters An object of class `hrp_parameters` representing the parameters for hierarchical risk parity. This is only relevant for 'hrp'.
 #' @slot mmaf_parameters An object of class `mmaf_parameters` representing the parameters for the MMAF method. This is only relevant for 'mmaf'.
+#' @slot slsaf_parameters An object of class `slsaf_parameters` representing the parameters for the SLSAF method. This is only relevant for 'slsaf'.
 #' @slot main_liquidity_metric A character string indicating which of the variables in `liquidity_m_df` should be ultimately used.
 #' @slot liquidity_floor_cutoffs Mandatory if `turnover_constraint_policy` and/or `liquidity_constraint_policy` are provided.
 #' A data.frame containing a liquidity_classification column and liquidity metrics that define cutoff values to classify stocks according to liquidity.
@@ -3436,6 +3519,7 @@ setClass(
     rp_parameters = "ANY",
     hrp_parameters = "ANY",
     mmaf_parameters = "ANY",
+    slsaf_parameters = "ANY",
     main_liquidity_metric = "character",
     liquidity_floor_cutoffs = "ANY",
     liquidity_constraint_policy = "ANY",
@@ -3460,8 +3544,8 @@ setClass(
       stop("chosen_score_metric_and_position must be NULL when port_construction_method is custom_weights")
     }
 
-    if (!object@port_construction_method %in% c("ew", "sw", "cw", "cs", "rp", "mvo", "hrp", "mmaf")){
-      stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'mvo', 'hrp' or 'mmaf'.")
+    if (!object@port_construction_method %in% c("ew", "sw", "cw", "cs", "rp", "mvo", "hrp", "mmaf", "slsaf")){
+      stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'mvo', 'hrp', 'mmaf' or 'slsaf'.")
     }
 
     #Check if eligibility_quantile_range has length of 2 between 0 and 1
@@ -3551,6 +3635,35 @@ setClass(
     if (!is.null(object@mmaf_parameters)){
       if(!inherits(object@mmaf_parameters, "mmaf_parameters")){
         stop("mmaf_parameters must be an object of class mmaf_parameters.")
+      }
+    }
+    ####SLSAF Pars
+    if (!is.null(object@slsaf_parameters)){
+      if(!inherits(object@slsaf_parameters, "slsaf_parameters")){
+        stop("slsaf_parameters must be an object of class slsaf_parameters.")
+      }
+    }
+
+    ###SLSAF is benchmark-relative by construction: it expresses conviction as an
+    ###overlay on benchmark positions, so it cannot be built without one
+    if (object@port_construction_method == "slsaf"){
+      if (is.null(object@slsaf_parameters)){
+        stop("slsaf_parameters must be provided when port_construction_method is 'slsaf'.")
+      }
+      if (is.null(object@selected_benchmark)){
+        stop("selected_benchmark must be provided when port_construction_method is 'slsaf'.")
+      }
+      ####The overlay already determines every active weight, so a concentration policy
+      ####would either duplicate it or silently fight it
+      if (!is.null(object@concentration_constraint_policy)){
+        stop("concentration_constraint_policy is not supported for 'slsaf': the active weights are already set by the long/short overlay.")
+      }
+      ####See the note in classify_investment_universe(): the buffer rule gates on
+      ####bop_port_weights > 0, which under this construction is true for every
+      ####constituent not fully sold, so the whole short block would drain into the
+      ####long block
+      if (!is.null(object@turnover_constraint_policy)){
+        stop("turnover_constraint_policy is not supported for 'slsaf'.")
       }
     }
 
@@ -3712,8 +3825,8 @@ setClass(
   validity = function(object) {
 
    # port_construction_method must be one of the allowed
-    if (!object@port_construction_method %in% c("ew","sw","cw","cs","rp","mvo","custom_weights", "hrp", "mmaf")) {
-      stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'mvo', 'custom_weights', 'hrp' or 'mmaf'.")
+    if (!object@port_construction_method %in% c("ew","sw","cw","cs","rp","mvo","custom_weights", "hrp", "mmaf", "slsaf")) {
+      stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'mvo', 'custom_weights', 'hrp', 'mmaf' or 'slsaf'.")
     }
 
     #weights and eligible_assets
@@ -3893,6 +4006,23 @@ setClass(
           (!identical(names(object@micro), "bottom_up") ||
            length(object@micro) != 1)) {
         stop("For 'bottom_up' mmaf_method, micro must be a list with one element named 'bottom_up'.")
+      }
+    }
+
+    # Check for slsaf
+    if (object@port_construction_method == "slsaf") {
+      ## Both legs are reported, and either may legitimately be absent: there is no short
+      ## leg when every constituent is eligible, and no long leg when no budget was released
+      if (!is.list(object@micro) ||
+          !identical(sort(names(object@micro)), c("long", "short"))) {
+        stop("For 'slsaf', micro must be a list with elements named 'long' and 'short'.")
+      }
+      if (!all(purrr::map_lgl(object@micro, function(x) is.null(x) || inherits(x, "port")))) {
+        stop("For 'slsaf', each element of micro must be a 'port' object or NULL.")
+      }
+      ## A benchmark is what the whole construction is relative to
+      if (is.null(object@selected_benchmark_port)) {
+        stop("selected_benchmark_port must be provided for 'slsaf'.")
       }
     }
 
