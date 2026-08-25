@@ -785,6 +785,88 @@ setClass(
   }
 )
 
+
+#' port_universe_m_df-class
+#'
+#' An S4 subclass of \code{meta_dataframe} representing a universe of already-backtested
+#' portfolios, used as the input to a meta-portfolio allocation.
+#'
+#' @description
+#' \code{port_universe_m_df} is the meta-level analogue of \code{\link{stock_universe_m_df-class}}:
+#' each row is one base portfolio on one date, and each column is a characteristic of that
+#' portfolio that could be used to set its meta weight. It is produced by
+#' \code{\link{derive_port_universe_m_df}} from a \code{\link{port_backtest_cohort-class}}.
+#'
+#' @section Column families:
+#' \describe{
+#'   \item{portfolio statistics}{Carried over unchanged from each base backtest's
+#'     \code{port_stats_m_df}, filtered to one return basis. These mix two kinds of number under
+#'     similar names: figures such as \code{track_err} and \code{info_ratio} are computed from a
+#'     realized return series, while \code{act_risk} and \code{IR} are computed from the
+#'     portfolio's positions and a covariance matrix at the formation date. Selecting one where
+#'     the other was intended silently changes what a meta allocation optimizes, so
+#'     \code{\link{message_meta_score_basis}} announces which kind a chosen score is.}
+#'   \item{\code{avg_}}{Running average of a realized cost or turnover figure, over cost
+#'     observations strictly preceding the row's date.}
+#'   \item{\code{metric_}}{Weight-aggregated custom stock metric at the row's date.}
+#' }
+#' Base statistics are produced only on base rebalance dates and are carried forward to
+#' intervening dates. \code{stats_age_months} reports how stale each row is; a value greater than
+#' zero means the statistics were formed at an earlier date, which matters most for risk figures.
+#'
+#' @section Validity:
+#' Objects must satisfy parent-class validation and additionally:
+#' \itemize{
+#'   \item every column other than \code{id}, \code{tickers} and \code{dates} must be numeric;
+#'   \item \code{stats_age_months} must be present;
+#'   \item a column named \code{exp_ret_score} must \strong{not} be present. The meta score is
+#'     created downstream by \code{\link{derive_stock_universe_m_d_ref}} from the user's chosen
+#'     metric, so its presence here would mean a characteristic was silently promoted to the score.
+#' }
+#' Unlike \code{stock_universe_m_df}, \code{pre_eligible_assets} and \code{is_eligible} are
+#' \emph{not} required: this object is built before \code{\link{classify_investment_universe}} runs.
+#'
+#' @slot port_metabacktest_workflow ANY. Metadata describing how the universe was derived
+#'   (source cohort, return basis, cost window, dates covered).
+#'
+#' @seealso \code{\link{stock_universe_m_df-class}}, \code{\link{port_backtest_cohort-class}},
+#'   \code{\link{derive_port_universe_m_df}}
+#' @name port_universe_m_df-class
+#' @rdname port_universe_m_df-class
+#' @aliases port_universe_m_df
+#' @exportClass port_universe_m_df
+setClass(
+  "port_universe_m_df",
+  slots = c(
+    port_metabacktest_workflow = "ANY"
+  ),
+  contains = "meta_dataframe",
+  validity = function(object) {
+
+    colnames <- colnames(object@data)
+    value_cols <- setdiff(colnames, c("id", "tickers", "dates"))
+
+    #The meta score is derived downstream; a column with this name here would mean an ordinary
+    #characteristic was silently promoted to the expected-return score
+    if ("exp_ret_score" %in% colnames) {
+      return(paste0("port_universe_m_df must not contain an 'exp_ret_score' column. ",
+                    "The meta score is created downstream from the chosen metric."))
+    }
+
+    if (!"stats_age_months" %in% colnames) {
+      return("port_universe_m_df object must contain a stats_age_months column.")
+    }
+
+    if (length(value_cols) > 0 &&
+        !all(vapply(object@data[value_cols], is.numeric, logical(1)))) {
+      return("All columns of port_universe_m_df other than id, tickers and dates must be numeric.")
+    }
+
+    # If all checks pass
+    TRUE
+  }
+)
+
 #' weights_m_df-class
 #'
 #' An S4 subclass of \code{meta_dataframe} representing weight matrices used for portfolio construction.

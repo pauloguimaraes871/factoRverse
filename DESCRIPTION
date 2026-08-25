@@ -152,6 +152,7 @@ Collate:
     'utils-create_slsaf_portfolio.R'
     'utils-define_signal_eligibility.R'
     'utils-derive_informative_priors_from_data.R'
+    'utils-derive_port_universe_m_df.R'
     'utils-derive_signal_universe_m_df.R'
     'utils-derive_slsaf_leg_diagnostics.R'
     'utils-derive_stock_universe_m_d_ref.R'

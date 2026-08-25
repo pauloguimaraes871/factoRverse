@@ -58,6 +58,7 @@ reference:
   - "groups_m_df-class"
   - "weights_m_df-class"
   - "stock_universe_m_df-class"
+  - "port_universe_m_df-class"
   - "oos_sb_outputs_m_df-class"
   - "feature_importance_m_df-class"
 
@@ -200,6 +201,7 @@ reference:
   - classify_investment_universe
   - classify_stock_liquidity
   - derive_stock_universe_m_d_ref
+  - derive_port_universe_m_df
   - calculate_trade_orders
   - validate_exp_ret_score_tilt
   - add_rp_parameters

@@ -16,9 +16,10 @@
 #' @param ss_backtest_workflow Optional list. Required when creating \code{signal_universe} objects.
 #' @param sb_backtest_workflow Optional list. Required when creating \code{oos_sb_outputs} objects.
 #' @param port_backtest_workflow Optional list. Required when creating \code{stock_universe} objects.
+#' @param port_metabacktest_workflow Optional list. Required when creating \code{port_universe} objects.
 #' @param type Character. When using the \code{data.frame} method this selects the subclass to instantiate.
 #'   Accepted values include \code{"generic"}, \code{"signals"}, \code{"features"}, \code{"signal_universe"},
-#'   \code{"stock_universe"}, \code{"oos_sb_outputs"}, \code{"groups"}, \code{"target"},
+#'   \code{"stock_universe"}, \code{"port_universe"}, \code{"oos_sb_outputs"}, \code{"groups"}, \code{"target"},
 #'   \code{"weights"}, \code{"priors"}, \code{"feature_importance"}, \code{"raw"}.
 #' @param tickers Character vector. (list-method) entity identifiers for rows of wide input.
 #' @param dates Date vector. (list-method) column identifiers / time points for wide input.
@@ -67,6 +68,7 @@ setGeneric("create_meta_dataframe", function(data, meta_dataframe_name = "not_id
 #' @param ss_backtest_workflow Optional list. Required when \code{type = "signal_universe"}.
 #' @param sb_backtest_workflow Optional list. Required when \code{type = "oos_sb_outputs"}.
 #' @param port_backtest_workflow Optional list. Required when \code{type = "stock_universe"}.
+#' @param port_metabacktest_workflow Optional list. Required when \code{type = "port_universe"}.
 #' @param type Character. Determines which subclass is instantiated (see generic \code{type} values). For \code{"generic"} the method
 #'   warns about missing monthly dates but still constructs the object; specialized \code{type} values enforce additional required workflow args.
 #' @param ... Additional arguments (ignored by many branches).
@@ -102,11 +104,12 @@ setGeneric("create_meta_dataframe", function(data, meta_dataframe_name = "not_id
 setMethod(
   "create_meta_dataframe", signature(data = "data.frame", meta_dataframe_name = "ANY"),
   function(data, meta_dataframe_name = "not_identified",
-           workflow = NULL, ss_backtest_workflow = NULL, sb_backtest_workflow = NULL, port_backtest_workflow = NULL, type = "generic", ...) {
+           workflow = NULL, ss_backtest_workflow = NULL, sb_backtest_workflow = NULL, port_backtest_workflow = NULL,
+           port_metabacktest_workflow = NULL, type = "generic", ...) {
     # Check for type argument
-    if (!type %in% c("generic", "signal_universe", "stock_universe", "oos_sb_outputs", "groups",
+    if (!type %in% c("generic", "signal_universe", "stock_universe", "port_universe", "oos_sb_outputs", "groups",
                      "target", "weights", "priors", "signals", "features", "feature_importance", "raw")) {
-      stop("type argument must be one of 'generic', 'signal_universe', 'stock_universe', 'oos_sb_outputs', 'groups', 'target',
+      stop("type argument must be one of 'generic', 'signal_universe', 'stock_universe', 'port_universe', 'oos_sb_outputs', 'groups', 'target',
                      'weights', 'priors', 'signals', 'features', 'feature_importance' or 'raw'.")
     }
 
@@ -221,6 +224,27 @@ setMethod(
                      n_obs = total_observations_count,
                      meta_dataframe_name = meta_dataframe_name,
                      port_backtest_workflow = port_backtest_workflow,
+                     current_date = current_date
+        )
+      )
+    }
+    if (type == "port_universe") {
+      # Check for workflow
+      if (is.null(port_metabacktest_workflow)) {
+        stop("port_metabacktest_workflow argument must be provided for port_universe type")
+      }
+
+      # Store metadata and column names
+      return(
+        methods::new("port_universe_m_df",
+                     data = data,
+                     workflow = workflow,
+                     signals = names(data)[-c(1:3)],
+                     unique_dates = unique_dates_count,
+                     unique_tickers = unique_tickers_count,
+                     n_obs = total_observations_count,
+                     meta_dataframe_name = meta_dataframe_name,
+                     port_metabacktest_workflow = port_metabacktest_workflow,
                      current_date = current_date
         )
       )

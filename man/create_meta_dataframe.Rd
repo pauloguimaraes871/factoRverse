@@ -15,6 +15,7 @@ create_meta_dataframe(data, meta_dataframe_name = "not_identified", ...)
   ss_backtest_workflow = NULL,
   sb_backtest_workflow = NULL,
   port_backtest_workflow = NULL,
+  port_metabacktest_workflow = NULL,
   type = "generic",
   ...
 )
@@ -43,6 +44,8 @@ create_meta_dataframe(data, meta_dataframe_name = "not_identified", ...)
 \item{sb_backtest_workflow}{Optional list. Required when \code{type = "oos_sb_outputs"}.}
 
 \item{port_backtest_workflow}{Optional list. Required when \code{type = "stock_universe"}.}
+
+\item{port_metabacktest_workflow}{Optional list. Required when \code{type = "port_universe"}.}
 
 \item{type}{Character. Determines which subclass is instantiated (see generic \code{type} values). For \code{"generic"} the method
 warns about missing monthly dates but still constructs the object; specialized \code{type} values enforce additional required workflow args.}
