@@ -127,6 +127,7 @@ Collate:
     'utils-calculate_port_stats.R'
     'utils-calculate_trade_orders.R'
     'utils-calculate_transaction_costs.R'
+    'utils-check_inputs_meta_port_backtest.R'
     'utils-check_inputs_meta_sb_backtest.R'
     'utils-check_inputs_port_backtest.R'
     'utils-check_inputs_sb_backtest.R'
