@@ -173,6 +173,7 @@ Collate:
     'utils-merge_and_rescale_weights.R'
     'utils-pipe.R'
     'utils-prepare_hierarchical_model_inputs.R'
+    'utils-project_meta_weights_to_stocks.R'
     'utils-roll_fwd_port_weights.R'
     'utils-roll_port.R'
     'utils-select_and_correct_signals.R'
