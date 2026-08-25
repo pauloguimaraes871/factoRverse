@@ -111,7 +111,6 @@ Collate:
     'read_tickers_catalog.R'
     'relative_risk_contribution.R'
     'run_port_backtest.R'
-    'run_port_metabacktest.R'
     'run_sb_backtest.R'
     'run_ss_backtest.R'
     'screen_by_conditions.R'
