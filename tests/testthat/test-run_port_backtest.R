@@ -9968,3 +9968,147 @@ testthat::test_that("inconsistent inputs are caught before anything is run", {
     "port_backtest_cohort must be provided"
   )
 })
+
+test_that("the meta backtest reproduces a step-by-step reconstruction of its own chain", {
+
+  #Reconstructing the chain independently, in the style of the tests above: derive the universe,
+  #score it, classify it, set the weights, project them, and compare each stage against what the
+  #method produced. A wrong argument anywhere in the wiring shows up here.
+  results <- run_port_meta_backtest()
+  cohort <- port_meta_cohort()
+  config <- port_meta_config()
+  inner_config <- config@meta_port_backtest_config
+  inputs <- port_meta_inputs()
+
+  #Stage 1: the port universe
+  expected_universe <- suppressWarnings(suppressMessages(derive_port_universe_m_df(
+    port_backtest_cohort = cohort,
+    return_basis = config@return_basis,
+    cost_lookback = config@cost_lookback,
+    verbose = FALSE
+  )))
+  expect_equal(results@port_universe_m_df@data, expected_universe@data)
+
+  #Stage 2: the meta weights, rebuilt one rebalance date at a time
+  base_returns_xts <- cohort@port_returns_m_xts_list$net_returns_m_xts@data
+  base_portfolio_names <- sort(unique(expected_universe@data$tickers))
+  bench_returns_xts <- base_returns_xts[, "selected_bench_return", drop = FALSE]
+  base_returns_xts <- base_returns_xts[, base_portfolio_names, drop = FALSE]
+  cov_est_method <- inner_config@cov_est_method
+
+  meta_rebalance_dates <- sort(unique(results@meta_port_weights_m_df@data$dates))
+  reconstructed_weights <- list()
+
+  for (i in seq_along(meta_rebalance_dates)) {
+
+    current_date <- meta_rebalance_dates[i]
+
+    universe_m_d_ref <- expected_universe@data %>% dplyr::filter(dates == current_date)
+
+    scored_m_d_ref <- derive_stock_universe_m_d_ref(
+      signals_m_d_ref = universe_m_d_ref,
+      oos_predictions_m_d_ref = NULL,
+      chosen_score_metric_and_position = inner_config@chosen_score_metric_and_position,
+      chosen_scaler = inner_config@chosen_scaler,
+      scaler_m_d_ref = NULL,
+      scaler_shrinkage = if (is.null(inner_config@scaler_shrinkage)) 0 else inner_config@scaler_shrinkage,
+      lower_quantile_winsorization = 0.025,
+      upper_quantile_winsorization = 0.975
+    )
+
+    classified_m_d_ref <- classify_investment_universe(
+      universe_m_d_ref = scored_m_d_ref,
+      eligibility_quantile_range = inner_config@eligibility_quantile_range,
+      min_eligible_assets_fallback = inner_config@min_eligible_assets_fallback,
+      use_raw_for_eligibility = FALSE,
+      asset_object = "stocks",
+      verbose = FALSE
+    )
+
+    #Point-in-time return sample, exactly as the method subsets it
+    returns_upd_ref <- base_returns_xts[zoo::index(base_returns_xts) <= current_date, , drop = FALSE]
+    bench_upd_ref <- bench_returns_xts[zoo::index(bench_returns_xts) <= current_date, , drop = FALSE]
+
+    meta_port <- suppressWarnings(suppressMessages(set_portfolio_weights(
+      universe_m_d_ref = classified_m_d_ref,
+      port_construction_method = inner_config@port_construction_method,
+      covariance_matrix = NULL,
+      eligible_returns_m_xts_upd_ref = returns_upd_ref,
+      selected_benchmark_m_xts_upd_ref = bench_upd_ref,
+      active_returns = cov_est_method@active_returns,
+      cov_estimation_method = cov_est_method@cov_estimation_method,
+      cov_matrix_sample_size = cov_est_method@cov_matrix_sample_size,
+      top_down_proxy_port_method = "ew", mmaf_group_col = NULL,
+      selected_benchmark = NULL,
+      lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975,
+      parallel = FALSE, verbose = FALSE
+    )))
+
+    reconstructed_weights[[i]] <- meta_port@universe_m_d_ref@data %>%
+      dplyr::select(id, tickers, dates, weights)
+  }
+
+  reconstructed_weights <- do.call(rbind, reconstructed_weights) %>%
+    dplyr::arrange(id) %>%
+    as.data.frame()
+  rownames(reconstructed_weights) <- NULL
+
+  expect_equal(results@meta_port_weights_m_df@data, reconstructed_weights)
+
+  #The reconstruction must be a real allocation, not a degenerate one that would match trivially
+  expect_gt(stats::sd(reconstructed_weights$weights), 0)
+
+  #Stage 3: the projection onto stocks
+  expected_projection <- suppressMessages(project_meta_weights_to_stocks(
+    meta_weights_m_df = reconstructed_weights,
+    port_backtest_cohort = cohort,
+    signals_m_df = inputs$signals_m_df,
+    verbose = FALSE
+  ))
+  expect_equal(results@projected_stock_weights_m_df@data, expected_projection@data)
+
+  #Stage 4: the stock-level backtest run on those projected weights
+  expected_inner <- suppressWarnings(suppressMessages(run_port_backtest_internal(
+    signals_m_df = inputs$signals_m_df@data,
+    oos_predictions_m_df = NULL,
+    chosen_score_metric_and_position = NULL,
+    rebalancing_months = inner_config@rebalancing_months,
+    initial_buffer_period = inner_config@initial_buffer_period,
+    port_construction_method = "custom_weights",
+    selected_benchmark = inner_config@selected_benchmark,
+    eligibility_quantile_range = inner_config@eligibility_quantile_range,
+    exp_ret_score_tilt = NULL, exp_ret_score_tilt_eta = NULL, mmaf_group_col = NULL,
+    cov_estimation_method = cov_est_method@cov_estimation_method,
+    cov_matrix_sample_size = cov_est_method@cov_matrix_sample_size,
+    active_returns = cov_est_method@active_returns,
+    cov_matrix_benchmark = cov_est_method@cov_matrix_benchmark,
+    daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL,
+    benchmark_returns_m_xts = inputs$benchmark_returns_m_xts@data,
+    liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL,
+    concentration_constraint_policy = NULL,
+    liquidity_m_df = inputs$liquidity_m_df@data,
+    main_liquidity_metric = inner_config@main_liquidity_metric,
+    liquidity_floor_cutoffs = inner_config@liquidity_floor_cutoffs,
+    volatility_m_df = inputs$volatility_m_df@data,
+    fwd_return_m_df = inputs$fwd_return_m_df@data,
+    stock_groups_m_df = NULL,
+    benchmark_weights_m_df = inputs$benchmark_weights_m_df@data,
+    transaction_costs_parameters = as.list(inner_config@transaction_costs_parameters),
+    custom_stock_weights_m_df = expected_projection@data,
+    custom_stock_metrics_m_df = NULL,
+    lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975,
+    verbose = FALSE, parallel = FALSE
+  )))
+
+  expect_equal(results@meta_port_backtest_results@port_weights_m_df@data,
+               expected_inner@port_weights_m_df@data)
+  expect_equal(results@meta_port_backtest_results@port_returns_m_xts@data,
+               expected_inner@port_returns_m_xts@data)
+  expect_equal(results@meta_port_backtest_results@port_costs_m_xts@data,
+               expected_inner@port_costs_m_xts@data)
+  expect_equal(results@meta_port_backtest_results@port_stats_m_df@data,
+               expected_inner@port_stats_m_df@data)
+
+  #and the returns are real numbers rather than an all-NA series matching itself
+  expect_true(any(is.finite(expected_inner@port_returns_m_xts@data$net_return)))
+})
