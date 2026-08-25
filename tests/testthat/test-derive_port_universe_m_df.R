@@ -414,3 +414,302 @@ testthat::test_that("the class rejects an exp_ret_score column and a missing age
   non_numeric$IR <- as.character(non_numeric$IR)
   testthat::expect_error(build(non_numeric), "numeric")
 })
+
+
+# Against a real cohort ---------------------------------------------------
+# The fixtures above pin the behaviour but assume the shape of a cohort. These run two real
+# backtests, build a real port_backtest_cohort from them, and check that each base portfolio's
+# port_stats_m_df lands on the right rows of the derived universe.
+
+make_real_cohort <- function(with_daily_returns = TRUE) {
+
+  load(paste(testthat::test_path(), "/testdata/", "toy_preprocessed_port_obj.RData", sep = ""))
+
+  signals_m_df <- create_meta_dataframe(signals_m_df, type = "signals")
+  fwd_return_m_df <- create_meta_dataframe(fwd_return_m_df, type = "target")
+  liquidity_m_df <- create_meta_dataframe(liquidity_m_df)
+  volatility_m_df <- create_meta_dataframe(volatility_m_df)
+  benchmark_weights_m_df <- create_meta_dataframe(benchmark_weights_m_df, type = "weights")
+  benchmark_returns_m_xts <- suppressMessages(create_meta_xts(benchmark_returns_m_xts))
+  port_metrics_m_df <- create_meta_dataframe(
+    signals_m_df@data %>% dplyr::select(id, tickers, dates, roe_3m))
+
+  ## Daily returns are what make the position-derived block computable: without a covariance
+  ## matrix, act_risk and IR come back NA and any assertion on them would pass vacuously.
+  daily_stock_returns_m_xts <- suppressWarnings(suppressMessages(
+    create_meta_xts(daily_stock_returns_m_xts, type = "returns", asset_type = "stocks",
+                    meta_xts_name = "B3")))
+  set.seed(20260825)
+  daily_bench_returns_m_xts <- suppressWarnings(suppressMessages(
+    create_meta_xts(
+      xts::xts(data.frame(
+        ibov = stats::rnorm(nrow(daily_stock_returns_m_xts@data), mean = 0, sd = 0.5),
+        smll = stats::rnorm(nrow(daily_stock_returns_m_xts@data), mean = 0, sd = 0.5),
+        idiv = stats::rnorm(nrow(daily_stock_returns_m_xts@data), mean = 0, sd = 0.5)
+      ), order.by = zoo::index(daily_stock_returns_m_xts@data)),
+      type = "returns", asset_type = "benchmark", meta_xts_name = "B3")))
+
+  ## Two rebalancing months over a seven-date sample gives three rebalance dates against six
+  ## decision dates, so carry-forward is exercised on real output rather than only on a fixture
+  ## calculate_port_stats() estimates a covariance matrix whatever the construction method, but
+  ## add_cov_est_method() only accepts the covariance-based ones, so the estimator is passed to
+  ## the constructor directly. The fixture holds 228 daily observations, so the window must be
+  ## well under that; the constructor's own default is the daily 252 and would not fit.
+  cov_est_method <- if (with_daily_returns) {
+    create_cov_est_method(cov_estimation_method = "ewma", cov_matrix_sample_size = 52,
+                          active_returns = TRUE, cov_matrix_benchmark = "ibov")
+  } else {
+    NULL
+  }
+
+  build_config <- function(port_construction_method, config_name) {
+    create_port_backtest_config(
+      chosen_score_metric_and_position = c(book_yield = "long"),
+      eligibility_quantile_range = c(0.67, 1.0),
+      selected_benchmark = "ibov",
+      initial_buffer_period = 2,
+      rebalancing_months = c(1, 4),
+      cov_est_method = cov_est_method,
+      port_construction_method = port_construction_method,
+      main_liquidity_metric = "mean_volfin_3m",
+      config_name = config_name
+    ) %>%
+      add_liquidity_floor_cutoffs(
+        metric_name = c("mean_volfin_3m", "presence"),
+        metric_cutoffs = list(
+          c(micro_caps = 1, small_caps = 50000, mid_caps = 100000,
+            large_caps = 200000, mega_caps = 500000),
+          c(micro_caps = 97.5, small_caps = 100, mid_caps = 100,
+            large_caps = 100, mega_caps = 100)
+        )
+      ) %>%
+      add_liquidity_constraint_policy(liquidity_floor_rule = "small_caps") %>%
+      add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1,
+                                       lambda = "dynamic", strategy_aum = 25000)
+  }
+
+  run_one <- function(config) {
+    suppressWarnings(suppressMessages(
+      run_port_backtest(
+        signals_m_df = signals_m_df,
+        fwd_return_m_df = fwd_return_m_df,
+        liquidity_m_df = liquidity_m_df,
+        volatility_m_df = volatility_m_df,
+        config = config,
+        benchmark_weights_m_df = benchmark_weights_m_df,
+        benchmark_returns_m_xts = benchmark_returns_m_xts,
+        daily_stock_returns_m_xts = if (with_daily_returns) daily_stock_returns_m_xts else NULL,
+        daily_bench_returns_m_xts = if (with_daily_returns) daily_bench_returns_m_xts else NULL,
+        custom_stock_metrics_m_df = port_metrics_m_df,
+        verbose = FALSE, parallel = FALSE
+      )
+    ))
+  }
+
+  ew_results <- run_one(build_config("ew", "ew_book_yield"))
+  sw_results <- run_one(build_config("sw", "sw_book_yield"))
+
+  suppressWarnings(suppressMessages(
+    create_port_backtest_cohort(list(ew_results, sw_results), cohort_name = "real_cohort")
+  ))
+}
+
+
+testthat::test_that("each base portfolio's port_stats land on its own rows of the universe", {
+  cohort <- make_real_cohort()
+
+  universe <- suppressWarnings(suppressMessages(
+    derive_port_universe_m_df(cohort, return_basis = "net", verbose = FALSE)))@data
+
+  ## The universe is keyed by backtest identifier
+  testthat::expect_setequal(
+    unique(universe$tickers),
+    vapply(cohort@port_backtest_results_list, function(x) x@backtest_identifier, character(1))
+  )
+
+  compared_cells <- 0L
+  differing_stats <- character(0)
+
+  for (result in cohort@port_backtest_results_list) {
+    backtest_identifier <- result@backtest_identifier
+    base_stats <- result@port_stats_m_df@data %>%
+      dplyr::filter(tickers == "net_return") %>%
+      dplyr::arrange(dates)
+
+    stat_cols <- setdiff(names(base_stats), c("id", "tickers", "dates"))
+    testthat::expect_gt(length(stat_cols), 0L)
+
+    for (rebalance_date in base_stats$dates) {
+      universe_row <- universe %>%
+        dplyr::filter(tickers == backtest_identifier, dates == rebalance_date)
+      base_row <- base_stats %>% dplyr::filter(dates == rebalance_date)
+
+      testthat::expect_equal(nrow(universe_row), 1L)
+
+      ## Every statistic the base backtest produced is present, under the same name, with the
+      ## same value, on the row belonging to that backtest and that date
+      testthat::expect_equal(
+        as.list(universe_row[, stat_cols, drop = FALSE]),
+        as.list(base_row[, stat_cols, drop = FALSE]),
+        tolerance = 1e-10
+      )
+      compared_cells <- compared_cells + length(stat_cols)
+    }
+  }
+
+  testthat::expect_gt(compared_cells, 0L)
+
+  ## Guard against the check above being vacuous: the two portfolios must actually differ
+  ## somewhere, otherwise a crossed join would still compare equal
+  last_rebalance <- max(cohort@port_backtest_results_list[[1]]@port_stats_m_df@data$dates)
+  rows <- universe %>% dplyr::filter(dates == last_rebalance)
+  stat_cols <- setdiff(names(rows), c("id", "tickers", "dates", "stats_age_months"))
+  for (stat in stat_cols) {
+    values <- rows[[stat]]
+    if (all(is.finite(values)) && !isTRUE(all.equal(values[1], values[2]))) {
+      differing_stats <- c(differing_stats, stat)
+    }
+  }
+  testthat::expect_gt(length(differing_stats), 0L)
+})
+
+
+testthat::test_that("the raw basis picks the raw_return row of the same real port_stats", {
+  cohort <- make_real_cohort()
+
+  raw_universe <- suppressWarnings(suppressMessages(
+    derive_port_universe_m_df(cohort, return_basis = "raw", verbose = FALSE)))@data
+
+  result <- cohort@port_backtest_results_list[[1]]
+  base_stats <- result@port_stats_m_df@data %>% dplyr::filter(tickers == "raw_return")
+  stat_cols <- setdiff(names(base_stats), c("id", "tickers", "dates"))
+
+  rebalance_date <- max(base_stats$dates)
+  universe_row <- raw_universe %>%
+    dplyr::filter(tickers == result@backtest_identifier, dates == rebalance_date)
+  base_row <- base_stats %>% dplyr::filter(dates == rebalance_date)
+
+  testthat::expect_equal(
+    as.list(universe_row[, stat_cols, drop = FALSE]),
+    as.list(base_row[, stat_cols, drop = FALSE]),
+    tolerance = 1e-10
+  )
+})
+
+
+testthat::test_that("real statistics are carried forward between real rebalance dates", {
+  cohort <- make_real_cohort()
+
+  testthat::expect_warning(
+    universe <- suppressMessages(
+      derive_port_universe_m_df(cohort, verbose = FALSE)),
+    "carried forward"
+  )
+  universe <- universe@data
+
+  dates_backtest <- sort(as.Date(cohort@backtest_workflow_common$dates_backtest))
+  result <- cohort@port_backtest_results_list[[1]]
+  backtest_identifier <- result@backtest_identifier
+  rebalance_dates <- sort(unique(result@port_stats_m_df@data$dates))
+
+  ## The universe spans every decision date, not just the rebalance dates
+  testthat::expect_setequal(unique(universe$dates), dates_backtest)
+  testthat::expect_lt(length(rebalance_dates), length(dates_backtest))
+
+  ## Statistics are fresh on a rebalance date
+  for (rebalance_date in rebalance_dates) {
+    row <- universe %>%
+      dplyr::filter(tickers == backtest_identifier, dates == rebalance_date)
+    testthat::expect_equal(row$stats_age_months, 0)
+  }
+
+  ## and carried, with a correct age, on the dates in between
+  for (current_date in setdiff(dates_backtest, rebalance_dates)) {
+    current_date <- as.Date(current_date, origin = "1970-01-01")
+    source_date <- max(rebalance_dates[rebalance_dates <= current_date])
+
+    carried <- universe %>%
+      dplyr::filter(tickers == backtest_identifier, dates == current_date)
+    source <- universe %>%
+      dplyr::filter(tickers == backtest_identifier, dates == source_date)
+
+    expected_age <- length(seq(from = source_date, to = current_date, by = "month")) - 1L
+    testthat::expect_equal(carried$stats_age_months, as.numeric(expected_age))
+
+    ## Compare figures that are actually populated, so this is not a vacuous NA-to-NA check
+    testthat::expect_true(is.finite(source$act_risk))
+    testthat::expect_equal(carried$act_risk, source$act_risk)
+    testthat::expect_equal(carried$IR, source$IR)
+    testthat::expect_equal(carried$act_exp_ret, source$act_exp_ret)
+  }
+})
+
+
+testthat::test_that("real cost averages and custom metrics are attached per portfolio", {
+  cohort <- make_real_cohort()
+
+  universe <- suppressWarnings(suppressMessages(
+    derive_port_universe_m_df(cohort, verbose = FALSE)))@data
+  dates_backtest <- sort(as.Date(cohort@backtest_workflow_common$dates_backtest))
+  backtest_identifier <- cohort@port_backtest_results_list[[1]]@backtest_identifier
+
+  ## Costs, averaged over the real cost series strictly before the decision date
+  cost_xts <- cohort@port_costs_m_xts_list$total_cost_m_xts@data
+  current_date <- dates_backtest[4]
+  expected_cost <- mean(as.numeric(
+    cost_xts[zoo::index(cost_xts) < current_date, backtest_identifier]), na.rm = TRUE)
+
+  row <- universe %>%
+    dplyr::filter(tickers == backtest_identifier, dates == current_date)
+  testthat::expect_equal(row$avg_total_cost, expected_cost, tolerance = 1e-10)
+
+  ## The first decision date has no cost stamped before it, since costs are stamped one day
+  ## after the rebalance they pay for
+  first_rows <- universe %>% dplyr::filter(dates == dates_backtest[1])
+  testthat::expect_true(all(is.na(first_rows$avg_total_cost)))
+
+  ## Custom metrics, taken at the decision date itself
+  metric_xts <- cohort@port_metrics_m_xts_list$roe_3m_m_xts@data
+  expected_metric <- as.numeric(metric_xts[as.character(current_date), backtest_identifier])
+  testthat::expect_equal(row$metric_roe_3m, expected_metric, tolerance = 1e-10)
+})
+
+
+testthat::test_that("the first rebalance carries ex-ante figures but no realized ones", {
+  cohort <- make_real_cohort()
+
+  universe <- suppressWarnings(suppressMessages(
+    derive_port_universe_m_df(cohort, verbose = FALSE)))@data
+  first_date <- min(as.Date(cohort@backtest_workflow_common$dates_backtest))
+
+  first_rows <- universe %>% dplyr::filter(dates == first_date)
+
+  ## At the first rebalance there is no realized return history yet, so every realized figure is
+  ## NA. This is the practical reason a meta backtest needs its own initial_buffer_period on top
+  ## of the base one: a realized meta score is unusable here.
+  testthat::expect_true(all(is.na(first_rows$info_ratio)))
+  testthat::expect_true(all(is.na(first_rows$track_err)))
+  testthat::expect_true(all(is.na(first_rows$act_ann_ret)))
+
+  ## The position-derived block is already computable, since it needs only the weights held at
+  ## that date and a covariance matrix estimated from data available then
+  testthat::expect_true(all(is.finite(first_rows$act_exp_ret)))
+  testthat::expect_true(all(is.finite(first_rows$act_risk)))
+  testthat::expect_true(all(is.finite(first_rows$IR)))
+})
+
+
+testthat::test_that("the position-derived risk block is NA when no daily returns are supplied", {
+  ## Without daily returns there is no covariance matrix, so act_risk and IR are NA at every
+  ## date while act_exp_ret and the weight-based figures still populate. Worth pinning: a meta
+  ## score of 'IR' would be silently all-NA for a cohort built this way.
+  cohort <- make_real_cohort(with_daily_returns = FALSE)
+
+  universe <- suppressWarnings(suppressMessages(
+    derive_port_universe_m_df(cohort, verbose = FALSE)))@data
+
+  testthat::expect_true(all(is.na(universe$act_risk)))
+  testthat::expect_true(all(is.na(universe$IR)))
+  testthat::expect_true(all(is.finite(universe$act_exp_ret)))
+  testthat::expect_true(any(is.finite(universe$info_ratio)))
+})
