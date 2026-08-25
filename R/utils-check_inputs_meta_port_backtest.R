@@ -154,6 +154,17 @@ check_inputs_meta_port_backtest <- function(config,
                        "ranked cross-sectionally, so a cross-section this small makes the meta ",
                        "weights sensitive to small changes in the underlying statistics."))
   }
+
+  ##A covariance matrix estimated from fewer observations than assets is singular, and one
+  ##estimated from barely more is close to it. Portfolio analytics are computed from a covariance
+  ##matrix whatever the construction method, so this is not limited to rp, hrp and mvo.
+  cov_matrix_sample_size <- config@meta_port_backtest_config@cov_est_method@cov_matrix_sample_size
+  if (cov_matrix_sample_size <= n_base_portfolios) {
+    rlang::warn(paste0("cov_matrix_sample_size is ", cov_matrix_sample_size, " month(s) for ",
+                       n_base_portfolios, " base portfolios, so the estimated covariance matrix is ",
+                       "singular. Risk and every figure derived from it will be unreliable or ",
+                       "undefined; allow at least a few times as many months as portfolios."))
+  }
   ####################
 
   #Benchmark agreement

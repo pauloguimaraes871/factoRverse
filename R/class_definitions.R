@@ -4516,6 +4516,115 @@ setClass("port_backtest_cohort",
 )
 
 
+#port_metabacktest_results--------------------------------------------
+#' S4 Class for Portfolio Meta Backtest Results
+#'
+#' Holds the results of allocating across a cohort of already-backtested portfolios: the meta
+#' allocation itself, the stock-level backtest it implies, and the objects that connect the two.
+#'
+#' @section The two levels:
+#' A meta backtest happens at two levels and this object keeps both, because neither answers the
+#' other's questions:
+#' \describe{
+#'   \item{meta level}{\code{meta_port_weights_m_df} and \code{meta_port_stats_m_df} record how
+#'     much of the portfolio each base portfolio was given and what the allocation looked like as
+#'     an allocation, including its expected-return score, risk and relative risk contributions
+#'     across base portfolios. \code{final_meta_port} is the \code{port} object from the last meta
+#'     rebalance.}
+#'   \item{stock level}{\code{meta_port_backtest_results} is an ordinary
+#'     \code{port_backtest_results} for the portfolio those meta weights imply once pushed through
+#'     to individual stocks. Its returns, costs and turnover are the real ones, netted across base
+#'     portfolios that hold the same names, and it is what should be compared against a benchmark
+#'     or against the base portfolios themselves.}
+#' }
+#' Note that the stock-level object reports no expected-return statistics: its weights are supplied
+#' rather than derived, so \code{exp_ret} and its ratios are missing by construction. The
+#' expected-return view lives at the meta level, in \code{meta_port_stats_m_df}.
+#'
+#' @section Reading meta_port_stats_m_df:
+#' Two of its columns are easy to misread.
+#' \itemize{
+#'   \item \code{exp_ret} is the weighted average of the meta score after
+#'     \code{\link{signal_transform}}, so it is a dimensionless cross-sectional quantity and not a
+#'     return in percent. \code{sharpe} inherits that, being \code{exp_ret / risk}.
+#'   \item \code{risk}, and everything else derived from the covariance matrix, is measured on the
+#'     base portfolios' own returns, not on active returns, and so is an absolute figure. This
+#'     holds regardless of \code{cov_est_method@@active_returns}, which
+#'     \code{\link{create_port_backtest_config}} turns on automatically whenever a benchmark is
+#'     set: that setting reaches only the covariance used to \emph{construct} weights under
+#'     \code{rp}, \code{hrp} and \code{mvo}, because \code{calculate_port_stats()} re-estimates its
+#'     own covariance with active returns switched off to avoid counting the benchmark twice.
+#' }
+#' The stock-level object in \code{meta_port_backtest_results} is benchmark-relative in the
+#' ordinary way and needs no such caveat.
+#'
+#' @slot port_metabacktest_config The \code{port_metabacktest_config} used.
+#' @slot meta_port_backtest_results A \code{port_backtest_results} for the stock-level portfolio.
+#' @slot port_backtest_cohort The \code{port_backtest_cohort} allocated across.
+#' @slot port_universe_m_df The \code{port_universe_m_df} the meta weights were chosen from.
+#' @slot meta_port_weights_m_df A \code{weights_m_df} of meta weights per base portfolio per
+#'   rebalance date.
+#' @slot projected_stock_weights_m_df A \code{weights_m_df} of the stock-level weights those meta
+#'   weights imply, as handed to the stock-level backtest.
+#' @slot meta_port_stats_m_df A \code{meta_dataframe} of meta-level portfolio analytics per
+#'   rebalance date.
+#' @slot final_meta_port The \code{port} object for the last meta rebalance date.
+#' @slot backtest_identifier A character identifying the backtest.
+#'
+#' @seealso \code{\link{port_metabacktest_config-class}}, \code{\link{port_universe_m_df-class}},
+#'   \code{\link{port_backtest_results-class}}
+#' @export
+setClass(
+  "port_metabacktest_results",
+  slots = list(
+    port_metabacktest_config = "ANY",
+    meta_port_backtest_results = "port_backtest_results",
+    port_backtest_cohort = "ANY",
+    port_universe_m_df = "ANY",
+    meta_port_weights_m_df = "ANY",
+    projected_stock_weights_m_df = "ANY",
+    meta_port_stats_m_df = "ANY",
+    final_meta_port = "ANY",
+    backtest_identifier = "character"
+  ),
+  validity = function(object) {
+
+    if (!is.null(object@port_metabacktest_config) &&
+        !inherits(object@port_metabacktest_config, "port_metabacktest_config")) {
+      return("port_metabacktest_config must be a 'port_metabacktest_config' object")
+    }
+    if (!is.null(object@port_backtest_cohort) &&
+        !inherits(object@port_backtest_cohort, "port_backtest_cohort")) {
+      return("port_backtest_cohort must be a 'port_backtest_cohort' object")
+    }
+    if (!is.null(object@port_universe_m_df) &&
+        !inherits(object@port_universe_m_df, "port_universe_m_df")) {
+      return("port_universe_m_df must be a 'port_universe_m_df' object")
+    }
+    if (!is.null(object@meta_port_weights_m_df) &&
+        !inherits(object@meta_port_weights_m_df, "meta_dataframe")) {
+      return("meta_port_weights_m_df must be a 'meta_dataframe' object")
+    }
+    if (!is.null(object@projected_stock_weights_m_df) &&
+        !inherits(object@projected_stock_weights_m_df, "meta_dataframe")) {
+      return("projected_stock_weights_m_df must be a 'meta_dataframe' object")
+    }
+    if (!is.null(object@meta_port_stats_m_df) &&
+        !inherits(object@meta_port_stats_m_df, "meta_dataframe")) {
+      return("meta_port_stats_m_df must be a 'meta_dataframe' object")
+    }
+    if (!is.null(object@final_meta_port) && !inherits(object@final_meta_port, "port")) {
+      return("final_meta_port must be a 'port' object")
+    }
+    if (length(object@backtest_identifier) != 1) {
+      return("backtest_identifier must be a single character string")
+    }
+
+    TRUE
+  }
+)
+
+
 
 
 #####################################

@@ -5883,6 +5883,70 @@ setMethod(
 )
 
 
+# port_metabacktest_results----------------------------------------------
+#' Create a port_metabacktest_results Object
+#'
+#' Assembles the output of a meta-portfolio backtest, wrapping the meta-level allocation and the
+#' stock-level backtest it implies into a single object. Normally called by [run_port_backtest()]
+#' rather than directly.
+#'
+#' @param port_metabacktest_config The `port_metabacktest_config` used.
+#' @param meta_port_backtest_results A `port_backtest_results` for the stock-level portfolio.
+#' @param port_backtest_cohort The `port_backtest_cohort` allocated across.
+#' @param port_universe_m_df The `port_universe_m_df` the meta weights were chosen from.
+#' @param meta_port_weights_m_df A `data.frame` of meta weights per base portfolio per rebalance
+#'   date, coerced to a `weights_m_df`.
+#' @param projected_stock_weights_m_df The `weights_m_df` handed to the stock-level backtest.
+#' @param meta_port_stats_m_df A `data.frame` of meta-level analytics per rebalance date, coerced
+#'   to a `meta_dataframe`.
+#' @param final_meta_port The `port` object for the last meta rebalance date.
+#'
+#' @return An object of class [port_metabacktest_results-class].
+#' @seealso [run_port_backtest()], [port_metabacktest_results-class]
+#' @export
+create_port_metabacktest_results <- function(port_metabacktest_config,
+                                             meta_port_backtest_results,
+                                             port_backtest_cohort,
+                                             port_universe_m_df,
+                                             meta_port_weights_m_df,
+                                             projected_stock_weights_m_df,
+                                             meta_port_stats_m_df,
+                                             final_meta_port) {
+
+  # Coerce the two tabular results, if they are not already meta objects
+  if (!methods::is(meta_port_weights_m_df, "meta_dataframe")) {
+    meta_port_weights_m_df <- suppressWarnings(create_meta_dataframe(
+      data = meta_port_weights_m_df,
+      meta_dataframe_name = paste0(port_metabacktest_config@config_name, "__meta_weights"),
+      type = "weights"
+    ))
+  }
+  if (!methods::is(meta_port_stats_m_df, "meta_dataframe")) {
+    meta_port_stats_m_df <- suppressWarnings(create_meta_dataframe(
+      data = meta_port_stats_m_df,
+      meta_dataframe_name = paste0(port_metabacktest_config@config_name, "__meta_stats")
+    ))
+  }
+
+  # The identifier names both halves: which allocation rule, over which cohort
+  backtest_identifier <- paste0("mc__", port_metabacktest_config@config_name,
+                                "_ch__", port_backtest_cohort@cohort_name)
+
+  methods::new(
+    "port_metabacktest_results",
+    port_metabacktest_config = port_metabacktest_config,
+    meta_port_backtest_results = meta_port_backtest_results,
+    port_backtest_cohort = port_backtest_cohort,
+    port_universe_m_df = port_universe_m_df,
+    meta_port_weights_m_df = meta_port_weights_m_df,
+    projected_stock_weights_m_df = projected_stock_weights_m_df,
+    meta_port_stats_m_df = meta_port_stats_m_df,
+    final_meta_port = final_meta_port,
+    backtest_identifier = backtest_identifier
+  )
+}
+
+
 # create_port_backtest_cohort--------------------------------------------
 #' Create Portfolio Backtest Cohort
 #'

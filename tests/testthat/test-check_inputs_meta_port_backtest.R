@@ -405,6 +405,25 @@ testthat::test_that("stale statistics warn above the tolerance and never block",
     run_check(config = misaligned, max_stats_age_months = NULL), "month\\(s\\) old")
 })
 
+testthat::test_that("a covariance window no longer than the cohort is warned about", {
+  ## Portfolio analytics are computed from a covariance matrix whatever the construction method,
+  ## so fewer months than portfolios means a singular matrix even under signal weighting
+  singular <- meta_check_config()
+  singular@meta_port_backtest_config@cov_est_method@cov_matrix_sample_size <- 3
+
+  testthat::expect_warning(
+    suppressMessages(run_check(cohort = meta_check_cohort(n_ports = 4L), config = singular,
+                               verbose = FALSE)),
+    "singular"
+  )
+
+  ## A window with room to spare passes quietly
+  ample <- meta_check_config()
+  ample@meta_port_backtest_config@cov_est_method@cov_matrix_sample_size <- 36
+  testthat::expect_silent(
+    suppressMessages(run_check(config = ample, verbose = FALSE)))
+})
+
 testthat::test_that("max_stats_age_months is validated", {
   testthat::expect_error(
     suppressMessages(run_check(max_stats_age_months = -1, verbose = FALSE)),
