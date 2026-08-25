@@ -19,7 +19,9 @@
 #' \itemize{
 #'   \item classes of every supplied object;
 #'   \item the cohort holds at least two base portfolios, since a meta allocation needs something
-#'     to allocate across;
+#'     to allocate across. Exactly two is supported: signal weighting over a pair is ordinal rather
+#'     than proportional, which is reported as a warning and not refused, since a two-portfolio
+#'     allocation such as a risky and a defensive sleeve is a normal use;
 #'   \item the meta score names a column of the universe, is not entirely missing, and is present
 #'     at every meta rebalance date;
 #'   \item the meta rebalance schedule falls inside the dates the cohort covers, and the meta
@@ -126,17 +128,26 @@ check_inputs_meta_port_backtest <- function(config,
                         n_base_portfolios, "."))
   }
 
-  ##signal_transform() z-scores the cross-section, and a two-element cross-section always
-  ##z-scores to the same pair of values whatever the gap between the scores. Signal weighting
-  ##over two portfolios is therefore a fixed split that ignores the meta score entirely.
-  if (n_base_portfolios == 2L && port_construction_method == "sw") {
-    rlang::abort(paste0("port_construction_method 'sw' over exactly two base portfolios produces a ",
-                        "fixed split regardless of the meta score: a two-element cross-section ",
-                        "always z-scores to the same pair of values. Use 'ew', add a third base ",
-                        "portfolio, or choose a covariance-based method."))
+  ##signal_transform() winsorizes then z-scores the cross-section, and a two-element cross-section
+  ##always z-scores to the same pair of values whatever the gap between the scores. Signal
+  ##weighting over two portfolios is therefore ordinal: it tilts toward whichever portfolio scores
+  ##higher by a fixed amount, and flips when the ranking flips. That is a coherent tactical rule
+  ##for a pair such as a risky and a defensive portfolio, so it is reported rather than refused.
+  is_two_portfolio_sw <- n_base_portfolios == 2L && port_construction_method == "sw"
+
+  if (is_two_portfolio_sw) {
+    rlang::warn(paste0(
+      "port_construction_method 'sw' over exactly two base portfolios allocates on the ordering of ",
+      "the meta score, not its magnitude: a two-element cross-section always z-scores to the same ",
+      "pair of values, so the weights are a fixed 74.5/25.5 split toward whichever portfolio scores ",
+      "higher, and 50/50 on a tie, whatever the gap between them. That is a valid rule if an ordinal ",
+      "tilt is what you want. For weights that respond to the size of the score gap, use 'mvo', ",
+      "which consumes the score cardinally, or 'rp'/'hrp' with an exp_ret_score tilt."))
   }
 
-  if (n_base_portfolios < 4L) {
+  ##The generic small-cohort caveat is about sensitivity to small changes in the statistics, which
+  ##is the opposite of what the two-portfolio 'sw' case does, so it is not raised alongside it
+  if (n_base_portfolios < 4L && !is_two_portfolio_sw) {
     rlang::warn(paste0("The cohort holds only ", n_base_portfolios, " base portfolios. Scores are ",
                        "ranked cross-sectionally, so a cross-section this small makes the meta ",
                        "weights sensitive to small changes in the underlying statistics."))

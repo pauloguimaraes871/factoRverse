@@ -64,7 +64,9 @@ first; this function assumes only that it returned successfully.
 \itemize{
 \item classes of every supplied object;
 \item the cohort holds at least two base portfolios, since a meta allocation needs something
-to allocate across;
+to allocate across. Exactly two is supported: signal weighting over a pair is ordinal rather
+than proportional, which is reported as a warning and not refused, since a two-portfolio
+allocation such as a risky and a defensive sleeve is a normal use;
 \item the meta score names a column of the universe, is not entirely missing, and is present
 at every meta rebalance date;
 \item the meta rebalance schedule falls inside the dates the cohort covers, and the meta

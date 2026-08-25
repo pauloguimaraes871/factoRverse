@@ -225,20 +225,51 @@ testthat::test_that("a cohort with fewer than two base portfolios is refused", {
   )
 })
 
-testthat::test_that("signal weighting over exactly two base portfolios is refused", {
+testthat::test_that("signal weighting over exactly two base portfolios warns but proceeds", {
+  ## A pair such as a risky and a defensive sleeve is a normal allocation, so this must not block
   cohort <- meta_check_cohort(n_ports = 2L)
-  testthat::expect_error(
-    suppressWarnings(suppressMessages(run_check(
-      cohort = cohort, config = meta_check_config(port_construction_method = "sw"),
-      verbose = FALSE))),
-    "fixed split"
-  )
 
-  ## The same cohort is fine under equal weighting, which does not read the score's magnitude
+  testthat::expect_warning(
+    result <- suppressMessages(run_check(
+      cohort = cohort, config = meta_check_config(port_construction_method = "sw"),
+      verbose = FALSE)),
+    "ordering of the meta score, not its magnitude"
+  )
+  testthat::expect_gt(length(result$meta_rebalance_dates), 0L)
+
+  ## The generic small-cohort caveat is about sensitivity to small changes, which is the opposite
+  ## of what this case does, so it is not raised alongside the specific one
+  warnings_raised <- testthat::capture_warnings(suppressMessages(run_check(
+    cohort = cohort, config = meta_check_config(port_construction_method = "sw"),
+    verbose = FALSE)))
+  testthat::expect_length(warnings_raised, 1L)
+
+  ## Other methods over the same pair get the generic caveat instead
   testthat::expect_warning(
     suppressMessages(run_check(cohort = cohort, verbose = FALSE)),
     "only 2 base portfolios"
   )
+})
+
+testthat::test_that("two-portfolio signal weighting is ordinal, which is what the warning says", {
+  ## Pinning the behaviour the warning describes, so the message cannot drift from the code
+  weights_for <- function(scores) {
+    transformed <- signal_transform(scores, lower_quantile_winsorization = 0.025,
+                                    upper_quantile_winsorization = 0.975)
+    transformed / sum(transformed)
+  }
+
+  ## The gap between the scores does not change the split
+  testthat::expect_equal(weights_for(c(1.0, 0.9)), weights_for(c(10, -50)), tolerance = 1e-9)
+  testthat::expect_equal(weights_for(c(1.0, 0.9)), c(0.744521, 0.255479), tolerance = 1e-5)
+
+  ## but the ordering does, and a tie splits evenly
+  testthat::expect_equal(weights_for(c(0.9, 1.0)), rev(weights_for(c(1.0, 0.9))))
+  testthat::expect_equal(weights_for(c(1.0, 1.0)), c(0.5, 0.5))
+
+  ## Three portfolios do respond to the size of the gaps
+  testthat::expect_false(isTRUE(all.equal(weights_for(c(1.0, 0.9, 0.8)),
+                                          weights_for(c(1.0, 0.1, 0.05)))))
 })
 
 testthat::test_that("a small cross-section warns without blocking", {
