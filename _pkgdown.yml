@@ -148,10 +148,12 @@ reference:
     them as a group.
   contents:
   - create_port_backtest_config
+  - create_port_metabacktest_config
   - run_port_backtest
   - update_port_backtest
   - create_port_backtest_cohort
   - "port_backtest_config-class"
+  - "port_metabacktest_config-class"
   - "port_backtest_results-class"
   - "port_backtest_cohort-class"
 

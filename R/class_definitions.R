@@ -3814,6 +3814,138 @@ setClass(
 )
 
 
+#port_metabacktest_config-----------------------------------------------
+#' Class for Port Meta Backtest Config
+#'
+#' An S4 class specifying how meta weights are attributed across a set of already-backtested
+#' portfolios. It wraps a single \code{port_backtest_config} describing the meta allocation,
+#' together with the rules for reading the base portfolios' characteristics out of a
+#' \code{\link{port_backtest_cohort-class}}. The base portfolios themselves are supplied later,
+#' as a cohort, to \code{\link{run_port_backtest}}.
+#'
+#' @section Which slots act at which level:
+#' The wrapped \code{port_backtest_config} serves two levels at once, and it is worth being
+#' explicit about which of its slots does what:
+#' \describe{
+#'   \item{meta level, allocating across base portfolios}{\code{port_construction_method},
+#'     \code{chosen_score_metric_and_position} (the meta score, a column of
+#'     \code{\link{port_universe_m_df-class}}), \code{eligibility_quantile_range},
+#'     \code{min_eligible_assets_fallback}, the scaler slots, \code{cov_est_method} and the
+#'     \code{mvo_parameters} / \code{rp_parameters} / \code{hrp_parameters} blocks.}
+#'   \item{stock level, running the resulting weights as a portfolio}{
+#'     \code{main_liquidity_metric} and \code{transaction_costs_parameters}, which price the
+#'     trades the meta allocation implies once it is pushed through to individual stocks.}
+#'   \item{both levels}{\code{rebalancing_months} and \code{initial_buffer_period}, which set the
+#'     single schedule on which meta weights are formed, and \code{selected_benchmark}.}
+#' }
+#'
+#' @section Covariance sample size is in months:
+#' At meta level the assets are portfolios and their return series are monthly, so
+#' \code{cov_est_method@@cov_matrix_sample_size} counts months rather than trading days. The
+#' default carried by \code{\link{create_port_backtest_config}} is 252, which is a daily figure;
+#' left unchanged it would ask for 21 years of monthly history. Validity warns when a
+#' covariance-based method is combined with an implausibly long sample.
+#'
+#' @slot meta_port_backtest_config A \code{port_backtest_config} describing the meta allocation.
+#' @slot return_basis A character, \code{"net"} or \code{"raw"}, selecting which return basis of the
+#'   base portfolios' statistics feeds the meta universe.
+#' @slot cost_lookback \code{NULL} for an expanding cost average, or a single positive whole number
+#'   of trailing cost observations.
+#' @slot config_name A character string naming the configuration.
+#'
+#' @seealso \code{\link{create_port_metabacktest_config}}, \code{\link{port_universe_m_df-class}},
+#'   \code{\link{port_backtest_cohort-class}}
+#' @export
+setClass(
+  "port_metabacktest_config",
+  slots = list(
+    meta_port_backtest_config = "port_backtest_config",
+    return_basis = "character",
+    cost_lookback = "ANY",
+    config_name = "character"
+  ),
+  validity = function(object) {
+
+    inner_config <- object@meta_port_backtest_config
+    port_construction_method <- inner_config@port_construction_method
+
+    ##Methods that do not carry over to a set of portfolios
+    ###slsaf and mmaf are overlays on a stock cross-section: the first expresses conviction
+    ###relative to benchmark constituents, the second allocates within and across stock groups.
+    ###Neither has a counterpart over a handful of portfolios.
+    if (port_construction_method %in% c("slsaf", "mmaf")) {
+      stop("port_construction_method '", port_construction_method, "' is not supported at meta-level. ",
+           "It is defined as an overlay on a stock cross-section (benchmark constituents for 'slsaf', ",
+           "stock groups for 'mmaf') and has no counterpart over a set of portfolios.")
+    }
+    ###cw and cs weight by a liquidity metric, which portfolios do not have
+    if (port_construction_method %in% c("cw", "cs")) {
+      stop("port_construction_method '", port_construction_method, "' is not supported at meta-level. ",
+           "It weights by a liquidity metric, which a portfolio does not have.")
+    }
+    if (!port_construction_method %in% c("ew", "sw", "rp", "hrp", "mvo")) {
+      stop("port_construction_method at meta-level must be one of 'ew', 'sw', 'rp', 'hrp' or 'mvo'.")
+    }
+
+    ##A meta score is always needed: the universe must carry an exp_ret_score before
+    ##classify_investment_universe can rank and select base portfolios
+    if (is.null(inner_config@chosen_score_metric_and_position)) {
+      stop("chosen_score_metric_and_position must be provided in meta_port_backtest_config. ",
+           "It names the column of port_universe_m_df used as the meta score.")
+    }
+
+    ##Constraint policies that would be silently inert
+    ###At meta level these describe stock properties portfolios do not have; at stock level the
+    ###meta weights are applied as custom weights, which bypass them.
+    if (!is.null(inner_config@liquidity_constraint_policy)) {
+      stop("liquidity_constraint_policy is not supported at meta-level: portfolios have no liquidity ",
+           "classification, and the stock-level run applies the meta weights directly.")
+    }
+    if (!is.null(inner_config@turnover_constraint_policy)) {
+      stop("turnover_constraint_policy is not supported at meta-level: the stock-level run applies ",
+           "the meta weights directly, so a buffer rule would have nothing to act on.")
+    }
+    if (!is.null(inner_config@concentration_constraint_policy)) {
+      stop("concentration_constraint_policy is not supported at meta-level: it requires benchmark ",
+           "weights over the allocated assets, which do not exist for a set of portfolios.")
+    }
+
+    ##Return basis
+    if (length(object@return_basis) != 1 || !object@return_basis %in% c("net", "raw")) {
+      stop("return_basis must be a single character value, either 'net' or 'raw'.")
+    }
+
+    ##Cost lookback
+    if (!is.null(object@cost_lookback)) {
+      if (!is.numeric(object@cost_lookback) || length(object@cost_lookback) != 1 ||
+          is.na(object@cost_lookback) || object@cost_lookback < 1 ||
+          object@cost_lookback %% 1 != 0) {
+        stop("cost_lookback must be NULL or a single positive whole number of months.")
+      }
+    }
+
+    ##Config name
+    if (length(object@config_name) != 1) {
+      stop("config_name must be a single character string.")
+    }
+
+    ##Covariance sample size is counted in months at meta level, so a daily-sized window is
+    ##almost certainly the create_port_backtest_config default left unchanged
+    if (port_construction_method %in% c("rp", "hrp", "mvo")) {
+      cov_matrix_sample_size <- inner_config@cov_est_method@cov_matrix_sample_size
+      if (cov_matrix_sample_size > 120) {
+        warning("cov_matrix_sample_size is ", cov_matrix_sample_size, ", but at meta-level it counts ",
+                "months of portfolio returns rather than trading days. This asks for ",
+                round(cov_matrix_sample_size / 12, 1), " years of history. The default carried by ",
+                "create_port_backtest_config() is the daily 252; consider setting it explicitly.")
+      }
+    }
+
+    TRUE
+  }
+)
+
+
 #port-------------------------------------------------------------------
 #' Portfolio classes for backtesting portfolios
 #'

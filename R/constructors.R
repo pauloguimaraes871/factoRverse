@@ -5790,6 +5790,99 @@ add_liquidity_floor_cutoffs <- function(object, metric_name, metric_cutoffs) {
 
 
 
+# port_metabacktest_config-----------------------------------------------
+#' Create Port Meta Backtest Configuration
+#'
+#' The `create_port_metabacktest_config` function creates a `port_metabacktest_config` object that
+#' configures a meta-portfolio backtest: an allocation across several already-backtested portfolios,
+#' rebalanced on a schedule, driven by those portfolios' own characteristics. It wraps a single
+#' `port_backtest_config` describing the meta allocation together with the rules for reading the
+#' base portfolios' characteristics out of a cohort. The base portfolios themselves are supplied
+#' later, as a `port_backtest_cohort`, to [run_port_backtest()].
+#'
+#' @details
+#' The meta score is the `chosen_score_metric_and_position` of the wrapped config, and it must name
+#' a column of the [port_universe_m_df-class] that [derive_port_universe_m_df()] builds from the
+#' cohort. Because that object carries some statistics in both an ex-ante and a realized flavour,
+#' this constructor reports which flavour the chosen score is; see [message_meta_score_basis()].
+#'
+#' See [port_metabacktest_config-class] for which slots of the wrapped config act at the meta level
+#' and which act at the stock level.
+#'
+#' @param meta_port_backtest_config A `port_backtest_config` describing the meta allocation. Its
+#'   `port_construction_method` must be one of `"ew"`, `"sw"`, `"rp"`, `"hrp"` or `"mvo"`, and its
+#'   `chosen_score_metric_and_position` must name a column of the derived `port_universe_m_df`.
+#' @param return_basis Character, `"net"` (default) or `"raw"`. Which return basis of the base
+#'   portfolios' statistics feeds the meta universe.
+#' @param cost_lookback `NULL` (default) for an expanding cost average, or a single positive whole
+#'   number of trailing months.
+#' @param config_name Name of the backtest configuration.
+#' @param verbose Logical, default `TRUE`. Whether to report the meta score's basis.
+#' @param ... Additional arguments (not used).
+#'
+#' @return A `port_metabacktest_config` object.
+#'
+#' @examples
+#' \dontrun{
+#'   # Allocate across base portfolios by their realized information ratio, signal-weighted.
+#'   meta_config <- create_port_backtest_config(
+#'     chosen_score_metric_and_position = c(ann_info_ratio = "long"),
+#'     eligibility_quantile_range = c(0, 1),
+#'     initial_buffer_period = 24,
+#'     rebalancing_months = c(6, 12),
+#'     selected_benchmark = "ibov",
+#'     main_liquidity_metric = "mean_volfin_3m",
+#'     port_construction_method = "sw",
+#'     config_name = "meta_sw_ir"
+#'   )
+#'
+#'   port_meta_config <- create_port_metabacktest_config(
+#'     meta_port_backtest_config = meta_config,
+#'     return_basis = "net",
+#'     config_name = "meta_sw_ir"
+#'   )
+#' }
+#'
+#' @seealso [port_metabacktest_config-class], [derive_port_universe_m_df()],
+#'   [create_port_backtest_config()]
+#' @export
+setGeneric("create_port_metabacktest_config", function(meta_port_backtest_config, ...) {
+  standardGeneric("create_port_metabacktest_config")
+})
+
+
+#' @describeIn create_port_metabacktest_config Create a meta-backtest config from a meta-level
+#'   `port_backtest_config`.
+#' @export
+setMethod(
+  "create_port_metabacktest_config",
+  signature(meta_port_backtest_config = "port_backtest_config"),
+  function(meta_port_backtest_config, return_basis = "net", cost_lookback = NULL,
+           config_name = "not_identified", verbose = TRUE, ...) {
+
+    # Create the port_metabacktest_config object (validity does the checking)
+    meta_config <- methods::new("port_metabacktest_config",
+                                meta_port_backtest_config = meta_port_backtest_config,
+                                return_basis = return_basis,
+                                cost_lookback = cost_lookback,
+                                config_name = config_name
+    )
+
+    # Report whether the chosen meta score is an ex-ante or a realized figure. The two live side
+    # by side in port_universe_m_df under names that do not advertise the difference, and picking
+    # one where the other was intended changes what the allocation optimizes.
+    if (isTRUE(verbose)) {
+      message_meta_score_basis(
+        stat_name = names(meta_port_backtest_config@chosen_score_metric_and_position),
+        verbose = TRUE
+      )
+    }
+
+    return(meta_config)
+  }
+)
+
+
 # create_port_backtest_cohort--------------------------------------------
 #' Create Portfolio Backtest Cohort
 #'
