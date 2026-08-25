@@ -8,6 +8,7 @@ derive_port_universe_m_df(
   port_backtest_cohort,
   return_basis = c("net", "raw"),
   cost_lookback = NULL,
+  custom_port_metrics_m_df = NULL,
   port_universe_name = NULL,
   verbose = TRUE
 )
@@ -20,6 +21,12 @@ base \code{port_stats_m_df} is used: net of transaction costs, or gross.}
 
 \item{cost_lookback}{Optional positive integer. Number of trailing cost observations averaged
 into the \code{avg_} columns. \code{NULL} (default) uses an expanding average.}
+
+\item{custom_port_metrics_m_df}{Optional \code{meta_dataframe} of user-computed per-portfolio
+metrics, joined on \code{id}. Its \code{tickers} must be the base backtest identifiers and it
+must carry only numeric, non-missing columns on a complete ticker-by-date panel. Column names
+may not collide with statistics already derived from the cohort. Dates it does not cover are
+left as \code{NA} rather than dropped.}
 
 \item{port_universe_name}{Optional character naming the resulting object. Defaults to the cohort
 name suffixed with the return basis.}
@@ -44,6 +51,9 @@ are carried forward to intervening dates (see below).
 \code{avg_}.
 \item \strong{Custom metrics} come from \code{port_metrics_m_xts_list} at the row's date,
 prefixed \code{metric_}.
+\item \strong{User-supplied metrics} come from \code{custom_port_metrics_m_df}, joined on
+\code{id}, under whatever names the user gave them. This is the route for characteristics
+the cohort does not compute, or more timely versions of ones it does.
 }
 }
 

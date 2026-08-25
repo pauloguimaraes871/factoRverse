@@ -282,6 +282,157 @@ testthat::test_that("custom metrics are taken at the decision date itself", {
 })
 
 
+# User-supplied metrics ---------------------------------------------------
+
+make_custom_metrics <- function(cohort, tickers = NULL, dates = NULL,
+                                metric_name = "rolling_track_err") {
+
+  if (is.null(tickers)) {
+    tickers <- names(cohort@port_backtest_results_list)
+  }
+  if (is.null(dates)) {
+    dates <- sort(as.Date(cohort@backtest_workflow_common$dates_backtest))
+  }
+
+  custom_df <- expand.grid(tickers = tickers, dates = dates,
+                           KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE)
+  ## A deterministic value that identifies its own ticker and date, so a crossed join shows up
+  custom_df[[metric_name]] <- match(custom_df$tickers, tickers) * 100 +
+    match(custom_df$dates, dates)
+  custom_df$id <- paste0(custom_df$tickers, "-", custom_df$dates)
+  custom_df <- custom_df[order(custom_df$id), c("id", "tickers", "dates", metric_name)]
+  rownames(custom_df) <- NULL
+
+  suppressWarnings(suppressMessages(
+    create_meta_dataframe(custom_df, meta_dataframe_name = "custom_port_metrics")
+  ))
+}
+
+
+testthat::test_that("user-supplied metrics are joined on id, matching ticker and date", {
+  cohort <- make_toy_cohort()
+  custom_metrics <- make_custom_metrics(cohort)
+
+  universe <- suppressWarnings(suppressMessages(
+    derive_port_universe_m_df(cohort, custom_port_metrics_m_df = custom_metrics,
+                              verbose = FALSE)))@data
+
+  testthat::expect_true("rolling_track_err" %in% colnames(universe))
+  testthat::expect_false(any(is.na(universe$rolling_track_err)))
+
+  ## The joined value must match the one the user supplied for that exact ticker and date
+  custom_data <- custom_metrics@data
+  joined <- universe[, c("id", "rolling_track_err")]
+  expected <- custom_data[match(joined$id, custom_data$id), "rolling_track_err"]
+  testthat::expect_equal(joined$rolling_track_err, expected)
+
+  ## and the two portfolios must not have been crossed
+  dates_backtest <- sort(as.Date(cohort@backtest_workflow_common$dates_backtest))
+  alpha_row <- universe[universe$tickers == "bt_alpha" & universe$dates == dates_backtest[3], ]
+  beta_row <- universe[universe$tickers == "bt_beta" & universe$dates == dates_backtest[3], ]
+  testthat::expect_equal(alpha_row$rolling_track_err, 103)
+  testthat::expect_equal(beta_row$rolling_track_err, 203)
+})
+
+testthat::test_that("the universe is unchanged where no custom metrics are supplied", {
+  cohort <- make_toy_cohort()
+
+  without <- suppressWarnings(suppressMessages(
+    derive_port_universe_m_df(cohort, verbose = FALSE)))@data
+  with <- suppressWarnings(suppressMessages(
+    derive_port_universe_m_df(cohort, custom_port_metrics_m_df = make_custom_metrics(cohort),
+                              verbose = FALSE)))@data
+
+  testthat::expect_equal(with[, colnames(without)], without)
+  testthat::expect_equal(setdiff(colnames(with), colnames(without)), "rolling_track_err")
+})
+
+testthat::test_that("partial date coverage leaves NA rather than dropping valid dates", {
+  cohort <- make_toy_cohort()
+  dates_backtest <- sort(as.Date(cohort@backtest_workflow_common$dates_backtest))
+  ## Cover only the second half of the grid
+  partial_metrics <- make_custom_metrics(cohort, dates = dates_backtest[13:24])
+
+  testthat::expect_message(
+    universe <- suppressWarnings(
+      derive_port_universe_m_df(cohort, custom_port_metrics_m_df = partial_metrics,
+                                verbose = TRUE)),
+    "does not cover every date"
+  )
+  universe <- universe@data
+
+  ## Every decision date survives, which is the point: a port universe legitimately carries NAs
+  testthat::expect_setequal(unique(universe$dates), dates_backtest)
+  testthat::expect_equal(nrow(universe), length(dates_backtest) * 2L)
+  testthat::expect_true(all(is.na(universe$rolling_track_err[universe$dates < dates_backtest[13]])))
+  testthat::expect_false(any(is.na(universe$rolling_track_err[universe$dates >= dates_backtest[13]])))
+})
+
+testthat::test_that("a column that shadows a derived statistic is refused rather than mangled", {
+  cohort <- make_toy_cohort()
+
+  shadowing <- make_custom_metrics(cohort, metric_name = "track_err")
+  testthat::expect_error(
+    suppressWarnings(suppressMessages(
+      derive_port_universe_m_df(cohort, custom_port_metrics_m_df = shadowing, verbose = FALSE))),
+    "collide"
+  )
+
+  ## The cohort-derived cost and metric blocks are protected too
+  shadowing_cost <- make_custom_metrics(cohort, metric_name = "avg_total_cost")
+  testthat::expect_error(
+    suppressWarnings(suppressMessages(
+      derive_port_universe_m_df(cohort, custom_port_metrics_m_df = shadowing_cost,
+                                verbose = FALSE))),
+    "collide"
+  )
+})
+
+testthat::test_that("malformed custom metrics are rejected with informative errors", {
+  cohort <- make_toy_cohort()
+
+  derive_with <- function(custom) {
+    suppressWarnings(suppressMessages(
+      derive_port_universe_m_df(cohort, custom_port_metrics_m_df = custom, verbose = FALSE)))
+  }
+
+  ## Not a meta_dataframe
+  testthat::expect_error(derive_with(make_custom_metrics(cohort)@data), "meta_dataframe")
+
+  ## A base portfolio left uncovered
+  testthat::expect_error(
+    derive_with(make_custom_metrics(cohort, tickers = "bt_alpha")),
+    "should be contemplated"
+  )
+
+  ## Non-numeric
+  non_numeric <- make_custom_metrics(cohort)
+  non_numeric@data$rolling_track_err <- as.character(non_numeric@data$rolling_track_err)
+  testthat::expect_error(derive_with(non_numeric), "numeric")
+
+  ## Missing values supplied outright
+  with_na <- make_custom_metrics(cohort)
+  with_na@data$rolling_track_err[1] <- NA_real_
+  testthat::expect_error(derive_with(with_na), "NA")
+
+  ## An incomplete ticker-by-date panel
+  incomplete <- make_custom_metrics(cohort)
+  incomplete@data <- incomplete@data[-1, ]
+  testthat::expect_error(derive_with(incomplete), "tickers \\* dates")
+
+  ## No metric column at all
+  no_metric <- make_custom_metrics(cohort)
+  no_metric@data <- no_metric@data[, c("id", "tickers", "dates")]
+  testthat::expect_error(derive_with(no_metric), "at least one metric column")
+})
+
+testthat::test_that("a user-supplied metric can be selected as a meta score and is unambiguous", {
+  ## Not being in the basis table, a user-supplied name has no ex-ante counterpart to confuse
+  testthat::expect_silent(message_meta_score_basis("rolling_track_err"))
+  testthat::expect_null(message_meta_score_basis("rolling_track_err"))
+})
+
+
 # Basis messaging ---------------------------------------------------------
 
 testthat::test_that("message_meta_score_basis names the basis and the counterpart", {

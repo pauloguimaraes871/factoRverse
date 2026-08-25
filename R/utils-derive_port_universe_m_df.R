@@ -15,6 +15,9 @@
 #'     \code{avg_}.
 #'   \item \strong{Custom metrics} come from \code{port_metrics_m_xts_list} at the row's date,
 #'     prefixed \code{metric_}.
+#'   \item \strong{User-supplied metrics} come from \code{custom_port_metrics_m_df}, joined on
+#'     \code{id}, under whatever names the user gave them. This is the route for characteristics
+#'     the cohort does not compute, or more timely versions of ones it does.
 #' }
 #'
 #' # Carry-forward and staleness
@@ -57,6 +60,11 @@
 #'   base \code{port_stats_m_df} is used: net of transaction costs, or gross.
 #' @param cost_lookback Optional positive integer. Number of trailing cost observations averaged
 #'   into the \code{avg_} columns. \code{NULL} (default) uses an expanding average.
+#' @param custom_port_metrics_m_df Optional \code{meta_dataframe} of user-computed per-portfolio
+#'   metrics, joined on \code{id}. Its \code{tickers} must be the base backtest identifiers and it
+#'   must carry only numeric, non-missing columns on a complete ticker-by-date panel. Column names
+#'   may not collide with statistics already derived from the cohort. Dates it does not cover are
+#'   left as \code{NA} rather than dropped.
 #' @param port_universe_name Optional character naming the resulting object. Defaults to the cohort
 #'   name suffixed with the return basis.
 #' @param verbose Logical, default \code{TRUE}.
@@ -70,6 +78,7 @@
 derive_port_universe_m_df <- function(port_backtest_cohort,
                                       return_basis = c("net", "raw"),
                                       cost_lookback = NULL,
+                                      custom_port_metrics_m_df = NULL,
                                       port_universe_name = NULL,
                                       verbose = TRUE) {
 
@@ -210,10 +219,23 @@ derive_port_universe_m_df <- function(port_backtest_cohort,
   }
   ####################
 
+  #User-supplied metrics
+  ####################
+  port_universe_m_df <- port_universe_m_df %>%
+    dplyr::mutate(id = paste0(tickers, "-", dates))
+
+  if (!is.null(custom_port_metrics_m_df)) {
+    port_universe_m_df <- attach_custom_port_metrics(
+      port_universe_m_df = port_universe_m_df,
+      custom_port_metrics_m_df = custom_port_metrics_m_df,
+      verbose = verbose
+    )
+  }
+  ####################
+
   #Assemble
   ####################
   port_universe_m_df <- port_universe_m_df %>%
-    dplyr::mutate(id = paste0(tickers, "-", dates)) %>%
     dplyr::relocate(id, tickers, dates) %>%
     dplyr::relocate(stats_age_months, .after = dplyr::last_col()) %>%
     dplyr::arrange(id) %>%
@@ -244,6 +266,16 @@ derive_port_universe_m_df <- function(port_backtest_cohort,
       source_cohort_name = port_backtest_cohort@cohort_name,
       return_basis = return_basis,
       cost_lookback = cost_lookback,
+      custom_port_metrics_object_name = if (!is.null(custom_port_metrics_m_df)) {
+        custom_port_metrics_m_df@meta_dataframe_name
+      } else {
+        NULL
+      },
+      custom_port_metrics = if (!is.null(custom_port_metrics_m_df)) {
+        setdiff(names(custom_port_metrics_m_df@data), c("id", "tickers", "dates"))
+      } else {
+        NULL
+      },
       selected_benchmark = port_backtest_cohort@backtest_workflow_common$selected_benchmark,
       base_portfolios = sort(unique(port_universe_m_df$tickers)),
       dates_covered = dates_grid,
@@ -254,6 +286,107 @@ derive_port_universe_m_df <- function(port_backtest_cohort,
 
 
 #Helpers-----------------------------------------------
+
+#' Attach user-supplied per-portfolio metrics to a port universe
+#'
+#' Joins a \code{meta_dataframe} of user-computed metrics onto the derived universe by \code{id},
+#' mirroring how \code{\link{derive_signal_universe_m_df}} handles
+#' \code{custom_signal_universe_metrics_m_df}. This is the route for characteristics the cohort
+#' does not compute, or more timely versions of ones it does, for example a trailing-window
+#' tracking error in place of the base backtests' expanding-window one.
+#'
+#' @details
+#' The validation mirrors the signal-blending path: coercible to a \code{meta_dataframe}, numeric
+#' columns only, no missing values, a complete ticker-by-date panel, and every base portfolio
+#' covered.
+#'
+#' Two deliberate departures from that path:
+#' \itemize{
+#'   \item Rows are \strong{not} dropped when the supplied object covers fewer dates than the
+#'     cohort. A port universe legitimately carries missing values (no realized statistics exist at
+#'     the first rebalance date, no prior cost exists on the first decision date), so dropping
+#'     incomplete rows would delete valid dates rather than clean the data. Uncovered rows are left
+#'     as \code{NA} and reported.
+#'   \item A supplied column whose name matches one already derived from the cohort is refused
+#'     rather than joined. A silent join would rename both to \code{<name>.x} and \code{<name>.y},
+#'     leaving the meta score to select an arbitrary one of the two.
+#' }
+#'
+#' @param port_universe_m_df The universe assembled so far, carrying \code{id}, \code{tickers} and
+#'   \code{dates}.
+#' @param custom_port_metrics_m_df A \code{meta_dataframe} whose \code{tickers} are the base
+#'   backtest identifiers.
+#' @param verbose Logical, default \code{TRUE}.
+#'
+#' @return \code{port_universe_m_df} with the supplied metric columns joined on.
+#' @keywords internal
+attach_custom_port_metrics <- function(port_universe_m_df, custom_port_metrics_m_df,
+                                       verbose = TRUE) {
+
+  ##Class
+  if (!methods::is(custom_port_metrics_m_df, "meta_dataframe")) {
+    rlang::abort("custom_port_metrics_m_df must be a meta_dataframe object.")
+  }
+  custom_data <- custom_port_metrics_m_df@data
+
+  ##Coercibility
+  if (!is_coercible_to_meta_dataframe(custom_data)) {
+    rlang::abort("custom_port_metrics_m_df not coercible to meta_dataframe.")
+  }
+
+  metric_cols <- setdiff(names(custom_data), c("id", "tickers", "dates"))
+  if (length(metric_cols) == 0L) {
+    rlang::abort("custom_port_metrics_m_df must carry at least one metric column.")
+  }
+
+  ##Only numeric
+  if (!all(vapply(custom_data[metric_cols], is.numeric, logical(1)))) {
+    rlang::abort("custom_port_metrics_m_df should only contain numeric values.")
+  }
+
+  ##No missing values in what the user supplied. Missingness introduced later by partial date
+  ##coverage is tolerated and reported; missingness supplied outright is not.
+  if (any(is.na(custom_data))) {
+    rlang::abort("custom_port_metrics_m_df should not contain NA's.")
+  }
+
+  ##Complete panel
+  expected_rows <- length(unique(custom_data$tickers)) * length(unique(custom_data$dates))
+  if (nrow(custom_data) != expected_rows) {
+    rlang::abort("custom_port_metrics_m_df should have nrows equal to tickers * dates.")
+  }
+
+  ##Every base portfolio covered
+  missing_tickers <- setdiff(unique(port_universe_m_df$tickers), unique(custom_data$tickers))
+  if (length(missing_tickers) > 0L) {
+    rlang::abort(paste0("all port_universe_m_df tickers should be contemplated in ",
+                        "custom_port_metrics_m_df. Missing: ",
+                        paste(missing_tickers, collapse = ", "), "."))
+  }
+
+  ##Name collisions would become <name>.x and <name>.y, leaving the meta score to pick an
+  ##arbitrary one of the two, so refuse instead of mangling
+  collisions <- intersect(metric_cols, names(port_universe_m_df))
+  if (length(collisions) > 0L) {
+    rlang::abort(paste0("custom_port_metrics_m_df columns collide with statistics already derived ",
+                        "from the cohort: ", paste(collisions, collapse = ", "),
+                        ". Rename them so both remain available and distinguishable."))
+  }
+
+  ##Join on id
+  port_universe_m_df <- port_universe_m_df %>%
+    dplyr::left_join(custom_data %>% dplyr::select(-tickers, -dates), by = "id")
+
+  ##Partial date coverage leaves NAs, which are reported rather than dropped
+  if (isTRUE(verbose) &&
+      any(vapply(port_universe_m_df[metric_cols], function(x) any(is.na(x)), logical(1)))) {
+    message("custom_port_metrics_m_df does not cover every date in the cohort's backtest grid; ",
+            "the uncovered rows carry NA.")
+  }
+
+  return(port_universe_m_df)
+}
+
 
 #' Ex-ante and realized counterparts among portfolio statistics
 #'
