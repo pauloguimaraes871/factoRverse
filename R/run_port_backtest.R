@@ -1782,30 +1782,44 @@ run_port_backtest_internal <- function(
 
         ####Create stock_universe_m_d_ref and classify it
         ##############################
+        #####Weights-based route
+        #####A custom_weights portfolio whose caller supplied no score source has no
+        #####expected-return view of its own: the weights already encode the decision. Skip score
+        #####derivation and let eligibility follow the weights instead.
+        weights_based_eligibility <- port_construction_method == "custom_weights" &&
+          is.null(chosen_score_metric_and_position) && is.null(oos_predictions_m_d_ref)
+
         #####Derive Stock Universe
-        stock_universe_m_d_ref <- derive_stock_universe_m_d_ref(
-          #Signals
-          signals_m_d_ref = signals_m_d_ref,
+        if (weights_based_eligibility) {
+          stock_universe_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates)
+        } else {
+          stock_universe_m_d_ref <- derive_stock_universe_m_d_ref(
+            #Signals
+            signals_m_d_ref = signals_m_d_ref,
 
-          #OOS Predictions
-          oos_predictions_m_d_ref = oos_predictions_m_d_ref,
+            #OOS Predictions
+            oos_predictions_m_d_ref = oos_predictions_m_d_ref,
 
-          #Chosen Score Metric and Position
-          chosen_score_metric_and_position = chosen_score_metric_and_position,
+            #Chosen Score Metric and Position
+            chosen_score_metric_and_position = chosen_score_metric_and_position,
 
-          #Scaling
-          chosen_scaler = chosen_scaler, scaler_m_d_ref = scaler_m_d_ref,
-          scaler_shrinkage = scaler_shrinkage,
+            #Scaling
+            chosen_scaler = chosen_scaler, scaler_m_d_ref = scaler_m_d_ref,
+            scaler_shrinkage = scaler_shrinkage,
 
-          #Winsorization
-          lower_quantile_winsorization = lower_quantile_winsorization,
-          upper_quantile_winsorization = upper_quantile_winsorization
-        )
+            #Winsorization
+            lower_quantile_winsorization = lower_quantile_winsorization,
+            upper_quantile_winsorization = upper_quantile_winsorization
+          )
+        }
 
         #####Classify Stock Universe
         stock_universe_m_d_ref <- classify_investment_universe(
           #Stock Universe
           universe_m_d_ref = stock_universe_m_d_ref,
+
+          #Weights-based eligibility (custom_weights without a score source)
+          custom_weights_m_d_ref = if (weights_based_eligibility) custom_stock_weights_m_d_ref else NULL,
 
           #Use raw scores for eligibility
           use_raw_for_eligibility = use_raw_for_eligibility,

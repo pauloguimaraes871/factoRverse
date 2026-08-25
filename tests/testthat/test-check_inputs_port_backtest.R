@@ -7503,3 +7503,65 @@ test_that("check_inputs_port_backtest validates slsaf-specific requirements", {
   #A well-formed slsaf configuration passes
   expect_silent(suppressMessages(do.call(check_inputs_port_backtest, slsaf_args)))
 })
+
+test_that("check_inputs_port_backtest lets custom_weights run without a score source", {
+
+  load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
+
+  custom_stock_weights_m_df <- signals_m_df %>%
+    dplyr::select(id, tickers, dates) %>%
+    dplyr::group_by(dates) %>%
+    dplyr::mutate(weights = 1 / dplyr::n()) %>%
+    dplyr::ungroup() %>%
+    as.data.frame()
+
+  #The score check sits early on, and later checks need arguments this call does not supply, so
+  #the message itself is inspected rather than merely the presence of an error
+  message_of <- function(...) {
+    tryCatch({ check_inputs_port_backtest(...); NA_character_ },
+             error = function(e) conditionMessage(e))
+  }
+  score_check <- "either chosen_score_metric_and_position"
+
+  #A custom_weights portfolio supplies its weights instead of deriving them from a score
+  with_weights <- message_of(
+    signals_m_df = signals_m_df, oos_predictions_m_df = NULL,
+    chosen_score_metric_and_position = NULL,
+    rebalancing_months = 7, initial_buffer_period = 12,
+    port_construction_method = "custom_weights",
+    eligibility_quantile_range = c(0.5, 1),
+    min_eligible_assets_fallback = NULL,
+    chosen_scaler = NULL, scaler_m_df = NULL, scaler_shrinkage = NULL,
+    use_raw_for_eligibility = NULL,
+    custom_stock_weights_m_df = custom_stock_weights_m_df
+  )
+  expect_false(grepl(score_check, with_weights, fixed = TRUE))
+
+  #Every other method still has to say where its scores come from
+  without_score <- message_of(
+    signals_m_df = signals_m_df, oos_predictions_m_df = NULL,
+    chosen_score_metric_and_position = NULL,
+    rebalancing_months = 7, initial_buffer_period = 12,
+    port_construction_method = "sw",
+    eligibility_quantile_range = c(0.5, 1),
+    min_eligible_assets_fallback = NULL,
+    chosen_scaler = NULL, scaler_m_df = NULL, scaler_shrinkage = NULL,
+    use_raw_for_eligibility = NULL,
+    custom_stock_weights_m_df = custom_stock_weights_m_df
+  )
+  expect_true(grepl(score_check, without_score, fixed = TRUE))
+
+  #and custom_weights without any weights is still refused
+  no_weights <- message_of(
+    signals_m_df = signals_m_df, oos_predictions_m_df = NULL,
+    chosen_score_metric_and_position = NULL,
+    rebalancing_months = 7, initial_buffer_period = 12,
+    port_construction_method = "custom_weights",
+    eligibility_quantile_range = c(0.5, 1),
+    min_eligible_assets_fallback = NULL,
+    chosen_scaler = NULL, scaler_m_df = NULL, scaler_shrinkage = NULL,
+    use_raw_for_eligibility = NULL,
+    custom_stock_weights_m_df = NULL
+  )
+  expect_true(grepl(score_check, no_weights, fixed = TRUE))
+})

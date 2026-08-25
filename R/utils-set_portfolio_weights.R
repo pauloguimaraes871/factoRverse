@@ -554,18 +554,30 @@ set_portfolio_weights <- function(universe_m_d_ref, port_construction_method,
       all_returns_m_xts_upd_ref <- NULL
     }
 
+    ## A custom_weights portfolio has no expected-return view, so classify_investment_universe()
+    ## leaves exp_ret_score entirely missing to satisfy the stock_universe_m_df contract without
+    ## inventing a number. calculate_port_stats() refuses any missing score, which is right for a
+    ## partially missing one and wrong for an absent view, so an all-missing column is dropped:
+    ## the analytics then report exp_ret and its ratios as NA rather than as a fabricated zero.
+    drop_absent_exp_ret_score <- function(df) {
+      if (!is.null(df) && "exp_ret_score" %in% names(df) && all(is.na(df$exp_ret_score))) {
+        df <- df %>% dplyr::select(-exp_ret_score)
+      }
+      df
+    }
+
     stats_res <- calculate_port_stats(
-      universe_m_d_ref = universe_m_d_ref,
+      universe_m_d_ref = drop_absent_exp_ret_score(universe_m_d_ref),
       #### For level == "port", it is safer to recalculate cov matrix to assume
       #### full coverage in case of benchmark. The same happens for level == "benchmark"
       #### For level == "group", one can reuse covariance_matrix
       covariance_matrix = if (level %in% c("group")) covariance_matrix else NULL,
       #### For level == "groups", we should not pass group metrics
-      group_universe_m_d_ref = if (level %in% c("port", "benchmark")) group_universe_m_d_ref else NULL,
+      group_universe_m_d_ref = if (level %in% c("port", "benchmark")) drop_absent_exp_ret_score(group_universe_m_d_ref) else NULL,
       group_cov_matrix = if (level %in% c("port", "benchmark")) group_cov_matrix else NULL,
       #### A benchmark is only to be provided for level port
       selected_benchmark = if (level %in% c("port", "sub_port") && !is.null(bench_universe_m_d_ref)) selected_benchmark else NULL,
-      bench_universe_m_d_ref = if (level %in% c("port", "sub_port") && !is.null(selected_benchmark)) bench_universe_m_d_ref else NULL,
+      bench_universe_m_d_ref = if (level %in% c("port", "sub_port") && !is.null(selected_benchmark)) drop_absent_exp_ret_score(bench_universe_m_d_ref) else NULL,
       #### Reestimate only for port level
       all_returns_m_xts_upd_ref = if (level %in% c("port", "sub_port", "benchmark", "sub_benchmark")) all_returns_m_xts_upd_ref else NULL, #Return sample
       cov_matrix_sample_size = if (level %in% c("port", "sub_port", "benchmark", "sub_benchmark")) cov_matrix_sample_size else NULL, #Cov estimation

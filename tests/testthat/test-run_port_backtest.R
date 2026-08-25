@@ -9614,3 +9614,71 @@ test_that("update_port_backtest works for a slsaf strategy, with new month a pos
   expect_equal(new_results2@stock_universe_m_df@data, updated_results2@stock_universe_m_df@data)
   expect_equal(new_results2@final_stock_port, updated_results2@final_stock_port)
 })
+
+test_that("run_port_backtest_internal runs a custom_weights portfolio with no score source", {
+
+  #This is the shape the meta-portfolio backtest produces: weights are decided upstream and
+  #pushed through to stocks, so there is no expected-return score anywhere in the run.
+  load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
+
+  signals_m_df <- create_meta_dataframe(signals_m_df, type = "signals")
+  fwd_return_m_df <- create_meta_dataframe(fwd_return_m_df, type = "target")
+  liquidity_m_df <- create_meta_dataframe(liquidity_m_df)
+  volatility_m_df <- create_meta_dataframe(volatility_m_df)
+  benchmark_weights_m_df <- create_meta_dataframe(benchmark_weights_m_df, type = "weights")
+  benchmark_returns_m_xts <- suppressMessages(create_meta_xts(benchmark_returns_m_xts))
+
+  #An equal split over ten names quoted on every date, so the weights sum to one throughout
+  n_dates <- length(unique(signals_m_df@data$dates))
+  ticker_counts <- table(signals_m_df@data$tickers)
+  held <- sort(names(ticker_counts)[ticker_counts == n_dates])[1:10]
+  custom_stock_weights_m_df <- signals_m_df@data %>%
+    dplyr::select(id, tickers, dates) %>%
+    dplyr::mutate(weights = ifelse(tickers %in% held, 1 / length(held), 0)) %>%
+    dplyr::arrange(id)
+
+  results <- suppressWarnings(suppressMessages(run_port_backtest_internal(
+    signals_m_df = signals_m_df@data,
+    oos_predictions_m_df = NULL,
+    chosen_score_metric_and_position = NULL,
+    rebalancing_months = c(1, 4), initial_buffer_period = 2,
+    port_construction_method = "custom_weights",
+    selected_benchmark = "ibov",
+    mmaf_group_col = NULL,
+    exp_ret_score_tilt = NULL, exp_ret_score_tilt_eta = NULL,
+    liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL,
+    concentration_constraint_policy = NULL,
+    liquidity_m_df = liquidity_m_df@data, main_liquidity_metric = "mean_volfin_3m",
+    volatility_m_df = volatility_m_df@data, fwd_return_m_df = fwd_return_m_df@data,
+    benchmark_weights_m_df = benchmark_weights_m_df@data,
+    benchmark_returns_m_xts = benchmark_returns_m_xts@data,
+    transaction_costs_parameters = list(direct_transaction_cost = 0.07, alpha = 1,
+                                        lambda = "dynamic", strategy_aum = 25000),
+    custom_stock_weights_m_df = custom_stock_weights_m_df,
+    verbose = FALSE, parallel = FALSE
+  )))
+
+  expect_s4_class(results, "port_backtest_results")
+
+  #Eligibility followed the supplied weights: exactly the held names, on every rebalance date
+  universe <- results@stock_universe_m_df@data
+  expect_equal(unique(tapply(universe$is_eligible, universe$dates, sum)), length(held),
+               ignore_attr = TRUE)
+  expect_setequal(unique(universe$tickers[universe$is_eligible == 1]), held)
+  expect_equal(universe$pre_eligible_assets, universe$is_eligible)
+
+  #No expected-return view was invented anywhere
+  expect_true(all(is.na(universe$exp_ret_score)))
+  stats <- results@port_stats_m_df@data
+  expect_true(all(is.na(stats$act_exp_ret)))
+  expect_true(all(is.na(stats$IR)))
+
+  #while everything derived from realized returns and trades still works
+  expect_true(any(is.finite(stats$info_ratio)))
+  expect_true(any(results@port_costs_m_xts@data$total_cost > 0, na.rm = TRUE))
+  expect_true(any(is.finite(results@port_returns_m_xts@data$net_return)))
+
+  #and the portfolio actually holds the names it was told to hold
+  held_weights <- results@port_weights_m_df@data %>% dplyr::filter(eop_port_weights > 0)
+  expect_setequal(unique(held_weights$tickers), held)
+})
