@@ -293,8 +293,10 @@ testthat::test_that("the result is a weights_m_df that sums to one on every date
   testthat::expect_equal(as.numeric(sums), rep(1, length(timing_dates)), tolerance = 1e-12)
 })
 
-testthat::test_that("the output feeds project_meta_weights_to_stocks unchanged", {
-  ## The point of producing weights outside the backtest is that they go straight in
+testthat::test_that("the output carries the columns a meta weight panel needs", {
+  ## Shape only. Whether these weights can actually be consumed depends on what they name:
+  ## weights over base portfolios project onto stocks, weights naming a residual cash sleeve
+  ## do not, because a cash line is not a portfolio with stock weights. See the test below.
   metric <- rbind(
     make_metric_m_df(rep(4, length(timing_dates)), tickers = "bt_alpha"),
     make_metric_m_df(rep(8, length(timing_dates)), tickers = "bt_beta")
@@ -306,6 +308,46 @@ testthat::test_that("the output feeds project_meta_weights_to_stocks unchanged",
 
   testthat::expect_true(all(c("id", "tickers", "dates", "weights") %in% names(weights@data)))
   testthat::expect_setequal(unique(weights@data$tickers), c("bt_alpha", "bt_beta"))
+  testthat::expect_equal(weights@data$id,
+                         paste0(weights@data$tickers, "-", weights@data$dates))
+})
+
+testthat::test_that("a residual cash sleeve cannot yet be projected onto stocks", {
+  ## Pinning a known limitation rather than leaving it undocumented. derive_timing_weights()
+  ## produces the risk-free-plus-risky split correctly, but nothing downstream can execute a
+  ## partially invested portfolio: project_meta_weights_to_stocks() expects every asset to be a
+  ## base portfolio with its own stock weights, and a cash line is not one. This test should be
+  ## replaced by an end-to-end one when that gap is closed.
+  metric <- rbind(
+    make_metric_m_df(rep(8, length(timing_dates)), tickers = "risky"),
+    make_metric_m_df(rep(1, length(timing_dates)), tickers = "cash")
+  )
+  metric <- metric[order(metric$id), ]
+
+  weights <- suppressMessages(derive_timing_weights(
+    metric, metric = "ann_track_err", method = "inverse", target = 4,
+    residual_asset = "cash", verbose = FALSE))
+
+  ## The split itself is correct: a tracking error twice the budget halves the risky sleeve
+  testthat::expect_true(all(weights@data$weights[weights@data$tickers == "risky"] == 0.5))
+  testthat::expect_true(all(weights@data$weights[weights@data$tickers == "cash"] == 0.5))
+
+  ## but the cash sleeve has no stock weights to project through
+  cohort <- methods::new(
+    "port_backtest_cohort", cohort_name = "shape_only",
+    port_backtest_results_list = list(),
+    port_weights_m_df = suppressWarnings(suppressMessages(create_meta_dataframe(
+      data.frame(id = paste0("AAA-", timing_dates), tickers = "AAA", dates = timing_dates,
+                 risky = 1, stringsAsFactors = FALSE), type = "weights"))),
+    port_costs_m_xts_list = list(), port_returns_m_xts_list = list(),
+    port_metrics_m_xts_list = list(), port_stats_m_xts_nested_list = list(),
+    backtest_workflow_common = list(selected_benchmark = NULL, dates_backtest = timing_dates))
+
+  testthat::expect_error(
+    suppressMessages(project_meta_weights_to_stocks(
+      meta_weights_m_df = weights@data, port_backtest_cohort = cohort, verbose = FALSE)),
+    "no column for: cash"
+  )
 })
 
 
