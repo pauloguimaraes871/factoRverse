@@ -270,6 +270,14 @@ testthat::test_that("two-portfolio signal weighting is ordinal, which is what th
   ## Three portfolios do respond to the size of the gaps
   testthat::expect_false(isTRUE(all.equal(weights_for(c(1.0, 0.9, 0.8)),
                                           weights_for(c(1.0, 0.1, 0.05)))))
+
+  ## The transform runs before any construction method reads exp_ret_score, so at two assets the
+  ## expected-return vector handed to 'mvo' is just as magnitude-blind as the one 'sw' weights
+  transformed <- function(scores) {
+    signal_transform(scores, lower_quantile_winsorization = 0.025,
+                     upper_quantile_winsorization = 0.975)
+  }
+  testthat::expect_equal(transformed(c(1.0, 0.9)), transformed(c(10, -50)), tolerance = 1e-9)
 })
 
 testthat::test_that("a small cross-section warns without blocking", {

@@ -138,11 +138,13 @@ check_inputs_meta_port_backtest <- function(config,
   if (is_two_portfolio_sw) {
     rlang::warn(paste0(
       "port_construction_method 'sw' over exactly two base portfolios allocates on the ordering of ",
-      "the meta score, not its magnitude: a two-element cross-section always z-scores to the same ",
-      "pair of values, so the weights are a fixed 74.5/25.5 split toward whichever portfolio scores ",
-      "higher, and 50/50 on a tie, whatever the gap between them. That is a valid rule if an ordinal ",
-      "tilt is what you want. For weights that respond to the size of the score gap, use 'mvo', ",
-      "which consumes the score cardinally, or 'rp'/'hrp' with an exp_ret_score tilt."))
+      "the meta score, not its magnitude. derive_stock_universe_m_d_ref() runs signal_transform() ",
+      "before any weighting, and a two-element cross-section always z-scores to the same pair of ",
+      "values, so the weights are a fixed 74.5/25.5 split toward whichever portfolio scores higher, ",
+      "and 50/50 on a tie, whatever the gap between them. Every method that reads exp_ret_score is ",
+      "affected the same way at two assets, 'mvo' included, since the transform runs before all of ",
+      "them. That is a valid rule if an ordinal tilt is what you want; for weights proportional to ",
+      "the size of the gap over a pair, compute them outside and supply them as custom weights."))
   }
 
   ##The generic small-cohort caveat is about sensitivity to small changes in the statistics, which
