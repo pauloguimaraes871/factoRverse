@@ -49,6 +49,11 @@
 #'   backtest identifiers, not stocks.
 #' @param port_backtest_cohort The \code{port_backtest_cohort} whose \code{port_weights_m_df}
 #'   supplies each base portfolio's stock weights.
+#' @param residual_ticker Optional character naming a meta-level asset that is a single stock-level
+#'   holding rather than a portfolio, typically the residual sleeve of a risk-targeted allocation.
+#'   Its meta weight becomes that ticker's stock weight directly, with no portfolio weights to
+#'   multiply through. It must not be one of the cohort's base portfolios, and it must be a row of
+#'   \code{signals_m_df}.
 #' @param signals_m_df Optional \code{meta_dataframe} or \code{data.frame} of the stock signals the
 #'   meta backtest will run on. When supplied, the result is extended to cover its full
 #'   asset-by-date panel, which is what \code{check_inputs_port_backtest()} requires. It is needed
@@ -67,6 +72,7 @@
 project_meta_weights_to_stocks <- function(meta_weights_m_df,
                                            port_backtest_cohort,
                                            signals_m_df = NULL,
+                                           residual_ticker = NULL,
                                            tolerance = 0.02,
                                            verbose = TRUE) {
 
@@ -103,6 +109,36 @@ project_meta_weights_to_stocks <- function(meta_weights_m_df,
     offending <- meta_sums$dates[abs(meta_sums$total - 1) > tolerance]
     rlang::abort(paste0("Meta weights do not sum to one on: ",
                         paste(as.character(offending), collapse = ", "), "."))
+  }
+  ####################
+
+  #Split off the residual sleeve
+  ####################
+  ##A residual sleeve is a single holding rather than a portfolio, so its meta weight is already a
+  ##stock weight and there is nothing to multiply through.
+  residual_weights_m_df <- NULL
+  if (!is.null(residual_ticker)) {
+    if (!is.character(residual_ticker) || length(residual_ticker) != 1L) {
+      rlang::abort("residual_ticker must be a single character value.")
+    }
+    if (residual_ticker %in% names(port_backtest_cohort@port_weights_m_df@data)) {
+      rlang::abort(paste0("residual_ticker '", residual_ticker, "' is also a base portfolio of the ",
+                          "cohort. A residual sleeve is a single holding, not a portfolio."))
+    }
+    if (!residual_ticker %in% meta_weights_m_df$tickers) {
+      rlang::abort(paste0("residual_ticker '", residual_ticker, "' carries no meta weight."))
+    }
+
+    residual_weights_m_df <- meta_weights_m_df %>%
+      dplyr::filter(tickers == residual_ticker) %>%
+      dplyr::select(tickers, dates, weights) %>%
+      dplyr::mutate(id = paste0(tickers, "-", dates)) %>%
+      dplyr::select(id, tickers, dates, weights)
+
+    meta_weights_m_df <- meta_weights_m_df %>% dplyr::filter(tickers != residual_ticker)
+    if (nrow(meta_weights_m_df) == 0L) {
+      rlang::abort("Every meta weight belongs to the residual sleeve, leaving no portfolio to project.")
+    }
   }
   ####################
 
@@ -177,6 +213,23 @@ project_meta_weights_to_stocks <- function(meta_weights_m_df,
     dplyr::inner_join(held_meta_weights, by = c("portfolio", "dates")) %>%
     dplyr::group_by(id, tickers, dates) %>%
     dplyr::summarise(weights = sum(base_weight * meta_weight), .groups = "drop")
+
+  ##The residual sleeve joins as its own stock-level row, held forward on the same schedule as
+  ##the portfolio weights so the two halves stay in step
+  if (!is.null(residual_weights_m_df)) {
+    residual_held <- purrr::map_dfr(seq_along(projectable_dates), function(i) {
+      residual_weights_m_df %>%
+        dplyr::filter(dates == meta_dates[source_positions[i]]) %>%
+        dplyr::mutate(dates = projectable_dates[i],
+                      id = paste0(tickers, "-", dates))
+    })
+    ##The cohort's weight panel already carries a row for the residual ticker, normally at zero
+    ##since the sleeves do not hold it, so the two contributions are summed rather than appended.
+    ##That also stays correct in the case where a sleeve does hold it.
+    projected <- dplyr::bind_rows(projected, residual_held) %>%
+      dplyr::group_by(id, tickers, dates) %>%
+      dplyr::summarise(weights = sum(weights), .groups = "drop")
+  }
   ####################
 
   #Extend to the signals panel
@@ -203,6 +256,17 @@ project_meta_weights_to_stocks <- function(meta_weights_m_df,
       rlang::abort(paste0(nrow(panel_mismatch), " signals_m_df id(s) have no projected weight, ",
                           "starting with '", panel_mismatch$id[1], "'. The cohort and signals_m_df ",
                           "must describe the same assets."))
+    }
+
+    ##The residual sleeve is a row of signals_m_df that the cohort never held, so it is expected
+    ##to be absent from the base weights and must not count as a hole in the panel
+    if (!is.null(residual_ticker)) {
+      residual_in_signals <- signal_keys %>% dplyr::filter(tickers == residual_ticker)
+      if (nrow(residual_in_signals) == 0L) {
+        rlang::abort(paste0("residual_ticker '", residual_ticker, "' is not a row of signals_m_df. ",
+                            "The residual sleeve has to be tradable in the stock universe, with ",
+                            "its own return, liquidity and volatility."))
+      }
     }
 
     early_dates <- dates_grid[dates_grid < min(meta_dates)]

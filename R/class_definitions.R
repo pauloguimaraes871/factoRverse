@@ -4817,6 +4817,53 @@ setClass(
   }
 )
 
+#cml_metabacktest_results---------------------------------------------
+#' S4 Class for Risk-Targeted Meta Backtest Results
+#'
+#' The result of the `risk_targeted` path: a single risky sleeve scaled against a residual sleeve
+#' so the combination targets a stated level of risk. Extends
+#' \code{\link{port_metabacktest_results-class}} with the diagnostics that only make sense for a
+#' targeting rule, and carries its own plot method for the capital-market-line view.
+#'
+#' @section Reading meta_port_stats_m_df on this path:
+#' Where the multi-portfolio path reports cross-sectional portfolio analytics, this one reports the
+#' targeting rule at work: \code{sleeve_risk} is the risky sleeve's estimated risk at each
+#' rebalance date, \code{risky_weight} the weight the rule set from it, \code{target} the level
+#' asked for, and \code{implied_risk} the product \eqn{sleeve\_risk \times risky\_weight}.
+#'
+#' \code{implied_risk} equals \code{target} exactly whenever the weight is unclipped, so a
+#' departure from it says a bound was binding, not that the targeting failed. Whether the rule
+#' actually worked is a question about realised returns, which exist only after the stock-level run:
+#' compare the realised tracking error of
+#' \code{meta_port_backtest_results@@port_returns_m_xts} against \code{target}. A realised figure
+#' persistently above the target means the risk estimator is too slow to catch risk as it rises.
+#'
+#' @slot residual_ticker Character naming the residual sleeve.
+#' @slot cml_parameters The `cml_parameters` used.
+#'
+#' @seealso \code{\link{port_metabacktest_results-class}}, \code{\link{cml_parameters-class}}
+#' @export
+setClass(
+  "cml_metabacktest_results",
+  contains = "port_metabacktest_results",
+  slots = list(
+    residual_ticker = "character",
+    cml_parameters = "ANY"
+  ),
+  validity = function(object) {
+    if (length(object@residual_ticker) != 1) {
+      return("residual_ticker must be a single character string")
+    }
+    if (!is.null(object@cml_parameters) &&
+        !inherits(object@cml_parameters, "cml_parameters")) {
+      return("cml_parameters must be a 'cml_parameters' object")
+    }
+    TRUE
+  }
+)
+
+
+
 
 
 

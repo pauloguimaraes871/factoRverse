@@ -1308,6 +1308,7 @@ setMethod("run_port_backtest",
                    daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL,
                    benchmark_returns_m_xts = NULL,
                    custom_stock_metrics_m_df = NULL,
+                   vol_m_df = NULL,
                    max_stats_age_months = NULL,
                    winsorization_probs = c(0.025, 0.975),
                    verbose = TRUE, parallel = TRUE, .test_seed = NULL) {
@@ -1384,6 +1385,90 @@ setMethod("run_port_backtest",
             cov_est_method <- inner_config@cov_est_method
             meta_active_returns <- cov_est_method@active_returns && !is.null(meta_bench_returns_xts)
             ###########################
+
+            #Risk-targeted path: the weight comes from the targeting rule, not a cross-section
+            ###########################
+            if (config@type == "risk_targeted") {
+
+              cml_params <- config@cml_parameters
+              risky_results <- port_backtest_cohort@port_backtest_results_list[[1]]
+              risky_name <- risky_results@backtest_identifier
+
+              if (verbose) {
+                cat("\n")
+                cat(crayon::cyan(paste0("Targeting ", cml_params@target, " ",
+                                        cml_params@target_metric, " over ",
+                                        length(meta_rebalance_dates), " rebalance dates\n")))
+              }
+
+              risk_path <- purrr::map_dfr(meta_rebalance_dates, function(current_date) {
+                sleeve_risk <- estimate_sleeve_risk(
+                  current_date = current_date,
+                  cml_params = cml_params,
+                  risky_port_backtest_results = risky_results,
+                  daily_stock_returns_m_xts = if (!is.null(daily_stock_returns_m_xts)) daily_stock_returns_m_xts@data else NULL,
+                  selected_benchmark = inner_config@selected_benchmark,
+                  stock_groups_m_d_ref = if (!is.null(stock_groups_m_df)) {
+                    stock_groups_m_df@data %>% dplyr::filter(as.Date(dates) == current_date)
+                  } else {
+                    NULL
+                  },
+                  vol_m_df = vol_m_df,
+                  return_basis = config@return_basis
+                )
+
+                data.frame(dates = as.Date(current_date),
+                           sleeve_risk = sleeve_risk,
+                           risky_weight = risk_to_weight(sleeve_risk, cml_params),
+                           stringsAsFactors = FALSE)
+              })
+
+              ##A date with no risk estimate has no defensible weight, so it is refused rather
+              ##than filled with a guess
+              if (any(is.na(risk_path$risky_weight))) {
+                stop("The sleeve's risk could not be estimated on ",
+                     sum(is.na(risk_path$risky_weight)), " of ", nrow(risk_path),
+                     " rebalance dates, starting at ",
+                     min(risk_path$dates[is.na(risk_path$risky_weight)]),
+                     ". There is not enough history for the configured vol_source; consider a ",
+                     "larger initial_buffer_period or a shorter estimation window.")
+              }
+
+              ##The residual takes whatever the risky sleeve leaves
+              meta_port_weights_m_df <- dplyr::bind_rows(
+                risk_path %>%
+                  dplyr::transmute(tickers = risky_name, dates = dates, weights = risky_weight),
+                risk_path %>%
+                  dplyr::transmute(tickers = cml_params@residual_ticker, dates = dates,
+                                   weights = 1 - risky_weight)
+              ) %>%
+                dplyr::mutate(id = paste0(tickers, "-", dates)) %>%
+                dplyr::select(id, tickers, dates, weights) %>%
+                dplyr::arrange(id) %>%
+                as.data.frame()
+              rownames(meta_port_weights_m_df) <- NULL
+
+              ##There is no cross-sectional port object at meta level on this path, so the risk
+              ##path itself is what gets reported as the meta-level diagnostics
+              meta_port_stats_m_df <- risk_path %>%
+                dplyr::transmute(
+                  id = paste0("meta_port-", dates),
+                  tickers = "meta_port",
+                  dates = dates,
+                  sleeve_risk = sleeve_risk,
+                  risky_weight = risky_weight,
+                  target = cml_params@target,
+                  ##The risk the rule intends the blend to carry. It equals the target exactly
+                  ##whenever the weight is unclipped, so a departure from it says a bound bound,
+                  ##not that the targeting failed. Whether it actually worked is a question about
+                  ##realised returns, which only exist after the stock-level run.
+                  implied_risk = sleeve_risk * risky_weight
+                ) %>%
+                as.data.frame()
+
+              meta_port_list <- list(NULL)
+
+            } else {
 
             #Outer loop: set the meta weights
             ###########################
@@ -1506,6 +1591,8 @@ setMethod("run_port_backtest",
               dplyr::arrange(id) %>%
               as.data.frame()
             rownames(meta_port_stats_m_df) <- NULL
+
+            }
             ###########################
 
             #Project onto stocks
@@ -1519,6 +1606,11 @@ setMethod("run_port_backtest",
               meta_weights_m_df = meta_port_weights_m_df,
               port_backtest_cohort = port_backtest_cohort,
               signals_m_df = signals_m_df,
+              residual_ticker = if (config@type == "risk_targeted") {
+                config@cml_parameters@residual_ticker
+              } else {
+                NULL
+              },
               verbose = verbose
             )
             ###########################

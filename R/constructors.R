@@ -6092,6 +6092,25 @@ create_port_metabacktest_results <- function(port_metabacktest_config,
   backtest_identifier <- paste0("mc__", port_metabacktest_config@config_name,
                                 "_ch__", port_backtest_cohort@cohort_name)
 
+  # The risk-targeted path carries diagnostics and a plot view of its own, so it gets the
+  # subclass. The multi-portfolio path adds nothing beyond the parent and uses it directly.
+  if (port_metabacktest_config@type == "risk_targeted") {
+    return(methods::new(
+      "cml_metabacktest_results",
+      port_metabacktest_config = port_metabacktest_config,
+      meta_port_backtest_results = meta_port_backtest_results,
+      port_backtest_cohort = port_backtest_cohort,
+      port_universe_m_df = port_universe_m_df,
+      meta_port_weights_m_df = meta_port_weights_m_df,
+      projected_stock_weights_m_df = projected_stock_weights_m_df,
+      meta_port_stats_m_df = meta_port_stats_m_df,
+      final_meta_port = final_meta_port,
+      backtest_identifier = backtest_identifier,
+      residual_ticker = port_metabacktest_config@cml_parameters@residual_ticker,
+      cml_parameters = port_metabacktest_config@cml_parameters
+    ))
+  }
+
   methods::new(
     "port_metabacktest_results",
     port_metabacktest_config = port_metabacktest_config,

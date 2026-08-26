@@ -134,10 +134,19 @@ check_inputs_meta_port_backtest <- function(config,
   base_portfolios <- sort(unique(port_universe_m_df@data$tickers))
   n_base_portfolios <- length(base_portfolios)
   port_construction_method <- config@meta_port_backtest_config@port_construction_method
+  is_risk_targeted <- config@type == "risk_targeted"
 
-  if (n_base_portfolios < 2L) {
+  ##A risk-targeted allocation scales a sleeve against a residual, so one base portfolio is the
+  ##normal case. A multi-portfolio allocation needs something to allocate across.
+  if (!is_risk_targeted && n_base_portfolios < 2L) {
     rlang::abort(paste0("A meta allocation needs at least two base portfolios; the cohort holds ",
                         n_base_portfolios, "."))
+  }
+  if (is_risk_targeted && n_base_portfolios != 1L) {
+    rlang::abort(paste0("A risk-targeted allocation scales exactly one risky sleeve against the ",
+                        "residual, but the cohort holds ", n_base_portfolios, " base portfolios. ",
+                        "Combine them into a single sleeve with a 'multi_port' meta backtest first, ",
+                        "then scale its result."))
   }
 
   ##signal_transform() winsorizes then z-scores the cross-section, and a two-element cross-section
@@ -228,8 +237,81 @@ check_inputs_meta_port_backtest <- function(config,
   }
   ####################
 
+  #The residual sleeve, on the risk-targeted path
+  ####################
+  if (is_risk_targeted) {
+    cml_params <- config@cml_parameters
+    residual_ticker <- cml_params@residual_ticker
+
+    ##The residual has to be tradable in the stock universe: it is held like any other position,
+    ##so the engine prices its trades against its own liquidity and volatility
+    signal_tickers <- unique(dplyr::pull(signals_m_df@data, tickers))
+    if (!residual_ticker %in% signal_tickers) {
+      rlang::abort(paste0("residual_ticker '", residual_ticker, "' is not a row of signals_m_df. ",
+                          "It has to be tradable in the stock universe, with its own return, ",
+                          "liquidity and volatility rows, so the engine can price its trades."))
+    }
+    for (object_name in c("fwd_return_m_df", "liquidity_m_df", "volatility_m_df")) {
+      object_tickers <- unique(dplyr::pull(mandatory_m_dfs[[object_name]]@data, tickers))
+      if (!residual_ticker %in% object_tickers) {
+        rlang::abort(paste0("residual_ticker '", residual_ticker, "' is missing from ",
+                            object_name, "."))
+      }
+    }
+    ##Optional objects still have to cover it when they are supplied, since the engine treats the
+    ##residual as an ordinary holding: groups in particular are used to fill missing returns
+    for (object_name in names(optional_m_dfs)) {
+      optional_object <- optional_m_dfs[[object_name]]
+      if (!is.null(optional_object) &&
+          !residual_ticker %in% unique(dplyr::pull(optional_object@data, tickers))) {
+        rlang::abort(paste0("residual_ticker '", residual_ticker, "' is missing from ",
+                            object_name, ". Every stock-level object the backtest receives has to ",
+                            "cover it, because it is held and traded like any other position."))
+      }
+    }
+
+    ##A residual that is also a base portfolio would be double counted
+    if (residual_ticker %in% base_portfolios) {
+      rlang::abort(paste0("residual_ticker '", residual_ticker, "' is also a base portfolio of ",
+                          "the cohort."))
+    }
+
+    ##The ex-ante estimator has nothing to work from without daily returns
+    if (cml_params@vol_source == "ex_ante" && is.null(daily_stock_returns_m_xts)) {
+      rlang::abort("vol_source is 'ex_ante', which estimates risk from a short window of daily ",
+                   "stock returns, so daily_stock_returns_m_xts must be supplied.")
+    }
+
+    ##The residual has to match the target metric, and only the data can say whether it does.
+    ##An index-tracking residual makes tracking error scale linearly toward zero; a residual that
+    ##does not track leaves a floor the rule can never reach, so the weight pins at its bound.
+    if (cml_params@target_metric == "tracking_error" && !is.null(benchmark_returns_m_xts)) {
+      residual_returns <- port_universe_m_df@port_metabacktest_workflow$residual_returns
+      if (is.null(residual_returns)) {
+        rlang::warn(paste0(
+          "A 'tracking_error' target assumes the residual sleeve tracks the benchmark, so that ",
+          "blending toward it drives tracking error to zero. That holds for an index ETF and not ",
+          "for a cash-like line, against which tracking error instead rises as the risky sleeve ",
+          "shrinks. Check that '", residual_ticker, "' tracks '", cohort_benchmark, "'."))
+      }
+    }
+  }
+  ####################
+
   #Meta score
   ####################
+  ##A risk-targeted allocation derives its weight from the targeting rule, so there is no score
+  if (is_risk_targeted) {
+    if (isTRUE(verbose)) {
+      message("Meta backtest inputs validated: risk-targeted allocation of '",
+              paste(base_portfolios, collapse = ", "), "' against '",
+              config@cml_parameters@residual_ticker, "' over ",
+              length(meta_rebalance_dates), " meta rebalance dates.")
+    }
+    return(invisible(list(meta_rebalance_dates = meta_rebalance_dates,
+                          max_stats_age_months = NA_real_)))
+  }
+
   meta_score <- names(config@meta_port_backtest_config@chosen_score_metric_and_position)
   universe_data <- port_universe_m_df@data
 

@@ -165,10 +165,43 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
         pre_eligible_assets = as.integer(supplied_weights > 0),
         is_eligible = as.integer(supplied_weights > 0)
       ) %>%
-      dplyr::select(-supplied_weights) %>%
-      ###The stock_universe_m_df contract requires the column, but a custom-weights portfolio has
-      ###no expected-return view of its own, so it is missing rather than zero. Portfolio analytics
-      ###drop an entirely missing score instead of reading it as data.
+      dplyr::select(-supplied_weights)
+
+    ###This route skips the promotion cascade, not the enrichment the cascade happens to perform.
+    ###Downstream analytics read group labels, liquidity metrics and benchmark weights off the
+    ###universe itself, so they are attached here even though no rule consults them.
+    attach_reference <- function(universe, reference, label) {
+      if (is.null(reference)) return(universe)
+      if (!"id" %in% names(reference)) {
+        stop(label, " must contain an 'id' column to be matched to universe_m_d_ref.")
+      }
+      universe %>%
+        dplyr::left_join(
+          reference %>% dplyr::select(-dplyr::any_of(c("tickers", "dates"))),
+          by = "id"
+        )
+    }
+
+    universe_m_d_ref <- universe_m_d_ref %>%
+      attach_reference(groups_m_d_ref, "groups_m_d_ref") %>%
+      attach_reference(liquidity_m_d_ref, "liquidity_m_d_ref")
+
+    if (!is.null(selected_benchmark) && !is.null(benchmark_weights_m_d_ref)) {
+      bench_column <- paste0(selected_benchmark, "_bench_weights")
+      universe_m_d_ref <- universe_m_d_ref %>%
+        dplyr::left_join(
+          benchmark_weights_m_d_ref %>%
+            dplyr::select(id, !!rlang::sym(selected_benchmark)) %>%
+            dplyr::rename(!!rlang::sym(bench_column) := !!rlang::sym(selected_benchmark)),
+          by = "id"
+        )
+    }
+
+    ###The stock_universe_m_df contract requires the column, but a custom-weights portfolio has
+    ###no expected-return view of its own, so it is missing rather than zero. Portfolio analytics
+    ###drop an entirely missing score instead of reading it as data. Added last so it stays the
+    ###final column, which is what the rest of the pipeline expects.
+    universe_m_d_ref <- universe_m_d_ref %>%
       dplyr::mutate(exp_ret_score = NA_real_)
 
     if (sum(universe_m_d_ref$is_eligible) == 0L) {

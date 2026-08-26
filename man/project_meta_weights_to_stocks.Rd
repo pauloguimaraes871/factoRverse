@@ -8,6 +8,7 @@ project_meta_weights_to_stocks(
   meta_weights_m_df,
   port_backtest_cohort,
   signals_m_df = NULL,
+  residual_ticker = NULL,
   tolerance = 0.02,
   verbose = TRUE
 )
@@ -26,6 +27,12 @@ asset-by-date panel, which is what \code{check_inputs_port_backtest()} requires.
 rather than a plain vector of dates because the cohort's weights begin at its own buffer, so
 only this object knows which stocks were quoted on the earlier dates. Defaults to \code{NULL},
 covering just the dates the cohort spans.}
+
+\item{residual_ticker}{Optional character naming a meta-level asset that is a single stock-level
+holding rather than a portfolio, typically the residual sleeve of a risk-targeted allocation.
+Its meta weight becomes that ticker's stock weight directly, with no portfolio weights to
+multiply through. It must not be one of the cohort's base portfolios, and it must be a row of
+\code{signals_m_df}.}
 
 \item{tolerance}{Numeric, default \code{0.02}. How far a per-date weight sum may sit from one
 before the projection is refused.}

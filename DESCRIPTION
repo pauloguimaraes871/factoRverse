@@ -159,6 +159,7 @@ Collate:
     'utils-derive_stock_universe_m_d_ref.R'
     'utils-derive_timing_weights.R'
     'utils-dofuture.R'
+    'utils-estimate_sleeve_risk.R'
     'utils-expand_sub_port_config.R'
     'utils-explain_prediction.R'
     'utils-extract_returns_m_xts.R'
