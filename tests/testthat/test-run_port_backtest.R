@@ -10112,3 +10112,351 @@ test_that("the meta backtest reproduces a step-by-step reconstruction of its own
   #and the returns are real numbers rather than an all-NA series matching itself
   expect_true(any(is.finite(expected_inner@port_returns_m_xts@data$net_return)))
 })
+
+
+# A custom_weights portfolio through the public method --------------------
+
+test_that("run_port_backtest accepts a custom_weights config directly", {
+
+  #port_backtest_config refused this value until the engine could reach the path, so the public
+  #method had never run with one. Everything below the config was already exercised through
+  #run_port_backtest_internal; this covers the method that assembles its arguments.
+  load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
+
+  signals_m_df <- create_meta_dataframe(signals_m_df, type = "signals")
+  fwd_return_m_df <- create_meta_dataframe(fwd_return_m_df, type = "target")
+  liquidity_m_df <- create_meta_dataframe(liquidity_m_df)
+  volatility_m_df <- create_meta_dataframe(volatility_m_df)
+  benchmark_weights_m_df <- create_meta_dataframe(benchmark_weights_m_df, type = "weights")
+  benchmark_returns_m_xts <- suppressMessages(create_meta_xts(benchmark_returns_m_xts))
+
+  port_config <- create_port_backtest_config(
+    chosen_score_metric_and_position = NULL,
+    eligibility_quantile_range = c(0, 1),
+    initial_buffer_period = 2, rebalancing_months = c(1, 4),
+    selected_benchmark = "ibov",
+    main_liquidity_metric = "mean_volfin_3m",
+    port_construction_method = "custom_weights",
+    config_name = "cw_direct") %>%
+    add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1,
+                                     lambda = "dynamic", strategy_aum = 25000)
+
+  expect_equal(port_config@port_construction_method, "custom_weights")
+
+  #A score alongside supplied weights is contradictory. That check existed but was unreachable
+  #behind the blanket refusal, so it is exercised here for the first time.
+  expect_error(
+    create_port_backtest_config(
+      chosen_score_metric_and_position = c(book_yield = "long"),
+      eligibility_quantile_range = c(0, 1),
+      initial_buffer_period = 2, rebalancing_months = c(1, 4),
+      main_liquidity_metric = "mean_volfin_3m",
+      port_construction_method = "custom_weights", config_name = "bad"),
+    "must be NULL when port_construction_method is custom_weights"
+  )
+
+  #An equal split over ten names quoted on every date
+  n_dates <- length(unique(signals_m_df@data$dates))
+  ticker_counts <- table(signals_m_df@data$tickers)
+  held <- sort(names(ticker_counts)[ticker_counts == n_dates])[1:10]
+  custom_stock_weights_m_df <- signals_m_df@data %>%
+    dplyr::select(id, tickers, dates) %>%
+    dplyr::mutate(weights = ifelse(tickers %in% held, 1 / length(held), 0)) %>%
+    dplyr::arrange(id) %>%
+    create_meta_dataframe(meta_dataframe_name = "cw", type = "weights")
+
+  results <- suppressWarnings(suppressMessages(run_port_backtest(
+    signals_m_df = signals_m_df, fwd_return_m_df = fwd_return_m_df,
+    liquidity_m_df = liquidity_m_df, volatility_m_df = volatility_m_df,
+    config = port_config,
+    benchmark_weights_m_df = benchmark_weights_m_df,
+    benchmark_returns_m_xts = benchmark_returns_m_xts,
+    custom_stock_weights_m_df = custom_stock_weights_m_df,
+    verbose = FALSE, parallel = FALSE)))
+
+  expect_s4_class(results, "port_backtest_results")
+
+  universe <- results@stock_universe_m_df@data
+  expect_equal(unique(tapply(universe$is_eligible, universe$dates, sum)), length(held),
+               ignore_attr = TRUE)
+  expect_true(all(is.na(universe$exp_ret_score)))
+
+  weights <- results@port_weights_m_df@data %>% dplyr::filter(eop_port_weights > 0)
+  expect_setequal(unique(weights$tickers), held)
+  expect_true(any(is.finite(results@port_returns_m_xts@data$net_return)))
+})
+
+
+# The risk-targeted meta backtest -----------------------------------------
+
+risk_targeted_cache <- new.env(parent = emptyenv())
+risk_targeted_residual <- "BOVA11"
+
+
+risk_targeted_inputs <- function() {
+  if (!is.null(risk_targeted_cache$inputs)) return(risk_targeted_cache$inputs)
+
+  load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
+
+  #The residual is a tradable row of every stock-level object, priced like a very liquid,
+  #low-volatility holding rather than treated as a special case
+  add_residual <- function(df, values) {
+    own_dates <- sort(unique(df$dates))
+    extra <- data.frame(id = paste0(risk_targeted_residual, "-", own_dates),
+                        tickers = risk_targeted_residual, dates = own_dates,
+                        stringsAsFactors = FALSE)
+    for (nm in setdiff(names(df), names(extra))) {
+      extra[[nm]] <- if (!is.null(values[[nm]])) values[[nm]] else values[["default"]]
+    }
+    out <- rbind(df, extra[, names(df)])
+    out[order(out$id), ]
+  }
+
+  #Its last date has no forward return either, exactly as the stocks do not
+  fwd_aug <- add_residual(fwd_return_m_df, list(default = 0.8))
+  fwd_aug$fwd_return_1m[fwd_aug$tickers == risk_targeted_residual &
+                          fwd_aug$dates == max(fwd_return_m_df$dates)] <- NA_real_
+
+  groups_aug <- add_residual(stock_groups_m_df, list(default = 0))
+  first_group <- setdiff(names(groups_aug), c("id", "tickers", "dates"))[1]
+  groups_aug[[first_group]][groups_aug$tickers == risk_targeted_residual] <- 1
+
+  daily_aug <- cbind(daily_stock_returns_m_xts,
+                     BOVA11 = as.numeric(daily_stock_returns_m_xts[, 1]) * 0 + 0.05)
+  set.seed(20260826)
+  daily_bench <- xts::xts(data.frame(
+    ibov = stats::rnorm(nrow(daily_aug), 0, 0.5),
+    smll = stats::rnorm(nrow(daily_aug), 0, 0.5),
+    idiv = stats::rnorm(nrow(daily_aug), 0, 0.5)
+  ), order.by = zoo::index(daily_aug))
+
+  inputs <- list(
+    signals_m_df = create_meta_dataframe(add_residual(signals_m_df, list(default = 0)),
+                                         type = "signals"),
+    fwd_return_m_df = create_meta_dataframe(fwd_aug, type = "target"),
+    liquidity_m_df = create_meta_dataframe(add_residual(liquidity_m_df, list(default = 1e9))),
+    volatility_m_df = create_meta_dataframe(
+      add_residual(volatility_m_df, list(default = 1, daily_vol = 0.5))),
+    benchmark_weights_m_df = create_meta_dataframe(
+      add_residual(benchmark_weights_m_df, list(default = 0)), type = "weights"),
+    benchmark_returns_m_xts = suppressMessages(create_meta_xts(benchmark_returns_m_xts)),
+    stock_groups_m_df = create_meta_dataframe(groups_aug, type = "groups"),
+    daily_stock_returns_m_xts = suppressWarnings(suppressMessages(create_meta_xts(
+      daily_aug, type = "returns", asset_type = "stocks", meta_xts_name = "B3"))),
+    daily_bench_returns_m_xts = suppressWarnings(suppressMessages(create_meta_xts(
+      daily_bench, type = "returns", asset_type = "benchmark", meta_xts_name = "B3")))
+  )
+
+  risk_targeted_cache$inputs <- inputs
+  inputs
+}
+
+
+risk_targeted_cohort <- function() {
+  if (!is.null(risk_targeted_cache$cohort)) return(risk_targeted_cache$cohort)
+
+  inputs <- risk_targeted_inputs()
+  config <- create_port_backtest_config(
+    chosen_score_metric_and_position = c(book_yield = "long"),
+    eligibility_quantile_range = c(0.67, 1.0), selected_benchmark = "ibov",
+    initial_buffer_period = 2, rebalancing_months = c(1, 4),
+    port_construction_method = "sw", main_liquidity_metric = "mean_volfin_3m",
+    config_name = "risky") %>%
+    add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1,
+                                     lambda = "dynamic", strategy_aum = 25000)
+
+  risky <- suppressWarnings(suppressMessages(run_port_backtest(
+    signals_m_df = inputs$signals_m_df, fwd_return_m_df = inputs$fwd_return_m_df,
+    liquidity_m_df = inputs$liquidity_m_df, volatility_m_df = inputs$volatility_m_df,
+    config = config, benchmark_weights_m_df = inputs$benchmark_weights_m_df,
+    benchmark_returns_m_xts = inputs$benchmark_returns_m_xts,
+    verbose = FALSE, parallel = FALSE)))
+
+  cohort <- suppressWarnings(suppressMessages(
+    create_port_backtest_cohort(list(risky), cohort_name = "risk_targeted_cohort")))
+
+  risk_targeted_cache$cohort <- cohort
+  cohort
+}
+
+
+risk_targeted_config <- function(target = 10, p = 1, min_weight = 0.2, max_weight = 1) {
+  inner <- create_port_backtest_config(
+    chosen_score_metric_and_position = NULL,
+    eligibility_quantile_range = c(0, 1),
+    initial_buffer_period = 4, rebalancing_months = c(1, 4),
+    selected_benchmark = "ibov",
+    cov_est_method = create_cov_est_method("sample", 2, TRUE, "ibov"),
+    main_liquidity_metric = "mean_volfin_3m",
+    port_construction_method = "ew", config_name = "te_managed") %>%
+    add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1,
+                                     lambda = "dynamic", strategy_aum = 25000)
+
+  suppressMessages(create_port_metabacktest_config(
+    inner, type = "risk_targeted", config_name = "te_managed", verbose = FALSE)) %>%
+    add_cml_parameters(
+      residual_ticker = risk_targeted_residual, target = target,
+      target_metric = "tracking_error", p = p,
+      min_weight = min_weight, max_weight = max_weight,
+      vol_cov_est_method = create_cov_est_method("ewma", 60, FALSE, NULL))
+}
+
+
+run_risk_targeted <- function(config = risk_targeted_config()) {
+  inputs <- risk_targeted_inputs()
+  suppressWarnings(suppressMessages(run_port_backtest(
+    signals_m_df = inputs$signals_m_df, fwd_return_m_df = inputs$fwd_return_m_df,
+    liquidity_m_df = inputs$liquidity_m_df, volatility_m_df = inputs$volatility_m_df,
+    config = config, port_backtest_cohort = risk_targeted_cohort(),
+    benchmark_weights_m_df = inputs$benchmark_weights_m_df,
+    benchmark_returns_m_xts = inputs$benchmark_returns_m_xts,
+    daily_stock_returns_m_xts = inputs$daily_stock_returns_m_xts,
+    daily_bench_returns_m_xts = inputs$daily_bench_returns_m_xts,
+    stock_groups_m_df = inputs$stock_groups_m_df,
+    verbose = FALSE, parallel = FALSE)))
+}
+
+
+test_that("a risk-targeted meta backtest returns the CML subclass with both levels filled", {
+  results <- run_risk_targeted()
+
+  expect_s4_class(results, "cml_metabacktest_results")
+  expect_true(is(results, "port_metabacktest_results"))
+  expect_equal(results@residual_ticker, risk_targeted_residual)
+  expect_s4_class(results@cml_parameters, "cml_parameters")
+  expect_s4_class(results@meta_port_backtest_results, "port_backtest_results")
+})
+
+test_that("the weight on the risky sleeve is the target over its estimated risk", {
+  results <- run_risk_targeted()
+  meta_stats <- results@meta_port_stats_m_df@data
+
+  #The rule itself, reproduced from the reported risk
+  expect_equal(meta_stats$risky_weight,
+               pmin(pmax(10 / meta_stats$sleeve_risk, 0.2), 1), tolerance = 1e-10)
+
+  #implied_risk equals the target wherever the bounds did not bind
+  unclipped <- meta_stats$risky_weight > 0.2 & meta_stats$risky_weight < 1
+  expect_true(any(unclipped))
+  expect_equal(meta_stats$implied_risk[unclipped],
+               rep(10, sum(unclipped)), tolerance = 1e-10)
+})
+
+test_that("the reported risk matches an independent estimate at each rebalance date", {
+  results <- run_risk_targeted()
+  inputs <- risk_targeted_inputs()
+  cohort <- risk_targeted_cohort()
+  meta_stats <- results@meta_port_stats_m_df@data
+  cml_params <- results@cml_parameters
+
+  for (i in seq_len(nrow(meta_stats))) {
+    current_date <- meta_stats$dates[i]
+    expected <- suppressWarnings(suppressMessages(estimate_sleeve_risk(
+      current_date = current_date,
+      cml_params = cml_params,
+      risky_port_backtest_results = cohort@port_backtest_results_list[[1]],
+      daily_stock_returns_m_xts = inputs$daily_stock_returns_m_xts@data,
+      selected_benchmark = "ibov",
+      stock_groups_m_d_ref = inputs$stock_groups_m_df@data %>%
+        dplyr::filter(as.Date(dates) == current_date),
+      return_basis = "net")))
+    expect_equal(meta_stats$sleeve_risk[i], expected, tolerance = 1e-10)
+  }
+})
+
+test_that("a higher exponent de-risks harder for the same estimated risk", {
+  linear <- run_risk_targeted(risk_targeted_config(p = 1))
+  quadratic <- run_risk_targeted(risk_targeted_config(p = 2))
+
+  linear_stats <- linear@meta_port_stats_m_df@data
+  quadratic_stats <- quadratic@meta_port_stats_m_df@data
+
+  #The risk estimate is the same; only the response to it changes
+  expect_equal(linear_stats$sleeve_risk, quadratic_stats$sleeve_risk)
+  expect_true(all(quadratic_stats$risky_weight <= linear_stats$risky_weight))
+  expect_true(any(quadratic_stats$risky_weight < linear_stats$risky_weight))
+})
+
+test_that("the bounds clip the weight and the residual absorbs the rest", {
+  #A target far below the sleeve's own risk would ask for a tiny position; the floor stops it
+  floored <- run_risk_targeted(risk_targeted_config(target = 1, min_weight = 0.6))
+  meta_stats <- floored@meta_port_stats_m_df@data
+  expect_true(all(meta_stats$risky_weight == 0.6))
+
+  meta_weights <- floored@meta_port_weights_m_df@data
+  residual <- meta_weights %>% dplyr::filter(tickers == risk_targeted_residual)
+  expect_true(all(abs(residual$weights - 0.4) < 1e-10))
+})
+
+test_that("the projected weights carry the residual and stay fully invested", {
+  results <- run_risk_targeted()
+  inputs <- risk_targeted_inputs()
+  projected <- results@projected_stock_weights_m_df@data
+
+  sums <- tapply(projected$weights, projected$dates, sum)
+  expect_equal(as.numeric(sums), rep(1, length(sums)), tolerance = 1e-10)
+  expect_true(all(inputs$signals_m_df@data$id %in% projected$id))
+  expect_true(all(projected$weights >= 0 & projected$weights <= 1))
+
+  #The residual's projected weight is exactly one minus the risky weight on rebalance dates
+  meta_stats <- results@meta_port_stats_m_df@data
+  for (i in seq_len(nrow(meta_stats))) {
+    residual_row <- projected %>%
+      dplyr::filter(tickers == risk_targeted_residual, dates == meta_stats$dates[i])
+    expect_equal(residual_row$weights, 1 - meta_stats$risky_weight[i], tolerance = 1e-10)
+  }
+})
+
+test_that("the residual is actually held and traded in the stock-level run", {
+  results <- run_risk_targeted()
+  inner <- results@meta_port_backtest_results
+
+  held <- inner@port_weights_m_df@data %>%
+    dplyr::filter(tickers == risk_targeted_residual, eop_port_weights > 0)
+  expect_gt(nrow(held), 0L)
+
+  #Priced like any other position, so the run produces real returns and costs
+  expect_true(any(is.finite(inner@port_returns_m_xts@data$net_return)))
+  expect_true(any(inner@port_costs_m_xts@data$total_cost > 0, na.rm = TRUE))
+
+  #and no expected-return view was invented at stock level
+  expect_true(all(is.na(inner@stock_universe_m_df@data$exp_ret_score)))
+})
+
+test_that("a risk-targeted config is refused when its inputs do not support it", {
+  inputs <- risk_targeted_inputs()
+
+  #ex_ante estimation has nothing to work from without daily returns
+  expect_error(
+    suppressWarnings(suppressMessages(run_port_backtest(
+      signals_m_df = inputs$signals_m_df, fwd_return_m_df = inputs$fwd_return_m_df,
+      liquidity_m_df = inputs$liquidity_m_df, volatility_m_df = inputs$volatility_m_df,
+      config = risk_targeted_config(), port_backtest_cohort = risk_targeted_cohort(),
+      benchmark_weights_m_df = inputs$benchmark_weights_m_df,
+      benchmark_returns_m_xts = inputs$benchmark_returns_m_xts,
+      stock_groups_m_df = inputs$stock_groups_m_df,
+      verbose = FALSE, parallel = FALSE))),
+    "daily_stock_returns_m_xts must be supplied"
+  )
+
+  #A residual that is not tradable in the stock universe
+  absent <- suppressMessages(create_port_metabacktest_config(
+    risk_targeted_config()@meta_port_backtest_config, type = "risk_targeted",
+    config_name = "absent", verbose = FALSE)) %>%
+    add_cml_parameters(residual_ticker = "NOT_A_STOCK", target = 10,
+                       vol_cov_est_method = create_cov_est_method("ewma", 60, FALSE, NULL))
+
+  expect_error(
+    suppressWarnings(suppressMessages(run_port_backtest(
+      signals_m_df = inputs$signals_m_df, fwd_return_m_df = inputs$fwd_return_m_df,
+      liquidity_m_df = inputs$liquidity_m_df, volatility_m_df = inputs$volatility_m_df,
+      config = absent, port_backtest_cohort = risk_targeted_cohort(),
+      benchmark_weights_m_df = inputs$benchmark_weights_m_df,
+      benchmark_returns_m_xts = inputs$benchmark_returns_m_xts,
+      daily_stock_returns_m_xts = inputs$daily_stock_returns_m_xts,
+      daily_bench_returns_m_xts = inputs$daily_bench_returns_m_xts,
+      stock_groups_m_df = inputs$stock_groups_m_df,
+      verbose = FALSE, parallel = FALSE))),
+    "not a row of signals_m_df"
+  )
+})

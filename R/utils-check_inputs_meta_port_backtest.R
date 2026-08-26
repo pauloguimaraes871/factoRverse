@@ -278,8 +278,8 @@ check_inputs_meta_port_backtest <- function(config,
 
     ##The ex-ante estimator has nothing to work from without daily returns
     if (cml_params@vol_source == "ex_ante" && is.null(daily_stock_returns_m_xts)) {
-      rlang::abort("vol_source is 'ex_ante', which estimates risk from a short window of daily ",
-                   "stock returns, so daily_stock_returns_m_xts must be supplied.")
+      rlang::abort(paste0("vol_source is 'ex_ante', which estimates risk from a short window of ",
+                        "daily stock returns, so daily_stock_returns_m_xts must be supplied."))
     }
 
     ##The residual has to match the target metric, and only the data can say whether it does.

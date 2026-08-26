@@ -123,8 +123,8 @@ estimate_sleeve_risk <- function(current_date,
 
   if (is_tracking_error) {
     if (!"bench_weights" %in% names(weights_m_d_ref)) {
-      rlang::abort("The risky sleeve carries no bench_weights, so active weights cannot be formed ",
-                   "for a tracking-error target. Run it against a benchmark first.")
+      rlang::abort(paste0("The risky sleeve carries no bench_weights, so active weights cannot be ",
+                          "formed for a tracking-error target. Run it against a benchmark first."))
     }
     ##Active weights against a raw covariance: the same formulation calculate_port_stats() uses
     weights_m_d_ref$risk_weights <- weights_m_d_ref$eop_port_weights - weights_m_d_ref$bench_weights

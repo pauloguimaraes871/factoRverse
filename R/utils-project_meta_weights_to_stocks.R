@@ -167,8 +167,8 @@ project_meta_weights_to_stocks <- function(meta_weights_m_df,
   ##weights must lie in [0, 1]. create_port_backtest_cohort() already refuses such a cohort, so
   ##this is a guard against reaching here by another route rather than an expected condition.
   if (any(base_long$base_weight < 0)) {
-    rlang::abort("The cohort holds negative base weights, which cannot be projected into a ",
-                 "long-only stock weight panel.")
+    rlang::abort(paste0("The cohort holds negative base weights, which cannot be projected into ",
+                        "a long-only stock weight panel."))
   }
 
   ##Each base portfolio must itself be fully invested on every date, or the projection inherits

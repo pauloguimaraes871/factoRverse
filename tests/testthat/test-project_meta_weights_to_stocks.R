@@ -408,3 +408,179 @@ testthat::test_that("projecting to stocks nets off, so implied turnover is at mo
   ## would hold trivially for portfolios that share nothing
   testthat::expect_gt(strictly_less, 0L)
 })
+
+
+# A residual sleeve -------------------------------------------------------
+
+projection_residual <- "CASH"
+
+
+make_residual_signals <- function(dates = projection_dates) {
+  ## The residual is a tradable row of the stock universe, not a portfolio
+  df <- expand.grid(tickers = c(projection_stocks, projection_residual), dates = dates,
+                    KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE)
+  df$id <- paste0(df$tickers, "-", df$dates)
+  df$book_yield <- seq_len(nrow(df)) / 100
+  df <- df[order(df$id), c("id", "tickers", "dates", "book_yield")]
+  rownames(df) <- NULL
+  suppressWarnings(suppressMessages(
+    create_meta_dataframe(df, meta_dataframe_name = "residual_signals")))
+}
+
+
+make_residual_meta_weights <- function(portfolio_weights = c(0.3, 0.3), residual_weight = 0.4,
+                                       dates = projection_dates[1]) {
+  rows <- purrr::map_dfr(dates, function(d) {
+    data.frame(tickers = c(projection_ports, projection_residual), dates = d,
+               weights = c(portfolio_weights, residual_weight), stringsAsFactors = FALSE)
+  })
+  rows$id <- paste0(rows$tickers, "-", rows$dates)
+  rows <- rows[order(rows$id), c("id", "tickers", "dates", "weights")]
+  rownames(rows) <- NULL
+  rows
+}
+
+
+testthat::test_that("a residual sleeve becomes a stock weight directly, with no portfolio behind it", {
+  result <- suppressMessages(project_meta_weights_to_stocks(
+    meta_weights_m_df = make_residual_meta_weights(),
+    port_backtest_cohort = make_projection_cohort(),
+    signals_m_df = make_residual_signals(),
+    residual_ticker = projection_residual, verbose = FALSE))@data
+
+  first <- result %>%
+    dplyr::filter(dates == projection_dates[1]) %>%
+    dplyr::arrange(tickers)
+
+  ## bt_alpha holds AAA and BBB evenly, bt_beta holds BBB and CCC one to three, at 0.3 each:
+  ##   AAA  = 0.3 * 0.50                = 0.150
+  ##   BBB  = 0.3 * 0.50 + 0.3 * 0.25   = 0.225
+  ##   CASH =                             0.400   (its meta weight, untouched)
+  ##   CCC  =              0.3 * 0.75   = 0.225
+  testthat::expect_equal(first$tickers, c("AAA", "BBB", projection_residual, "CCC"))
+  testthat::expect_equal(first$weights, c(0.150, 0.225, 0.400, 0.225), tolerance = 1e-12)
+
+  ## and the whole panel is still fully invested
+  sums <- tapply(result$weights, result$dates, sum)
+  testthat::expect_equal(as.numeric(sums), rep(1, length(sums)), tolerance = 1e-12)
+})
+
+testthat::test_that("the residual weight passes through unscaled at any level", {
+  for (residual_weight in c(0, 0.25, 0.75)) {
+    portfolio_weight <- (1 - residual_weight) / 2
+    result <- suppressMessages(project_meta_weights_to_stocks(
+      meta_weights_m_df = make_residual_meta_weights(
+        portfolio_weights = rep(portfolio_weight, 2), residual_weight = residual_weight),
+      port_backtest_cohort = make_projection_cohort(),
+      signals_m_df = make_residual_signals(),
+      residual_ticker = projection_residual, verbose = FALSE))@data
+
+    residual_row <- result %>%
+      dplyr::filter(dates == projection_dates[1], tickers == projection_residual)
+    testthat::expect_equal(residual_row$weights, residual_weight, tolerance = 1e-12)
+  }
+})
+
+testthat::test_that("a residual that a sleeve also holds has the two contributions summed", {
+  ## The cohort's weight panel carries a row for every stock, so the residual would otherwise
+  ## appear twice: once at whatever the sleeves hold, once at its own meta weight
+  cohort <- make_projection_cohort(
+    base_weights = c(bt_alpha = list(c(0.5, 0.5, 0)), bt_beta = list(c(0, 0.25, 0.75))))
+
+  ## Give the cohort a CASH column of its own by adding it as a fourth stock the sleeves hold
+  weights_df <- cohort@port_weights_m_df@data
+  extra <- weights_df[weights_df$tickers == "AAA", ]
+  extra$tickers <- projection_residual
+  extra$id <- paste0(projection_residual, "-", extra$dates)
+  extra$bt_alpha <- 0
+  extra$bt_beta <- 0
+  combined <- rbind(weights_df, extra)
+  combined <- combined[order(combined$id), ]
+  cohort@port_weights_m_df@data <- combined
+
+  result <- suppressMessages(project_meta_weights_to_stocks(
+    meta_weights_m_df = make_residual_meta_weights(),
+    port_backtest_cohort = cohort,
+    signals_m_df = make_residual_signals(),
+    residual_ticker = projection_residual, verbose = FALSE))@data
+
+  ## One row per stock per date, not two
+  testthat::expect_equal(anyDuplicated(result$id), 0L)
+  residual_row <- result %>%
+    dplyr::filter(dates == projection_dates[1], tickers == projection_residual)
+  testthat::expect_equal(nrow(residual_row), 1L)
+  testthat::expect_equal(residual_row$weights, 0.4, tolerance = 1e-12)
+})
+
+testthat::test_that("the residual is held forward on the same schedule as the portfolios", {
+  ## Meta weights set on the first and third dates only
+  meta_weights <- rbind(
+    make_residual_meta_weights(c(0.3, 0.3), 0.4, projection_dates[1]),
+    make_residual_meta_weights(c(0.1, 0.1), 0.8, projection_dates[3])
+  )
+  meta_weights <- meta_weights[order(meta_weights$id), ]
+
+  result <- suppressMessages(project_meta_weights_to_stocks(
+    meta_weights_m_df = meta_weights,
+    port_backtest_cohort = make_projection_cohort(),
+    signals_m_df = make_residual_signals(),
+    residual_ticker = projection_residual, verbose = FALSE))@data
+
+  residual_by_date <- result %>%
+    dplyr::filter(tickers == projection_residual) %>%
+    dplyr::arrange(dates)
+
+  ## The second date carries the first's weight, the fourth carries the third's
+  testthat::expect_equal(residual_by_date$weights, c(0.4, 0.4, 0.8, 0.8), tolerance = 1e-12)
+})
+
+testthat::test_that("a residual sleeve is validated before anything is projected", {
+  cohort <- make_projection_cohort()
+  signals <- make_residual_signals()
+
+  ## Not a single name
+  testthat::expect_error(
+    suppressMessages(project_meta_weights_to_stocks(
+      make_residual_meta_weights(), cohort, signals,
+      residual_ticker = c("A", "B"), verbose = FALSE)),
+    "single character value")
+
+  ## Naming a base portfolio, which is a portfolio rather than a holding
+  testthat::expect_error(
+    suppressMessages(project_meta_weights_to_stocks(
+      make_meta_weights(), cohort, signals,
+      residual_ticker = "bt_alpha", verbose = FALSE)),
+    "also a base portfolio")
+
+  ## Carrying no meta weight
+  testthat::expect_error(
+    suppressMessages(project_meta_weights_to_stocks(
+      make_meta_weights(), cohort, signals,
+      residual_ticker = projection_residual, verbose = FALSE)),
+    "carries no meta weight")
+
+  ## Not tradable in the stock universe
+  testthat::expect_error(
+    suppressMessages(project_meta_weights_to_stocks(
+      make_residual_meta_weights(), cohort, make_projection_signals(),
+      residual_ticker = projection_residual, verbose = FALSE)),
+    "not a row of signals_m_df")
+
+  ## Everything in the residual, leaving no portfolio to project
+  all_residual <- make_residual_meta_weights(portfolio_weights = c(0, 0), residual_weight = 1)
+  all_residual <- all_residual[all_residual$tickers == projection_residual, ]
+  testthat::expect_error(
+    suppressMessages(project_meta_weights_to_stocks(
+      all_residual, cohort, signals,
+      residual_ticker = projection_residual, verbose = FALSE)),
+    "no portfolio to project")
+})
+
+testthat::test_that("the meta weights must still sum to one across sleeves and residual together", {
+  short <- make_residual_meta_weights(portfolio_weights = c(0.3, 0.3), residual_weight = 0.1)
+  testthat::expect_error(
+    suppressMessages(project_meta_weights_to_stocks(
+      short, make_projection_cohort(), make_residual_signals(),
+      residual_ticker = projection_residual, verbose = FALSE)),
+    "do not sum to one")
+})
