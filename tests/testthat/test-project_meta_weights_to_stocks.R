@@ -316,3 +316,95 @@ testthat::test_that("a real cohort projects to weights that reproduce a hand cal
 
   testthat::expect_equal(got$weights, expected, tolerance = 1e-12)
 })
+
+testthat::test_that("projecting to stocks nets off, so implied turnover is at most the weighted average", {
+
+  ## The economic reason for projecting rather than allocating at portfolio level. When two base
+  ## portfolios hold the same name and move it in opposite directions, the combined book trades
+  ## less than the two books separately. Formally, with meta weights m held fixed,
+  ##   |sum_p m_p * dv(p,s)| <= sum_p m_p * |dv(p,s)|
+  ## so summing over stocks and halving gives meta turnover <= sum_p m_p * turnover_p.
+  ## This is a property of the projection itself, kept clear of the backtest's drift between
+  ## rebalances and of the meta reallocation, which are separate sources of trading.
+  load(paste(testthat::test_path(), "/testdata/", "toy_preprocessed_port_obj.RData", sep = ""))
+
+  signals_m_df <- create_meta_dataframe(signals_m_df, type = "signals")
+  fwd_return_m_df <- create_meta_dataframe(fwd_return_m_df, type = "target")
+  liquidity_m_df <- create_meta_dataframe(liquidity_m_df)
+  volatility_m_df <- create_meta_dataframe(volatility_m_df)
+  benchmark_weights_m_df <- create_meta_dataframe(benchmark_weights_m_df, type = "weights")
+  benchmark_returns_m_xts <- suppressMessages(create_meta_xts(benchmark_returns_m_xts))
+
+  ## Two sleeves driven by different signals, so they hold different names and genuinely trade
+  ## against each other. Two sleeves on the same signal satisfy the inequality almost trivially,
+  ## since they rarely move a stock in opposite directions: measured on such a cohort the saving
+  ## was around a fifth of a percent, against up to about two percent here. Neither is large, and
+  ## the test asserts the inequality rather than any particular magnitude.
+  build_config <- function(score, name) {
+    create_port_backtest_config(
+      chosen_score_metric_and_position = score,
+      eligibility_quantile_range = c(0.67, 1.0), selected_benchmark = "ibov",
+      initial_buffer_period = 2, rebalancing_months = c(1, 4),
+      port_construction_method = "sw", main_liquidity_metric = "mean_volfin_3m",
+      config_name = name) %>%
+      add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1,
+                                       lambda = "dynamic", strategy_aum = 25000)
+  }
+  run_one <- function(config) suppressWarnings(suppressMessages(run_port_backtest(
+    signals_m_df = signals_m_df, fwd_return_m_df = fwd_return_m_df,
+    liquidity_m_df = liquidity_m_df, volatility_m_df = volatility_m_df, config = config,
+    benchmark_weights_m_df = benchmark_weights_m_df,
+    benchmark_returns_m_xts = benchmark_returns_m_xts, verbose = FALSE, parallel = FALSE)))
+
+  cohort <- suppressWarnings(suppressMessages(create_port_backtest_cohort(
+    list(run_one(build_config(c(book_yield = "long"), "value_by")),
+         run_one(build_config(c(vol_36m = "short"), "lowvol_by"))),
+    cohort_name = "netting_cohort")))
+
+  backtest_ids <- unname(vapply(cohort@port_backtest_results_list,
+                                function(x) x@backtest_identifier, character(1)))
+  base_weights <- cohort@port_weights_m_df@data
+  cohort_dates <- sort(unique(base_weights$dates))
+
+  ## Meta weights held fixed, so the only trading compared is the base portfolios' own
+  meta_split <- c(0.6, 0.4)
+  meta_weights <- expand.grid(tickers = backtest_ids, dates = cohort_dates,
+                              KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE)
+  meta_weights$weights <- ifelse(meta_weights$tickers == backtest_ids[1],
+                                 meta_split[1], meta_split[2])
+  meta_weights$id <- paste0(meta_weights$tickers, "-", meta_weights$dates)
+  meta_weights <- meta_weights[order(meta_weights$id), c("id", "tickers", "dates", "weights")]
+
+  projected <- suppressMessages(project_meta_weights_to_stocks(
+    meta_weights_m_df = meta_weights, port_backtest_cohort = cohort, verbose = FALSE))@data
+
+  ## Implied turnover between consecutive dates, the same 0.5 * sum |delta| the cost engine uses
+  implied_turnover <- function(df, weight_column, from_date, to_date) {
+    from <- df[df$dates == from_date, c("tickers", weight_column)]
+    to <- df[df$dates == to_date, c("tickers", weight_column)]
+    joined <- dplyr::full_join(from, to, by = "tickers", suffix = c("_from", "_to"))
+    joined[is.na(joined)] <- 0
+    sum(abs(joined[[paste0(weight_column, "_to")]] -
+              joined[[paste0(weight_column, "_from")]])) / 2
+  }
+
+  strictly_less <- 0L
+
+  for (i in seq(2, length(cohort_dates))) {
+    from_date <- cohort_dates[i - 1]
+    to_date <- cohort_dates[i]
+
+    meta_turnover <- implied_turnover(projected, "weights", from_date, to_date)
+
+    weighted_base_turnover <- sum(vapply(seq_along(backtest_ids), function(p) {
+      meta_split[p] * implied_turnover(base_weights, backtest_ids[p], from_date, to_date)
+    }, numeric(1)))
+
+    testthat::expect_lte(meta_turnover, weighted_base_turnover + 1e-10)
+    if (meta_turnover < weighted_base_turnover - 1e-8) strictly_less <- strictly_less + 1L
+  }
+
+  ## The inequality must bite somewhere, or the base portfolios never offset and the test
+  ## would hold trivially for portfolios that share nothing
+  testthat::expect_gt(strictly_less, 0L)
+})

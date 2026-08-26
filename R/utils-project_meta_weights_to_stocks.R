@@ -13,12 +13,20 @@
 #'
 #' # Why project rather than allocate across portfolios directly
 #'
-#' Running the meta backtest on stock-level weights rather than on the base portfolios as if they
-#' were assets is what makes the transaction costs real. Two base portfolios frequently hold the
-#' same name, so a meta rebalance that shifts weight between them nets off at stock level and
-#' trades far less than the portfolio-level turnover would suggest. Projecting first lets the
-#' existing cost engine see the actual trades, and brings delisting and IPO handling along for
-#' free.
+#' Chiefly so that costs are charged on the trades that actually happen. Projecting first lets the
+#' existing engine price each stock-level order against that stock's own liquidity and volatility,
+#' and brings delisting and IPO handling along unchanged, none of which a portfolio-level run could
+#' do without inventing liquidity and volatility for a portfolio.
+#'
+#' Offsetting trades are a second reason, but a smaller one than it first appears. Where two base
+#' portfolios hold the same name and move it in opposite directions, the trades net at stock level,
+#' and implied turnover is then at most the meta-weighted average of the base portfolios' own. That
+#' inequality always holds when the meta weights are unchanged, but how much it bites depends
+#' entirely on how differently the sleeves trade: measured on a toy cohort of two long-only sleeves
+#' driven by different signals and rebalancing on the same dates, the saving ranged from nothing to
+#' about two percent of turnover, and two sleeves driven by the same signal saved almost nothing.
+#' Treat netting as a bonus that scales with genuine disagreement between sleeves, not as the
+#' headline reason for this design.
 #'
 #' # Dates between meta rebalances
 #'
