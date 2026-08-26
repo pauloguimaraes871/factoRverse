@@ -5857,28 +5857,188 @@ setGeneric("create_port_metabacktest_config", function(meta_port_backtest_config
 setMethod(
   "create_port_metabacktest_config",
   signature(meta_port_backtest_config = "port_backtest_config"),
-  function(meta_port_backtest_config, return_basis = "net", cost_lookback = NULL,
+  function(meta_port_backtest_config, type = c("multi_port", "risk_targeted"),
+           return_basis = "net", cost_lookback = NULL, cml_parameters = NULL,
            config_name = "not_identified", verbose = TRUE, ...) {
+
+    type <- match.arg(type)
 
     # Create the port_metabacktest_config object (validity does the checking)
     meta_config <- methods::new("port_metabacktest_config",
                                 meta_port_backtest_config = meta_port_backtest_config,
+                                type = type,
                                 return_basis = return_basis,
                                 cost_lookback = cost_lookback,
+                                cml_parameters = cml_parameters,
                                 config_name = config_name
     )
 
     # Report whether the chosen meta score is an ex-ante or a realized figure. The two live side
     # by side in port_universe_m_df under names that do not advertise the difference, and picking
-    # one where the other was intended changes what the allocation optimizes.
-    if (isTRUE(verbose)) {
-      message_meta_score_basis(
-        stat_name = names(meta_port_backtest_config@chosen_score_metric_and_position),
-        verbose = TRUE
-      )
+    # one where the other was intended changes what the allocation optimizes. There is nothing to
+    # report when the weights are supplied or produced by the risk-targeting rule.
+    chosen_score <- names(meta_port_backtest_config@chosen_score_metric_and_position)
+    if (isTRUE(verbose) && length(chosen_score) == 1L) {
+      message_meta_score_basis(stat_name = chosen_score, verbose = TRUE)
     }
 
     return(meta_config)
+  }
+)
+
+
+# cml_parameters--------------------------------------------------------
+#' Create cml_parameters
+#'
+#' Builds the parameters for the `risk_targeted` meta-portfolio path, which scales a risky sleeve
+#' against a residual sleeve so the combination targets a stated level of risk. See
+#' [cml_parameters-class] for how the residual and the target metric have to match, and for what
+#' each `vol_source` measures.
+#'
+#' @param residual_ticker Character naming the residual sleeve. It must be a row of the data
+#'   objects the backtest runs on, carrying its own return, liquidity and volatility.
+#' @param target Numeric, in the target metric's own units.
+#' @param target_metric `"tracking_error"` (default) or `"volatility"`. Must match what the
+#'   residual is: an index-tracking residual for the former, a riskless one for the latter.
+#' @param p Numeric exponent, 1 for risk targeting and 2 for the inverse-variance response.
+#' @param vol_source `"ex_ante"` (default), `"realized_rolling"` or `"supplied"`.
+#' @param vol_cov_est_method A `cov_est_method` for `"ex_ante"`. Defaults to EWMA over 60 daily
+#'   observations with `active_returns = FALSE`, since a tracking-error target is expressed
+#'   through active weights rather than by subtracting the benchmark from the returns.
+#' @param vol_window Numeric months for `"realized_rolling"`. Default 6.
+#' @param min_weight,max_weight Numeric bounds on the risky sleeve. Default 0 and 1.
+#'
+#' @return An object of class `cml_parameters`.
+#'
+#' @examples
+#' \dontrun{
+#'   # Hold at least half the risky sleeve, targeting 4 percent annualised tracking error
+#'   cml_params <- create_cml_parameters(
+#'     residual_ticker = "BOVA11", target = 4, target_metric = "tracking_error",
+#'     p = 1, min_weight = 0.5
+#'   )
+#' }
+#' @seealso [cml_parameters-class], [add_cml_parameters()]
+#' @export
+create_cml_parameters <- function(residual_ticker,
+                                  target,
+                                  target_metric = c("tracking_error", "volatility"),
+                                  p = 1,
+                                  vol_source = c("ex_ante", "realized_rolling", "supplied"),
+                                  vol_cov_est_method = NULL,
+                                  vol_window = 6,
+                                  min_weight = 0,
+                                  max_weight = 1) {
+
+  target_metric <- match.arg(target_metric)
+  vol_source <- match.arg(vol_source)
+
+  # A short, responsive window on daily data, which is the frequency the volatility-managed
+  # literature estimates realised risk at. Left on raw returns so a tracking-error target can be
+  # expressed through active weights without counting the benchmark twice.
+  if (vol_source == "ex_ante" && is.null(vol_cov_est_method)) {
+    vol_cov_est_method <- create_cov_est_method(
+      cov_estimation_method = "ewma",
+      cov_matrix_sample_size = 60,
+      active_returns = FALSE,
+      cov_matrix_benchmark = NULL
+    )
+  }
+
+  methods::new("cml_parameters",
+               residual_ticker = residual_ticker,
+               target = target,
+               target_metric = target_metric,
+               p = p,
+               vol_source = vol_source,
+               vol_cov_est_method = vol_cov_est_method,
+               vol_window = vol_window,
+               min_weight = min_weight,
+               max_weight = max_weight
+  )
+}
+
+
+#' @title Add cml_parameters to a meta backtest config
+#'
+#' @description
+#' Either attaches an existing `cml_parameters` object or builds one from the arguments given.
+#' Only meaningful when the configuration's `type` is `"risk_targeted"`.
+#'
+#' @param object An object of class `port_metabacktest_config`.
+#' @param cml_params An object of class `cml_parameters`, or missing to build one.
+#' @param residual_ticker,target,target_metric,p Passed to [create_cml_parameters()].
+#' @param vol_source,vol_cov_est_method,vol_window Passed to [create_cml_parameters()].
+#' @param min_weight,max_weight Passed to [create_cml_parameters()].
+#' @param ... Additional arguments (not used).
+#'
+#' @return The updated `port_metabacktest_config`.
+#' @seealso [create_cml_parameters()], [cml_parameters-class]
+#' @export
+setGeneric("add_cml_parameters", function(object, cml_params, ...) {
+  standardGeneric("add_cml_parameters")
+})
+
+
+#' @describeIn add_cml_parameters Attach an existing `cml_parameters` object.
+#' @export
+setMethod(
+  "add_cml_parameters",
+  signature(object = "port_metabacktest_config", cml_params = "cml_parameters"),
+  function(object, cml_params, ...) {
+
+    if (object@type != "risk_targeted") {
+      stop("cml_parameters is only available when type is 'risk_targeted'; this configuration is '",
+           object@type, "'.")
+    }
+
+    object@cml_parameters <- cml_params
+    methods::validObject(object)
+
+    return(object)
+  }
+)
+
+
+#' @describeIn add_cml_parameters Build a `cml_parameters` object and attach it.
+#' @export
+setMethod(
+  "add_cml_parameters",
+  signature(object = "port_metabacktest_config", cml_params = "missing"),
+  function(object,
+           cml_params,
+           residual_ticker,
+           target,
+           target_metric = c("tracking_error", "volatility"),
+           p = 1,
+           vol_source = c("ex_ante", "realized_rolling", "supplied"),
+           vol_cov_est_method = NULL,
+           vol_window = 6,
+           min_weight = 0,
+           max_weight = 1,
+           ...) {
+
+    if (object@type != "risk_targeted") {
+      stop("cml_parameters is only available when type is 'risk_targeted'; this configuration is '",
+           object@type, "'.")
+    }
+
+    cml_params <- create_cml_parameters(
+      residual_ticker = residual_ticker,
+      target = target,
+      target_metric = match.arg(target_metric),
+      p = p,
+      vol_source = match.arg(vol_source),
+      vol_cov_est_method = vol_cov_est_method,
+      vol_window = vol_window,
+      min_weight = min_weight,
+      max_weight = max_weight
+    )
+
+    object@cml_parameters <- cml_params
+    methods::validObject(object)
+
+    return(object)
   }
 )
 

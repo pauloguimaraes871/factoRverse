@@ -9,8 +9,10 @@ create_port_metabacktest_config(meta_port_backtest_config, ...)
 
 \S4method{create_port_metabacktest_config}{port_backtest_config}(
   meta_port_backtest_config,
+  type = c("multi_port", "risk_targeted"),
   return_basis = "net",
   cost_lookback = NULL,
+  cml_parameters = NULL,
   config_name = "not_identified",
   verbose = TRUE,
   ...

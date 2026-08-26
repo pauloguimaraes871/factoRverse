@@ -1987,6 +1987,153 @@ setClass("hrp_parameters",
          }
 )
 
+#cml_parameters---------------------------------------------------------
+#' Define the `cml_parameters` S4 Class
+#'
+#' Parameters for the `risk_targeted` meta-portfolio path: scaling a single risky sleeve against a
+#' residual sleeve so that the combination targets a stated level of risk. The weight on the risky
+#' sleeve is
+#' \deqn{w_t = \min\left(\max\left(\left(\frac{target}{risk_t}\right)^{p},\ min\_weight\right),\ max\_weight\right)}
+#' and the residual sleeve takes whatever is left. At \eqn{p = 1} this is ordinary risk targeting;
+#' at \eqn{p = 2} it is the inverse-variance response of a volatility-managed portfolio.
+#'
+#' @section The residual must match the target metric:
+#' This is the easiest thing to get wrong here, and it is silent when wrong.
+#' \itemize{
+#'   \item A residual that \strong{tracks the benchmark}, such as an index ETF, makes tracking
+#'     error scale linearly in the weight: halving the risky sleeve halves the tracking error, and
+#'     a fully residual portfolio has none. \code{target_metric = "tracking_error"} is then valid.
+#'   \item A residual that is \strong{riskless}, such as a cash line, makes total volatility scale
+#'     linearly instead. \code{target_metric = "volatility"} is then valid.
+#'   \item Crossing them does not error, it just stops working. Blending toward cash while
+#'     targeting tracking error \emph{raises} tracking error past a point, since a fully cash
+#'     portfolio is maximally far from the index, so the rule chases a level it can never reach.
+#' }
+#' Validation cannot read a ticker's mind, so it checks the residual's own realised tracking error
+#' against the benchmark and warns when a tracking-error target is paired with a residual that does
+#' not track.
+#'
+#' @section Estimating current risk:
+#' \code{vol_source} chooses where \eqn{risk_t} comes from.
+#' \describe{
+#'   \item{\code{"ex_ante"}}{Re-estimates a covariance matrix from daily stock returns over a short
+#'     window and applies the sleeve's current weights. This is the default because it describes
+#'     the portfolio held now: a rolling window of past monthly portfolio returns describes a chain
+#'     of past compositions instead, and inheriting the risk figure from the base backtest's
+#'     \code{port_stats} would use a long window that is also stale between rebalances. Requires
+#'     \code{daily_stock_returns_m_xts}.}
+#'   \item{\code{"realized_rolling"}}{Standard deviation of the sleeve's own past monthly returns
+#'     over \code{vol_window} months. Fewer observations and a slower response.}
+#'   \item{\code{"supplied"}}{A series the caller computes, passed to the backtest as data.}
+#' }
+#' For a tracking-error target the covariance is applied to \emph{active} weights, portfolio minus
+#' benchmark, which is how \code{calculate_port_stats} derives \code{act_risk}. The estimator itself
+#' therefore works on raw returns, so \code{active_returns} in \code{vol_cov_est_method} should stay
+#' \code{FALSE} to avoid subtracting the benchmark twice.
+#'
+#' @slot residual_ticker Character naming the residual sleeve, which must be a row of the data
+#'   objects the backtest runs on.
+#' @slot target Numeric, in the target metric's own units, typically annualised percentage points.
+#' @slot target_metric Either `"tracking_error"` or `"volatility"`.
+#' @slot p Numeric exponent. 1 for risk targeting, 2 for the inverse-variance response.
+#' @slot vol_source One of `"ex_ante"`, `"realized_rolling"` or `"supplied"`.
+#' @slot vol_cov_est_method A `cov_est_method` used when `vol_source` is `"ex_ante"`.
+#' @slot vol_window Numeric months, used when `vol_source` is `"realized_rolling"`.
+#' @slot min_weight,max_weight Numeric bounds on the risky sleeve, so the residual is capped at
+#'   `1 - min_weight`.
+#'
+#' @seealso [create_cml_parameters()], [add_cml_parameters()],
+#'   \code{\link{port_metabacktest_config-class}}
+#' @export
+setClass("cml_parameters",
+         slots = list(
+           residual_ticker = "character",
+           target = "numeric",
+           target_metric = "character",
+           p = "numeric",
+           vol_source = "character",
+           vol_cov_est_method = "ANY",
+           vol_window = "numeric",
+           min_weight = "numeric",
+           max_weight = "numeric"
+         ),
+         prototype = list(
+           target_metric = "tracking_error",
+           p = 1,
+           vol_source = "ex_ante",
+           vol_cov_est_method = NULL,
+           vol_window = 6,
+           min_weight = 0,
+           max_weight = 1
+         ),
+         validity = function(object) {
+
+           ##Residual sleeve
+           if (length(object@residual_ticker) != 1 || is.na(object@residual_ticker) ||
+               !nzchar(object@residual_ticker)) {
+             stop("residual_ticker must be a single non-empty character value.")
+           }
+
+           ##Target
+           if (length(object@target) != 1 || !is.finite(object@target) || object@target <= 0) {
+             stop("target must be a single positive finite number, in the target metric's units.")
+           }
+           if (length(object@target_metric) != 1 ||
+               !object@target_metric %in% c("tracking_error", "volatility")) {
+             stop("target_metric must be either 'tracking_error' or 'volatility'.")
+           }
+
+           ##Response
+           if (length(object@p) != 1 || !is.finite(object@p) || object@p <= 0) {
+             stop("p must be a single positive finite number. Use 1 for risk targeting and 2 for ",
+                  "the inverse-variance response.")
+           }
+
+           ##Risk estimate
+           if (length(object@vol_source) != 1 ||
+               !object@vol_source %in% c("ex_ante", "realized_rolling", "supplied")) {
+             stop("vol_source must be one of 'ex_ante', 'realized_rolling' or 'supplied'.")
+           }
+           if (object@vol_source == "ex_ante") {
+             if (is.null(object@vol_cov_est_method) ||
+                 !inherits(object@vol_cov_est_method, "cov_est_method")) {
+               stop("vol_cov_est_method must be a 'cov_est_method' object when vol_source is 'ex_ante'.")
+             }
+             ###The benchmark is expressed through active weights, not by subtracting it from the
+             ###returns, so subtracting it here too would count it twice
+             if (isTRUE(object@vol_cov_est_method@active_returns)) {
+               stop("vol_cov_est_method must have active_returns = FALSE. A tracking-error target ",
+                    "is expressed by applying active weights to a raw covariance matrix, so ",
+                    "estimating the covariance on active returns as well would subtract the ",
+                    "benchmark twice.")
+             }
+           }
+           if (object@vol_source == "realized_rolling") {
+             if (length(object@vol_window) != 1 || is.na(object@vol_window) ||
+                 object@vol_window < 2 || object@vol_window %% 1 != 0) {
+               stop("vol_window must be a single whole number of at least 2 months when ",
+                    "vol_source is 'realized_rolling'.")
+             }
+           }
+
+           ##Bounds on the risky sleeve
+           if (length(object@min_weight) != 1 || length(object@max_weight) != 1 ||
+               !is.finite(object@min_weight) || !is.finite(object@max_weight)) {
+             stop("min_weight and max_weight must each be a single finite number.")
+           }
+           if (object@min_weight < 0 || object@max_weight > 1) {
+             stop("min_weight and max_weight must lie within [0, 1]: these are long-only weights ",
+                  "on the risky sleeve, with the residual taking the remainder.")
+           }
+           if (object@min_weight > object@max_weight) {
+             stop("min_weight must not exceed max_weight.")
+           }
+
+           TRUE
+         }
+)
+
+
 #mmaf_parameters--------------------------------------------------------
 #' Define the `mmaf_parameters` S4 Class
 #'
@@ -3860,14 +4007,60 @@ setClass(
   "port_metabacktest_config",
   slots = list(
     meta_port_backtest_config = "port_backtest_config",
+    type = "character",
     return_basis = "character",
     cost_lookback = "ANY",
+    cml_parameters = "ANY",
     config_name = "character"
+  ),
+  prototype = list(
+    type = "multi_port",
+    cml_parameters = NULL
   ),
   validity = function(object) {
 
     inner_config <- object@meta_port_backtest_config
     port_construction_method <- inner_config@port_construction_method
+
+    ##Type
+    if (length(object@type) != 1 || !object@type %in% c("multi_port", "risk_targeted")) {
+      stop("type must be either 'multi_port' or 'risk_targeted'.")
+    }
+
+    ##The two paths carry different parameters, and neither should silently ignore the other's
+    if (object@type == "risk_targeted") {
+      ###Left NULL, the configuration is incomplete rather than invalid, so it can be built first
+      ###and completed with add_cml_parameters(). residual_ticker and target have no sensible
+      ###defaults, so unlike the other parameter blocks this one cannot be defaulted into place.
+      ###check_inputs_meta_port_backtest() refuses to run without it, the same way a backtest
+      ###refuses to run without transaction_costs_parameters.
+      if (!is.null(object@cml_parameters) &&
+          !inherits(object@cml_parameters, "cml_parameters")) {
+        stop("cml_parameters must be a 'cml_parameters' object when type is 'risk_targeted'.")
+      }
+      ###The weight comes from the risk-targeting rule, so there is no cross-section to score.
+      ###port_construction_method is simply unused on this path: 'custom_weights' would say so
+      ###most clearly, but port_backtest_config still refuses that value, so the score being NULL
+      ###is what marks the path instead.
+      if (!is.null(inner_config@chosen_score_metric_and_position)) {
+        stop("chosen_score_metric_and_position must be NULL when type is 'risk_targeted': the ",
+             "weight on the risky sleeve comes from the risk-targeting rule, so there is no ",
+             "cross-section to score. port_construction_method is unused on this path.")
+      }
+      ###Scaling against a residual is defined relative to a benchmark for a tracking-error target,
+      ###and the benchmark also anchors the stock-level run
+      if (!is.null(object@cml_parameters) &&
+          object@cml_parameters@target_metric == "tracking_error" &&
+          is.null(inner_config@selected_benchmark)) {
+        stop("A 'tracking_error' target needs a selected_benchmark in meta_port_backtest_config.")
+      }
+      return(TRUE)
+    }
+
+    ##type == "multi_port" from here on
+    if (!is.null(object@cml_parameters)) {
+      stop("cml_parameters is only used when type is 'risk_targeted'.")
+    }
 
     ##Methods that do not carry over to a set of portfolios
     ###slsaf and mmaf are overlays on a stock cross-section: the first expresses conviction
@@ -3887,8 +4080,8 @@ setClass(
       stop("port_construction_method at meta-level must be one of 'ew', 'sw', 'rp', 'hrp' or 'mvo'.")
     }
 
-    ##A meta score is always needed: the universe must carry an exp_ret_score before
-    ##classify_investment_universe can rank and select base portfolios
+    ##A derived meta score is needed for every method that ranks the cross-section, because the
+    ##universe must carry an exp_ret_score before classify_investment_universe can select from it
     if (is.null(inner_config@chosen_score_metric_and_position)) {
       stop("chosen_score_metric_and_position must be provided in meta_port_backtest_config. ",
            "It names the column of port_universe_m_df used as the meta score.")

@@ -117,6 +117,18 @@ check_inputs_meta_port_backtest <- function(config,
   }
   ####################
 
+  #Completeness of the configuration
+  ####################
+  ##cml_parameters is allowed to be absent at construction so a configuration can be built and
+  ##then completed with add_cml_parameters(). Nothing can run without it, so this is where the
+  ##requirement bites.
+  if (config@type == "risk_targeted" && is.null(config@cml_parameters)) {
+    rlang::abort(paste0("This configuration has type 'risk_targeted' but carries no ",
+                        "cml_parameters. Add them with add_cml_parameters() or pass them to ",
+                        "create_port_metabacktest_config()."))
+  }
+  ####################
+
   #Cohort size
   ####################
   base_portfolios <- sort(unique(port_universe_m_df@data$tickers))

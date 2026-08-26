@@ -220,3 +220,189 @@ testthat::test_that("the generic refuses anything that is not a port_backtest_co
   testthat::expect_error(create_port_metabacktest_config(list()))
   testthat::expect_error(create_port_metabacktest_config("sw"))
 })
+
+
+# The risk_targeted type --------------------------------------------------
+
+make_risk_targeted_inner <- function(selected_benchmark = "ibov") {
+  create_port_backtest_config(
+    chosen_score_metric_and_position = NULL,
+    eligibility_quantile_range = c(0, 1),
+    initial_buffer_period = 24, rebalancing_months = c(6, 12),
+    selected_benchmark = selected_benchmark,
+    cov_est_method = create_cov_est_method(
+      cov_estimation_method = "sample", cov_matrix_sample_size = 36,
+      active_returns = !is.null(selected_benchmark), cov_matrix_benchmark = selected_benchmark),
+    main_liquidity_metric = "mean_volfin_3m",
+    port_construction_method = "ew", config_name = "inner")
+}
+
+
+testthat::test_that("the type selector routes to the right parameter block", {
+  multi <- suppressMessages(create_port_metabacktest_config(
+    make_meta_port_config(), verbose = FALSE))
+  testthat::expect_equal(multi@type, "multi_port")
+  testthat::expect_null(multi@cml_parameters)
+
+  targeted <- suppressMessages(create_port_metabacktest_config(
+    make_risk_targeted_inner(), type = "risk_targeted",
+    cml_parameters = create_cml_parameters("BOVA11", target = 4), verbose = FALSE))
+  testthat::expect_equal(targeted@type, "risk_targeted")
+  testthat::expect_s4_class(targeted@cml_parameters, "cml_parameters")
+
+  testthat::expect_error(
+    suppressMessages(create_port_metabacktest_config(
+      make_meta_port_config(), type = "nonsense", verbose = FALSE)))
+})
+
+testthat::test_that("each type refuses the other's settings", {
+  ## A cross-sectional score has nothing to rank on the risk-targeted path
+  testthat::expect_error(
+    suppressMessages(create_port_metabacktest_config(
+      make_meta_port_config(), type = "risk_targeted",
+      cml_parameters = create_cml_parameters("BOVA11", target = 4), verbose = FALSE)),
+    "must be NULL when type is 'risk_targeted'"
+  )
+
+  ## and cml_parameters would be silently ignored on the multi-portfolio path
+  testthat::expect_error(
+    suppressMessages(create_port_metabacktest_config(
+      make_meta_port_config(),
+      cml_parameters = create_cml_parameters("BOVA11", target = 4), verbose = FALSE)),
+    "only used when type is 'risk_targeted'"
+  )
+
+  ## multi_port still requires its score
+  testthat::expect_error(
+    suppressMessages(create_port_metabacktest_config(
+      make_risk_targeted_inner(), verbose = FALSE)),
+    "chosen_score_metric_and_position must be provided"
+  )
+})
+
+testthat::test_that("a tracking-error target requires a benchmark to track against", {
+  testthat::expect_error(
+    suppressMessages(create_port_metabacktest_config(
+      make_risk_targeted_inner(selected_benchmark = NULL), type = "risk_targeted",
+      cml_parameters = create_cml_parameters("BOVA11", target = 4,
+                                             target_metric = "tracking_error"),
+      verbose = FALSE)),
+    "needs a selected_benchmark"
+  )
+
+  ## A volatility target is measured against nothing, so it does not
+  testthat::expect_s4_class(
+    suppressMessages(create_port_metabacktest_config(
+      make_risk_targeted_inner(selected_benchmark = NULL), type = "risk_targeted",
+      cml_parameters = create_cml_parameters("CASH", target = 10,
+                                             target_metric = "volatility"),
+      verbose = FALSE)),
+    "port_metabacktest_config")
+})
+
+testthat::test_that("the score basis is only reported when a score was chosen", {
+  ## Nothing to report when the weights come from the risk-targeting rule
+  testthat::expect_silent(
+    create_port_metabacktest_config(
+      make_risk_targeted_inner(), type = "risk_targeted",
+      cml_parameters = create_cml_parameters("BOVA11", target = 4)))
+})
+
+
+# cml_parameters ----------------------------------------------------------
+
+testthat::test_that("create_cml_parameters defaults to a short daily estimator on raw returns", {
+  params <- create_cml_parameters(residual_ticker = "BOVA11", target = 4)
+
+  testthat::expect_s4_class(params, "cml_parameters")
+  testthat::expect_equal(params@target_metric, "tracking_error")
+  testthat::expect_equal(params@p, 1)
+  testthat::expect_equal(params@vol_source, "ex_ante")
+  testthat::expect_equal(params@min_weight, 0)
+  testthat::expect_equal(params@max_weight, 1)
+
+  ## Short and responsive, on daily data, which is the frequency realised risk is estimated at
+  testthat::expect_s4_class(params@vol_cov_est_method, "cov_est_method")
+  testthat::expect_equal(params@vol_cov_est_method@cov_estimation_method, "ewma")
+  testthat::expect_equal(params@vol_cov_est_method@cov_matrix_sample_size, 60)
+
+  ## Raw returns, because a tracking-error target is expressed through active weights
+  testthat::expect_false(params@vol_cov_est_method@active_returns)
+})
+
+testthat::test_that("an estimator on active returns is refused, since it would double count", {
+  testthat::expect_error(
+    create_cml_parameters("BOVA11", target = 4,
+                          vol_cov_est_method = create_cov_est_method("ewma", 60, TRUE, "ibov")),
+    "subtract the benchmark twice"
+  )
+})
+
+testthat::test_that("cml_parameters validates its own arguments", {
+  testthat::expect_error(create_cml_parameters("", target = 4), "residual_ticker")
+  testthat::expect_error(create_cml_parameters("BOVA11", target = 0),
+                         "target must be a single positive")
+  testthat::expect_error(create_cml_parameters("BOVA11", target = -4),
+                         "target must be a single positive")
+  testthat::expect_error(create_cml_parameters("BOVA11", target = 4, p = 0), "p must be")
+  testthat::expect_error(
+    create_cml_parameters("BOVA11", target = 4, target_metric = "nonsense"))
+  testthat::expect_error(
+    create_cml_parameters("BOVA11", target = 4, vol_source = "nonsense"))
+
+  ## Bounds are long-only weights on the risky sleeve
+  testthat::expect_error(create_cml_parameters("BOVA11", target = 4, min_weight = -0.1),
+                         "long-only weights")
+  testthat::expect_error(create_cml_parameters("BOVA11", target = 4, max_weight = 1.5),
+                         "long-only weights")
+  testthat::expect_error(
+    create_cml_parameters("BOVA11", target = 4, min_weight = 0.8, max_weight = 0.2),
+    "must not exceed max_weight")
+
+  ## A rolling window needs enough observations to have a standard deviation
+  testthat::expect_error(
+    create_cml_parameters("BOVA11", target = 4, vol_source = "realized_rolling", vol_window = 1),
+    "at least 2 months")
+})
+
+testthat::test_that("a supplied risk series needs no estimator", {
+  params <- create_cml_parameters("BOVA11", target = 4, vol_source = "supplied")
+  testthat::expect_equal(params@vol_source, "supplied")
+  testthat::expect_null(params@vol_cov_est_method)
+})
+
+
+# add_cml_parameters ------------------------------------------------------
+
+testthat::test_that("add_cml_parameters completes a configuration built without them", {
+  ## residual_ticker and target have no sensible defaults, so unlike the other parameter blocks
+  ## this one cannot be defaulted into place at construction. The configuration is therefore
+  ## allowed to be incomplete and completed afterwards.
+  bare <- suppressMessages(create_port_metabacktest_config(
+    make_risk_targeted_inner(), type = "risk_targeted", verbose = FALSE))
+  testthat::expect_null(bare@cml_parameters)
+
+  completed <- bare %>%
+    add_cml_parameters(residual_ticker = "BOVA11", target = 4, min_weight = 0.5)
+
+  testthat::expect_s4_class(completed@cml_parameters, "cml_parameters")
+  testthat::expect_equal(completed@cml_parameters@residual_ticker, "BOVA11")
+  testthat::expect_equal(completed@cml_parameters@min_weight, 0.5)
+
+  ## and an already-built parameters object attaches just as well
+  attached <- bare %>% add_cml_parameters(create_cml_parameters("BOVA11", target = 6, p = 2))
+  testthat::expect_equal(attached@cml_parameters@target, 6)
+  testthat::expect_equal(attached@cml_parameters@p, 2)
+})
+
+testthat::test_that("add_cml_parameters refuses a multi-portfolio configuration", {
+  multi <- suppressMessages(create_port_metabacktest_config(
+    make_meta_port_config(), verbose = FALSE))
+
+  testthat::expect_error(
+    multi %>% add_cml_parameters(residual_ticker = "BOVA11", target = 4),
+    "only available when type is 'risk_targeted'")
+  testthat::expect_error(
+    multi %>% add_cml_parameters(create_cml_parameters("BOVA11", target = 4)),
+    "only available when type is 'risk_targeted'")
+})
