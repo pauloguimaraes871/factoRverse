@@ -33,7 +33,7 @@ An S4 class specifying parameters for backtesting stock-level portfolios.
 \item{\code{cov_est_method}}{An object of class \code{cov_est_method} representing the covariance estimation method and relevant parameters. Current methods are: 'sample', 'ewma', 'cc' (constant correlation),
 'pca1', 'pca2', 'shrink_id' (shrinkage to identity matrix), 'shrink_cc' (shrinkage to constant correlation). This is only relevant for the covariance-based methods 'rp', 'hrp', 'mvo' and 'mmaf'.}
 
-\item{\code{port_construction_method}}{A character string representing the type of portfolio. Must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'hrp', 'mvo', 'mmaf' or 'slsaf' ('custom_weights' is not supported for this config). For signal portfolios,
+\item{\code{port_construction_method}}{A character string representing the type of portfolio. Must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'hrp', 'mvo', 'mmaf', 'slsaf' or 'custom_weights'. For signal portfolios,
 'cw' and 'cs' are not applicable. For signal portfolios, this is inferred based on sb_algorithm.}
 
 \item{\code{mvo_parameters}}{An object of class \code{mvo_parameters} representing the parameters for mean-variance optimization. This is only relevant for 'mvo'.}

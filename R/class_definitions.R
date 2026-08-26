@@ -3683,7 +3683,7 @@ setClass(
 #' @slot rebalancing_months A numeric value representing the number of months for rebalancing.
 #' @slot cov_est_method An object of class `cov_est_method` representing the covariance estimation method and relevant parameters. Current methods are: 'sample', 'ewma', 'cc' (constant correlation),
 #' 'pca1', 'pca2', 'shrink_id' (shrinkage to identity matrix), 'shrink_cc' (shrinkage to constant correlation). This is only relevant for the covariance-based methods 'rp', 'hrp', 'mvo' and 'mmaf'.
-#' @slot port_construction_method A character string representing the type of portfolio. Must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'hrp', 'mvo', 'mmaf' or 'slsaf' ('custom_weights' is not supported for this config). For signal portfolios,
+#' @slot port_construction_method A character string representing the type of portfolio. Must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'hrp', 'mvo', 'mmaf', 'slsaf' or 'custom_weights'. For signal portfolios,
 #' 'cw' and 'cs' are not applicable. For signal portfolios, this is inferred based on sb_algorithm.
 #' @slot mvo_parameters An object of class `mvo_parameters` representing the parameters for mean-variance optimization. This is only relevant for 'mvo'.
 #' @slot rp_parameters An object of class `rp_parameters` representing the parameters for risk parity. This is only relevant for 'rp'.
@@ -3766,15 +3766,16 @@ setClass(
     }
 
     #Port method
-    if (object@port_construction_method == "custom_weights"){
-      stop("custom_weights port_construction_method is not supported at this time.")
-    }
+    #'custom_weights' supplies its weights rather than deriving them, so there is no score to rank
+    #on and no cross-sectional rule to apply. The engine reaches it through
+    #classify_investment_universe()'s weights-based route and set_portfolio_weights(), which takes
+    #the positively-weighted assets as the eligible set.
     if (object@port_construction_method == "custom_weights" && !is.null(object@chosen_score_metric_and_position)){
       stop("chosen_score_metric_and_position must be NULL when port_construction_method is custom_weights")
     }
 
-    if (!object@port_construction_method %in% c("ew", "sw", "cw", "cs", "rp", "mvo", "hrp", "mmaf", "slsaf")){
-      stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'mvo', 'hrp', 'mmaf' or 'slsaf'.")
+    if (!object@port_construction_method %in% c("ew", "sw", "cw", "cs", "rp", "mvo", "hrp", "mmaf", "slsaf", "custom_weights")){
+      stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'mvo', 'hrp', 'mmaf', 'slsaf' or 'custom_weights'.")
     }
 
     #Check if eligibility_quantile_range has length of 2 between 0 and 1
