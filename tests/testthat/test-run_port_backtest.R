@@ -10280,7 +10280,10 @@ risk_targeted_cohort <- function() {
 }
 
 
-risk_targeted_config <- function(target = 10, p = 1, min_weight = 0.2, max_weight = 1) {
+risk_targeted_config <- function(target = 10, p = 1, min_weight = 0.2, max_weight = 1,
+                                 exposure_method = "none", exposure_window = NULL,
+                                 exposure_center = 1, exposure_sensitivity = NULL,
+                                 exposure_bounds = c(0, 1)) {
   inner <- create_port_backtest_config(
     chosen_score_metric_and_position = NULL,
     eligibility_quantile_range = c(0, 1),
@@ -10298,11 +10301,25 @@ risk_targeted_config <- function(target = 10, p = 1, min_weight = 0.2, max_weigh
       residual_ticker = risk_targeted_residual, target = target,
       target_metric = "tracking_error", p = p,
       min_weight = min_weight, max_weight = max_weight,
+      exposure_method = exposure_method, exposure_window = exposure_window,
+      exposure_center = exposure_center, exposure_sensitivity = exposure_sensitivity,
+      exposure_bounds = exposure_bounds,
       vol_cov_est_method = create_cov_est_method("ewma", 60, FALSE, NULL))
 }
 
 
-run_risk_targeted <- function(config = risk_targeted_config()) {
+#A metric on the sleeve whose sign flips between the two meta rebalance dates, so a trend rule
+#has something to react to rather than sitting on one side throughout
+risk_targeted_exposure_metric <- function(values = NULL) {
+  own_dates <- sort(unique(risk_targeted_inputs()$signals_m_df@data$dates))
+  if (is.null(values)) values <- ifelse(own_dates < as.Date("2023-03-01"), 5, -5)
+  df <- data.frame(id = paste0("sleeve-", own_dates), tickers = "sleeve", dates = own_dates,
+                   trailing_return = values, stringsAsFactors = FALSE)
+  df
+}
+
+
+run_risk_targeted <- function(config = risk_targeted_config(), exposure_m_df = NULL) {
   inputs <- risk_targeted_inputs()
   suppressWarnings(suppressMessages(run_port_backtest(
     signals_m_df = inputs$signals_m_df, fwd_return_m_df = inputs$fwd_return_m_df,
@@ -10313,6 +10330,7 @@ run_risk_targeted <- function(config = risk_targeted_config()) {
     daily_stock_returns_m_xts = inputs$daily_stock_returns_m_xts,
     daily_bench_returns_m_xts = inputs$daily_bench_returns_m_xts,
     stock_groups_m_df = inputs$stock_groups_m_df,
+    exposure_m_df = exposure_m_df,
     verbose = FALSE, parallel = FALSE)))
 }
 
@@ -10458,5 +10476,140 @@ test_that("a risk-targeted config is refused when its inputs do not support it",
       stock_groups_m_df = inputs$stock_groups_m_df,
       verbose = FALSE, parallel = FALSE))),
     "not a row of signals_m_df"
+  )
+})
+
+
+# The exposure signal end to end ------------------------------------------
+
+test_that("the reported weight is the exposure times the risk ratio, reconstructed", {
+
+  #The whole rule, rebuilt from its two halves and compared against what the run produced.
+  #A wrong sign, a mismatched date, or the exposure being dropped would all show up here.
+  config <- risk_targeted_config(exposure_method = "trend", exposure_center = 0.75,
+                                 exposure_sensitivity = 0.25)
+  exposure_metric <- risk_targeted_exposure_metric()
+  results <- run_risk_targeted(config, exposure_m_df = exposure_metric)
+
+  meta_stats <- results@meta_port_stats_m_df@data
+  cml_params <- results@cml_parameters
+
+  expected_exposure <- suppressMessages(derive_exposure_signal(
+    metric_m_df = exposure_metric, method = "trend",
+    center = 0.75, sensitivity = 0.25, verbose = FALSE))
+
+  for (i in seq_len(nrow(meta_stats))) {
+    current_date <- meta_stats$dates[i]
+    exposure <- expected_exposure$exposure[expected_exposure$dates == current_date]
+
+    expect_length(exposure, 1L)
+    expect_equal(meta_stats$exposure[i], exposure, tolerance = 1e-12)
+    expect_equal(meta_stats$risky_weight[i],
+                 risk_to_weight(meta_stats$sleeve_risk[i], cml_params, exposure),
+                 tolerance = 1e-12)
+  }
+})
+
+test_that("a trend that flips actually moves the allocation", {
+
+  #The metric is positive at the first rebalance and negative at the second, so a trend rule
+  #must lean differently at the two. Without this the test above could pass on a constant signal.
+  config <- risk_targeted_config(exposure_method = "trend", exposure_center = 0.75,
+                                 exposure_sensitivity = 0.25)
+  results <- run_risk_targeted(config, exposure_m_df = risk_targeted_exposure_metric())
+  meta_stats <- results@meta_port_stats_m_df@data
+
+  expect_gt(nrow(meta_stats), 1L)
+  expect_equal(meta_stats$exposure[1], 1.0, tolerance = 1e-12)
+  expect_equal(meta_stats$exposure[nrow(meta_stats)], 0.5, tolerance = 1e-12)
+
+  #and the exposure and the risk estimate are separable in the output, so a move can be
+  #attributed to one or the other rather than read as a single opaque number
+  expect_true(all(c("exposure", "sleeve_risk", "risky_weight") %in% names(meta_stats)))
+})
+
+test_that("a flat exposure of one reproduces the run without any exposure signal", {
+
+  #The addition is a strict generalisation: leaving the signal out must be the same as supplying
+  #one that never leans.
+  without <- run_risk_targeted(risk_targeted_config())
+  flat_metric <- risk_targeted_exposure_metric(values = 1)
+  with_flat <- run_risk_targeted(
+    risk_targeted_config(exposure_method = "as_is"), exposure_m_df = flat_metric)
+
+  without_stats <- without@meta_port_stats_m_df@data
+  flat_stats <- with_flat@meta_port_stats_m_df@data
+
+  expect_equal(without_stats$exposure, rep(1, nrow(without_stats)))
+  expect_equal(flat_stats$risky_weight, without_stats$risky_weight, tolerance = 1e-12)
+  expect_equal(flat_stats$sleeve_risk, without_stats$sleeve_risk, tolerance = 1e-12)
+
+  #and the stock-level results are identical too, not merely the meta-level ones
+  expect_equal(with_flat@projected_stock_weights_m_df@data,
+               without@projected_stock_weights_m_df@data)
+  expect_equal(with_flat@meta_port_backtest_results@port_returns_m_xts@data,
+               without@meta_port_backtest_results@port_returns_m_xts@data)
+})
+
+test_that("leaning less carries through to the stocks and to the intended risk", {
+
+  #Half the exposure must halve the sleeve's stock weights and leave the rest to the residual
+  half <- run_risk_targeted(
+    risk_targeted_config(exposure_method = "as_is", min_weight = 0),
+    exposure_m_df = risk_targeted_exposure_metric(values = 0.5))
+  full <- run_risk_targeted(
+    risk_targeted_config(exposure_method = "as_is", min_weight = 0),
+    exposure_m_df = risk_targeted_exposure_metric(values = 1))
+
+  half_stats <- half@meta_port_stats_m_df@data
+  full_stats <- full@meta_port_stats_m_df@data
+
+  expect_equal(half_stats$risky_weight, full_stats$risky_weight / 2, tolerance = 1e-12)
+
+  #implied_risk is exposure times the target when the bounds do not bind, since leaning less is
+  #meant to carry less risk rather than to miss the target
+  unclipped <- full_stats$risky_weight < 1 & half_stats$risky_weight > 0
+  expect_true(any(unclipped))
+  expect_equal(half_stats$implied_risk[unclipped],
+               0.5 * half_stats$target[unclipped], tolerance = 1e-10)
+
+  #and the residual takes what the sleeve gave up
+  residual_half <- half@meta_port_weights_m_df@data %>%
+    dplyr::filter(tickers == risk_targeted_residual)
+  residual_full <- full@meta_port_weights_m_df@data %>%
+    dplyr::filter(tickers == risk_targeted_residual)
+  expect_true(all(residual_half$weights > residual_full$weights))
+})
+
+test_that("the exposure is bounded before the risk ratio scales it", {
+
+  #An as_is metric outside the unit interval is clipped by exposure_bounds, not left to blow up
+  #the weight and then be caught by min_weight and max_weight
+  results <- run_risk_targeted(
+    risk_targeted_config(exposure_method = "as_is", exposure_bounds = c(0.25, 0.75)),
+    exposure_m_df = risk_targeted_exposure_metric(values = 5))
+
+  meta_stats <- results@meta_port_stats_m_df@data
+  expect_true(all(meta_stats$exposure == 0.75))
+})
+
+test_that("a missing or short exposure signal is refused, and says which half is missing", {
+  inputs <- risk_targeted_inputs()
+
+  #Asking for a signal without supplying the metric it comes from
+  expect_error(
+    suppressWarnings(suppressMessages(run_risk_targeted(
+      risk_targeted_config(exposure_method = "trend", exposure_sensitivity = 0.25)))),
+    "exposure_m_df must be supplied"
+  )
+
+  #A signal whose trailing window does not reach the first rebalance date. The risk estimate
+  #exists on those dates, so the message must point at the exposure rather than at the risk.
+  short_window <- risk_targeted_config(exposure_method = "ts_adjusted", exposure_window = 6,
+                                       exposure_sensitivity = -0.25)
+  expect_error(
+    suppressWarnings(suppressMessages(run_risk_targeted(
+      short_window, exposure_m_df = risk_targeted_exposure_metric(values = seq_len(7))))),
+    "it is the exposure signal that is missing"
   )
 })

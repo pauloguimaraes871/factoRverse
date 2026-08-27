@@ -3808,10 +3808,10 @@ setClass(
     }
 
     #Port method
-    #'custom_weights' supplies its weights rather than deriving them, so there is no score to rank
-    #on and no cross-sectional rule to apply. The engine reaches it through
-    #classify_investment_universe()'s weights-based route and set_portfolio_weights(), which takes
-    #the positively-weighted assets as the eligible set.
+    #The custom_weights method supplies its weights rather than deriving them, so there is no
+    #score to rank on and no cross-sectional rule to apply. The engine reaches it through the
+    #weights-based route in classify_investment_universe() and through set_portfolio_weights(),
+    #which takes the positively-weighted assets as the eligible set.
     if (object@port_construction_method == "custom_weights" && !is.null(object@chosen_score_metric_and_position)){
       stop("chosen_score_metric_and_position must be NULL when port_construction_method is custom_weights")
     }
