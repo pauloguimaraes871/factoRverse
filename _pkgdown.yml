@@ -160,6 +160,7 @@ reference:
   - "cml_parameters-class"
   - "port_backtest_results-class"
   - "port_metabacktest_results-class"
+  - "cml_metabacktest_results-class"
   - "port_backtest_cohort-class"
 
 - title: Constraints, liquidity & transaction costs
