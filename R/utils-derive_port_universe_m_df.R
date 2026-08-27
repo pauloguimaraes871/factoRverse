@@ -67,6 +67,9 @@
 #'   left as \code{NA} rather than dropped.
 #' @param port_universe_name Optional character naming the resulting object. Defaults to the cohort
 #'   name suffixed with the return basis.
+#' @param allow_single_portfolio Logical. When TRUE, a cohort holding one base portfolio does
+#'   not raise a warning. Set by the risk-targeted path, where a single risky sleeve scaled against
+#'   a residual is the required shape rather than too small a cross-section.
 #' @param verbose Logical, default \code{TRUE}.
 #'
 #' @return An object of class \code{port_universe_m_df}, ordered by \code{id}, with \code{tickers}
@@ -80,6 +83,7 @@ derive_port_universe_m_df <- function(port_backtest_cohort,
                                       cost_lookback = NULL,
                                       custom_port_metrics_m_df = NULL,
                                       port_universe_name = NULL,
+                                      allow_single_portfolio = FALSE,
                                       verbose = TRUE) {
 
   #Validate inputs
@@ -106,7 +110,9 @@ derive_port_universe_m_df <- function(port_backtest_cohort,
   if (length(results_list) == 0L) {
     rlang::abort("port_backtest_cohort carries no port_backtest_results to derive a universe from.")
   }
-  if (length(results_list) < 2L) {
+  ##A risk-targeted allocation scales exactly one sleeve against a residual, so a lone portfolio is
+  ##the required shape there rather than a problem
+  if (length(results_list) < 2L && !isTRUE(allow_single_portfolio)) {
     rlang::warn(paste0("Only one base portfolio in the cohort. A meta allocation needs at least ",
                        "two; the resulting universe is derivable but not allocatable."))
   }

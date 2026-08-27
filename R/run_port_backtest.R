@@ -1344,6 +1344,7 @@ setMethod("run_port_backtest",
               return_basis = config@return_basis,
               cost_lookback = config@cost_lookback,
               custom_port_metrics_m_df = custom_port_metrics_m_df,
+              allow_single_portfolio = config@type == "risk_targeted",
               verbose = verbose
             )
             ###########################

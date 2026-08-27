@@ -170,7 +170,9 @@ check_inputs_meta_port_backtest <- function(config,
 
   ##The generic small-cohort caveat is about sensitivity to small changes in the statistics, which
   ##is the opposite of what the two-portfolio 'sw' case does, so it is not raised alongside it
-  if (n_base_portfolios < 4L && !is_two_portfolio_sw) {
+  ##and it does not apply to the risk-targeted path either, where a single sleeve is the required
+  ##shape and there is no cross-section to rank at all
+  if (n_base_portfolios < 4L && !is_two_portfolio_sw && !is_risk_targeted) {
     rlang::warn(paste0("The cohort holds only ", n_base_portfolios, " base portfolios. Scores are ",
                        "ranked cross-sectionally, so a cross-section this small makes the meta ",
                        "weights sensitive to small changes in the underlying statistics."))

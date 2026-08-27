@@ -10,6 +10,7 @@ derive_port_universe_m_df(
   cost_lookback = NULL,
   custom_port_metrics_m_df = NULL,
   port_universe_name = NULL,
+  allow_single_portfolio = FALSE,
   verbose = TRUE
 )
 }
@@ -30,6 +31,10 @@ left as \code{NA} rather than dropped.}
 
 \item{port_universe_name}{Optional character naming the resulting object. Defaults to the cohort
 name suffixed with the return basis.}
+
+\item{allow_single_portfolio}{Logical. When TRUE, a cohort holding one base portfolio does
+not raise a warning. Set by the risk-targeted path, where a single risky sleeve scaled against
+a residual is the required shape rather than too small a cross-section.}
 
 \item{verbose}{Logical, default \code{TRUE}.}
 }
