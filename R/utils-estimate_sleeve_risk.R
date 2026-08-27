@@ -181,13 +181,20 @@ estimate_sleeve_risk <- function(current_date,
 #' @return A single weight in \code{[min_weight, max_weight]}, or \code{NA_real_} when the risk
 #'   estimate is missing or not positive.
 #' @keywords internal
-risk_to_weight <- function(risk, cml_params) {
+risk_to_weight <- function(risk, cml_params, exposure = 1) {
 
   if (length(risk) != 1L || is.na(risk) || !is.finite(risk) || risk <= 0) {
     return(NA_real_)
   }
+  ##An exposure that could not be computed leaves the weight undefined rather than defaulting to
+  ##full exposure, which would silently ignore the signal the caller asked to be followed
+  if (length(exposure) != 1L || is.na(exposure) || !is.finite(exposure)) {
+    return(NA_real_)
+  }
 
-  raw_weight <- (cml_params@target / risk)^cml_params@p
+  ##w = s * (target / risk)^p. The two terms answer different questions: the exposure says which
+  ##way and how strongly to lean, the ratio says how large that lean should be given current risk.
+  raw_weight <- exposure * (cml_params@target / risk)^cml_params@p
 
   min(max(raw_weight, cml_params@min_weight), cml_params@max_weight)
 }

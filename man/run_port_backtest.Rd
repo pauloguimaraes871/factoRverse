@@ -59,6 +59,7 @@ run_port_backtest(
   benchmark_returns_m_xts = NULL,
   custom_stock_metrics_m_df = NULL,
   vol_m_df = NULL,
+  exposure_m_df = NULL,
   max_stats_age_months = NULL,
   winsorization_probs = c(0.025, 0.975),
   verbose = TRUE,

@@ -1309,6 +1309,7 @@ setMethod("run_port_backtest",
                    benchmark_returns_m_xts = NULL,
                    custom_stock_metrics_m_df = NULL,
                    vol_m_df = NULL,
+                   exposure_m_df = NULL,
                    max_stats_age_months = NULL,
                    winsorization_probs = c(0.025, 0.975),
                    verbose = TRUE, parallel = TRUE, .test_seed = NULL) {
@@ -1401,6 +1402,27 @@ setMethod("run_port_backtest",
                                         length(meta_rebalance_dates), " rebalance dates\n")))
               }
 
+              ##The exposure multiplier s_t, from a trend or valuation signal on the sleeve. Left
+              ##as 'none' it is 1 throughout and the weight reduces to the risk ratio alone.
+              exposure_path <- if (cml_params@exposure_method == "none") {
+                NULL
+              } else {
+                if (is.null(exposure_m_df)) {
+                  stop("exposure_method is '", cml_params@exposure_method, "', so exposure_m_df ",
+                       "must be supplied: it carries the metric the exposure is derived from.")
+                }
+                derive_exposure_signal(
+                  metric_m_df = exposure_m_df,
+                  method = cml_params@exposure_method,
+                  window = cml_params@exposure_window,
+                  center = cml_params@exposure_center,
+                  sensitivity = cml_params@exposure_sensitivity,
+                  min_exposure = cml_params@exposure_bounds[1],
+                  max_exposure = cml_params@exposure_bounds[2],
+                  verbose = verbose
+                )
+              }
+
               risk_path <- purrr::map_dfr(meta_rebalance_dates, function(current_date) {
                 sleeve_risk <- estimate_sleeve_risk(
                   current_date = current_date,
@@ -1417,21 +1439,38 @@ setMethod("run_port_backtest",
                   return_basis = config@return_basis
                 )
 
+                exposure <- if (is.null(exposure_path)) {
+                  1
+                } else {
+                  matched <- exposure_path$exposure[exposure_path$dates == as.Date(current_date)]
+                  if (length(matched) == 1L) matched else NA_real_
+                }
+
                 data.frame(dates = as.Date(current_date),
                            sleeve_risk = sleeve_risk,
-                           risky_weight = risk_to_weight(sleeve_risk, cml_params),
+                           exposure = exposure,
+                           risky_weight = risk_to_weight(sleeve_risk, cml_params, exposure),
                            stringsAsFactors = FALSE)
               })
 
               ##A date with no risk estimate has no defensible weight, so it is refused rather
               ##than filled with a guess
               if (any(is.na(risk_path$risky_weight))) {
-                stop("The sleeve's risk could not be estimated on ",
+                missing_risk <- any(is.na(risk_path$sleeve_risk))
+                stop("The weight on the risky sleeve is undefined on ",
                      sum(is.na(risk_path$risky_weight)), " of ", nrow(risk_path),
                      " rebalance dates, starting at ",
                      min(risk_path$dates[is.na(risk_path$risky_weight)]),
-                     ". There is not enough history for the configured vol_source; consider a ",
-                     "larger initial_buffer_period or a shorter estimation window.")
+                     ". ",
+                     if (missing_risk) {
+                       paste0("There is not enough history for the configured vol_source; ",
+                              "consider a larger initial_buffer_period or a shorter estimation ",
+                              "window.")
+                     } else {
+                       paste0("The risk estimate exists, so it is the exposure signal that is ",
+                              "missing on those dates: exposure_m_df does not reach them, or its ",
+                              "trailing window does not.")
+                     })
               }
 
               ##The residual takes whatever the risky sleeve leaves
@@ -1456,12 +1495,17 @@ setMethod("run_port_backtest",
                   tickers = "meta_port",
                   dates = dates,
                   sleeve_risk = sleeve_risk,
+                  ##Reported separately from the weight so the two halves of the rule can be read
+                  ##apart: whether a change came from the signal or from the risk estimate
+                  exposure = exposure,
                   risky_weight = risky_weight,
                   target = cml_params@target,
-                  ##The risk the rule intends the blend to carry. It equals the target exactly
-                  ##whenever the weight is unclipped, so a departure from it says a bound bound,
-                  ##not that the targeting failed. Whether it actually worked is a question about
-                  ##realised returns, which only exist after the stock-level run.
+                  ##The risk the rule intends the blend to carry. With no exposure signal it
+                  ##equals the target exactly whenever the weight is unclipped, so a departure
+                  ##says a bound bound rather than that the targeting failed. With one it equals
+                  ##exposure times the target, since leaning less is meant to carry less risk.
+                  ##Whether it actually worked is a question about realised returns, which only
+                  ##exist after the stock-level run.
                   implied_risk = sleeve_risk * risky_weight
                 ) %>%
                 as.data.frame()

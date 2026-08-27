@@ -5929,11 +5929,17 @@ create_cml_parameters <- function(residual_ticker,
                                   vol_source = c("ex_ante", "realized_rolling", "supplied"),
                                   vol_cov_est_method = NULL,
                                   vol_window = 6,
+                                  exposure_method = c("none", "trend", "ts_adjusted", "as_is"),
+                                  exposure_window = NULL,
+                                  exposure_center = 1,
+                                  exposure_sensitivity = NULL,
+                                  exposure_bounds = c(0, 1),
                                   min_weight = 0,
                                   max_weight = 1) {
 
   target_metric <- match.arg(target_metric)
   vol_source <- match.arg(vol_source)
+  exposure_method <- match.arg(exposure_method)
 
   # A short, responsive window on daily data, which is the frequency the volatility-managed
   # literature estimates realised risk at. Left on raw returns so a tracking-error target can be
@@ -5955,6 +5961,11 @@ create_cml_parameters <- function(residual_ticker,
                vol_source = vol_source,
                vol_cov_est_method = vol_cov_est_method,
                vol_window = vol_window,
+               exposure_method = exposure_method,
+               exposure_window = exposure_window,
+               exposure_center = exposure_center,
+               exposure_sensitivity = exposure_sensitivity,
+               exposure_bounds = exposure_bounds,
                min_weight = min_weight,
                max_weight = max_weight
   )
@@ -6016,6 +6027,11 @@ setMethod(
            vol_source = c("ex_ante", "realized_rolling", "supplied"),
            vol_cov_est_method = NULL,
            vol_window = 6,
+           exposure_method = c("none", "trend", "ts_adjusted", "as_is"),
+           exposure_window = NULL,
+           exposure_center = 1,
+           exposure_sensitivity = NULL,
+           exposure_bounds = c(0, 1),
            min_weight = 0,
            max_weight = 1,
            ...) {
@@ -6033,6 +6049,11 @@ setMethod(
       vol_source = match.arg(vol_source),
       vol_cov_est_method = vol_cov_est_method,
       vol_window = vol_window,
+      exposure_method = match.arg(exposure_method),
+      exposure_window = exposure_window,
+      exposure_center = exposure_center,
+      exposure_sensitivity = exposure_sensitivity,
+      exposure_bounds = exposure_bounds,
       min_weight = min_weight,
       max_weight = max_weight
     )

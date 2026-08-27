@@ -4,7 +4,7 @@
 \alias{risk_to_weight}
 \title{Turn a Risk Estimate Into a Weight on the Risky Sleeve}
 \usage{
-risk_to_weight(risk, cml_params)
+risk_to_weight(risk, cml_params, exposure = 1)
 }
 \arguments{
 \item{risk}{A single annualised risk figure, in the target's units.}

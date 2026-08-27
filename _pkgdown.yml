@@ -209,7 +209,7 @@ reference:
   - classify_stock_liquidity
   - derive_stock_universe_m_d_ref
   - derive_port_universe_m_df
-  - derive_timing_weights
+  - derive_exposure_signal
   - calculate_trade_orders
   - validate_exp_ret_score_tilt
   - add_rp_parameters

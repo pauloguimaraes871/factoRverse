@@ -2054,6 +2054,11 @@ setClass("cml_parameters",
            vol_source = "character",
            vol_cov_est_method = "ANY",
            vol_window = "numeric",
+           exposure_method = "character",
+           exposure_window = "ANY",
+           exposure_center = "numeric",
+           exposure_sensitivity = "ANY",
+           exposure_bounds = "numeric",
            min_weight = "numeric",
            max_weight = "numeric"
          ),
@@ -2063,6 +2068,11 @@ setClass("cml_parameters",
            vol_source = "ex_ante",
            vol_cov_est_method = NULL,
            vol_window = 6,
+           exposure_method = "none",
+           exposure_window = NULL,
+           exposure_center = 1,
+           exposure_sensitivity = NULL,
+           exposure_bounds = c(0, 1),
            min_weight = 0,
            max_weight = 1
          ),
@@ -2114,6 +2124,38 @@ setClass("cml_parameters",
                stop("vol_window must be a single whole number of at least 2 months when ",
                     "vol_source is 'realized_rolling'.")
              }
+           }
+
+           ##Exposure signal
+           if (length(object@exposure_method) != 1 ||
+               !object@exposure_method %in% c("none", "trend", "ts_adjusted", "as_is")) {
+             stop("exposure_method must be one of 'none', 'trend', 'ts_adjusted' or 'as_is'. ",
+                  "There is deliberately no inverse-of-risk mapping: that is what the ",
+                  "(target / risk)^p term does, and having it in both places would let the ",
+                  "volatility scaling be applied twice.")
+           }
+           if (object@exposure_method %in% c("trend", "ts_adjusted")) {
+             if (is.null(object@exposure_sensitivity) ||
+                 !is.numeric(object@exposure_sensitivity) ||
+                 length(object@exposure_sensitivity) != 1 ||
+                 !is.finite(object@exposure_sensitivity)) {
+               stop("exposure_sensitivity must be a single finite number for exposure_method '",
+                    object@exposure_method, "'. Its sign sets the direction of the rule, so it ",
+                    "has no default.")
+             }
+           }
+           if (object@exposure_method == "ts_adjusted") {
+             if (is.null(object@exposure_window) || !is.numeric(object@exposure_window) ||
+                 length(object@exposure_window) != 1 || is.na(object@exposure_window) ||
+                 object@exposure_window < 2 || object@exposure_window %% 1 != 0) {
+               stop("exposure_window must be a single whole number of at least 2 for ",
+                    "exposure_method 'ts_adjusted'.")
+             }
+           }
+           if (length(object@exposure_bounds) != 2 || any(!is.finite(object@exposure_bounds)) ||
+               object@exposure_bounds[1] < 0 ||
+               object@exposure_bounds[1] > object@exposure_bounds[2]) {
+             stop("exposure_bounds must be two finite numbers, non-negative and non-decreasing.")
            }
 
            ##Bounds on the risky sleeve

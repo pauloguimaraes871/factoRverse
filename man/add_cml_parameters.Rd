@@ -20,6 +20,11 @@ add_cml_parameters(object, cml_params, ...)
   vol_source = c("ex_ante", "realized_rolling", "supplied"),
   vol_cov_est_method = NULL,
   vol_window = 6,
+  exposure_method = c("none", "trend", "ts_adjusted", "as_is"),
+  exposure_window = NULL,
+  exposure_center = 1,
+  exposure_sensitivity = NULL,
+  exposure_bounds = c(0, 1),
   min_weight = 0,
   max_weight = 1,
   ...
