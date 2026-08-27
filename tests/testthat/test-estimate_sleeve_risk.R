@@ -156,12 +156,11 @@ testthat::test_that("the estimate is annualised from daily observations", {
   testthat::expect_equal(risk / daily_risk, sqrt(252), tolerance = 1e-10)
 })
 
-testthat::test_that("a single-name sleeve inherits the estimator's full-history variance", {
-  ## Pinning existing package behaviour rather than endorsing it. estimate_covariance_matrix()
-  ## short-circuits to stats::var() when exactly one ticker is passed, and that branch ignores
-  ## cov_matrix_sample_size, so a one-name sleeve is measured over its whole history while a
-  ## two-name one is measured over the configured window. Recorded here so the discrepancy is
-  ## visible and a future fix shows up as a failing test rather than a silent change.
+testthat::test_that("a single-name sleeve is measured over the configured window", {
+  ## estimate_covariance_matrix() short-circuits to stats::var() when exactly one ticker is
+  ## passed. That branch used to ignore cov_matrix_sample_size and take the whole series, so a
+  ## one-name sleeve was measured over a longer window than the same sleeve holding two, and the
+  ## two figures were not comparable. Both paths now select the window before the branch.
   daily_returns <- make_sleeve_daily_returns()
   sleeve <- make_sleeve_results(port_weights = c(1, 0, 0))
   current_date <- sleeve_monthly_dates[3]
@@ -175,9 +174,19 @@ testthat::test_that("a single-name sleeve inherits the estimator's full-history 
   full_history <- daily_returns[zoo::index(daily_returns) <= current_date, "AAA", drop = FALSE]
   windowed <- utils::tail(full_history, 60 + COV_SAMPLE_OFFSET)
 
-  testthat::expect_equal(risk, stats::sd(as.numeric(full_history)) * sqrt(252), tolerance = 1e-8)
+  testthat::expect_equal(risk, stats::sd(as.numeric(windowed)) * sqrt(252), tolerance = 1e-8)
+
+  ## The window has to bind here, or the assertion above would hold whether or not it is applied
+  testthat::expect_lt(nrow(windowed), nrow(full_history))
   testthat::expect_false(isTRUE(all.equal(
-    risk, stats::sd(as.numeric(windowed)) * sqrt(252))))
+    risk, stats::sd(as.numeric(full_history)) * sqrt(252))))
+
+  ## and the one-name figure now matches the same expectation helper every multi-name test uses,
+  ## which is the point of the fix: breadth no longer changes the period being measured
+  testthat::expect_equal(
+    risk,
+    expected_ex_ante_risk(daily_returns[, "AAA", drop = FALSE], c(AAA = 1), current_date, 60),
+    tolerance = 1e-8)
 })
 
 testthat::test_that("only data up to the date is used", {
