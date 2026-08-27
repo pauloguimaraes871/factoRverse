@@ -2,7 +2,7 @@
 #'
 #' Measures how risky a portfolio is as of a given date, which is the denominator of the
 #' risk-targeting rule in the `risk_targeted` meta-portfolio path. Returns an annualised figure in
-#' percentage points, matching the units a `cml_parameters` target is stated in.
+#' percentage points, matching the units a `risk_target_parameters` target is stated in.
 #'
 #' @details
 #' # Which risk
@@ -14,7 +14,7 @@
 #'     benchmark's, against a raw covariance matrix. That is how \code{calculate_port_stats()}
 #'     derives \code{act_risk}, so the convention is inherited rather than invented. Estimating the
 #'     covariance on active returns as well would subtract the benchmark twice, which
-#'     \code{cml_parameters} refuses.
+#'     \code{risk_target_parameters} refuses.
 #' }
 #'
 #' # Where the number comes from
@@ -39,7 +39,7 @@
 #' caller computed it and only they know its frequency.
 #'
 #' @param current_date The date to measure at. Only data up to and including it is used.
-#' @param cml_params A \code{cml_parameters} object.
+#' @param risk_target_params A \code{risk_target_parameters} object.
 #' @param risky_port_backtest_results The \code{port_backtest_results} for the sleeve being scaled.
 #' @param daily_stock_returns_m_xts Daily stock returns, required for \code{"ex_ante"}.
 #' @param selected_benchmark Character naming the benchmark, required for a tracking-error target.
@@ -54,10 +54,10 @@
 #' @return A single annualised risk figure in percentage points, or \code{NA_real_} when there is
 #'   not enough history to estimate one.
 #'
-#' @seealso \code{\link{cml_parameters-class}}, \code{\link{estimate_covariance_matrix}}
+#' @seealso \code{\link{risk_target_parameters-class}}, \code{\link{estimate_covariance_matrix}}
 #' @keywords internal
 estimate_sleeve_risk <- function(current_date,
-                                 cml_params,
+                                 risk_target_params,
                                  risky_port_backtest_results,
                                  daily_stock_returns_m_xts = NULL,
                                  selected_benchmark = NULL,
@@ -66,11 +66,11 @@ estimate_sleeve_risk <- function(current_date,
                                  return_basis = "net") {
 
   current_date <- as.Date(current_date)
-  is_tracking_error <- cml_params@target_metric == "tracking_error"
+  is_tracking_error <- risk_target_params@target_metric == "tracking_error"
 
   #Supplied
   ####################
-  if (cml_params@vol_source == "supplied") {
+  if (risk_target_params@vol_source == "supplied") {
     if (is.null(vol_m_df)) {
       rlang::abort("vol_m_df must be supplied when vol_source is 'supplied'.")
     }
@@ -87,7 +87,7 @@ estimate_sleeve_risk <- function(current_date,
 
   #Realized rolling
   ####################
-  if (cml_params@vol_source == "realized_rolling") {
+  if (risk_target_params@vol_source == "realized_rolling") {
     returns_xts <- risky_port_backtest_results@port_returns_m_xts@data
     return_column <- if (is_tracking_error) {
       paste0(return_basis, "_active_return")
@@ -101,9 +101,9 @@ estimate_sleeve_risk <- function(current_date,
 
     window_xts <- returns_xts[zoo::index(returns_xts) <= current_date, return_column, drop = FALSE]
     observations <- stats::na.omit(as.numeric(window_xts))
-    if (length(observations) < cml_params@vol_window) return(NA_real_)
+    if (length(observations) < risk_target_params@vol_window) return(NA_real_)
 
-    observations <- utils::tail(observations, cml_params@vol_window)
+    observations <- utils::tail(observations, risk_target_params@vol_window)
     ##Monthly observations, so annualise by the square root of twelve
     return(stats::sd(observations) * sqrt(12))
   }
@@ -141,15 +141,15 @@ estimate_sleeve_risk <- function(current_date,
 
   returns_upd_ref <- daily_stock_returns_m_xts[
     zoo::index(daily_stock_returns_m_xts) <= current_date, , drop = FALSE]
-  if (nrow(returns_upd_ref) < cml_params@vol_cov_est_method@cov_matrix_sample_size) {
+  if (nrow(returns_upd_ref) < risk_target_params@vol_cov_est_method@cov_matrix_sample_size) {
     return(NA_real_)
   }
 
   covariance_matrix <- estimate_covariance_matrix(
     tickers = held$tickers,
     returns_m_xts_upd_ref = returns_upd_ref,
-    cov_matrix_sample_size = cml_params@vol_cov_est_method@cov_matrix_sample_size,
-    cov_estimation_method = cml_params@vol_cov_est_method@cov_estimation_method,
+    cov_matrix_sample_size = risk_target_params@vol_cov_est_method@cov_matrix_sample_size,
+    cov_estimation_method = risk_target_params@vol_cov_est_method@cov_estimation_method,
     active_returns = FALSE,
     selected_benchmark_m_xts_upd_ref = NULL,
     groups_m_d_ref = stock_groups_m_d_ref,
@@ -176,12 +176,12 @@ estimate_sleeve_risk <- function(current_date,
 #' \eqn{p = 2}.
 #'
 #' @param risk A single annualised risk figure, in the target's units.
-#' @param cml_params A \code{cml_parameters} object.
+#' @param risk_target_params A \code{risk_target_parameters} object.
 #'
 #' @return A single weight in \code{[min_weight, max_weight]}, or \code{NA_real_} when the risk
 #'   estimate is missing or not positive.
 #' @keywords internal
-risk_to_weight <- function(risk, cml_params, exposure = 1) {
+risk_to_weight <- function(risk, risk_target_params, exposure = 1) {
 
   if (length(risk) != 1L || is.na(risk) || !is.finite(risk) || risk <= 0) {
     return(NA_real_)
@@ -194,7 +194,7 @@ risk_to_weight <- function(risk, cml_params, exposure = 1) {
 
   ##w = s * (target / risk)^p. The two terms answer different questions: the exposure says which
   ##way and how strongly to lean, the ratio says how large that lean should be given current risk.
-  raw_weight <- exposure * (cml_params@target / risk)^cml_params@p
+  raw_weight <- exposure * (risk_target_params@target / risk)^risk_target_params@p
 
-  min(max(raw_weight, cml_params@min_weight), cml_params@max_weight)
+  min(max(raw_weight, risk_target_params@min_weight), risk_target_params@max_weight)
 }

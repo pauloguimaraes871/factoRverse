@@ -506,7 +506,7 @@ testthat::test_that("every argument is class-checked", {
 
 
 testthat::test_that("an incomplete risk_targeted configuration is refused at run time", {
-  ## The config class allows cml_parameters to be absent so it can be completed later; nothing
+  ## The config class allows risk_target_parameters to be absent so it can be completed later; nothing
   ## can actually run without them, so this is where the requirement bites
   inner <- create_port_backtest_config(
     chosen_score_metric_and_position = NULL,
@@ -515,13 +515,13 @@ testthat::test_that("an incomplete risk_targeted configuration is refused at run
     selected_benchmark = "ibov",
     cov_est_method = create_cov_est_method("sample", 36, TRUE, "ibov"),
     main_liquidity_metric = "mean_volfin_3m",
-    port_construction_method = "ew", config_name = "bare")
+    port_construction_method = "custom_weights", config_name = "bare")
 
   bare <- suppressMessages(create_port_metabacktest_config(
     inner, type = "risk_targeted", verbose = FALSE))
 
   testthat::expect_error(
     suppressWarnings(suppressMessages(run_check(config = bare, verbose = FALSE))),
-    "carries no cml_parameters"
+    "carries no risk_target_parameters"
   )
 })

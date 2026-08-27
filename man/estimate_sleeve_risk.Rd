@@ -6,7 +6,7 @@
 \usage{
 estimate_sleeve_risk(
   current_date,
-  cml_params,
+  risk_target_params,
   risky_port_backtest_results,
   daily_stock_returns_m_xts = NULL,
   selected_benchmark = NULL,
@@ -18,7 +18,7 @@ estimate_sleeve_risk(
 \arguments{
 \item{current_date}{The date to measure at. Only data up to and including it is used.}
 
-\item{cml_params}{A \code{cml_parameters} object.}
+\item{risk_target_params}{A \code{risk_target_parameters} object.}
 
 \item{risky_port_backtest_results}{The \code{port_backtest_results} for the sleeve being scaled.}
 
@@ -43,7 +43,7 @@ not enough history to estimate one.
 \description{
 Measures how risky a portfolio is as of a given date, which is the denominator of the
 risk-targeting rule in the \code{risk_targeted} meta-portfolio path. Returns an annualised figure in
-percentage points, matching the units a \code{cml_parameters} target is stated in.
+percentage points, matching the units a \code{risk_target_parameters} target is stated in.
 }
 \section{Which risk}{
 \code{target_metric} decides what is being measured, and the weights follow from it.
@@ -53,7 +53,7 @@ percentage points, matching the units a \code{cml_parameters} target is stated i
 benchmark's, against a raw covariance matrix. That is how \code{calculate_port_stats()}
 derives \code{act_risk}, so the convention is inherited rather than invented. Estimating the
 covariance on active returns as well would subtract the benchmark twice, which
-\code{cml_parameters} refuses.
+\code{risk_target_parameters} refuses.
 }
 }
 
@@ -79,6 +79,6 @@ caller computed it and only they know its frequency.
 }
 
 \seealso{
-\code{\link{cml_parameters-class}}, \code{\link{estimate_covariance_matrix}}
+\code{\link{risk_target_parameters-class}}, \code{\link{estimate_covariance_matrix}}
 }
 \keyword{internal}

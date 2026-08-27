@@ -1987,8 +1987,8 @@ setClass("hrp_parameters",
          }
 )
 
-#cml_parameters---------------------------------------------------------
-#' Define the `cml_parameters` S4 Class
+#risk_target_parameters---------------------------------------------------------
+#' Define the `risk_target_parameters` S4 Class
 #'
 #' Parameters for the `risk_targeted` meta-portfolio path: scaling a single risky sleeve against a
 #' residual sleeve so that the combination targets a stated level of risk. The weight on the risky
@@ -2042,10 +2042,10 @@ setClass("hrp_parameters",
 #' @slot min_weight,max_weight Numeric bounds on the risky sleeve, so the residual is capped at
 #'   `1 - min_weight`.
 #'
-#' @seealso [create_cml_parameters()], [add_cml_parameters()],
+#' @seealso [create_risk_target_parameters()], [add_risk_target_parameters()],
 #'   \code{\link{port_metabacktest_config-class}}
 #' @export
-setClass("cml_parameters",
+setClass("risk_target_parameters",
          slots = list(
            residual_ticker = "character",
            target = "numeric",
@@ -4053,12 +4053,12 @@ setClass(
     type = "character",
     return_basis = "character",
     cost_lookback = "ANY",
-    cml_parameters = "ANY",
+    risk_target_parameters = "ANY",
     config_name = "character"
   ),
   prototype = list(
     type = "multi_port",
-    cml_parameters = NULL
+    risk_target_parameters = NULL
   ),
   validity = function(object) {
 
@@ -4073,27 +4073,31 @@ setClass(
     ##The two paths carry different parameters, and neither should silently ignore the other's
     if (object@type == "risk_targeted") {
       ###Left NULL, the configuration is incomplete rather than invalid, so it can be built first
-      ###and completed with add_cml_parameters(). residual_ticker and target have no sensible
+      ###and completed with add_risk_target_parameters(). residual_ticker and target have no sensible
       ###defaults, so unlike the other parameter blocks this one cannot be defaulted into place.
       ###check_inputs_meta_port_backtest() refuses to run without it, the same way a backtest
       ###refuses to run without transaction_costs_parameters.
-      if (!is.null(object@cml_parameters) &&
-          !inherits(object@cml_parameters, "cml_parameters")) {
-        stop("cml_parameters must be a 'cml_parameters' object when type is 'risk_targeted'.")
+      if (!is.null(object@risk_target_parameters) &&
+          !inherits(object@risk_target_parameters, "risk_target_parameters")) {
+        stop("risk_target_parameters must be a 'risk_target_parameters' object when type is 'risk_targeted'.")
       }
-      ###The weight comes from the risk-targeting rule, so there is no cross-section to score.
-      ###port_construction_method is simply unused on this path: 'custom_weights' would say so
-      ###most clearly, but port_backtest_config still refuses that value, so the score being NULL
-      ###is what marks the path instead.
-      if (!is.null(inner_config@chosen_score_metric_and_position)) {
-        stop("chosen_score_metric_and_position must be NULL when type is 'risk_targeted': the ",
-             "weight on the risky sleeve comes from the risk-targeting rule, so there is no ",
-             "cross-section to score. port_construction_method is unused on this path.")
+      ###The weight on the risky sleeve comes from the targeting rule, so nothing here ranks a
+      ###cross-section. 'custom_weights' is the value that says so, and requiring it keeps the
+      ###wrapped config honest about itself: its own show method reports a NULL score as coming
+      ###from SB predictions for every other method, which would be untrue on this path. It also
+      ###matches what the stock-level run actually does, since that is invoked with
+      ###'custom_weights' on the projected weights. The wrapped config refuses a score alongside
+      ###'custom_weights', so requiring it here also settles that the meta score must be NULL.
+      if (port_construction_method != "custom_weights") {
+        stop("port_construction_method must be 'custom_weights' when type is 'risk_targeted': ",
+             "the weight on the risky sleeve comes from the risk-targeting rule rather than from ",
+             "ranking a cross-section, and 'custom_weights' is the value that says so. Got '",
+             port_construction_method, "'.")
       }
       ###Scaling against a residual is defined relative to a benchmark for a tracking-error target,
       ###and the benchmark also anchors the stock-level run
-      if (!is.null(object@cml_parameters) &&
-          object@cml_parameters@target_metric == "tracking_error" &&
+      if (!is.null(object@risk_target_parameters) &&
+          object@risk_target_parameters@target_metric == "tracking_error" &&
           is.null(inner_config@selected_benchmark)) {
         stop("A 'tracking_error' target needs a selected_benchmark in meta_port_backtest_config.")
       }
@@ -4101,8 +4105,8 @@ setClass(
     }
 
     ##type == "multi_port" from here on
-    if (!is.null(object@cml_parameters)) {
-      stop("cml_parameters is only used when type is 'risk_targeted'.")
+    if (!is.null(object@risk_target_parameters)) {
+      stop("risk_target_parameters is only used when type is 'risk_targeted'.")
     }
 
     ##Methods that do not carry over to a set of portfolios
@@ -4860,7 +4864,7 @@ setClass(
   }
 )
 
-#cml_metabacktest_results---------------------------------------------
+#risk_target_metabacktest_results---------------------------------------------
 #' S4 Class for Risk-Targeted Meta Backtest Results
 #'
 #' The result of the `risk_targeted` path: a single risky sleeve scaled against a residual sleeve
@@ -4882,24 +4886,24 @@ setClass(
 #' persistently above the target means the risk estimator is too slow to catch risk as it rises.
 #'
 #' @slot residual_ticker Character naming the residual sleeve.
-#' @slot cml_parameters The `cml_parameters` used.
+#' @slot risk_target_parameters The `risk_target_parameters` used.
 #'
-#' @seealso \code{\link{port_metabacktest_results-class}}, \code{\link{cml_parameters-class}}
+#' @seealso \code{\link{port_metabacktest_results-class}}, \code{\link{risk_target_parameters-class}}
 #' @export
 setClass(
-  "cml_metabacktest_results",
+  "risk_target_metabacktest_results",
   contains = "port_metabacktest_results",
   slots = list(
     residual_ticker = "character",
-    cml_parameters = "ANY"
+    risk_target_parameters = "ANY"
   ),
   validity = function(object) {
     if (length(object@residual_ticker) != 1) {
       return("residual_ticker must be a single character string")
     }
-    if (!is.null(object@cml_parameters) &&
-        !inherits(object@cml_parameters, "cml_parameters")) {
-      return("cml_parameters must be a 'cml_parameters' object")
+    if (!is.null(object@risk_target_parameters) &&
+        !inherits(object@risk_target_parameters, "risk_target_parameters")) {
+      return("risk_target_parameters must be a 'risk_target_parameters' object")
     }
     TRUE
   }

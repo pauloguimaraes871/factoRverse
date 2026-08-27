@@ -4,12 +4,12 @@
 \alias{risk_to_weight}
 \title{Turn a Risk Estimate Into a Weight on the Risky Sleeve}
 \usage{
-risk_to_weight(risk, cml_params, exposure = 1)
+risk_to_weight(risk, risk_target_params, exposure = 1)
 }
 \arguments{
 \item{risk}{A single annualised risk figure, in the target's units.}
 
-\item{cml_params}{A \code{cml_parameters} object.}
+\item{risk_target_params}{A \code{risk_target_parameters} object.}
 }
 \value{
 A single weight in \code{[min_weight, max_weight]}, or \code{NA_real_} when the risk

@@ -149,18 +149,18 @@ reference:
   contents:
   - create_port_backtest_config
   - create_port_metabacktest_config
-  - create_cml_parameters
-  - add_cml_parameters
+  - create_risk_target_parameters
+  - add_risk_target_parameters
   - run_port_backtest
   - update_port_backtest
   - create_port_backtest_cohort
   - create_port_metabacktest_results
   - "port_backtest_config-class"
   - "port_metabacktest_config-class"
-  - "cml_parameters-class"
+  - "risk_target_parameters-class"
   - "port_backtest_results-class"
   - "port_metabacktest_results-class"
-  - "cml_metabacktest_results-class"
+  - "risk_target_metabacktest_results-class"
   - "port_backtest_cohort-class"
 
 - title: Constraints, liquidity & transaction costs

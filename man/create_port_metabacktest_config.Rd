@@ -12,7 +12,7 @@ create_port_metabacktest_config(meta_port_backtest_config, ...)
   type = c("multi_port", "risk_targeted"),
   return_basis = "net",
   cost_lookback = NULL,
-  cml_parameters = NULL,
+  risk_target_parameters = NULL,
   config_name = "not_identified",
   verbose = TRUE,
   ...

@@ -145,10 +145,10 @@ show_multi_port_config <- function() {
 
 show_risk_targeted_config <- function(with_parameters = TRUE, ...) {
   config <- suppressMessages(create_port_metabacktest_config(
-    show_inner_config(score = NULL, method = "ew"), type = "risk_targeted",
-    return_basis = "net", config_name = "cml_cfg", verbose = FALSE))
+    show_inner_config(score = NULL, method = "custom_weights"), type = "risk_targeted",
+    return_basis = "net", config_name = "risk_target_cfg", verbose = FALSE))
   if (!with_parameters) return(config)
-  add_cml_parameters(config, residual_ticker = "BOVA11", target = 4,
+  add_risk_target_parameters(config, residual_ticker = "BOVA11", target = 4,
                      target_metric = "tracking_error", min_weight = 0.2, max_weight = 1,
                      vol_cov_est_method = create_cov_est_method("ewma", 60, FALSE, NULL), ...)
 }
@@ -173,12 +173,12 @@ show_multi_port_results <- function() {
 }
 
 
-show_cml_results <- function(risky_weight = c(0.4, 0.35, 0.2, 1),
+show_risk_target_results <- function(risky_weight = c(0.4, 0.35, 0.2, 1),
                              exposure = rep(1, 4),
-                             cml_parameters = show_risk_targeted_config()@cml_parameters) {
+                             risk_target_parameters = show_risk_targeted_config()@risk_target_parameters) {
   sleeve_risk <- c(10, 11.4, 20, 3)
   methods::new(
-    "cml_metabacktest_results",
+    "risk_target_metabacktest_results",
     port_metabacktest_config = show_risk_targeted_config(),
     meta_port_backtest_results = make_show_backtest_results("meta_stock_level"),
     port_backtest_cohort = make_show_cohort(),
@@ -192,15 +192,15 @@ show_cml_results <- function(risky_weight = c(0.4, 0.35, 0.2, 1),
     final_meta_port = NULL,
     backtest_identifier = "meta_risk_target",
     residual_ticker = "BOVA11",
-    cml_parameters = cml_parameters
+    risk_target_parameters = risk_target_parameters
   )
 }
 
 
-# cml_parameters ----------------------------------------------------------
+# risk_target_parameters ----------------------------------------------------------
 
 testthat::test_that("the risk-targeting parameters name the pairing they assume", {
-  params <- create_cml_parameters("BOVA11", target = 4, target_metric = "tracking_error",
+  params <- create_risk_target_parameters("BOVA11", target = 4, target_metric = "tracking_error",
                                   vol_cov_est_method = create_cov_est_method("ewma", 60, FALSE, NULL))
 
   output <- testthat::capture_output(methods::show(params))
@@ -211,7 +211,7 @@ testthat::test_that("the risk-targeting parameters name the pairing they assume"
   ## assumption being made is stated rather than left to be inferred from the ticker
   testthat::expect_match(output, "residual tracks the benchmark")
 
-  volatility <- create_cml_parameters("CASH", target = 10, target_metric = "volatility",
+  volatility <- create_risk_target_parameters("CASH", target = 10, target_metric = "volatility",
                                       vol_source = "realized_rolling", vol_window = 6)
   testthat::expect_match(testthat::capture_output(methods::show(volatility)),
                          "residual is riskless")
@@ -219,9 +219,9 @@ testthat::test_that("the risk-targeting parameters name the pairing they assume"
 
 testthat::test_that("the response exponent is named rather than left as a number", {
   ## p is the whole shape of the response, and 1 against 2 is not self-explanatory
-  targeting <- create_cml_parameters("BOVA11", target = 4, p = 1,
+  targeting <- create_risk_target_parameters("BOVA11", target = 4, p = 1,
                                      vol_cov_est_method = create_cov_est_method("ewma", 60, FALSE, NULL))
-  managed <- create_cml_parameters("BOVA11", target = 4, p = 2,
+  managed <- create_risk_target_parameters("BOVA11", target = 4, p = 2,
                                    vol_cov_est_method = create_cov_est_method("ewma", 60, FALSE, NULL))
 
   testthat::expect_match(testthat::capture_output(methods::show(targeting)), "risk targeting")
@@ -229,7 +229,7 @@ testthat::test_that("the response exponent is named rather than left as a number
 })
 
 testthat::test_that("the risk source and the exposure signal are both reported", {
-  without <- create_cml_parameters("BOVA11", target = 4,
+  without <- create_risk_target_parameters("BOVA11", target = 4,
                                    vol_cov_est_method = create_cov_est_method("ewma", 60, FALSE, NULL))
   output <- testthat::capture_output(methods::show(without))
   testthat::expect_match(output, "ex_ante")
@@ -237,7 +237,7 @@ testthat::test_that("the risk source and the exposure signal are both reported",
   ## An absent signal is stated, not omitted, so the weight rule can be read in full
   testthat::expect_match(output, "risk ratio alone")
 
-  with_signal <- create_cml_parameters(
+  with_signal <- create_risk_target_parameters(
     "BOVA11", target = 4, exposure_method = "trend", exposure_center = 0.75,
     exposure_sensitivity = 0.25, exposure_bounds = c(0.1, 0.9),
     vol_cov_est_method = create_cov_est_method("ewma", 60, FALSE, NULL))
@@ -272,13 +272,13 @@ testthat::test_that("a risk_targeted config says the construction method is unus
 })
 
 testthat::test_that("an incomplete risk_targeted config says so and names the fix", {
-  ## cml_parameters may be NULL at construction, so the config can exist in a state that cannot be
+  ## risk_target_parameters may be NULL at construction, so the config can exist in a state that cannot be
   ## run. Showing it must make that visible rather than printing a config that looks complete.
   output <- testthat::capture_output(
     methods::show(show_risk_targeted_config(with_parameters = FALSE)))
 
   testthat::expect_match(output, "not set")
-  testthat::expect_match(output, "add_cml_parameters")
+  testthat::expect_match(output, "add_risk_target_parameters")
 })
 
 testthat::test_that("an expanding cost average is named rather than shown as NULL", {
@@ -338,10 +338,10 @@ testthat::test_that("the rebalance schedule and the cohort are reported", {
 })
 
 
-# cml_metabacktest_results ------------------------------------------------
+# risk_target_metabacktest_results ------------------------------------------------
 
 testthat::test_that("the risk-targeted summary reports the rule rather than a cross-section", {
-  output <- testthat::capture_output(methods::show(show_cml_results()))
+  output <- testthat::capture_output(methods::show(show_risk_target_results()))
 
   testthat::expect_match(output, "meta_risk_target")
   testthat::expect_match(output, "Risk-Targeting Rule")
@@ -356,7 +356,7 @@ testthat::test_that("dates at a bound are counted, since that is what a missed t
   ## implied_risk equals the target whenever the weight is unclipped, so a gap between them says a
   ## bound was binding rather than that the targeting failed. The count is what tells them apart.
   output <- testthat::capture_output(methods::show(
-    show_cml_results(risky_weight = c(0.4, 0.35, 0.2, 1))))
+    show_risk_target_results(risky_weight = c(0.4, 0.35, 0.2, 1))))
 
   ## One date sits at the 0.2 floor and one at the 1.0 cap
   testthat::expect_match(output, "1 at the floor, 1 at the cap, of 4")
@@ -365,11 +365,11 @@ testthat::test_that("dates at a bound are counted, since that is what a missed t
 testthat::test_that("a flat exposure is reported as absent rather than as a number", {
   ## An exposure of exactly one every date means no signal was used, and saying so is clearer than
   ## printing a mean of 1 that the reader has to interpret
-  flat <- testthat::capture_output(methods::show(show_cml_results(exposure = rep(1, 4))))
+  flat <- testthat::capture_output(methods::show(show_risk_target_results(exposure = rep(1, 4))))
   testthat::expect_match(flat, "Exposure Signal: none")
 
   varying <- testthat::capture_output(methods::show(
-    show_cml_results(exposure = c(1, 0.5, 1, 0.5))))
+    show_risk_target_results(exposure = c(1, 0.5, 1, 0.5))))
   testthat::expect_match(varying, "Exposure Signal: mean")
   testthat::expect_no_match(varying, "Exposure Signal: none")
 })
@@ -377,7 +377,7 @@ testthat::test_that("a flat exposure is reported as absent rather than as a numb
 testthat::test_that("the realised risk is reported against the target", {
   ## The intended risk is an identity when nothing binds, so on its own it says nothing about
   ## whether the rule worked. Only the realised figure does, and it comes from the stock-level run.
-  output <- testthat::capture_output(methods::show(show_cml_results()))
+  output <- testthat::capture_output(methods::show(show_risk_target_results()))
 
   testthat::expect_match(output, "Intended Risk")
   testthat::expect_match(output, "Realised tracking_error")
@@ -385,22 +385,22 @@ testthat::test_that("the realised risk is reported against the target", {
 })
 
 testthat::test_that("a volatility target reads the total return series instead", {
-  volatility_params <- create_cml_parameters(
+  volatility_params <- create_risk_target_parameters(
     "CASH", target = 10, target_metric = "volatility", vol_source = "realized_rolling",
     vol_window = 6, min_weight = 0.2)
 
   output <- testthat::capture_output(methods::show(
-    show_cml_results(cml_parameters = volatility_params)))
+    show_risk_target_results(risk_target_parameters = volatility_params)))
 
   testthat::expect_match(output, "Realised volatility")
   testthat::expect_match(output, "\\(net_return,")
 })
 
 testthat::test_that("a results object with missing optional slots still shows", {
-  ## port_universe_m_df, final_meta_port and cml_parameters are all allowed to be NULL, and a show
+  ## port_universe_m_df, final_meta_port and risk_target_parameters are all allowed to be NULL, and a show
   ## method that assumed otherwise would fail exactly where a diagnostic is most wanted
-  results <- show_cml_results()
-  results@cml_parameters <- NULL
+  results <- show_risk_target_results()
+  results@risk_target_parameters <- NULL
   results@port_metabacktest_config <- NULL
 
   output <- testthat::capture_output(testthat::expect_no_error(methods::show(results)))

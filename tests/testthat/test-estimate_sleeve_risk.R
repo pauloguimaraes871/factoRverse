@@ -80,7 +80,7 @@ expected_ex_ante_risk <- function(daily_returns, weights, current_date, window) 
 
 
 ex_ante_params <- function(target_metric = "tracking_error", window = 60, ...) {
-  create_cml_parameters(
+  create_risk_target_parameters(
     residual_ticker = "BOVA11", target = 4, target_metric = target_metric,
     vol_cov_est_method = create_cov_est_method("sample", window, FALSE, NULL), ...)
 }
@@ -95,7 +95,7 @@ testthat::test_that("a volatility target uses the sleeve's own weights", {
 
   risk <- suppressMessages(estimate_sleeve_risk(
     current_date = current_date,
-    cml_params = ex_ante_params(target_metric = "volatility"),
+    risk_target_params = ex_ante_params(target_metric = "volatility"),
     risky_port_backtest_results = sleeve,
     daily_stock_returns_m_xts = daily_returns))
 
@@ -115,7 +115,7 @@ testthat::test_that("a tracking-error target uses active weights instead", {
 
   risk <- suppressMessages(estimate_sleeve_risk(
     current_date = current_date,
-    cml_params = ex_ante_params(target_metric = "tracking_error"),
+    risk_target_params = ex_ante_params(target_metric = "tracking_error"),
     risky_port_backtest_results = sleeve,
     daily_stock_returns_m_xts = daily_returns))
 
@@ -128,7 +128,7 @@ testthat::test_that("a tracking-error target uses active weights instead", {
   ## and the two metrics genuinely differ, so the comparison above is not vacuous
   volatility <- suppressMessages(estimate_sleeve_risk(
     current_date = current_date,
-    cml_params = ex_ante_params(target_metric = "volatility"),
+    risk_target_params = ex_ante_params(target_metric = "volatility"),
     risky_port_backtest_results = sleeve,
     daily_stock_returns_m_xts = daily_returns))
   testthat::expect_false(isTRUE(all.equal(risk, volatility)))
@@ -141,7 +141,7 @@ testthat::test_that("the estimate is annualised from daily observations", {
 
   risk <- suppressMessages(estimate_sleeve_risk(
     current_date = current_date,
-    cml_params = ex_ante_params(target_metric = "volatility"),
+    risk_target_params = ex_ante_params(target_metric = "volatility"),
     risky_port_backtest_results = sleeve,
     daily_stock_returns_m_xts = daily_returns))
 
@@ -167,7 +167,7 @@ testthat::test_that("a single-name sleeve is measured over the configured window
 
   risk <- suppressMessages(estimate_sleeve_risk(
     current_date = current_date,
-    cml_params = ex_ante_params(target_metric = "volatility"),
+    risk_target_params = ex_ante_params(target_metric = "volatility"),
     risky_port_backtest_results = sleeve,
     daily_stock_returns_m_xts = daily_returns))
 
@@ -195,7 +195,7 @@ testthat::test_that("only data up to the date is used", {
   current_date <- sleeve_monthly_dates[2]
 
   baseline <- suppressMessages(estimate_sleeve_risk(
-    current_date = current_date, cml_params = ex_ante_params("volatility"),
+    current_date = current_date, risk_target_params = ex_ante_params("volatility"),
     risky_port_backtest_results = sleeve, daily_stock_returns_m_xts = daily_returns))
 
   ## Corrupting everything after the date must leave the estimate untouched
@@ -204,7 +204,7 @@ testthat::test_that("only data up to the date is used", {
   perturbed[later, ] <- perturbed[later, ] * 50
 
   after <- suppressMessages(estimate_sleeve_risk(
-    current_date = current_date, cml_params = ex_ante_params("volatility"),
+    current_date = current_date, risk_target_params = ex_ante_params("volatility"),
     risky_port_backtest_results = sleeve, daily_stock_returns_m_xts = perturbed))
 
   testthat::expect_equal(after, baseline)
@@ -216,10 +216,10 @@ testthat::test_that("the window length is respected", {
   current_date <- sleeve_monthly_dates[3]
 
   short <- suppressMessages(estimate_sleeve_risk(
-    current_date = current_date, cml_params = ex_ante_params("volatility", window = 30),
+    current_date = current_date, risk_target_params = ex_ante_params("volatility", window = 30),
     risky_port_backtest_results = sleeve, daily_stock_returns_m_xts = daily_returns))
   long <- suppressMessages(estimate_sleeve_risk(
-    current_date = current_date, cml_params = ex_ante_params("volatility", window = 200),
+    current_date = current_date, risk_target_params = ex_ante_params("volatility", window = 200),
     risky_port_backtest_results = sleeve, daily_stock_returns_m_xts = daily_returns))
 
   testthat::expect_equal(short, expected_ex_ante_risk(
@@ -235,7 +235,7 @@ testthat::test_that("too little history returns nothing rather than a short-wind
   ## An early date has fewer observations behind it than the window asks for
   early <- zoo::index(daily_returns)[10]
   risk <- suppressMessages(estimate_sleeve_risk(
-    current_date = early, cml_params = ex_ante_params("volatility", window = 60),
+    current_date = early, risk_target_params = ex_ante_params("volatility", window = 60),
     risky_port_backtest_results = sleeve, daily_stock_returns_m_xts = daily_returns))
 
   testthat::expect_true(is.na(risk))
@@ -244,7 +244,7 @@ testthat::test_that("too little history returns nothing rather than a short-wind
 testthat::test_that("ex-ante estimation refuses to proceed without daily returns", {
   testthat::expect_error(
     estimate_sleeve_risk(current_date = sleeve_monthly_dates[3],
-                         cml_params = ex_ante_params("volatility"),
+                         risk_target_params = ex_ante_params("volatility"),
                          risky_port_backtest_results = make_sleeve_results(),
                          daily_stock_returns_m_xts = NULL),
     "daily_stock_returns_m_xts is required"
@@ -259,7 +259,7 @@ testthat::test_that("a tracking-error target needs the sleeve to carry benchmark
 
   testthat::expect_error(
     suppressMessages(estimate_sleeve_risk(
-      current_date = sleeve_monthly_dates[3], cml_params = ex_ante_params("tracking_error"),
+      current_date = sleeve_monthly_dates[3], risk_target_params = ex_ante_params("tracking_error"),
       risky_port_backtest_results = sleeve,
       daily_stock_returns_m_xts = make_sleeve_daily_returns())),
     "no bench_weights"
@@ -272,11 +272,11 @@ testthat::test_that("a tracking-error target needs the sleeve to carry benchmark
 testthat::test_that("the rolling estimate is the sleeve's own return volatility, annualised", {
   monthly_active <- c(1.2, -0.8, 2.1, -1.5)
   sleeve <- make_sleeve_results(monthly_active = monthly_active)
-  params <- create_cml_parameters("BOVA11", target = 4, vol_source = "realized_rolling",
+  params <- create_risk_target_parameters("BOVA11", target = 4, vol_source = "realized_rolling",
                                   vol_window = 3)
 
   risk <- suppressMessages(estimate_sleeve_risk(
-    current_date = sleeve_monthly_dates[4], cml_params = params,
+    current_date = sleeve_monthly_dates[4], risk_target_params = params,
     risky_port_backtest_results = sleeve, return_basis = "net"))
 
   ## A tracking-error target reads the net active series, and monthly data annualises by sqrt(12)
@@ -287,11 +287,11 @@ testthat::test_that("the rolling estimate is the sleeve's own return volatility,
 testthat::test_that("a volatility target reads the total return series instead", {
   monthly_active <- c(1.2, -0.8, 2.1, -1.5)
   sleeve <- make_sleeve_results(monthly_active = monthly_active)
-  params <- create_cml_parameters("CASH", target = 10, target_metric = "volatility",
+  params <- create_risk_target_parameters("CASH", target = 10, target_metric = "volatility",
                                   vol_source = "realized_rolling", vol_window = 3)
 
   risk <- suppressMessages(estimate_sleeve_risk(
-    current_date = sleeve_monthly_dates[4], cml_params = params,
+    current_date = sleeve_monthly_dates[4], risk_target_params = params,
     risky_port_backtest_results = sleeve, return_basis = "net"))
 
   testthat::expect_equal(risk, stats::sd(utils::tail(monthly_active + 0.9, 3)) * sqrt(12),
@@ -300,14 +300,14 @@ testthat::test_that("a volatility target reads the total return series instead",
 
 testthat::test_that("the rolling window uses only returns up to the date", {
   sleeve <- make_sleeve_results(monthly_active = c(1.2, -0.8, 2.1, -1.5))
-  params <- create_cml_parameters("BOVA11", target = 4, vol_source = "realized_rolling",
+  params <- create_risk_target_parameters("BOVA11", target = 4, vol_source = "realized_rolling",
                                   vol_window = 3)
 
   at_third <- suppressMessages(estimate_sleeve_risk(
-    current_date = sleeve_monthly_dates[3], cml_params = params,
+    current_date = sleeve_monthly_dates[3], risk_target_params = params,
     risky_port_backtest_results = sleeve))
   at_fourth <- suppressMessages(estimate_sleeve_risk(
-    current_date = sleeve_monthly_dates[4], cml_params = params,
+    current_date = sleeve_monthly_dates[4], risk_target_params = params,
     risky_port_backtest_results = sleeve))
 
   testthat::expect_equal(at_third, stats::sd(c(1.2, -0.8, 2.1) - 0.1) * sqrt(12),
@@ -317,11 +317,11 @@ testthat::test_that("the rolling window uses only returns up to the date", {
 
 testthat::test_that("a window longer than the history returns nothing", {
   sleeve <- make_sleeve_results()
-  params <- create_cml_parameters("BOVA11", target = 4, vol_source = "realized_rolling",
+  params <- create_risk_target_parameters("BOVA11", target = 4, vol_source = "realized_rolling",
                                   vol_window = 12)
 
   testthat::expect_true(is.na(suppressMessages(estimate_sleeve_risk(
-    current_date = sleeve_monthly_dates[4], cml_params = params,
+    current_date = sleeve_monthly_dates[4], risk_target_params = params,
     risky_port_backtest_results = sleeve))))
 })
 
@@ -329,7 +329,7 @@ testthat::test_that("a window longer than the history returns nothing", {
 # Supplied ----------------------------------------------------------------
 
 testthat::test_that("a supplied series is read at the date and taken as annualised", {
-  params <- create_cml_parameters("BOVA11", target = 4, vol_source = "supplied")
+  params <- create_risk_target_parameters("BOVA11", target = 4, vol_source = "supplied")
   vol_m_df <- data.frame(
     id = paste0("sleeve-", sleeve_monthly_dates), tickers = "sleeve",
     dates = sleeve_monthly_dates, ann_track_err = c(8, 6, 4, 12),
@@ -337,22 +337,22 @@ testthat::test_that("a supplied series is read at the date and taken as annualis
 
   for (i in seq_along(sleeve_monthly_dates)) {
     risk <- suppressMessages(estimate_sleeve_risk(
-      current_date = sleeve_monthly_dates[i], cml_params = params,
+      current_date = sleeve_monthly_dates[i], risk_target_params = params,
       risky_port_backtest_results = make_sleeve_results(), vol_m_df = vol_m_df))
     testthat::expect_equal(risk, vol_m_df$ann_track_err[i])
   }
 
   ## A date the series does not cover has no estimate
   testthat::expect_true(is.na(suppressMessages(estimate_sleeve_risk(
-    current_date = as.Date("2030-01-15"), cml_params = params,
+    current_date = as.Date("2030-01-15"), risk_target_params = params,
     risky_port_backtest_results = make_sleeve_results(), vol_m_df = vol_m_df))))
 })
 
 testthat::test_that("a supplied source needs a series, and an unambiguous one", {
-  params <- create_cml_parameters("BOVA11", target = 4, vol_source = "supplied")
+  params <- create_risk_target_parameters("BOVA11", target = 4, vol_source = "supplied")
 
   testthat::expect_error(
-    estimate_sleeve_risk(current_date = sleeve_monthly_dates[1], cml_params = params,
+    estimate_sleeve_risk(current_date = sleeve_monthly_dates[1], risk_target_params = params,
                          risky_port_backtest_results = make_sleeve_results()),
     "vol_m_df must be supplied")
 
@@ -360,7 +360,7 @@ testthat::test_that("a supplied source needs a series, and an unambiguous one", 
     id = paste0("sleeve-", sleeve_monthly_dates), tickers = "sleeve",
     dates = sleeve_monthly_dates, a = 1, b = 2, stringsAsFactors = FALSE)
   testthat::expect_error(
-    estimate_sleeve_risk(current_date = sleeve_monthly_dates[1], cml_params = params,
+    estimate_sleeve_risk(current_date = sleeve_monthly_dates[1], risk_target_params = params,
                          risky_port_backtest_results = make_sleeve_results(),
                          vol_m_df = two_columns),
     "exactly one risk column")
@@ -370,8 +370,8 @@ testthat::test_that("a supplied source needs a series, and an unambiguous one", 
 # risk_to_weight ----------------------------------------------------------
 
 testthat::test_that("the rule is target over risk, raised to the exponent", {
-  linear <- create_cml_parameters("BOVA11", target = 4, p = 1)
-  quadratic <- create_cml_parameters("BOVA11", target = 4, p = 2)
+  linear <- create_risk_target_parameters("BOVA11", target = 4, p = 1)
+  quadratic <- create_risk_target_parameters("BOVA11", target = 4, p = 2)
 
   ## Risk at the target gives full exposure whatever the exponent
   testthat::expect_equal(risk_to_weight(4, linear), 1)
@@ -386,7 +386,7 @@ testthat::test_that("the rule is target over risk, raised to the exponent", {
 })
 
 testthat::test_that("the bounds clip the rule in both directions", {
-  bounded <- create_cml_parameters("BOVA11", target = 4, min_weight = 0.5, max_weight = 0.9)
+  bounded <- create_risk_target_parameters("BOVA11", target = 4, min_weight = 0.5, max_weight = 0.9)
 
   testthat::expect_equal(risk_to_weight(40, bounded), 0.5)
   testthat::expect_equal(risk_to_weight(1, bounded), 0.9)
@@ -395,7 +395,7 @@ testthat::test_that("the bounds clip the rule in both directions", {
 })
 
 testthat::test_that("a risk that cannot be used yields no weight rather than a guess", {
-  params <- create_cml_parameters("BOVA11", target = 4)
+  params <- create_risk_target_parameters("BOVA11", target = 4)
 
   testthat::expect_true(is.na(risk_to_weight(NA_real_, params)))
   testthat::expect_true(is.na(risk_to_weight(0, params)))

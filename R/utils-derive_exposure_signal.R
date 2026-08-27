@@ -60,7 +60,7 @@
 #' @param sensitivity Numeric, signed, required for \code{"trend"} and \code{"ts_adjusted"}.
 #' @param min_exposure,max_exposure Numeric bounds on \eqn{s_t} itself, default 0 and 1. These bound
 #'   the lean before the risk ratio scales it; the final weight is bounded separately by
-#'   \code{cml_parameters}.
+#'   \code{risk_target_parameters}.
 #' @param verbose Logical, default \code{TRUE}.
 #'
 #' @return A \code{data.frame} with columns \code{dates} and \code{exposure}, covering the dates for
@@ -75,7 +75,7 @@
 #'   )
 #' }
 #'
-#' @seealso \code{\link{cml_parameters-class}}, \code{\link{estimate_sleeve_risk}}
+#' @seealso \code{\link{risk_target_parameters-class}}, \code{\link{estimate_sleeve_risk}}
 #' @export
 derive_exposure_signal <- function(metric_m_df,
                                    metric = NULL,

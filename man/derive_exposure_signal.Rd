@@ -34,7 +34,7 @@ window in observations. Dates without a full window get no exposure.}
 
 \item{min_exposure, max_exposure}{Numeric bounds on \eqn{s_t} itself, default 0 and 1. These bound
 the lean before the risk ratio scales it; the final weight is bounded separately by
-\code{cml_parameters}.}
+\code{risk_target_parameters}.}
 
 \item{verbose}{Logical, default \code{TRUE}.}
 }
@@ -102,5 +102,5 @@ The metric on date \code{t} sets the exposure for \code{t}, and the trailing win
 
 }
 \seealso{
-\code{\link{cml_parameters-class}}, \code{\link{estimate_sleeve_risk}}
+\code{\link{risk_target_parameters-class}}, \code{\link{estimate_sleeve_risk}}
 }

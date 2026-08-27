@@ -10291,13 +10291,13 @@ risk_targeted_config <- function(target = 10, p = 1, min_weight = 0.2, max_weigh
     selected_benchmark = "ibov",
     cov_est_method = create_cov_est_method("sample", 2, TRUE, "ibov"),
     main_liquidity_metric = "mean_volfin_3m",
-    port_construction_method = "ew", config_name = "te_managed") %>%
+    port_construction_method = "custom_weights", config_name = "te_managed") %>%
     add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1,
                                      lambda = "dynamic", strategy_aum = 25000)
 
   suppressMessages(create_port_metabacktest_config(
     inner, type = "risk_targeted", config_name = "te_managed", verbose = FALSE)) %>%
-    add_cml_parameters(
+    add_risk_target_parameters(
       residual_ticker = risk_targeted_residual, target = target,
       target_metric = "tracking_error", p = p,
       min_weight = min_weight, max_weight = max_weight,
@@ -10335,13 +10335,13 @@ run_risk_targeted <- function(config = risk_targeted_config(), exposure_m_df = N
 }
 
 
-test_that("a risk-targeted meta backtest returns the CML subclass with both levels filled", {
+test_that("a risk-targeted meta backtest returns the risk-targeted subclass with both levels filled", {
   results <- run_risk_targeted()
 
-  expect_s4_class(results, "cml_metabacktest_results")
+  expect_s4_class(results, "risk_target_metabacktest_results")
   expect_true(is(results, "port_metabacktest_results"))
   expect_equal(results@residual_ticker, risk_targeted_residual)
-  expect_s4_class(results@cml_parameters, "cml_parameters")
+  expect_s4_class(results@risk_target_parameters, "risk_target_parameters")
   expect_s4_class(results@meta_port_backtest_results, "port_backtest_results")
 })
 
@@ -10365,13 +10365,13 @@ test_that("the reported risk matches an independent estimate at each rebalance d
   inputs <- risk_targeted_inputs()
   cohort <- risk_targeted_cohort()
   meta_stats <- results@meta_port_stats_m_df@data
-  cml_params <- results@cml_parameters
+  risk_target_params <- results@risk_target_parameters
 
   for (i in seq_len(nrow(meta_stats))) {
     current_date <- meta_stats$dates[i]
     expected <- suppressWarnings(suppressMessages(estimate_sleeve_risk(
       current_date = current_date,
-      cml_params = cml_params,
+      risk_target_params = risk_target_params,
       risky_port_backtest_results = cohort@port_backtest_results_list[[1]],
       daily_stock_returns_m_xts = inputs$daily_stock_returns_m_xts@data,
       selected_benchmark = "ibov",
@@ -10461,7 +10461,7 @@ test_that("a risk-targeted config is refused when its inputs do not support it",
   absent <- suppressMessages(create_port_metabacktest_config(
     risk_targeted_config()@meta_port_backtest_config, type = "risk_targeted",
     config_name = "absent", verbose = FALSE)) %>%
-    add_cml_parameters(residual_ticker = "NOT_A_STOCK", target = 10,
+    add_risk_target_parameters(residual_ticker = "NOT_A_STOCK", target = 10,
                        vol_cov_est_method = create_cov_est_method("ewma", 60, FALSE, NULL))
 
   expect_error(
@@ -10492,7 +10492,7 @@ test_that("the reported weight is the exposure times the risk ratio, reconstruct
   results <- run_risk_targeted(config, exposure_m_df = exposure_metric)
 
   meta_stats <- results@meta_port_stats_m_df@data
-  cml_params <- results@cml_parameters
+  risk_target_params <- results@risk_target_parameters
 
   expected_exposure <- suppressMessages(derive_exposure_signal(
     metric_m_df = exposure_metric, method = "trend",
@@ -10505,7 +10505,7 @@ test_that("the reported weight is the exposure times the risk ratio, reconstruct
     expect_length(exposure, 1L)
     expect_equal(meta_stats$exposure[i], exposure, tolerance = 1e-12)
     expect_equal(meta_stats$risky_weight[i],
-                 risk_to_weight(meta_stats$sleeve_risk[i], cml_params, exposure),
+                 risk_to_weight(meta_stats$sleeve_risk[i], risk_target_params, exposure),
                  tolerance = 1e-12)
   }
 })

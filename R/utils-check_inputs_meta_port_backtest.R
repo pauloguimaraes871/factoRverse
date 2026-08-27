@@ -119,12 +119,12 @@ check_inputs_meta_port_backtest <- function(config,
 
   #Completeness of the configuration
   ####################
-  ##cml_parameters is allowed to be absent at construction so a configuration can be built and
-  ##then completed with add_cml_parameters(). Nothing can run without it, so this is where the
+  ##risk_target_parameters is allowed to be absent at construction so a configuration can be built and
+  ##then completed with add_risk_target_parameters(). Nothing can run without it, so this is where the
   ##requirement bites.
-  if (config@type == "risk_targeted" && is.null(config@cml_parameters)) {
+  if (config@type == "risk_targeted" && is.null(config@risk_target_parameters)) {
     rlang::abort(paste0("This configuration has type 'risk_targeted' but carries no ",
-                        "cml_parameters. Add them with add_cml_parameters() or pass them to ",
+                        "risk_target_parameters. Add them with add_risk_target_parameters() or pass them to ",
                         "create_port_metabacktest_config()."))
   }
   ####################
@@ -240,8 +240,8 @@ check_inputs_meta_port_backtest <- function(config,
   #The residual sleeve, on the risk-targeted path
   ####################
   if (is_risk_targeted) {
-    cml_params <- config@cml_parameters
-    residual_ticker <- cml_params@residual_ticker
+    risk_target_params <- config@risk_target_parameters
+    residual_ticker <- risk_target_params@residual_ticker
 
     ##The residual has to be tradable in the stock universe: it is held like any other position,
     ##so the engine prices its trades against its own liquidity and volatility
@@ -277,7 +277,7 @@ check_inputs_meta_port_backtest <- function(config,
     }
 
     ##The ex-ante estimator has nothing to work from without daily returns
-    if (cml_params@vol_source == "ex_ante" && is.null(daily_stock_returns_m_xts)) {
+    if (risk_target_params@vol_source == "ex_ante" && is.null(daily_stock_returns_m_xts)) {
       rlang::abort(paste0("vol_source is 'ex_ante', which estimates risk from a short window of ",
                         "daily stock returns, so daily_stock_returns_m_xts must be supplied."))
     }
@@ -285,7 +285,7 @@ check_inputs_meta_port_backtest <- function(config,
     ##The residual has to match the target metric, and only the data can say whether it does.
     ##An index-tracking residual makes tracking error scale linearly toward zero; a residual that
     ##does not track leaves a floor the rule can never reach, so the weight pins at its bound.
-    if (cml_params@target_metric == "tracking_error" && !is.null(benchmark_returns_m_xts)) {
+    if (risk_target_params@target_metric == "tracking_error" && !is.null(benchmark_returns_m_xts)) {
       residual_returns <- port_universe_m_df@port_metabacktest_workflow$residual_returns
       if (is.null(residual_returns)) {
         rlang::warn(paste0(
@@ -305,7 +305,7 @@ check_inputs_meta_port_backtest <- function(config,
     if (isTRUE(verbose)) {
       message("Meta backtest inputs validated: risk-targeted allocation of '",
               paste(base_portfolios, collapse = ", "), "' against '",
-              config@cml_parameters@residual_ticker, "' over ",
+              config@risk_target_parameters@residual_ticker, "' over ",
               length(meta_rebalance_dates), " meta rebalance dates.")
     }
     return(invisible(list(meta_rebalance_dates = meta_rebalance_dates,

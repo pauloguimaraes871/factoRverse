@@ -1391,34 +1391,34 @@ setMethod("run_port_backtest",
             ###########################
             if (config@type == "risk_targeted") {
 
-              cml_params <- config@cml_parameters
+              risk_target_params <- config@risk_target_parameters
               risky_results <- port_backtest_cohort@port_backtest_results_list[[1]]
               risky_name <- risky_results@backtest_identifier
 
               if (verbose) {
                 cat("\n")
-                cat(crayon::cyan(paste0("Targeting ", cml_params@target, " ",
-                                        cml_params@target_metric, " over ",
+                cat(crayon::cyan(paste0("Targeting ", risk_target_params@target, " ",
+                                        risk_target_params@target_metric, " over ",
                                         length(meta_rebalance_dates), " rebalance dates\n")))
               }
 
               ##The exposure multiplier s_t, from a trend or valuation signal on the sleeve. Left
               ##as 'none' it is 1 throughout and the weight reduces to the risk ratio alone.
-              exposure_path <- if (cml_params@exposure_method == "none") {
+              exposure_path <- if (risk_target_params@exposure_method == "none") {
                 NULL
               } else {
                 if (is.null(exposure_m_df)) {
-                  stop("exposure_method is '", cml_params@exposure_method, "', so exposure_m_df ",
+                  stop("exposure_method is '", risk_target_params@exposure_method, "', so exposure_m_df ",
                        "must be supplied: it carries the metric the exposure is derived from.")
                 }
                 derive_exposure_signal(
                   metric_m_df = exposure_m_df,
-                  method = cml_params@exposure_method,
-                  window = cml_params@exposure_window,
-                  center = cml_params@exposure_center,
-                  sensitivity = cml_params@exposure_sensitivity,
-                  min_exposure = cml_params@exposure_bounds[1],
-                  max_exposure = cml_params@exposure_bounds[2],
+                  method = risk_target_params@exposure_method,
+                  window = risk_target_params@exposure_window,
+                  center = risk_target_params@exposure_center,
+                  sensitivity = risk_target_params@exposure_sensitivity,
+                  min_exposure = risk_target_params@exposure_bounds[1],
+                  max_exposure = risk_target_params@exposure_bounds[2],
                   verbose = verbose
                 )
               }
@@ -1426,7 +1426,7 @@ setMethod("run_port_backtest",
               risk_path <- purrr::map_dfr(meta_rebalance_dates, function(current_date) {
                 sleeve_risk <- estimate_sleeve_risk(
                   current_date = current_date,
-                  cml_params = cml_params,
+                  risk_target_params = risk_target_params,
                   risky_port_backtest_results = risky_results,
                   daily_stock_returns_m_xts = if (!is.null(daily_stock_returns_m_xts)) daily_stock_returns_m_xts@data else NULL,
                   selected_benchmark = inner_config@selected_benchmark,
@@ -1449,7 +1449,7 @@ setMethod("run_port_backtest",
                 data.frame(dates = as.Date(current_date),
                            sleeve_risk = sleeve_risk,
                            exposure = exposure,
-                           risky_weight = risk_to_weight(sleeve_risk, cml_params, exposure),
+                           risky_weight = risk_to_weight(sleeve_risk, risk_target_params, exposure),
                            stringsAsFactors = FALSE)
               })
 
@@ -1478,7 +1478,7 @@ setMethod("run_port_backtest",
                 risk_path %>%
                   dplyr::transmute(tickers = risky_name, dates = dates, weights = risky_weight),
                 risk_path %>%
-                  dplyr::transmute(tickers = cml_params@residual_ticker, dates = dates,
+                  dplyr::transmute(tickers = risk_target_params@residual_ticker, dates = dates,
                                    weights = 1 - risky_weight)
               ) %>%
                 dplyr::mutate(id = paste0(tickers, "-", dates)) %>%
@@ -1499,7 +1499,7 @@ setMethod("run_port_backtest",
                   ##apart: whether a change came from the signal or from the risk estimate
                   exposure = exposure,
                   risky_weight = risky_weight,
-                  target = cml_params@target,
+                  target = risk_target_params@target,
                   ##The risk the rule intends the blend to carry. With no exposure signal it
                   ##equals the target exactly whenever the weight is unclipped, so a departure
                   ##says a bound bound rather than that the targeting failed. With one it equals
@@ -1651,7 +1651,7 @@ setMethod("run_port_backtest",
               port_backtest_cohort = port_backtest_cohort,
               signals_m_df = signals_m_df,
               residual_ticker = if (config@type == "risk_targeted") {
-                config@cml_parameters@residual_ticker
+                config@risk_target_parameters@residual_ticker
               } else {
                 NULL
               },

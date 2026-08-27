@@ -2221,21 +2221,21 @@ setMethod("show", "port_backtest_cohort", function(object) {
 
 
 
-#cml_parameters-------------------------------------------
+#risk_target_parameters-------------------------------------------
 #' @title Show Risk-Targeting Parameters
-#' @description Displays the risk-targeting configuration contained in a `cml_parameters` object:
+#' @description Displays the risk-targeting configuration contained in a `risk_target_parameters` object:
 #' the residual sleeve, the target and the metric it is stated in, the response exponent, where
 #' the current risk estimate comes from, the exposure signal if one is used, and the bounds on the
 #' risky sleeve.
-#' @param object A `cml_parameters` object.
+#' @param object A `risk_target_parameters` object.
 #' @return Invisibly returns NULL.
-#' @method show cml_parameters
+#' @method show risk_target_parameters
 #' @export
-methods::setMethod("show", "cml_parameters", function(object) {
-  .print_cml_parameters(object, hide_title = FALSE)
+methods::setMethod("show", "risk_target_parameters", function(object) {
+  .print_risk_target_parameters(object, hide_title = FALSE)
 })
 
-.print_cml_parameters <- function(object, hide_title = FALSE) {
+.print_risk_target_parameters <- function(object, hide_title = FALSE) {
 
   if (!hide_title){
     cat("\nRisk-Targeting Parameters:\n")
@@ -2323,11 +2323,11 @@ setMethod("show", "port_metabacktest_config", function(object) {
     cat("  port_construction_method is unused here: the weight comes from the targeting rule\n")
     cat("  rather than from ranking a cross-section.\n")
 
-    if (is.null(object@cml_parameters)){
-      cat(crayon::red("  cml_parameters: not set.\n"))
-      cat("  The configuration is incomplete. Supply them with add_cml_parameters() before running.\n")
+    if (is.null(object@risk_target_parameters)){
+      cat(crayon::red("  risk_target_parameters: not set.\n"))
+      cat("  The configuration is incomplete. Supply them with add_risk_target_parameters() before running.\n")
     } else {
-      .print_cml_parameters(object@cml_parameters, hide_title = TRUE)
+      .print_risk_target_parameters(object@risk_target_parameters, hide_title = TRUE)
     }
 
   } else {
@@ -2399,34 +2399,34 @@ setMethod("show", "port_metabacktest_results", function(object) {
 })
 
 
-#cml_metabacktest_results---------------------------------------------
-#' @title Show Method for cml_metabacktest_results Class
-#' @description Displays a `cml_metabacktest_results` object. Where the multi-portfolio summary
+#risk_target_metabacktest_results---------------------------------------------
+#' @title Show Method for risk_target_metabacktest_results Class
+#' @description Displays a `risk_target_metabacktest_results` object. Where the multi-portfolio summary
 #' reports a cross-sectional allocation, this one reports the targeting rule at work: the risk
 #' estimated for the sleeve, the weight the rule set from it, how often the bounds bound, and how
 #' the realised risk compares against the level asked for.
-#' @param object An object of class `cml_metabacktest_results`.
+#' @param object An object of class `risk_target_metabacktest_results`.
 #' @return Invisibly returns the input object.
-#' @method show cml_metabacktest_results
+#' @method show risk_target_metabacktest_results
 #' @export
-setMethod("show", "cml_metabacktest_results", function(object) {
+setMethod("show", "risk_target_metabacktest_results", function(object) {
 
   .print_meta_backtest_header(object)
 
   # The targeting rule
   cat(crayon::cyan("Risk-Targeting Rule:\n"))
-  if (!is.null(object@cml_parameters)){
-    .print_cml_parameters(object@cml_parameters, hide_title = TRUE)
+  if (!is.null(object@risk_target_parameters)){
+    .print_risk_target_parameters(object@risk_target_parameters, hide_title = TRUE)
   } else {
     ##The residual is a slot of its own, so it can still be named when the parameters are gone
     cat(" Residual Sleeve: ", object@residual_ticker, "\n")
-    cat("  cml_parameters not available\n")
+    cat("  risk_target_parameters not available\n")
   }
   cat("\n")
 
   # What the rule did
   cat(crayon::cyan("The Rule At Work:\n"))
-  .print_cml_rule_summary(object)
+  .print_risk_target_rule_summary(object)
   cat("\n")
 
   # Stock level
@@ -2573,7 +2573,7 @@ setMethod("show", "cml_metabacktest_results", function(object) {
 ## unclipped, so a gap between them says a bound was binding rather than that the rule failed.
 ## Whether it actually worked is a question about realised returns, which exist only after the
 ## stock-level run, so the realised figure is reported alongside.
-.print_cml_rule_summary <- function(object) {
+.print_risk_target_rule_summary <- function(object) {
 
   if (is.null(object@meta_port_stats_m_df)){
     cat("  Not available\n")
@@ -2581,7 +2581,7 @@ setMethod("show", "cml_metabacktest_results", function(object) {
   }
 
   stats_df <- object@meta_port_stats_m_df@data
-  params <- object@cml_parameters
+  params <- object@risk_target_parameters
 
 
   if ("sleeve_risk" %in% names(stats_df)){

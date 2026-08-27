@@ -99,7 +99,7 @@ testthat::test_that("there is no inverse-of-risk mapping here", {
   testthat::expect_error(
     derive_exposure_signal(make_exposure_metric(rep(4, 12)), method = "inverse", verbose = FALSE))
   testthat::expect_error(
-    create_cml_parameters("BOVA11", target = 4, exposure_method = "inverse"))
+    create_risk_target_parameters("BOVA11", target = 4, exposure_method = "inverse"))
 })
 
 
@@ -158,7 +158,7 @@ testthat::test_that("malformed metrics are rejected", {
 # Composition with the risk term ------------------------------------------
 
 testthat::test_that("the weight is the exposure times the risk ratio", {
-  params <- create_cml_parameters("BOVA11", target = 4, p = 1)
+  params <- create_risk_target_parameters("BOVA11", target = 4, p = 1)
 
   ## Risk at twice the target halves the position; the exposure then scales that
   testthat::expect_equal(risk_to_weight(8, params, exposure = 1), 0.5)
@@ -166,13 +166,13 @@ testthat::test_that("the weight is the exposure times the risk ratio", {
   testthat::expect_equal(risk_to_weight(8, params, exposure = 0), 0)
 
   ## The exponent applies to the ratio, not to the exposure
-  quadratic <- create_cml_parameters("BOVA11", target = 4, p = 2)
+  quadratic <- create_risk_target_parameters("BOVA11", target = 4, p = 2)
   testthat::expect_equal(risk_to_weight(8, quadratic, exposure = 0.5), 0.5 * 0.25)
 })
 
 testthat::test_that("an exposure that could not be computed leaves the weight undefined", {
   ## Defaulting to full exposure would silently ignore the signal the caller asked to follow
-  params <- create_cml_parameters("BOVA11", target = 4)
+  params <- create_risk_target_parameters("BOVA11", target = 4)
   testthat::expect_true(is.na(risk_to_weight(8, params, exposure = NA_real_)))
   testthat::expect_true(is.na(risk_to_weight(8, params, exposure = Inf)))
 })
@@ -180,8 +180,8 @@ testthat::test_that("an exposure that could not be computed leaves the weight un
 testthat::test_that("a constant exposure is redundant with the target, a varying one is not", {
   ## The reason exposure is a signal rather than a setting: any constant s can be folded into
   ## the target by rescaling it to target * s^(1/p), so only a time-varying s adds anything.
-  folded <- create_cml_parameters("BOVA11", target = 4 * 0.5, p = 1)
-  scaled <- create_cml_parameters("BOVA11", target = 4, p = 1)
+  folded <- create_risk_target_parameters("BOVA11", target = 4 * 0.5, p = 1)
+  scaled <- create_risk_target_parameters("BOVA11", target = 4, p = 1)
 
   for (risk in c(2, 4, 8, 16)) {
     testthat::expect_equal(risk_to_weight(risk, folded, exposure = 1),

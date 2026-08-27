@@ -5860,7 +5860,7 @@ setMethod(
   "create_port_metabacktest_config",
   signature(meta_port_backtest_config = "port_backtest_config"),
   function(meta_port_backtest_config, type = c("multi_port", "risk_targeted"),
-           return_basis = "net", cost_lookback = NULL, cml_parameters = NULL,
+           return_basis = "net", cost_lookback = NULL, risk_target_parameters = NULL,
            config_name = "not_identified", verbose = TRUE, ...) {
 
     type <- match.arg(type)
@@ -5871,7 +5871,7 @@ setMethod(
                                 type = type,
                                 return_basis = return_basis,
                                 cost_lookback = cost_lookback,
-                                cml_parameters = cml_parameters,
+                                risk_target_parameters = risk_target_parameters,
                                 config_name = config_name
     )
 
@@ -5889,12 +5889,12 @@ setMethod(
 )
 
 
-# cml_parameters--------------------------------------------------------
-#' Create cml_parameters
+# risk_target_parameters--------------------------------------------------------
+#' Create risk_target_parameters
 #'
 #' Builds the parameters for the `risk_targeted` meta-portfolio path, which scales a risky sleeve
 #' against a residual sleeve so the combination targets a stated level of risk. See
-#' [cml_parameters-class] for how the residual and the target metric have to match, and for what
+#' [risk_target_parameters-class] for how the residual and the target metric have to match, and for what
 #' each `vol_source` measures.
 #'
 #' @param residual_ticker Character naming the residual sleeve. It must be a row of the data
@@ -5910,19 +5910,19 @@ setMethod(
 #' @param vol_window Numeric months for `"realized_rolling"`. Default 6.
 #' @param min_weight,max_weight Numeric bounds on the risky sleeve. Default 0 and 1.
 #'
-#' @return An object of class `cml_parameters`.
+#' @return An object of class `risk_target_parameters`.
 #'
 #' @examples
 #' \dontrun{
 #'   # Hold at least half the risky sleeve, targeting 4 percent annualised tracking error
-#'   cml_params <- create_cml_parameters(
+#'   risk_target_params <- create_risk_target_parameters(
 #'     residual_ticker = "BOVA11", target = 4, target_metric = "tracking_error",
 #'     p = 1, min_weight = 0.5
 #'   )
 #' }
-#' @seealso [cml_parameters-class], [add_cml_parameters()]
+#' @seealso [risk_target_parameters-class], [add_risk_target_parameters()]
 #' @export
-create_cml_parameters <- function(residual_ticker,
+create_risk_target_parameters <- function(residual_ticker,
                                   target,
                                   target_metric = c("tracking_error", "volatility"),
                                   p = 1,
@@ -5953,7 +5953,7 @@ create_cml_parameters <- function(residual_ticker,
     )
   }
 
-  methods::new("cml_parameters",
+  methods::new("risk_target_parameters",
                residual_ticker = residual_ticker,
                target = target,
                target_metric = target_metric,
@@ -5972,40 +5972,40 @@ create_cml_parameters <- function(residual_ticker,
 }
 
 
-#' @title Add cml_parameters to a meta backtest config
+#' @title Add risk_target_parameters to a meta backtest config
 #'
 #' @description
-#' Either attaches an existing `cml_parameters` object or builds one from the arguments given.
+#' Either attaches an existing `risk_target_parameters` object or builds one from the arguments given.
 #' Only meaningful when the configuration's `type` is `"risk_targeted"`.
 #'
 #' @param object An object of class `port_metabacktest_config`.
-#' @param cml_params An object of class `cml_parameters`, or missing to build one.
-#' @param residual_ticker,target,target_metric,p Passed to [create_cml_parameters()].
-#' @param vol_source,vol_cov_est_method,vol_window Passed to [create_cml_parameters()].
-#' @param min_weight,max_weight Passed to [create_cml_parameters()].
+#' @param risk_target_params An object of class `risk_target_parameters`, or missing to build one.
+#' @param residual_ticker,target,target_metric,p Passed to [create_risk_target_parameters()].
+#' @param vol_source,vol_cov_est_method,vol_window Passed to [create_risk_target_parameters()].
+#' @param min_weight,max_weight Passed to [create_risk_target_parameters()].
 #' @param ... Additional arguments (not used).
 #'
 #' @return The updated `port_metabacktest_config`.
-#' @seealso [create_cml_parameters()], [cml_parameters-class]
+#' @seealso [create_risk_target_parameters()], [risk_target_parameters-class]
 #' @export
-setGeneric("add_cml_parameters", function(object, cml_params, ...) {
-  standardGeneric("add_cml_parameters")
+setGeneric("add_risk_target_parameters", function(object, risk_target_params, ...) {
+  standardGeneric("add_risk_target_parameters")
 })
 
 
-#' @describeIn add_cml_parameters Attach an existing `cml_parameters` object.
+#' @describeIn add_risk_target_parameters Attach an existing `risk_target_parameters` object.
 #' @export
 setMethod(
-  "add_cml_parameters",
-  signature(object = "port_metabacktest_config", cml_params = "cml_parameters"),
-  function(object, cml_params, ...) {
+  "add_risk_target_parameters",
+  signature(object = "port_metabacktest_config", risk_target_params = "risk_target_parameters"),
+  function(object, risk_target_params, ...) {
 
     if (object@type != "risk_targeted") {
-      stop("cml_parameters is only available when type is 'risk_targeted'; this configuration is '",
+      stop("risk_target_parameters is only available when type is 'risk_targeted'; this configuration is '",
            object@type, "'.")
     }
 
-    object@cml_parameters <- cml_params
+    object@risk_target_parameters <- risk_target_params
     methods::validObject(object)
 
     return(object)
@@ -6013,13 +6013,13 @@ setMethod(
 )
 
 
-#' @describeIn add_cml_parameters Build a `cml_parameters` object and attach it.
+#' @describeIn add_risk_target_parameters Build a `risk_target_parameters` object and attach it.
 #' @export
 setMethod(
-  "add_cml_parameters",
-  signature(object = "port_metabacktest_config", cml_params = "missing"),
+  "add_risk_target_parameters",
+  signature(object = "port_metabacktest_config", risk_target_params = "missing"),
   function(object,
-           cml_params,
+           risk_target_params,
            residual_ticker,
            target,
            target_metric = c("tracking_error", "volatility"),
@@ -6037,11 +6037,11 @@ setMethod(
            ...) {
 
     if (object@type != "risk_targeted") {
-      stop("cml_parameters is only available when type is 'risk_targeted'; this configuration is '",
+      stop("risk_target_parameters is only available when type is 'risk_targeted'; this configuration is '",
            object@type, "'.")
     }
 
-    cml_params <- create_cml_parameters(
+    risk_target_params <- create_risk_target_parameters(
       residual_ticker = residual_ticker,
       target = target,
       target_metric = match.arg(target_metric),
@@ -6058,7 +6058,7 @@ setMethod(
       max_weight = max_weight
     )
 
-    object@cml_parameters <- cml_params
+    object@risk_target_parameters <- risk_target_params
     methods::validObject(object)
 
     return(object)
@@ -6119,7 +6119,7 @@ create_port_metabacktest_results <- function(port_metabacktest_config,
   # subclass. The multi-portfolio path adds nothing beyond the parent and uses it directly.
   if (port_metabacktest_config@type == "risk_targeted") {
     return(methods::new(
-      "cml_metabacktest_results",
+      "risk_target_metabacktest_results",
       port_metabacktest_config = port_metabacktest_config,
       meta_port_backtest_results = meta_port_backtest_results,
       port_backtest_cohort = port_backtest_cohort,
@@ -6129,8 +6129,8 @@ create_port_metabacktest_results <- function(port_metabacktest_config,
       meta_port_stats_m_df = meta_port_stats_m_df,
       final_meta_port = final_meta_port,
       backtest_identifier = backtest_identifier,
-      residual_ticker = port_metabacktest_config@cml_parameters@residual_ticker,
-      cml_parameters = port_metabacktest_config@cml_parameters
+      residual_ticker = port_metabacktest_config@risk_target_parameters@residual_ticker,
+      risk_target_parameters = port_metabacktest_config@risk_target_parameters
     ))
   }
 
