@@ -6223,6 +6223,27 @@ create_port_backtest_cohort <- function(port_backtest_results_list, cohort_name)
 
   ## Extract the workflow list from each backtest object
   workflow_list <- lapply(port_backtest_results_list, function(x) x@port_backtest_workflow[[length(x@port_backtest_workflow)]])
+  ## A results object that has been through update_port_backtest() carries one workflow batch per
+  ## run, and only the last describes the window that update recomputed. The object itself still
+  ## holds the whole history in its weights, returns and stats, so reading the date grids off the
+  ## last batch alone would make the cohort claim a span far shorter than what it contains, and
+  ## derive_port_universe_m_df() would then truncate the meta universe to that window. The grids
+  ## are therefore unioned across batches; every other parameter is correctly the latest one.
+  union_workflow_dates <- function(results, key) {
+    collected <- lapply(results@port_backtest_workflow, function(batch) batch[[key]])
+    collected <- collected[!vapply(collected, is.null, logical(1))]
+    if (length(collected) == 0) return(NULL)
+    sort(unique(do.call(c, collected)))
+  }
+  workflow_list <- lapply(seq_along(port_backtest_results_list), function(i) {
+    results <- port_backtest_results_list[[i]]
+    batch <- workflow_list[[i]]
+    for (key in c("dates_covered", "dates_backtest")) {
+      unioned <- union_workflow_dates(results, key)
+      if (!is.null(unioned)) batch[[key]] <- unioned
+    }
+    batch
+  })
   ## Store the common values from the first backtest for comparison
   common_values <- workflow_list[[1]][required_params]
   ## Loop over each backtest and verify required parameters match

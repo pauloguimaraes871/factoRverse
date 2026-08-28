@@ -263,7 +263,6 @@ setMethod("update_port_backtest",
 
           })
 
-
 #run_port_backtest--------------------------------------
 #' Run Portfolio Backtest
 #'
@@ -1728,6 +1727,31 @@ setMethod("run_port_backtest",
               verbose = verbose, parallel = parallel, .test_seed = .test_seed
             )
             ###########################
+
+            ##The stock-level object has to be a well-formed port_backtest_results, which means
+            ##carrying the identity and the workflow shape the base method gives its own result.
+            ##run_port_backtest_internal() supplies neither, so without this the inner object
+            ##reports its identifier as 'not_identified', its workflow is a flat list rather than
+            ##one batch keyed by date, show() on the slot fails outright, and
+            ##update_port_backtest() cannot find the date it has to continue from.
+            meta_port_backtest_results@port_backtest_config <- inner_config
+            meta_port_backtest_results@backtest_identifier <-
+              paste0("mc__", config@config_name, "_sl__", inner_config@config_name)
+            meta_port_backtest_results@port_backtest_workflow$config_name <-
+              inner_config@config_name
+            meta_port_backtest_results@port_backtest_workflow$backtest_identifier <-
+              meta_port_backtest_results@backtest_identifier
+            meta_port_backtest_results@port_backtest_workflow$current_date <-
+              signals_m_df@current_date
+            meta_port_backtest_results@port_backtest_workflow$lower_quantile_winsorization <-
+              lower_quantile_winsorization
+            meta_port_backtest_results@port_backtest_workflow$upper_quantile_winsorization <-
+              upper_quantile_winsorization
+
+            meta_port_backtest_results@port_backtest_workflow <-
+              list(meta_port_backtest_results@port_backtest_workflow)
+            names(meta_port_backtest_results@port_backtest_workflow) <-
+              as.character(signals_m_df@current_date)
 
             #Consolidate
             ###########################
