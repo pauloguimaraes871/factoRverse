@@ -263,6 +263,227 @@ setMethod("update_port_backtest",
 
           })
 
+
+#' @describeIn update_port_backtest Extends a meta portfolio backtest by one month, from a
+#'   \code{port_metabacktest_results} object.
+#'
+#' A meta backtest sits on top of a cohort, so it cannot be rolled forward on its own: the base
+#' portfolios have to be extended first and handed back as \code{updated_port_backtest_cohort},
+#' the same way the base method takes an \code{updated_sb_backtest_results}. Each base portfolio
+#' in that cohort must carry the same \code{backtest_identifier} as before and cover one further
+#' month.
+#'
+#' As in the base method, the recomputation starts at the last date of the old backtest rather
+#' than at the new one, so the now-populated forward returns at that date can roll the portfolio
+#' forward. The meta weights for that date are recomputed and replace the old ones, and the new
+#' date is appended.
+#'
+#' @param updated_port_backtest_cohort A \code{port_backtest_cohort} whose base portfolios are the
+#'   one-month continuation of the ones the old meta backtest allocated across.
+#' @param custom_port_metrics_m_df,vol_m_df,exposure_m_df,max_stats_age_months Passed through to
+#'   \code{run_port_backtest}, as in the original run.
+#'
+#' @include class_definitions.R
+#' @exportMethod update_port_backtest
+setMethod("update_port_backtest",
+          signature(signals_m_df = "meta_dataframe", fwd_return_m_df = "meta_dataframe",
+                    liquidity_m_df = "meta_dataframe", volatility_m_df = "meta_dataframe",
+                    old_results = "port_metabacktest_results"),
+          function(signals_m_df, fwd_return_m_df, liquidity_m_df, volatility_m_df, old_results,
+                   updated_port_backtest_cohort,
+                   custom_port_metrics_m_df = NULL,
+                   stock_groups_m_df = NULL, benchmark_weights_m_df = NULL,
+                   daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL,
+                   benchmark_returns_m_xts = NULL,
+                   custom_stock_metrics_m_df = NULL,
+                   vol_m_df = NULL, exposure_m_df = NULL, max_stats_age_months = NULL,
+                   verbose = TRUE, parallel = TRUE, .test_seed = NULL) {
+
+            if (missing(updated_port_backtest_cohort) || is.null(updated_port_backtest_cohort)) {
+              stop("updated_port_backtest_cohort must be provided. A meta backtest allocates across ",
+                   "base portfolios, so those have to be extended by a month first and handed back ",
+                   "here; there is nothing for the meta level to allocate over otherwise.")
+            }
+            if (!methods::is(updated_port_backtest_cohort, "port_backtest_cohort")) {
+              stop("updated_port_backtest_cohort must be an object of class 'port_backtest_cohort'.")
+            }
+
+            ##The stock-level results carry the workflow the base update machinery reads
+            old_inner_results <- old_results@meta_port_backtest_results
+            old_inner_workflow <- old_inner_results@port_backtest_workflow[[
+              length(old_inner_results@port_backtest_workflow)]]
+
+            #Check adherence between the new objects and the old ones
+            #######################
+            ##Same one-month rule the base method applies
+            if (signals_m_df@current_date !=
+                lubridate::add_with_rollback(old_inner_workflow$current_date, months(1))) {
+              stop("The current_date in the new signals_m_df is not equal to the current_date in ",
+                   "the old_results + 1 month")
+            }
+
+            ##The cohort is the meta level's input the way signals are the base level's, so it gets
+            ##the same treatment: the same portfolios, one month further on
+            old_base_ids <- sort(vapply(old_results@port_backtest_cohort@port_backtest_results_list,
+                                        function(results) results@backtest_identifier, character(1)))
+            new_base_ids <- sort(vapply(updated_port_backtest_cohort@port_backtest_results_list,
+                                        function(results) results@backtest_identifier, character(1)))
+            if (!identical(old_base_ids, new_base_ids)) {
+              stop("The base portfolios in updated_port_backtest_cohort do not match the ones the ",
+                   "old meta backtest allocated across. Expected: ",
+                   paste(old_base_ids, collapse = ", "), ". Got: ",
+                   paste(new_base_ids, collapse = ", "), ".")
+            }
+
+            ##Every base portfolio must have moved forward exactly one month, or the meta weights
+            ##for the new date would be formed from statistics that stop short of it
+            expected_date <- lubridate::add_with_rollback(old_inner_workflow$current_date, months(1))
+            for (base_results in updated_port_backtest_cohort@port_backtest_results_list) {
+              base_workflow <- base_results@port_backtest_workflow[[
+                length(base_results@port_backtest_workflow)]]
+              if (as.Date(base_workflow$current_date) != as.Date(expected_date)) {
+                stop("Base portfolio '", base_results@backtest_identifier, "' in ",
+                     "updated_port_backtest_cohort ends at ", as.Date(base_workflow$current_date),
+                     ", not at ", as.Date(expected_date),
+                     ". Every base portfolio must be updated before the meta backtest is.")
+              }
+            }
+            #######################
+
+            #Update the configuration
+            #######################
+            ##The buffer is set so the recomputation starts at the last date of the old backtest,
+            ##whose forward returns are now populated and can roll the portfolio into the new one
+            new_config <- old_results@port_metabacktest_config
+            new_inner_config <- new_config@meta_port_backtest_config
+            new_inner_config@initial_buffer_period <- old_inner_workflow$n_dates
+            new_config@meta_port_backtest_config <- new_inner_config
+
+            if (new_inner_config@initial_buffer_period !=
+                length(unique(signals_m_df@data$dates)) - 1) {
+              stop("The new initial_buffer_period is not equal to amount of unique dates in ",
+                   "signals_m_df - 1")
+            }
+
+            winsorization_probs <- sort(c(old_inner_workflow$lower_quantile_winsorization,
+                                          old_inner_workflow$upper_quantile_winsorization))
+            #######################
+
+            #Re-run over the tail
+            #######################
+            .old_backtest_covered_dates <- sort(old_inner_workflow$dates_covered)
+            .old_backtest_port_weights_m_d_ref <- old_inner_results@port_weights_m_df@data %>%
+              dplyr::filter(dates == max(.old_backtest_covered_dates))
+            .old_backtest_port_returns_m_xts <- old_inner_results@port_returns_m_xts@data
+            .old_backtest_port_costs_d_ref <- old_inner_results@port_costs_m_xts@data %>%
+              as.data.frame() %>% dplyr::slice_tail(n = 1)
+
+            updated_meta_results <- run_port_backtest(
+              signals_m_df = signals_m_df, fwd_return_m_df = fwd_return_m_df,
+              liquidity_m_df = liquidity_m_df, volatility_m_df = volatility_m_df,
+              config = new_config, port_backtest_cohort = updated_port_backtest_cohort,
+              custom_port_metrics_m_df = custom_port_metrics_m_df,
+              stock_groups_m_df = stock_groups_m_df,
+              benchmark_weights_m_df = benchmark_weights_m_df,
+              daily_stock_returns_m_xts = daily_stock_returns_m_xts,
+              daily_bench_returns_m_xts = daily_bench_returns_m_xts,
+              benchmark_returns_m_xts = benchmark_returns_m_xts,
+              custom_stock_metrics_m_df = custom_stock_metrics_m_df,
+              vol_m_df = vol_m_df, exposure_m_df = exposure_m_df,
+              max_stats_age_months = max_stats_age_months,
+              winsorization_probs = winsorization_probs,
+              verbose = verbose, parallel = parallel, .test_seed = .test_seed,
+              .update = TRUE,
+              .old_backtest_port_weights_m_d_ref = .old_backtest_port_weights_m_d_ref,
+              .old_backtest_port_returns_m_xts = .old_backtest_port_returns_m_xts,
+              .old_backtest_port_costs_d_ref = .old_backtest_port_costs_d_ref,
+              .old_backtest_covered_dates = .old_backtest_covered_dates
+            )
+            #######################
+
+            #Consolidate
+            #######################
+            ##Stock level, through the same machinery the base update uses
+            new_inner_results <- updated_meta_results@meta_port_backtest_results
+            new_outputs_list <- list(
+              port_weights_m_df = new_inner_results@port_weights_m_df,
+              stock_universe_m_df = new_inner_results@stock_universe_m_df,
+              port_stats_m_df = new_inner_results@port_stats_m_df,
+              port_returns_m_xts = new_inner_results@port_returns_m_xts,
+              port_costs_m_xts = new_inner_results@port_costs_m_xts,
+              port_metrics_m_xts = new_inner_results@port_metrics_m_xts
+            )
+            consolidated <- consolidate_backtest_results(
+              new_backtest_outputs_list = new_outputs_list,
+              old_backtest_results = old_inner_results)
+
+            new_inner_results@port_weights_m_df   <- consolidated[["port_weights_m_df"]]
+            new_inner_results@stock_universe_m_df <- consolidated[["stock_universe_m_df"]]
+            new_inner_results@port_stats_m_df     <- consolidated[["port_stats_m_df"]]
+            new_inner_results@port_returns_m_xts  <- consolidated[["port_returns_m_xts"]]
+            new_inner_results@port_costs_m_xts    <- consolidated[["port_costs_m_xts"]]
+            new_inner_results@port_metrics_m_xts  <- consolidated[["port_metrics_m_xts"]]
+            new_inner_results@transactions_log@data <- c(old_inner_results@transactions_log@data,
+                                                         new_inner_results@transactions_log@data)
+            new_inner_results@port_backtest_workflow <- c(
+              old_inner_results@port_backtest_workflow,
+              new_inner_results@port_backtest_workflow)
+            names(new_inner_results@port_backtest_workflow)[
+              length(new_inner_results@port_backtest_workflow)] <-
+              paste0("update_", signals_m_df@current_date)
+
+            updated_meta_results@meta_port_backtest_results <- new_inner_results
+
+            ##Meta level. The re-run recomputes the last old date as well as the new one, so the
+            ##overlap is dropped from the old side rather than the new: the new figures are the
+            ##ones formed with the forward returns now available.
+            updated_meta_results@meta_port_weights_m_df <- .bind_meta_update(
+              old_results@meta_port_weights_m_df, updated_meta_results@meta_port_weights_m_df)
+            updated_meta_results@meta_port_stats_m_df <- .bind_meta_update(
+              old_results@meta_port_stats_m_df, updated_meta_results@meta_port_stats_m_df)
+            ##The projection is rebuilt from the consolidated meta weights rather than bound like
+            ##the two above. project_meta_weights_to_stocks() fills every date of the panel, not
+            ##only the rebalance dates, so the projection produced by the recomputed window
+            ##carries fill values for the dates before it rather than the allocation that actually
+            ##held then. Binding those rows on would overwrite real history with that fill, which
+            ##is the one thing an update must never do.
+            updated_meta_results@projected_stock_weights_m_df <- project_meta_weights_to_stocks(
+              meta_weights_m_df = updated_meta_results@meta_port_weights_m_df@data,
+              port_backtest_cohort = updated_port_backtest_cohort,
+              signals_m_df = signals_m_df,
+              residual_ticker = if (new_config@type == "risk_targeted") {
+                new_config@risk_target_parameters@residual_ticker
+              } else {
+                NULL
+              },
+              verbose = verbose
+            )
+            #######################
+
+            updated_meta_results
+          })
+
+
+## Binds the recomputed tail of a meta object onto the old one, keeping the new rows wherever the
+## two overlap. Both are meta_dataframes ordered by id, so the result is re-sorted to match.
+.bind_meta_update <- function(old_object, new_object) {
+
+  if (is.null(old_object)) return(new_object)
+  if (is.null(new_object)) return(old_object)
+
+  old_data <- old_object@data
+  new_data <- new_object@data
+
+  kept_old <- old_data[!old_data$id %in% new_data$id, , drop = FALSE]
+  bound <- dplyr::bind_rows(kept_old, new_data)
+  bound <- bound[order(bound$id), , drop = FALSE]
+  rownames(bound) <- NULL
+
+  new_object@data <- bound
+  methods::validObject(new_object)
+  new_object
+}
+
 #run_port_backtest--------------------------------------
 #' Run Portfolio Backtest
 #'
@@ -1311,7 +1532,12 @@ setMethod("run_port_backtest",
                    exposure_m_df = NULL,
                    max_stats_age_months = NULL,
                    winsorization_probs = c(0.025, 0.975),
-                   verbose = TRUE, parallel = TRUE, .test_seed = NULL) {
+                   verbose = TRUE, parallel = TRUE, .test_seed = NULL,
+                   #Update. Threaded through to the stock-level run, which is where the rolled
+                   #portfolio and the previously realised returns and costs are needed.
+                   .update = FALSE, .old_backtest_port_weights_m_d_ref = NULL,
+                   .old_backtest_port_returns_m_xts = NULL,
+                   .old_backtest_port_costs_d_ref = NULL, .old_backtest_covered_dates = NULL) {
 
             #Initial preparation
             ###########################
@@ -1724,7 +1950,12 @@ setMethod("run_port_backtest",
               #Misc
               lower_quantile_winsorization = lower_quantile_winsorization,
               upper_quantile_winsorization = upper_quantile_winsorization,
-              verbose = verbose, parallel = parallel, .test_seed = .test_seed
+              verbose = verbose, parallel = parallel, .test_seed = .test_seed,
+              .update = .update,
+              .old_backtest_port_weights_m_d_ref = .old_backtest_port_weights_m_d_ref,
+              .old_backtest_port_returns_m_xts = .old_backtest_port_returns_m_xts,
+              .old_backtest_port_costs_d_ref = .old_backtest_port_costs_d_ref,
+              .old_backtest_covered_dates = .old_backtest_covered_dates
             )
             ###########################
 

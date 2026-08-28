@@ -3,6 +3,7 @@
 \name{update_port_backtest}
 \alias{update_port_backtest}
 \alias{update_port_backtest,meta_dataframe,meta_dataframe,meta_dataframe,meta_dataframe,port_backtest_results-method}
+\alias{update_port_backtest,meta_dataframe,meta_dataframe,meta_dataframe,meta_dataframe,port_metabacktest_results-method}
 \title{Update Portfolio Backtest
 The \code{update_port_backtest} function will take an existing \code{port_backtest_results} object and update it with
 new dates. This function is useful when you want to add new dates to an existing backtest without having to re-run the entire backtest.}
@@ -34,6 +35,28 @@ update_port_backtest(
   custom_stock_metrics_m_df = NULL,
   user_defined_OR_rules_m_df = NULL,
   user_defined_AND_rules_m_df = NULL,
+  verbose = TRUE,
+  parallel = TRUE,
+  .test_seed = NULL
+)
+
+\S4method{update_port_backtest}{meta_dataframe,meta_dataframe,meta_dataframe,meta_dataframe,port_metabacktest_results}(
+  signals_m_df,
+  fwd_return_m_df,
+  liquidity_m_df,
+  volatility_m_df,
+  old_results,
+  updated_port_backtest_cohort,
+  custom_port_metrics_m_df = NULL,
+  stock_groups_m_df = NULL,
+  benchmark_weights_m_df = NULL,
+  daily_stock_returns_m_xts = NULL,
+  daily_bench_returns_m_xts = NULL,
+  benchmark_returns_m_xts = NULL,
+  custom_stock_metrics_m_df = NULL,
+  vol_m_df = NULL,
+  exposure_m_df = NULL,
+  max_stats_age_months = NULL,
   verbose = TRUE,
   parallel = TRUE,
   .test_seed = NULL
@@ -81,6 +104,12 @@ update_port_backtest(
 \item{parallel}{Logical; if \code{TRUE}, executes parts of the backtest in parallel (default is \code{TRUE}).}
 
 \item{.test_seed}{Optional seed for reproducibility when testing.}
+
+\item{updated_port_backtest_cohort}{A \code{port_backtest_cohort} whose base portfolios are the
+one-month continuation of the ones the old meta backtest allocated across.}
+
+\item{custom_port_metrics_m_df, vol_m_df, exposure_m_df, max_stats_age_months}{Passed through to
+\code{run_port_backtest}, as in the original run.}
 }
 \value{
 An object of class \code{port_backtest_results} containing the portfolio backtest results.
@@ -111,5 +140,25 @@ backtest was driven by an \code{sb_backtest_results}/\code{sb_metabacktest_resul
 
 This method extracts the parameters from the \code{results} object (of class \code{port_backtest_results}), modifies initial_buffer_period, performs the
 new backtest and then binds results
+
+\item \code{update_port_backtest(
+  signals_m_df = meta_dataframe,
+  fwd_return_m_df = meta_dataframe,
+  liquidity_m_df = meta_dataframe,
+  volatility_m_df = meta_dataframe,
+  old_results = port_metabacktest_results
+)}: Extends a meta portfolio backtest by one month, from a
+\code{port_metabacktest_results} object.
+
+A meta backtest sits on top of a cohort, so it cannot be rolled forward on its own: the base
+portfolios have to be extended first and handed back as \code{updated_port_backtest_cohort},
+the same way the base method takes an \code{updated_sb_backtest_results}. Each base portfolio
+in that cohort must carry the same \code{backtest_identifier} as before and cover one further
+month.
+
+As in the base method, the recomputation starts at the last date of the old backtest rather
+than at the new one, so the now-populated forward returns at that date can roll the portfolio
+forward. The meta weights for that date are recomputed and replace the old ones, and the new
+date is appended.
 
 }}

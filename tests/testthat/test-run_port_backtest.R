@@ -10613,3 +10613,841 @@ test_that("a missing or short exposure signal is refused, and says which half is
     "it is the exposure signal that is missing"
   )
 })
+
+
+# Updating a meta portfolio backtest --------------------------------------
+# A meta backtest sits on a cohort, so rolling it forward means rolling every base portfolio
+# forward first. The fixtures below build the same panel twice, once stopping a month short and
+# once complete, so the short run can be updated into the complete one and the result compared
+# against a reconstruction of every stage.
+
+meta_update_cache <- new.env(parent = emptyenv())
+
+meta_update_last_date <- as.Date("2023-04-15")
+
+
+## The panel, either complete or stopping a month short. Truncating the forward return at the last
+## retained date mirrors reality: at that point next month's return is not yet observable.
+meta_update_inputs <- function(short = TRUE) {
+
+  key <- if (short) "inputs_short" else "inputs_full"
+  if (!is.null(meta_update_cache[[key]])) return(meta_update_cache[[key]])
+
+  load(paste(testthat::test_path(), "/testdata/", "toy_preprocessed_port_obj.RData", sep = ""))
+
+  if (short) {
+    keep <- function(df) df %>% dplyr::filter(dates != meta_update_last_date)
+    signals_m_df <- keep(signals_m_df)
+    liquidity_m_df <- keep(liquidity_m_df)
+    volatility_m_df <- keep(volatility_m_df)
+    benchmark_weights_m_df <- keep(benchmark_weights_m_df)
+    fwd_return_m_df <- keep(fwd_return_m_df) %>%
+      dplyr::mutate(fwd_return_1m = dplyr::if_else(
+        dates == max(dates), NA_real_, fwd_return_1m))
+    benchmark_returns_m_xts <- benchmark_returns_m_xts["2022-10-15/2023-03-15"]
+  }
+
+  inputs <- list(
+    signals_m_df = create_meta_dataframe(signals_m_df, type = "signals",
+                                         meta_dataframe_name = "signals"),
+    fwd_return_m_df = create_meta_dataframe(fwd_return_m_df, type = "target",
+                                            meta_dataframe_name = "fwd"),
+    liquidity_m_df = create_meta_dataframe(liquidity_m_df, meta_dataframe_name = "liq"),
+    volatility_m_df = create_meta_dataframe(volatility_m_df, meta_dataframe_name = "vol"),
+    benchmark_weights_m_df = create_meta_dataframe(benchmark_weights_m_df, type = "weights",
+                                                   meta_dataframe_name = "bench_weights"),
+    benchmark_returns_m_xts = suppressMessages(create_meta_xts(
+      benchmark_returns_m_xts, asset_type = "benchmark", meta_xts_name = "bench_returns"))
+  )
+
+  meta_update_cache[[key]] <- inputs
+  inputs
+}
+
+
+meta_update_base_config <- function(method, name) {
+  create_port_backtest_config(
+    chosen_score_metric_and_position = c(book_yield = "long"),
+    eligibility_quantile_range = c(0.67, 1.0), selected_benchmark = "ibov",
+    initial_buffer_period = 2, rebalancing_months = c(1, 4),
+    port_construction_method = method, main_liquidity_metric = "mean_volfin_3m",
+    config_name = name) %>%
+    add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1,
+                                     lambda = "dynamic", strategy_aum = 25000)
+}
+
+
+## The cohort stopping a month short, which the meta backtest under test allocates across
+meta_update_short_cohort <- function() {
+  if (!is.null(meta_update_cache$cohort_short)) return(meta_update_cache$cohort_short)
+
+  inputs <- meta_update_inputs(short = TRUE)
+  run_one <- function(config) suppressWarnings(suppressMessages(run_port_backtest(
+    signals_m_df = inputs$signals_m_df, fwd_return_m_df = inputs$fwd_return_m_df,
+    liquidity_m_df = inputs$liquidity_m_df, volatility_m_df = inputs$volatility_m_df,
+    config = config, benchmark_weights_m_df = inputs$benchmark_weights_m_df,
+    benchmark_returns_m_xts = inputs$benchmark_returns_m_xts,
+    verbose = FALSE, parallel = FALSE)))
+
+  cohort <- suppressWarnings(suppressMessages(create_port_backtest_cohort(
+    list(run_one(meta_update_base_config("ew", "ew_upd")),
+         run_one(meta_update_base_config("sw", "sw_upd"))),
+    cohort_name = "meta_update_cohort")))
+
+  meta_update_cache$cohort_short <- cohort
+  cohort
+}
+
+
+## Each base portfolio rolled forward one month through update_port_backtest, which is the input
+## the meta update requires. Built with the same method the meta update is being tested against,
+## deliberately: if the base update were broken this cohort would be wrong and the meta
+## reconstruction below would not match either.
+meta_update_full_cohort <- function() {
+  if (!is.null(meta_update_cache$cohort_full)) return(meta_update_cache$cohort_full)
+
+  short_cohort <- meta_update_short_cohort()
+  full_inputs <- meta_update_inputs(short = FALSE)
+
+  updated_list <- lapply(short_cohort@port_backtest_results_list, function(old_base) {
+    suppressWarnings(suppressMessages(update_port_backtest(
+      signals_m_df = full_inputs$signals_m_df,
+      fwd_return_m_df = full_inputs$fwd_return_m_df,
+      liquidity_m_df = full_inputs$liquidity_m_df,
+      volatility_m_df = full_inputs$volatility_m_df,
+      old_results = old_base,
+      benchmark_weights_m_df = full_inputs$benchmark_weights_m_df,
+      benchmark_returns_m_xts = full_inputs$benchmark_returns_m_xts,
+      verbose = FALSE, parallel = FALSE)))
+  })
+
+  cohort <- suppressWarnings(suppressMessages(create_port_backtest_cohort(
+    updated_list, cohort_name = "meta_update_cohort")))
+
+  meta_update_cache$cohort_full <- cohort
+  cohort
+}
+
+
+meta_update_config <- function(config_name = "meta_update") {
+  inner <- create_port_backtest_config(
+    chosen_score_metric_and_position = c(ann_info_ratio = "long"),
+    eligibility_quantile_range = c(0, 1),
+    initial_buffer_period = 4, rebalancing_months = c(1, 2, 3, 4),
+    selected_benchmark = "ibov",
+    cov_est_method = create_cov_est_method("sample", 2, TRUE, "ibov"),
+    main_liquidity_metric = "mean_volfin_3m",
+    port_construction_method = "sw", config_name = config_name) %>%
+    add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1,
+                                     lambda = "dynamic", strategy_aum = 25000)
+
+  suppressMessages(create_port_metabacktest_config(inner, config_name = config_name,
+                                                   verbose = FALSE))
+}
+
+
+meta_update_short_run <- function() {
+  if (!is.null(meta_update_cache$run_short)) return(meta_update_cache$run_short)
+  inputs <- meta_update_inputs(short = TRUE)
+  results <- suppressWarnings(suppressMessages(run_port_backtest(
+    signals_m_df = inputs$signals_m_df, fwd_return_m_df = inputs$fwd_return_m_df,
+    liquidity_m_df = inputs$liquidity_m_df, volatility_m_df = inputs$volatility_m_df,
+    config = meta_update_config(), port_backtest_cohort = meta_update_short_cohort(),
+    benchmark_weights_m_df = inputs$benchmark_weights_m_df,
+    benchmark_returns_m_xts = inputs$benchmark_returns_m_xts,
+    verbose = FALSE, parallel = FALSE)))
+  meta_update_cache$run_short <- results
+  results
+}
+
+
+meta_update_run <- function() {
+  if (!is.null(meta_update_cache$run_updated)) return(meta_update_cache$run_updated)
+  full_inputs <- meta_update_inputs(short = FALSE)
+  results <- suppressWarnings(suppressMessages(update_port_backtest(
+    signals_m_df = full_inputs$signals_m_df,
+    fwd_return_m_df = full_inputs$fwd_return_m_df,
+    liquidity_m_df = full_inputs$liquidity_m_df,
+    volatility_m_df = full_inputs$volatility_m_df,
+    old_results = meta_update_short_run(),
+    updated_port_backtest_cohort = meta_update_full_cohort(),
+    benchmark_weights_m_df = full_inputs$benchmark_weights_m_df,
+    benchmark_returns_m_xts = full_inputs$benchmark_returns_m_xts,
+    verbose = FALSE, parallel = FALSE)))
+  meta_update_cache$run_updated <- results
+  results
+}
+
+
+test_that("the meta update reproduces a step-by-step reconstruction of its own chain", {
+
+  #The same reconstruction the non-update test does, but over the window the update recomputes.
+  #Every stage is rebuilt from the functions the method calls, so a wrong argument anywhere in
+  #the update wiring shows up as a mismatched stage rather than as a plausible-looking number.
+  old_results <- meta_update_short_run()
+  updated <- meta_update_run()
+  full_cohort <- meta_update_full_cohort()
+  full_inputs <- meta_update_inputs(short = FALSE)
+
+  config <- meta_update_config()
+  inner_config <- config@meta_port_backtest_config
+  old_inner_workflow <- old_results@meta_port_backtest_results@port_backtest_workflow[[
+    length(old_results@meta_port_backtest_results@port_backtest_workflow)]]
+
+  #Stage 1: the port universe, now derived from the updated cohort
+  expected_universe <- suppressWarnings(suppressMessages(derive_port_universe_m_df(
+    port_backtest_cohort = full_cohort,
+    return_basis = config@return_basis,
+    cost_lookback = config@cost_lookback,
+    verbose = FALSE)))
+  expect_equal(updated@port_universe_m_df@data, expected_universe@data)
+
+  #The universe must actually reach the new month, or nothing below is testing the update
+  expect_true(meta_update_last_date %in% expected_universe@data$dates)
+
+  #Stage 2: the recomputed window. The update sets the buffer to the old number of dates, so the
+  #recomputation starts at the last old date, whose forward returns are now populated.
+  recomputed_buffer <- old_inner_workflow$n_dates
+  dates_vector <- sort(unique(full_inputs$signals_m_df@data$dates))
+  dates_backtest <- dates_vector[recomputed_buffer:length(dates_vector)]
+  recomputed_dates <- sort(unique(c(
+    min(dates_backtest),
+    dates_backtest[lubridate::month(dates_backtest) %in% inner_config@rebalancing_months])))
+
+  #The window has to cover more than the new date alone, or the overlap handling is untested
+  expect_gt(length(recomputed_dates), 1L)
+
+  base_returns_xts <- full_cohort@port_returns_m_xts_list$net_returns_m_xts@data
+  base_names <- sort(unique(expected_universe@data$tickers))
+  bench_returns_xts <- base_returns_xts[, "selected_bench_return", drop = FALSE]
+  base_returns_xts <- base_returns_xts[, base_names, drop = FALSE]
+  cov_est_method <- inner_config@cov_est_method
+
+  reconstructed <- list()
+  for (i in seq_along(recomputed_dates)) {
+    current_date <- recomputed_dates[i]
+
+    universe_m_d_ref <- expected_universe@data %>% dplyr::filter(dates == current_date)
+
+    scored_m_d_ref <- derive_stock_universe_m_d_ref(
+      signals_m_d_ref = universe_m_d_ref,
+      oos_predictions_m_d_ref = NULL,
+      chosen_score_metric_and_position = inner_config@chosen_score_metric_and_position,
+      chosen_scaler = inner_config@chosen_scaler,
+      scaler_m_d_ref = NULL,
+      scaler_shrinkage = if (is.null(inner_config@scaler_shrinkage)) 0 else inner_config@scaler_shrinkage,
+      lower_quantile_winsorization = 0.025,
+      upper_quantile_winsorization = 0.975)
+
+    classified_m_d_ref <- classify_investment_universe(
+      universe_m_d_ref = scored_m_d_ref,
+      eligibility_quantile_range = inner_config@eligibility_quantile_range,
+      min_eligible_assets_fallback = inner_config@min_eligible_assets_fallback,
+      use_raw_for_eligibility = FALSE,
+      asset_object = "stocks",
+      verbose = FALSE)
+
+    returns_upd_ref <- base_returns_xts[zoo::index(base_returns_xts) <= current_date, , drop = FALSE]
+    bench_upd_ref <- bench_returns_xts[zoo::index(bench_returns_xts) <= current_date, , drop = FALSE]
+
+    meta_port <- suppressWarnings(suppressMessages(set_portfolio_weights(
+      universe_m_d_ref = classified_m_d_ref,
+      port_construction_method = inner_config@port_construction_method,
+      covariance_matrix = NULL,
+      eligible_returns_m_xts_upd_ref = returns_upd_ref,
+      selected_benchmark_m_xts_upd_ref = bench_upd_ref,
+      active_returns = cov_est_method@active_returns,
+      cov_estimation_method = cov_est_method@cov_estimation_method,
+      cov_matrix_sample_size = cov_est_method@cov_matrix_sample_size,
+      top_down_proxy_port_method = "ew", mmaf_group_col = NULL,
+      selected_benchmark = NULL,
+      lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975,
+      parallel = FALSE, verbose = FALSE)))
+
+    reconstructed[[i]] <- meta_port@universe_m_d_ref@data %>%
+      dplyr::select(id, tickers, dates, weights)
+  }
+  reconstructed <- do.call(rbind, reconstructed)
+
+  #Stage 3: the consolidation. Old rows outside the recomputed window survive; rows inside it are
+  #replaced by the recomputed ones, because those are the figures formed with the forward returns
+  #that only became available with the new month.
+  old_weights <- old_results@meta_port_weights_m_df@data
+  expected_weights <- dplyr::bind_rows(
+    old_weights[!old_weights$id %in% reconstructed$id, , drop = FALSE], reconstructed)
+  expected_weights <- expected_weights[order(expected_weights$id), , drop = FALSE]
+  rownames(expected_weights) <- NULL
+
+  expect_equal(updated@meta_port_weights_m_df@data, expected_weights)
+
+  #and it is a real allocation, not a degenerate one that would match trivially
+  expect_gt(stats::sd(expected_weights$weights), 0)
+
+  #Stage 4: the projection onto stocks, rebuilt from the consolidated meta weights
+  expected_projection <- suppressMessages(project_meta_weights_to_stocks(
+    meta_weights_m_df = expected_weights,
+    port_backtest_cohort = full_cohort,
+    signals_m_df = full_inputs$signals_m_df,
+    verbose = FALSE))
+  expect_equal(updated@projected_stock_weights_m_df@data, expected_projection@data)
+})
+
+
+test_that("the meta update preserves the old history and appends the new month", {
+
+  old_results <- meta_update_short_run()
+  updated <- meta_update_run()
+
+  old_dates <- sort(unique(old_results@meta_port_weights_m_df@data$dates))
+  new_dates <- sort(unique(updated@meta_port_weights_m_df@data$dates))
+
+  #Nothing is lost, and exactly the new month is gained
+  expect_true(all(old_dates %in% new_dates))
+  expect_equal(max(new_dates), meta_update_last_date)
+  expect_false(meta_update_last_date %in% old_dates)
+
+  #The stock-level returns are the old series extended, not recomputed from scratch. The last old
+  #date is recomputed, so it is the earlier dates that must survive untouched.
+  old_returns <- old_results@meta_port_backtest_results@port_returns_m_xts@data
+  new_returns <- updated@meta_port_backtest_results@port_returns_m_xts@data
+  untouched <- zoo::index(old_returns) < max(zoo::index(old_returns))
+  expect_true(any(untouched))
+  expect_equal(as.numeric(old_returns[untouched, "net_return"]),
+               as.numeric(new_returns[zoo::index(new_returns) %in%
+                                        zoo::index(old_returns)[untouched], "net_return"]),
+               tolerance = 1e-10)
+  expect_gt(nrow(new_returns), nrow(old_returns))
+
+  #The workflow records the update rather than replacing the original run
+  workflow <- updated@meta_port_backtest_results@port_backtest_workflow
+  expect_gt(length(workflow),
+            length(old_results@meta_port_backtest_results@port_backtest_workflow))
+  expect_true(any(grepl("^update_", names(workflow))))
+
+  #The transactions log is extended too, since costs are charged on the new trades
+  expect_gt(length(updated@meta_port_backtest_results@transactions_log@data),
+            length(old_results@meta_port_backtest_results@transactions_log@data))
+})
+
+
+test_that("the meta update refuses a cohort that is not the one-month continuation", {
+
+  full_inputs <- meta_update_inputs(short = FALSE)
+  old_results <- meta_update_short_run()
+
+  run_update <- function(cohort) {
+    suppressWarnings(suppressMessages(update_port_backtest(
+      signals_m_df = full_inputs$signals_m_df,
+      fwd_return_m_df = full_inputs$fwd_return_m_df,
+      liquidity_m_df = full_inputs$liquidity_m_df,
+      volatility_m_df = full_inputs$volatility_m_df,
+      old_results = old_results, updated_port_backtest_cohort = cohort,
+      benchmark_weights_m_df = full_inputs$benchmark_weights_m_df,
+      benchmark_returns_m_xts = full_inputs$benchmark_returns_m_xts,
+      verbose = FALSE, parallel = FALSE)))
+  }
+
+  #A cohort that was never rolled forward would silently produce meta weights for the new month
+  #from statistics that stop a month short of it
+  expect_error(run_update(meta_update_short_cohort()),
+               "must be updated before the meta backtest")
+
+  #and one holding different portfolios is not the same allocation problem at all
+  wrong_members <- meta_update_full_cohort()
+  wrong_members@port_backtest_results_list <- wrong_members@port_backtest_results_list[1]
+  expect_error(run_update(wrong_members), "do not match the ones the old meta backtest")
+
+  #The cohort is required, since there is nothing to allocate over without it
+  expect_error(
+    suppressWarnings(suppressMessages(update_port_backtest(
+      signals_m_df = full_inputs$signals_m_df,
+      fwd_return_m_df = full_inputs$fwd_return_m_df,
+      liquidity_m_df = full_inputs$liquidity_m_df,
+      volatility_m_df = full_inputs$volatility_m_df,
+      old_results = old_results, verbose = FALSE, parallel = FALSE))),
+    "updated_port_backtest_cohort must be provided")
+})
+
+
+test_that("the risk-targeted meta backtest reproduces a step-by-step reconstruction of its chain", {
+
+  #The counterpart of the multi-portfolio reconstruction above, for the path where the weight
+  #comes from the targeting rule rather than from ranking a cross-section. Every stage is rebuilt
+  #from the functions the method calls, so a wrong argument anywhere in the wiring shows up as a
+  #mismatched stage rather than as a plausible-looking number.
+  results <- run_risk_targeted()
+  cohort <- risk_targeted_cohort()
+  config <- risk_targeted_config()
+  inner_config <- config@meta_port_backtest_config
+  inputs <- risk_targeted_inputs()
+  risk_target_params <- results@risk_target_parameters
+  sleeve <- cohort@port_backtest_results_list[[1]]
+
+  #Stage 1: the port universe. A lone sleeve is the required shape here, not too small a cohort.
+  expected_universe <- suppressWarnings(suppressMessages(derive_port_universe_m_df(
+    port_backtest_cohort = cohort,
+    return_basis = config@return_basis,
+    cost_lookback = config@cost_lookback,
+    allow_single_portfolio = TRUE,
+    verbose = FALSE)))
+  expect_equal(results@port_universe_m_df@data, expected_universe@data)
+
+  #Stage 2: the rule, rebuilt one rebalance date at a time from its two halves
+  meta_stats <- results@meta_port_stats_m_df@data
+  rebalance_dates <- sort(unique(meta_stats$dates))
+  expect_gt(length(rebalance_dates), 1L)
+
+  reconstructed_risk <- numeric(length(rebalance_dates))
+  reconstructed_weight <- numeric(length(rebalance_dates))
+
+  for (i in seq_along(rebalance_dates)) {
+    current_date <- rebalance_dates[i]
+
+    reconstructed_risk[i] <- suppressWarnings(suppressMessages(estimate_sleeve_risk(
+      current_date = current_date,
+      risk_target_params = risk_target_params,
+      risky_port_backtest_results = sleeve,
+      daily_stock_returns_m_xts = inputs$daily_stock_returns_m_xts@data,
+      selected_benchmark = inner_config@selected_benchmark,
+      stock_groups_m_d_ref = inputs$stock_groups_m_df@data %>%
+        dplyr::filter(as.Date(dates) == current_date),
+      return_basis = config@return_basis)))
+
+    #No exposure signal is configured here, so the multiplier is one and the weight is the
+    #risk ratio alone. risk_to_weight() applies the exponent and the bounds.
+    reconstructed_weight[i] <- risk_to_weight(reconstructed_risk[i], risk_target_params, 1)
+  }
+
+  expect_equal(meta_stats$sleeve_risk, reconstructed_risk, tolerance = 1e-10)
+  expect_equal(meta_stats$risky_weight, reconstructed_weight, tolerance = 1e-10)
+
+  #The reconstruction must move, or a constant weight would match trivially
+  expect_gt(stats::sd(reconstructed_weight), 0)
+
+  #Stage 3: the meta weights, which are the rule for the sleeve and the remainder for the residual
+  sleeve_name <- sleeve@backtest_identifier
+  expected_weights <- dplyr::bind_rows(
+    data.frame(tickers = sleeve_name, dates = rebalance_dates,
+               weights = reconstructed_weight, stringsAsFactors = FALSE),
+    data.frame(tickers = risk_targeted_residual, dates = rebalance_dates,
+               weights = 1 - reconstructed_weight, stringsAsFactors = FALSE)) %>%
+    dplyr::mutate(id = paste0(tickers, "-", dates)) %>%
+    dplyr::select(id, tickers, dates, weights) %>%
+    dplyr::arrange(id) %>%
+    as.data.frame()
+  rownames(expected_weights) <- NULL
+
+  expect_equal(results@meta_port_weights_m_df@data, expected_weights)
+
+  #The two sleeves are fully invested at every date, which is what makes the residual the
+  #complement of the rule rather than an independent position
+  sums <- tapply(expected_weights$weights, expected_weights$dates, sum)
+  expect_equal(as.numeric(sums), rep(1, length(sums)), tolerance = 1e-12)
+
+  #Stage 4: the projection onto stocks, which has to carry the residual through as a holding
+  expected_projection <- suppressMessages(project_meta_weights_to_stocks(
+    meta_weights_m_df = expected_weights,
+    port_backtest_cohort = cohort,
+    signals_m_df = inputs$signals_m_df,
+    residual_ticker = risk_targeted_residual,
+    verbose = FALSE))
+  expect_equal(results@projected_stock_weights_m_df@data, expected_projection@data)
+
+  #and the residual really is held, or the blend never happened
+  residual_rows <- expected_projection@data %>%
+    dplyr::filter(tickers == risk_targeted_residual, weights > 0)
+  expect_gt(nrow(residual_rows), 0)
+
+  #Stage 5: the stock-level backtest run on those projected weights
+  expected_inner <- suppressWarnings(suppressMessages(run_port_backtest_internal(
+    signals_m_df = inputs$signals_m_df@data,
+    oos_predictions_m_df = NULL,
+    chosen_score_metric_and_position = NULL,
+    rebalancing_months = inner_config@rebalancing_months,
+    initial_buffer_period = inner_config@initial_buffer_period,
+    port_construction_method = "custom_weights",
+    selected_benchmark = inner_config@selected_benchmark,
+    eligibility_quantile_range = inner_config@eligibility_quantile_range,
+    exp_ret_score_tilt = NULL, exp_ret_score_tilt_eta = NULL, mmaf_group_col = NULL,
+    cov_estimation_method = inner_config@cov_est_method@cov_estimation_method,
+    cov_matrix_sample_size = inner_config@cov_est_method@cov_matrix_sample_size,
+    active_returns = inner_config@cov_est_method@active_returns,
+    cov_matrix_benchmark = inner_config@cov_est_method@cov_matrix_benchmark,
+    daily_stock_returns_m_xts = inputs$daily_stock_returns_m_xts@data,
+    daily_bench_returns_m_xts = inputs$daily_bench_returns_m_xts@data,
+    benchmark_returns_m_xts = inputs$benchmark_returns_m_xts@data,
+    liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL,
+    concentration_constraint_policy = NULL,
+    liquidity_m_df = inputs$liquidity_m_df@data,
+    main_liquidity_metric = inner_config@main_liquidity_metric,
+    liquidity_floor_cutoffs = inner_config@liquidity_floor_cutoffs,
+    volatility_m_df = inputs$volatility_m_df@data,
+    fwd_return_m_df = inputs$fwd_return_m_df@data,
+    stock_groups_m_df = inputs$stock_groups_m_df@data,
+    benchmark_weights_m_df = inputs$benchmark_weights_m_df@data,
+    transaction_costs_parameters = as.list(inner_config@transaction_costs_parameters),
+    custom_stock_weights_m_df = expected_projection@data,
+    custom_stock_metrics_m_df = NULL,
+    lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975,
+    verbose = FALSE, parallel = FALSE)))
+
+  expect_equal(results@meta_port_backtest_results@port_weights_m_df@data,
+               expected_inner@port_weights_m_df@data)
+  expect_equal(results@meta_port_backtest_results@port_returns_m_xts@data,
+               expected_inner@port_returns_m_xts@data)
+  expect_equal(results@meta_port_backtest_results@port_costs_m_xts@data,
+               expected_inner@port_costs_m_xts@data)
+
+  #and the returns are real numbers rather than an all-NA series matching itself
+  expect_true(any(is.finite(expected_inner@port_returns_m_xts@data$net_return)))
+})
+
+
+test_that("the exposure signal enters the reconstruction as its own factor", {
+
+  #The same chain, but with a signal configured, so the weight is the product of two things that
+  #have to be reproduced separately. Without this the reconstruction above could pass on a rule
+  #whose exposure half was silently dropped.
+  config <- risk_targeted_config(exposure_method = "trend", exposure_center = 0.75,
+                                 exposure_sensitivity = 0.25)
+  exposure_metric <- risk_targeted_exposure_metric()
+  results <- run_risk_targeted(config, exposure_m_df = exposure_metric)
+
+  cohort <- risk_targeted_cohort()
+  inputs <- risk_targeted_inputs()
+  inner_config <- config@meta_port_backtest_config
+  risk_target_params <- results@risk_target_parameters
+  sleeve <- cohort@port_backtest_results_list[[1]]
+  meta_stats <- results@meta_port_stats_m_df@data
+
+  expected_exposure <- suppressMessages(derive_exposure_signal(
+    metric_m_df = exposure_metric, method = "trend",
+    center = 0.75, sensitivity = 0.25, verbose = FALSE))
+
+  for (i in seq_len(nrow(meta_stats))) {
+    current_date <- meta_stats$dates[i]
+
+    risk <- suppressWarnings(suppressMessages(estimate_sleeve_risk(
+      current_date = current_date,
+      risk_target_params = risk_target_params,
+      risky_port_backtest_results = sleeve,
+      daily_stock_returns_m_xts = inputs$daily_stock_returns_m_xts@data,
+      selected_benchmark = inner_config@selected_benchmark,
+      stock_groups_m_d_ref = inputs$stock_groups_m_df@data %>%
+        dplyr::filter(as.Date(dates) == current_date),
+      return_basis = "net")))
+
+    exposure <- expected_exposure$exposure[expected_exposure$dates == current_date]
+    expect_length(exposure, 1L)
+
+    expect_equal(meta_stats$sleeve_risk[i], risk, tolerance = 1e-10)
+    expect_equal(meta_stats$exposure[i], exposure, tolerance = 1e-12)
+    expect_equal(meta_stats$risky_weight[i],
+                 risk_to_weight(risk, risk_target_params, exposure), tolerance = 1e-12)
+  }
+
+  #The signal has to have leaned differently across the sample, or it is not being tested
+  expect_gt(stats::sd(meta_stats$exposure), 0)
+})
+
+
+# Updating a risk-targeted meta backtest ----------------------------------
+# The same exercise as the multi-portfolio update, on the path where the weight comes from the
+# targeting rule. The sleeve has to be rolled forward first, exactly as the base portfolios are.
+
+rt_update_cache <- new.env(parent = emptyenv())
+
+
+## The risk-targeted panel, either complete or stopping a month short. Built the same way
+## risk_targeted_inputs() builds its own, so the residual is a tradable row of every object.
+rt_update_inputs <- function(short = TRUE) {
+
+  key <- if (short) "inputs_short" else "inputs_full"
+  if (!is.null(rt_update_cache[[key]])) return(rt_update_cache[[key]])
+
+  full <- risk_targeted_inputs()
+  if (!short) {
+    rt_update_cache[[key]] <- full
+    return(full)
+  }
+
+  drop_last <- function(meta_df, type = "generic") {
+    trimmed <- meta_df@data %>% dplyr::filter(dates != meta_update_last_date)
+    suppressWarnings(suppressMessages(create_meta_dataframe(
+      trimmed, meta_dataframe_name = meta_df@meta_dataframe_name, type = type)))
+  }
+
+  ##The last retained date has no forward return yet, which is the state the update starts from
+  fwd_trimmed <- full$fwd_return_m_df@data %>%
+    dplyr::filter(dates != meta_update_last_date) %>%
+    dplyr::mutate(fwd_return_1m = dplyr::if_else(dates == max(dates), NA_real_, fwd_return_1m))
+
+  daily_full <- full$daily_stock_returns_m_xts@data
+  daily_bench_full <- full$daily_bench_returns_m_xts@data
+  cutoff <- as.Date("2023-03-15")
+
+  inputs <- list(
+    signals_m_df = drop_last(full$signals_m_df, "signals"),
+    fwd_return_m_df = suppressWarnings(suppressMessages(create_meta_dataframe(
+      fwd_trimmed, meta_dataframe_name = full$fwd_return_m_df@meta_dataframe_name,
+      type = "target"))),
+    liquidity_m_df = drop_last(full$liquidity_m_df, "generic"),
+    volatility_m_df = drop_last(full$volatility_m_df, "generic"),
+    benchmark_weights_m_df = drop_last(full$benchmark_weights_m_df, "weights"),
+    stock_groups_m_df = drop_last(full$stock_groups_m_df, "groups"),
+    benchmark_returns_m_xts = suppressWarnings(suppressMessages(create_meta_xts(
+      full$benchmark_returns_m_xts@data[zoo::index(full$benchmark_returns_m_xts@data) <= cutoff]))),
+    daily_stock_returns_m_xts = suppressWarnings(suppressMessages(create_meta_xts(
+      daily_full[zoo::index(daily_full) <= cutoff], type = "returns",
+      asset_type = "stocks", meta_xts_name = "B3"))),
+    daily_bench_returns_m_xts = suppressWarnings(suppressMessages(create_meta_xts(
+      daily_bench_full[zoo::index(daily_bench_full) <= cutoff], type = "returns",
+      asset_type = "benchmark", meta_xts_name = "B3")))
+  )
+
+  rt_update_cache[[key]] <- inputs
+  inputs
+}
+
+
+rt_update_sleeve_config <- function() {
+  create_port_backtest_config(
+    chosen_score_metric_and_position = c(book_yield = "long"),
+    eligibility_quantile_range = c(0.67, 1.0), selected_benchmark = "ibov",
+    initial_buffer_period = 2, rebalancing_months = c(1, 4),
+    port_construction_method = "sw", main_liquidity_metric = "mean_volfin_3m",
+    config_name = "risky_upd") %>%
+    add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1,
+                                     lambda = "dynamic", strategy_aum = 25000)
+}
+
+
+rt_update_short_cohort <- function() {
+  if (!is.null(rt_update_cache$cohort_short)) return(rt_update_cache$cohort_short)
+  inputs <- rt_update_inputs(short = TRUE)
+  sleeve <- suppressWarnings(suppressMessages(run_port_backtest(
+    signals_m_df = inputs$signals_m_df, fwd_return_m_df = inputs$fwd_return_m_df,
+    liquidity_m_df = inputs$liquidity_m_df, volatility_m_df = inputs$volatility_m_df,
+    config = rt_update_sleeve_config(),
+    benchmark_weights_m_df = inputs$benchmark_weights_m_df,
+    benchmark_returns_m_xts = inputs$benchmark_returns_m_xts,
+    verbose = FALSE, parallel = FALSE)))
+  cohort <- suppressWarnings(suppressMessages(create_port_backtest_cohort(
+    list(sleeve), cohort_name = "rt_update_cohort")))
+  rt_update_cache$cohort_short <- cohort
+  cohort
+}
+
+
+rt_update_full_cohort <- function() {
+  if (!is.null(rt_update_cache$cohort_full)) return(rt_update_cache$cohort_full)
+  full_inputs <- rt_update_inputs(short = FALSE)
+  updated <- suppressWarnings(suppressMessages(update_port_backtest(
+    signals_m_df = full_inputs$signals_m_df,
+    fwd_return_m_df = full_inputs$fwd_return_m_df,
+    liquidity_m_df = full_inputs$liquidity_m_df,
+    volatility_m_df = full_inputs$volatility_m_df,
+    old_results = rt_update_short_cohort()@port_backtest_results_list[[1]],
+    benchmark_weights_m_df = full_inputs$benchmark_weights_m_df,
+    benchmark_returns_m_xts = full_inputs$benchmark_returns_m_xts,
+    verbose = FALSE, parallel = FALSE)))
+  cohort <- suppressWarnings(suppressMessages(create_port_backtest_cohort(
+    list(updated), cohort_name = "rt_update_cohort")))
+  rt_update_cache$cohort_full <- cohort
+  cohort
+}
+
+
+## Rebalancing every month from January, so the recomputed window overlaps a date the short run
+## already produced and the consolidation has something to replace
+rt_update_config <- function(target = 10) {
+  inner <- create_port_backtest_config(
+    chosen_score_metric_and_position = NULL,
+    eligibility_quantile_range = c(0, 1),
+    initial_buffer_period = 4, rebalancing_months = c(1, 2, 3, 4),
+    selected_benchmark = "ibov",
+    cov_est_method = create_cov_est_method("sample", 2, TRUE, "ibov"),
+    main_liquidity_metric = "mean_volfin_3m",
+    port_construction_method = "custom_weights", config_name = "rt_update") %>%
+    add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1,
+                                     lambda = "dynamic", strategy_aum = 25000)
+
+  suppressMessages(create_port_metabacktest_config(
+    inner, type = "risk_targeted", config_name = "rt_update", verbose = FALSE)) %>%
+    add_risk_target_parameters(
+      residual_ticker = risk_targeted_residual, target = target,
+      target_metric = "tracking_error", p = 1, min_weight = 0.2, max_weight = 1,
+      vol_cov_est_method = create_cov_est_method("ewma", 60, FALSE, NULL))
+}
+
+
+rt_update_short_run <- function() {
+  if (!is.null(rt_update_cache$run_short)) return(rt_update_cache$run_short)
+  inputs <- rt_update_inputs(short = TRUE)
+  results <- suppressWarnings(suppressMessages(run_port_backtest(
+    signals_m_df = inputs$signals_m_df, fwd_return_m_df = inputs$fwd_return_m_df,
+    liquidity_m_df = inputs$liquidity_m_df, volatility_m_df = inputs$volatility_m_df,
+    config = rt_update_config(), port_backtest_cohort = rt_update_short_cohort(),
+    benchmark_weights_m_df = inputs$benchmark_weights_m_df,
+    benchmark_returns_m_xts = inputs$benchmark_returns_m_xts,
+    daily_stock_returns_m_xts = inputs$daily_stock_returns_m_xts,
+    daily_bench_returns_m_xts = inputs$daily_bench_returns_m_xts,
+    stock_groups_m_df = inputs$stock_groups_m_df,
+    verbose = FALSE, parallel = FALSE)))
+  rt_update_cache$run_short <- results
+  results
+}
+
+
+rt_update_run <- function() {
+  if (!is.null(rt_update_cache$run_updated)) return(rt_update_cache$run_updated)
+  full_inputs <- rt_update_inputs(short = FALSE)
+  results <- suppressWarnings(suppressMessages(update_port_backtest(
+    signals_m_df = full_inputs$signals_m_df,
+    fwd_return_m_df = full_inputs$fwd_return_m_df,
+    liquidity_m_df = full_inputs$liquidity_m_df,
+    volatility_m_df = full_inputs$volatility_m_df,
+    old_results = rt_update_short_run(),
+    updated_port_backtest_cohort = rt_update_full_cohort(),
+    benchmark_weights_m_df = full_inputs$benchmark_weights_m_df,
+    benchmark_returns_m_xts = full_inputs$benchmark_returns_m_xts,
+    daily_stock_returns_m_xts = full_inputs$daily_stock_returns_m_xts,
+    daily_bench_returns_m_xts = full_inputs$daily_bench_returns_m_xts,
+    stock_groups_m_df = full_inputs$stock_groups_m_df,
+    verbose = FALSE, parallel = FALSE)))
+  rt_update_cache$run_updated <- results
+  results
+}
+
+
+test_that("the risk-targeted update reproduces a step-by-step reconstruction of its chain", {
+
+  old_results <- rt_update_short_run()
+  updated <- rt_update_run()
+  full_cohort <- rt_update_full_cohort()
+  full_inputs <- rt_update_inputs(short = FALSE)
+
+  config <- rt_update_config()
+  inner_config <- config@meta_port_backtest_config
+  risk_target_params <- updated@risk_target_parameters
+  sleeve <- full_cohort@port_backtest_results_list[[1]]
+
+  #The subclass survives the update rather than degrading to the parent
+  expect_s4_class(updated, "risk_target_metabacktest_results")
+  expect_equal(updated@residual_ticker, risk_targeted_residual)
+
+  #Stage 1: the universe, from the rolled-forward sleeve
+  expected_universe <- suppressWarnings(suppressMessages(derive_port_universe_m_df(
+    port_backtest_cohort = full_cohort,
+    return_basis = config@return_basis,
+    cost_lookback = config@cost_lookback,
+    allow_single_portfolio = TRUE,
+    verbose = FALSE)))
+  expect_equal(updated@port_universe_m_df@data, expected_universe@data)
+  expect_true(meta_update_last_date %in% expected_universe@data$dates)
+
+  #Stage 2: the recomputed window, resolved the way the update resolves it
+  old_inner_workflow <- old_results@meta_port_backtest_results@port_backtest_workflow[[
+    length(old_results@meta_port_backtest_results@port_backtest_workflow)]]
+  dates_vector <- sort(unique(full_inputs$signals_m_df@data$dates))
+  dates_backtest <- dates_vector[old_inner_workflow$n_dates:length(dates_vector)]
+  recomputed_dates <- sort(unique(c(
+    min(dates_backtest),
+    dates_backtest[lubridate::month(dates_backtest) %in% inner_config@rebalancing_months])))
+
+  #and it must overlap the old run, or the consolidation is untested
+  old_dates <- sort(unique(old_results@meta_port_stats_m_df@data$dates))
+  expect_true(any(recomputed_dates %in% old_dates))
+
+  #Stage 3: the rule over that window, rebuilt from its two halves
+  reconstructed_weight <- numeric(length(recomputed_dates))
+  for (i in seq_along(recomputed_dates)) {
+    current_date <- recomputed_dates[i]
+    risk <- suppressWarnings(suppressMessages(estimate_sleeve_risk(
+      current_date = current_date,
+      risk_target_params = risk_target_params,
+      risky_port_backtest_results = sleeve,
+      daily_stock_returns_m_xts = full_inputs$daily_stock_returns_m_xts@data,
+      selected_benchmark = inner_config@selected_benchmark,
+      stock_groups_m_d_ref = full_inputs$stock_groups_m_df@data %>%
+        dplyr::filter(as.Date(dates) == current_date),
+      return_basis = config@return_basis)))
+    reconstructed_weight[i] <- risk_to_weight(risk, risk_target_params, 1)
+  }
+
+  new_stats <- updated@meta_port_stats_m_df@data %>%
+    dplyr::filter(dates %in% recomputed_dates) %>%
+    dplyr::arrange(dates)
+  expect_equal(new_stats$risky_weight, reconstructed_weight, tolerance = 1e-10)
+
+  #Stage 4: the consolidated meta weights. The recomputed window replaces the old rows inside it.
+  sleeve_name <- sleeve@backtest_identifier
+  recomputed_weights <- dplyr::bind_rows(
+    data.frame(tickers = sleeve_name, dates = recomputed_dates,
+               weights = reconstructed_weight, stringsAsFactors = FALSE),
+    data.frame(tickers = risk_targeted_residual, dates = recomputed_dates,
+               weights = 1 - reconstructed_weight, stringsAsFactors = FALSE)) %>%
+    dplyr::mutate(id = paste0(tickers, "-", dates)) %>%
+    dplyr::select(id, tickers, dates, weights) %>%
+    as.data.frame()
+
+  old_weights <- old_results@meta_port_weights_m_df@data
+  expected_weights <- dplyr::bind_rows(
+    old_weights[!old_weights$id %in% recomputed_weights$id, , drop = FALSE], recomputed_weights)
+  expected_weights <- expected_weights[order(expected_weights$id), , drop = FALSE]
+  rownames(expected_weights) <- NULL
+
+  expect_equal(updated@meta_port_weights_m_df@data, expected_weights)
+
+  #Stage 5: the projection, which must still carry the residual
+  expected_projection <- suppressMessages(project_meta_weights_to_stocks(
+    meta_weights_m_df = expected_weights,
+    port_backtest_cohort = full_cohort,
+    signals_m_df = full_inputs$signals_m_df,
+    residual_ticker = risk_targeted_residual,
+    verbose = FALSE))
+  expect_equal(updated@projected_stock_weights_m_df@data, expected_projection@data)
+})
+
+
+test_that("the risk-targeted update extends the history and keeps targeting", {
+
+  old_results <- rt_update_short_run()
+  updated <- rt_update_run()
+
+  old_dates <- sort(unique(old_results@meta_port_stats_m_df@data$dates))
+  new_dates <- sort(unique(updated@meta_port_stats_m_df@data$dates))
+
+  expect_true(all(old_dates %in% new_dates))
+  expect_equal(max(new_dates), meta_update_last_date)
+  expect_false(meta_update_last_date %in% old_dates)
+
+  #The targeting identity still holds on the new month wherever no bound binds, which is what
+  #says the rule is still being applied rather than the weights being carried forward
+  stats_new <- updated@meta_port_stats_m_df@data
+  params <- updated@risk_target_parameters
+  unclipped <- stats_new$risky_weight > params@min_weight &
+    stats_new$risky_weight < params@max_weight
+  expect_true(any(unclipped))
+  expect_equal(stats_new$implied_risk[unclipped], stats_new$target[unclipped],
+               tolerance = 1e-10)
+
+  #The stock-level series is extended rather than rebuilt
+  old_returns <- old_results@meta_port_backtest_results@port_returns_m_xts@data
+  new_returns <- updated@meta_port_backtest_results@port_returns_m_xts@data
+  expect_gt(nrow(new_returns), nrow(old_returns))
+  untouched <- zoo::index(old_returns) < max(zoo::index(old_returns))
+  expect_true(any(untouched))
+  expect_equal(as.numeric(old_returns[untouched, "net_return"]),
+               as.numeric(new_returns[zoo::index(new_returns) %in%
+                                        zoo::index(old_returns)[untouched], "net_return"]),
+               tolerance = 1e-10)
+
+  #and the residual is still held at the end, so the blend survived the update
+  final_weights <- updated@meta_port_weights_m_df@data %>%
+    dplyr::filter(dates == meta_update_last_date)
+  expect_setequal(final_weights$tickers,
+                  c(rt_update_full_cohort()@port_backtest_results_list[[1]]@backtest_identifier,
+                    risk_targeted_residual))
+  expect_equal(sum(final_weights$weights), 1, tolerance = 1e-12)
+})
