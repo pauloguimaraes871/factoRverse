@@ -10198,8 +10198,11 @@ risk_targeted_inputs <- function() {
 
   load(paste(test_path(),"/testdata/","toy_preprocessed_port_obj.RData", sep =""))
 
-  #The residual is a tradable row of every stock-level object, priced like a very liquid,
-  #low-volatility holding rather than treated as a special case
+  #The residual replicates the benchmark rather than standing in for cash, which is the whole
+  #point of a tracking-error target. An index-tracking residual makes tracking error scale
+  #linearly toward zero as the sleeve is cut. A constant-return residual has a tracking error
+  #equal to the benchmark's own volatility, so blending toward it turns the portfolio into a large
+  #underweight of the market and raises tracking error instead of lowering it.
   add_residual <- function(df, values) {
     own_dates <- sort(unique(df$dates))
     extra <- data.frame(id = paste0(risk_targeted_residual, "-", own_dates),
@@ -10212,31 +10215,92 @@ risk_targeted_inputs <- function() {
     out[order(out$id), ]
   }
 
-  #Its last date has no forward return either, exactly as the stocks do not
-  fwd_aug <- add_residual(fwd_return_m_df, list(default = 0.8))
-  fwd_aug$fwd_return_1m[fwd_aug$tickers == risk_targeted_residual &
-                          fwd_aug$dates == max(fwd_return_m_df$dates)] <- NA_real_
+  #The daily index, built from the benchmark weights applied to the daily stock returns point in
+  #time, so the daily series is consistent with the panel the covariance is estimated from rather
+  #than an unrelated fabrication
+  daily_dates <- zoo::index(daily_stock_returns_m_xts)
+  daily_matrix <- as.matrix(daily_stock_returns_m_xts)
+  bench_dates <- sort(unique(benchmark_weights_m_df$dates))
+  bench_by_date <- split(benchmark_weights_m_df, as.character(benchmark_weights_m_df$dates))
 
-  groups_aug <- add_residual(stock_groups_m_df, list(default = 0))
-  first_group <- setdiff(names(groups_aug), c("id", "tickers", "dates"))[1]
-  groups_aug[[first_group]][groups_aug$tickers == risk_targeted_residual] <- 1
+  daily_index_return <- vapply(seq_along(daily_dates), function(i) {
+    applicable <- bench_dates[bench_dates <= daily_dates[i]]
+    reference <- if (length(applicable) == 0) bench_dates[1] else max(applicable)
+    weights_df <- bench_by_date[[as.character(reference)]]
+    weights_df <- weights_df[is.finite(weights_df$ibov) & weights_df$ibov > 0, , drop = FALSE]
+    held <- intersect(weights_df$tickers, colnames(daily_matrix))
+    if (length(held) == 0) return(0)
+    w <- weights_df$ibov[match(held, weights_df$tickers)]
+    r <- daily_matrix[i, held]
+    ok <- is.finite(r) & is.finite(w)
+    if (!any(ok)) return(0)
+    sum(w[ok] * r[ok]) / sum(w[ok])
+  }, numeric(1))
 
-  daily_aug <- cbind(daily_stock_returns_m_xts,
-                     BOVA11 = as.numeric(daily_stock_returns_m_xts[, 1]) * 0 + 0.05)
+  #A replication is never perfect, and the tracking difference is not cosmetic: a residual that
+  #tracks exactly has zero variance in active space, which makes the active-return correlation
+  #matrix singular
   set.seed(20260826)
+  residual_daily <- daily_index_return + stats::rnorm(length(daily_index_return), 0, 0.05)
+
+  daily_aug <- cbind(daily_stock_returns_m_xts, BOVA11 = residual_daily)
   daily_bench <- xts::xts(data.frame(
-    ibov = stats::rnorm(nrow(daily_aug), 0, 0.5),
-    smll = stats::rnorm(nrow(daily_aug), 0, 0.5),
-    idiv = stats::rnorm(nrow(daily_aug), 0, 0.5)
-  ), order.by = zoo::index(daily_aug))
+    ibov = daily_index_return,
+    smll = daily_index_return + stats::rnorm(length(daily_index_return), 0, 0.2),
+    idiv = daily_index_return + stats::rnorm(length(daily_index_return), 0, 0.2)
+  ), order.by = daily_dates)
+
+  #fwd_return_1m at date t is the return from t to t+1, and run_port_backtest reads the benchmark
+  #return at t+1 to form the active return, so the residual's forward return has to be the
+  #benchmark's return one date ahead for the two to cancel. Its last date has no forward return
+  #either, exactly as the stocks do not.
+  monthly_dates <- sort(unique(fwd_return_m_df$dates))
+  ibov_monthly <- stats::setNames(as.numeric(benchmark_returns_m_xts[, "ibov"]),
+                                  as.character(zoo::index(benchmark_returns_m_xts)))
+  residual_fwd <- vapply(monthly_dates, function(d) {
+    later <- monthly_dates[monthly_dates > d]
+    if (length(later) == 0) return(NA_real_)
+    unname(ibov_monthly[as.character(min(later))])
+  }, numeric(1))
+  residual_fwd <- residual_fwd + stats::rnorm(length(residual_fwd), 0, 0.05)
+
+  fwd_aug <- add_residual(fwd_return_m_df, list(default = 0))
+  is_residual <- fwd_aug$tickers == risk_targeted_residual
+  fwd_aug$fwd_return_1m[is_residual] <-
+    residual_fwd[match(fwd_aug$dates[is_residual], monthly_dates)]
+
+  #An index ETF is not a member of a stock sector, and these are character columns, so writing a
+  #number into them put the residual in a phantom sector named "1". It gets its own label instead.
+  groups_aug <- add_residual(stock_groups_m_df, list(default = "Index ETF"))
+
+  #Comparable to the most liquid names in the panel rather than orders of magnitude beyond them.
+  #presence is a percentage, so 100 is its ceiling, not 1e9.
+  liquidity_aug <- add_residual(liquidity_m_df, list(
+    default = max(liquidity_m_df$mean_volfin_3m, na.rm = TRUE),
+    presence = 100))
+
+  #Its volatility is the index's, since it replicates the index
+  residual_daily_vol <- stats::sd(residual_daily, na.rm = TRUE)
+  volatility_aug <- add_residual(volatility_m_df, list(
+    default = residual_daily_vol * sqrt(252),
+    daily_vol = residual_daily_vol))
+
+  #The residual must never be picked up by the risky sleeve's own selection, so it sits at the
+  #floor of every signal rather than at zero, which could rank it mid-panel
+  signal_cols <- setdiff(names(signals_m_df), c("id", "tickers", "dates"))
+  signal_floors <- lapply(signal_cols, function(nm) {
+    column <- signals_m_df[[nm]]
+    if (is.numeric(column)) min(column, na.rm = TRUE) else column[1]
+  })
+  names(signal_floors) <- signal_cols
+  signal_floors$default <- 0
 
   inputs <- list(
-    signals_m_df = create_meta_dataframe(add_residual(signals_m_df, list(default = 0)),
+    signals_m_df = create_meta_dataframe(add_residual(signals_m_df, signal_floors),
                                          type = "signals"),
     fwd_return_m_df = create_meta_dataframe(fwd_aug, type = "target"),
-    liquidity_m_df = create_meta_dataframe(add_residual(liquidity_m_df, list(default = 1e9))),
-    volatility_m_df = create_meta_dataframe(
-      add_residual(volatility_m_df, list(default = 1, daily_vol = 0.5))),
+    liquidity_m_df = create_meta_dataframe(liquidity_aug),
+    volatility_m_df = create_meta_dataframe(volatility_aug),
     benchmark_weights_m_df = create_meta_dataframe(
       add_residual(benchmark_weights_m_df, list(default = 0)), type = "weights"),
     benchmark_returns_m_xts = suppressMessages(create_meta_xts(benchmark_returns_m_xts)),
@@ -10436,9 +10500,67 @@ test_that("the residual is actually held and traded in the stock-level run", {
   #Priced like any other position, so the run produces real returns and costs
   expect_true(any(is.finite(inner@port_returns_m_xts@data$net_return)))
   expect_true(any(inner@port_costs_m_xts@data$total_cost > 0, na.rm = TRUE))
+  residual_transactions <- do.call(rbind, inner@transactions_log@data)
+  expect_gt(nrow(residual_transactions %>%
+                     dplyr::filter(tickers == risk_targeted_residual, eop_port_weights > 0)),
+            0)
+  expect_gt(nrow(residual_transactions %>%
+                   dplyr::filter(tickers == risk_targeted_residual, total_cost > 0)),
+            0)
+  expect_gt(nrow(residual_transactions %>%
+                   dplyr::filter(tickers == risk_targeted_residual, order > 0)),
+            0)
+
 
   #and no expected-return view was invented at stock level
   expect_true(all(is.na(inner@stock_universe_m_df@data$exp_ret_score)))
+  expect_gt(nrow(inner@stock_universe_m_df@data %>%
+                   dplyr::filter(tickers == risk_targeted_residual)),
+            0)
+
+  residual_pos <- which(rownames(inner@final_stock_port@covariance_matrix) == risk_targeted_residual)
+  expect_true(residual_pos > 0)
+  expect_equal(stats::cov2cor(inner@final_stock_port@covariance_matrix)[residual_pos,residual_pos],
+               1)
+
+  #Groups
+  expect_false(is.na(
+    inner@final_stock_universe_m_d_ref@data %>%
+      dplyr::filter(tickers == risk_targeted_residual) %>%
+      dplyr::pull(sectors)
+  ))
+
+  #Bench weight
+  expect_equal(
+    inner@final_stock_universe_m_d_ref@data %>%
+      dplyr::filter(tickers == risk_targeted_residual) %>%
+      dplyr::pull(ibov_bench_weights),
+    0
+  )
+
+  #TE. Compared on the active return series rather than on ann_track_err from port_stats_m_df:
+  #that column is a rolling figure over each portfolio's own return history, and the sleeve's
+  #history starts three months before the meta portfolio's, so reading both at a shared date
+  #compares different windows. It also carries one row per return basis, so pulling the column
+  #without filtering mixes net and raw.
+  meta_returns <- inner@port_returns_m_xts@data
+  sleeve_returns <-
+    results@port_backtest_cohort@port_backtest_results_list[[1]]@port_returns_m_xts@data
+  shared_dates <- intersect(as.character(zoo::index(meta_returns)),
+                            as.character(zoo::index(sleeve_returns)))
+  expect_gt(length(shared_dates), 1)
+
+  meta_active <- as.numeric(
+    meta_returns[as.character(zoo::index(meta_returns)) %in% shared_dates, "net_active_return"])
+  sleeve_active <- as.numeric(
+    sleeve_returns[as.character(zoo::index(sleeve_returns)) %in% shared_dates,
+                   "net_active_return"])
+
+  ##Holding less of the sleeve has to bring the portfolio closer to the benchmark
+  expect_lt(stats::sd(meta_active, na.rm = TRUE), stats::sd(sleeve_active, na.rm = TRUE))
+  expect_lt(mean(abs(meta_active), na.rm = TRUE), mean(abs(sleeve_active), na.rm = TRUE))
+
+
 })
 
 test_that("a risk-targeted config is refused when its inputs do not support it", {
@@ -10506,6 +10628,9 @@ test_that("the reported weight is the exposure times the risk ratio, reconstruct
     expect_equal(meta_stats$exposure[i], exposure, tolerance = 1e-12)
     expect_equal(meta_stats$risky_weight[i],
                  risk_to_weight(meta_stats$sleeve_risk[i], risk_target_params, exposure),
+                 tolerance = 1e-12)
+    expect_equal(meta_stats$risky_weight[i],
+                 risk_target_params@target/meta_stats$sleeve_risk[i]*meta_stats$exposure[i],
                  tolerance = 1e-12)
   }
 })
@@ -11450,4 +11575,599 @@ test_that("the risk-targeted update extends the history and keeps targeting", {
                   c(rt_update_full_cohort()@port_backtest_results_list[[1]]@backtest_identifier,
                     risk_targeted_residual))
   expect_equal(sum(final_weights$weights), 1, tolerance = 1e-12)
+})
+
+
+# The residual is a replication, and its inputs look like an asset's -------
+
+test_that("the residual replicates the benchmark rather than standing in for cash", {
+
+  #The distinction decides whether the whole rule works. An index-tracking residual makes tracking
+  #error scale linearly toward zero as the sleeve is cut; a constant-return residual has a
+  #tracking error equal to the benchmark's own volatility, so blending toward it turns the
+  #portfolio into a large underweight of the market and raises tracking error instead.
+  inputs <- risk_targeted_inputs()
+  load(paste(test_path(), "/testdata/", "toy_preprocessed_port_obj.RData", sep = ""))
+
+  residual_fwd <- inputs$fwd_return_m_df@data %>%
+    dplyr::filter(tickers == risk_targeted_residual) %>%
+    dplyr::arrange(dates)
+  index_monthly <- stats::setNames(as.numeric(benchmark_returns_m_xts[, "ibov"]),
+                                   as.character(zoo::index(benchmark_returns_m_xts)))
+
+  ##fwd_return_1m at t is the return from t to t+1, and the engine reads the benchmark return at
+  ##t+1 to form the active return, so the two have to be aligned that way to cancel
+  own_dates <- residual_fwd$dates
+  expected_next <- vapply(own_dates, function(d) {
+    later <- own_dates[own_dates > d]
+    if (length(later) == 0) return(NA_real_)
+    unname(index_monthly[[as.character(min(later))]])
+  }, numeric(1))
+
+  tracking_difference <- residual_fwd$fwd_return_1m - expected_next
+  residual_te <- stats::sd(tracking_difference, na.rm = TRUE) * sqrt(12)
+
+  ##A replication tracks closely. The benchmark's own annualised volatility over this sample is
+  ##about 19 percent, which is what a constant-return residual would report, so the gap between
+  ##the two is the whole point.
+  expect_lt(residual_te, 1)
+  expect_gt(residual_te, 0)
+
+  index_vol <- stats::sd(as.numeric(benchmark_returns_m_xts[, "ibov"]), na.rm = TRUE) * sqrt(12)
+  expect_gt(index_vol / residual_te, 10)
+
+  ##and the last date carries no forward return, exactly as the stocks do not
+  expect_true(is.na(residual_fwd$fwd_return_1m[which.max(residual_fwd$dates)]))
+})
+
+test_that("the residual tracks the benchmark on daily data too", {
+
+  #The ex-ante risk estimate reads daily returns, so a residual that tracks monthly but not daily
+  #would still make the estimated tracking error wrong
+  inputs <- risk_targeted_inputs()
+  daily <- inputs$daily_stock_returns_m_xts@data
+  bench_daily <- inputs$daily_bench_returns_m_xts@data
+
+  residual_daily <- as.numeric(daily[, risk_targeted_residual])
+  index_daily <- as.numeric(bench_daily[, "ibov"])
+
+  expect_gt(stats::cor(residual_daily, index_daily), 0.95)
+
+  ##The tracking difference must not be zero: a residual that replicates exactly has no variance
+  ##in active space, which makes the active-return correlation matrix singular
+  expect_gt(stats::sd(residual_daily - index_daily), 0)
+
+  ##and the daily index is the benchmark weights applied to the daily stock returns, not an
+  ##unrelated series, so it has to be far less volatile than a typical single stock
+  stock_vols <- apply(daily[, setdiff(colnames(daily), risk_targeted_residual)], 2,
+                      stats::sd, na.rm = TRUE)
+  expect_lt(stats::sd(index_daily), stats::median(stock_vols, na.rm = TRUE))
+})
+
+test_that("the residual's inputs are comparable to the other assets", {
+
+  #The residual is held like any other position, so anything the engine reads about it has to be
+  #on the same scale as the rest of the panel. Sentinel values such as 1e9 do not error, they just
+  #make it the most liquid asset by three orders of magnitude and distort anything that ranks or
+  #screens on those columns.
+  inputs <- risk_targeted_inputs()
+
+  compare_to_panel <- function(meta_df, object_name) {
+    data <- meta_df@data
+    residual_rows <- data[data$tickers == risk_targeted_residual, , drop = FALSE]
+    other_rows <- data[data$tickers != risk_targeted_residual, , drop = FALSE]
+    for (column in setdiff(names(data), c("id", "tickers", "dates"))) {
+      residual_values <- residual_rows[[column]]
+      other_values <- other_rows[[column]]
+
+      ##Type first: writing a number into a character column puts the residual in a group of its
+      ##own invention rather than in a real one
+      expect_equal(class(residual_values), class(other_values),
+                   info = paste(object_name, column, "type"))
+
+      if (is.numeric(other_values)) {
+        expect_true(all(is.finite(residual_values)),
+                    info = paste(object_name, column, "finite"))
+        expect_lte(max(residual_values, na.rm = TRUE), max(other_values, na.rm = TRUE))
+        ##Volatility is the exception: a diversified index is legitimately less volatile than
+        ##any single constituent, so the floor is zero rather than the panel minimum
+        expect_gt(min(residual_values, na.rm = TRUE), 0)
+      }
+    }
+  }
+
+  compare_to_panel(inputs$liquidity_m_df, "liquidity_m_df")
+  compare_to_panel(inputs$volatility_m_df, "volatility_m_df")
+  compare_to_panel(inputs$stock_groups_m_df, "stock_groups_m_df")
+
+  ##presence is a percentage, so its ceiling is 100 rather than whatever sentinel is convenient
+  liquidity <- inputs$liquidity_m_df@data
+  expect_lte(max(liquidity$presence[liquidity$tickers == risk_targeted_residual]), 100)
+
+  ##The residual is not a benchmark constituent, so its benchmark weight has to be exactly zero.
+  ##Anything else would net against its own position and silently shrink the active bet.
+  bench <- inputs$benchmark_weights_m_df@data
+  expect_true(all(bench$ibov[bench$tickers == risk_targeted_residual] == 0))
+
+  ##and the benchmark still sums to one over the constituents that remain
+  sums <- tapply(bench$ibov, bench$dates, sum)
+  expect_equal(as.numeric(sums), rep(1, length(sums)), tolerance = 1e-8)
+})
+
+test_that("the residual is never selected by the risky sleeve itself", {
+  #The sleeve allocates across stocks; the residual is the thing the sleeve is blended against. If
+  #the sleeve could hold it, the blend would be double counted.
+  sleeve <- risk_targeted_cohort()@port_backtest_results_list[[1]]
+  held <- sleeve@port_weights_m_df@data %>% dplyr::filter(eop_port_weights > 0)
+  expect_false(risk_targeted_residual %in% unique(held$tickers))
+})
+
+
+# What the targeting rule is supposed to buy ------------------------------
+
+test_that("blending toward the residual lowers realised tracking error", {
+
+  #The point of the exercise. With a residual that tracks the benchmark, holding less of the
+  #sleeve has to bring the portfolio closer to the benchmark, not further from it. The assertion
+  #fails outright when the residual is cash-like, which is how the fixture's original
+  #constant-return residual was caught: a constant-return residual has a tracking error equal to
+  #the benchmark's own volatility, so blending toward it is a large underweight of the market.
+  results <- run_risk_targeted()
+  inner <- results@meta_port_backtest_results
+  sleeve <- results@port_backtest_cohort@port_backtest_results_list[[1]]
+
+  #The comparison is made on the active return series rather than on ann_track_err from
+  #port_stats_m_df. That column is a rolling figure over each portfolio's own history, and the
+  #sleeve's history starts three months before the meta portfolio's, so reading both at a shared
+  #date compares different windows. It also carries one row per return basis, so pulling the
+  #column without filtering mixes net and raw.
+  meta_returns <- inner@port_returns_m_xts@data
+  sleeve_returns <- sleeve@port_returns_m_xts@data
+  shared <- intersect(as.character(zoo::index(meta_returns)),
+                      as.character(zoo::index(sleeve_returns)))
+  expect_gt(length(shared), 1)
+
+  meta_active <- as.numeric(
+    meta_returns[as.character(zoo::index(meta_returns)) %in% shared, "net_active_return"])
+  sleeve_active <- as.numeric(
+    sleeve_returns[as.character(zoo::index(sleeve_returns)) %in% shared, "net_active_return"])
+
+  expect_lt(stats::sd(meta_active, na.rm = TRUE), stats::sd(sleeve_active, na.rm = TRUE))
+
+  ##Mean absolute active return says the same thing with far less sensitivity to the handful of
+  ##observations a toy panel provides
+  expect_lt(mean(abs(meta_active), na.rm = TRUE), mean(abs(sleeve_active), na.rm = TRUE))
+
+  ##and on raw active returns too, so the result is not an artefact of the two cost profiles
+  meta_raw <- as.numeric(
+    meta_returns[as.character(zoo::index(meta_returns)) %in% shared, "raw_active_return"])
+  sleeve_raw <- as.numeric(
+    sleeve_returns[as.character(zoo::index(sleeve_returns)) %in% shared, "raw_active_return"])
+  expect_lt(mean(abs(meta_raw), na.rm = TRUE), mean(abs(sleeve_raw), na.rm = TRUE))
+
+  ##The sleeve was genuinely cut, or the comparison is vacuous
+  risky_weight <- results@meta_port_stats_m_df@data$risky_weight
+  expect_true(all(risky_weight < 1))
+})
+
+
+# A two-portfolio cohort --------------------------------------------------
+# The smallest cross-section the multi-portfolio path accepts, and the one where the cross
+# sectional machinery behaves least like an allocation: signal_transform runs over a pair the same
+# way it runs over a hundred names, so the weights it produces barely depend on how far apart the
+# two scores are.
+
+port_meta_pair_cohort <- function() {
+  if (!is.null(port_meta_cache$pair_cohort)) return(port_meta_cache$pair_cohort)
+
+  inputs <- port_meta_inputs()
+  build_config <- function(method, name) {
+    create_port_backtest_config(
+      chosen_score_metric_and_position = c(book_yield = "long"),
+      eligibility_quantile_range = c(0.67, 1.0), selected_benchmark = "ibov",
+      initial_buffer_period = 2, rebalancing_months = c(1, 4),
+      port_construction_method = method, main_liquidity_metric = "mean_volfin_3m",
+      config_name = name) %>%
+      add_transaction_costs_parameters(direct_transaction_cost = 0.07, alpha = 1,
+                                       lambda = "dynamic", strategy_aum = 25000)
+  }
+  run_one <- function(config) suppressWarnings(suppressMessages(run_port_backtest(
+    signals_m_df = inputs$signals_m_df, fwd_return_m_df = inputs$fwd_return_m_df,
+    liquidity_m_df = inputs$liquidity_m_df, volatility_m_df = inputs$volatility_m_df,
+    config = config, benchmark_weights_m_df = inputs$benchmark_weights_m_df,
+    benchmark_returns_m_xts = inputs$benchmark_returns_m_xts,
+    verbose = FALSE, parallel = FALSE)))
+
+  cohort <- suppressWarnings(suppressMessages(create_port_backtest_cohort(
+    list(run_one(build_config("ew", "ew_pair")), run_one(build_config("sw", "sw_pair"))),
+    cohort_name = "meta_pair_cohort")))
+
+  port_meta_cache$pair_cohort <- cohort
+  cohort
+}
+
+
+test_that("a two-portfolio meta backtest reproduces a step-by-step reconstruction of its chain", {
+
+  #The same reconstruction the three-portfolio test does, over the smallest cohort the path
+  #accepts. Nothing about the chain should change when the cross-section is a pair, and this is
+  #where an off-by-one in the ranking or the covariance would be easiest to hide.
+  cohort <- port_meta_pair_cohort()
+  config <- port_meta_config()
+  inner_config <- config@meta_port_backtest_config
+  inputs <- port_meta_inputs()
+
+  results <- suppressWarnings(suppressMessages(run_port_backtest(
+    signals_m_df = inputs$signals_m_df, fwd_return_m_df = inputs$fwd_return_m_df,
+    liquidity_m_df = inputs$liquidity_m_df, volatility_m_df = inputs$volatility_m_df,
+    config = config, port_backtest_cohort = cohort,
+    benchmark_weights_m_df = inputs$benchmark_weights_m_df,
+    benchmark_returns_m_xts = inputs$benchmark_returns_m_xts,
+    verbose = FALSE, parallel = FALSE)))
+
+  #Stage 1: the port universe
+  expected_universe <- suppressWarnings(suppressMessages(derive_port_universe_m_df(
+    port_backtest_cohort = cohort,
+    return_basis = config@return_basis,
+    cost_lookback = config@cost_lookback,
+    verbose = FALSE)))
+  expect_equal(results@port_universe_m_df@data, expected_universe@data)
+  expect_equal(length(unique(expected_universe@data$tickers)), 2L)
+
+  #Stage 2: the meta weights, rebuilt one rebalance date at a time
+  base_returns_xts <- cohort@port_returns_m_xts_list$net_returns_m_xts@data
+  base_portfolio_names <- sort(unique(expected_universe@data$tickers))
+  bench_returns_xts <- base_returns_xts[, "selected_bench_return", drop = FALSE]
+  base_returns_xts <- base_returns_xts[, base_portfolio_names, drop = FALSE]
+  cov_est_method <- inner_config@cov_est_method
+
+  meta_rebalance_dates <- sort(unique(results@meta_port_weights_m_df@data$dates))
+  reconstructed_weights <- list()
+
+  for (i in seq_along(meta_rebalance_dates)) {
+    current_date <- meta_rebalance_dates[i]
+    universe_m_d_ref <- expected_universe@data %>% dplyr::filter(dates == current_date)
+
+    scored_m_d_ref <- derive_stock_universe_m_d_ref(
+      signals_m_d_ref = universe_m_d_ref,
+      oos_predictions_m_d_ref = NULL,
+      chosen_score_metric_and_position = inner_config@chosen_score_metric_and_position,
+      chosen_scaler = inner_config@chosen_scaler,
+      scaler_m_d_ref = NULL,
+      scaler_shrinkage = if (is.null(inner_config@scaler_shrinkage)) 0 else inner_config@scaler_shrinkage,
+      lower_quantile_winsorization = 0.025,
+      upper_quantile_winsorization = 0.975)
+
+    classified_m_d_ref <- classify_investment_universe(
+      universe_m_d_ref = scored_m_d_ref,
+      eligibility_quantile_range = inner_config@eligibility_quantile_range,
+      min_eligible_assets_fallback = inner_config@min_eligible_assets_fallback,
+      use_raw_for_eligibility = FALSE,
+      asset_object = "stocks",
+      verbose = FALSE)
+
+    returns_upd_ref <- base_returns_xts[zoo::index(base_returns_xts) <= current_date, , drop = FALSE]
+    bench_upd_ref <- bench_returns_xts[zoo::index(bench_returns_xts) <= current_date, , drop = FALSE]
+
+    meta_port <- suppressWarnings(suppressMessages(set_portfolio_weights(
+      universe_m_d_ref = classified_m_d_ref,
+      port_construction_method = inner_config@port_construction_method,
+      covariance_matrix = NULL,
+      eligible_returns_m_xts_upd_ref = returns_upd_ref,
+      selected_benchmark_m_xts_upd_ref = bench_upd_ref,
+      active_returns = cov_est_method@active_returns,
+      cov_estimation_method = cov_est_method@cov_estimation_method,
+      cov_matrix_sample_size = cov_est_method@cov_matrix_sample_size,
+      top_down_proxy_port_method = "ew", mmaf_group_col = NULL,
+      selected_benchmark = NULL,
+      lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975,
+      parallel = FALSE, verbose = FALSE)))
+
+    reconstructed_weights[[i]] <- meta_port@universe_m_d_ref@data %>%
+      dplyr::select(id, tickers, dates, weights)
+  }
+
+  reconstructed_weights <- do.call(rbind, reconstructed_weights) %>%
+    dplyr::arrange(id) %>%
+    as.data.frame()
+  rownames(reconstructed_weights) <- NULL
+
+  expect_equal(results@meta_port_weights_m_df@data, reconstructed_weights)
+
+  ##Both sleeves are held and the pair is fully invested
+  sums <- tapply(reconstructed_weights$weights, reconstructed_weights$dates, sum)
+  expect_equal(as.numeric(sums), rep(1, length(sums)), tolerance = 1e-10)
+  expect_equal(length(unique(reconstructed_weights$tickers)), 2L)
+
+  #Stage 3: the projection onto stocks
+  expected_projection <- suppressMessages(project_meta_weights_to_stocks(
+    meta_weights_m_df = reconstructed_weights,
+    port_backtest_cohort = cohort,
+    signals_m_df = inputs$signals_m_df,
+    verbose = FALSE))
+  expect_equal(results@projected_stock_weights_m_df@data, expected_projection@data)
+
+  #Stage 4: the stock-level backtest run on those projected weights
+  expected_inner <- suppressWarnings(suppressMessages(run_port_backtest_internal(
+    signals_m_df = inputs$signals_m_df@data,
+    oos_predictions_m_df = NULL,
+    chosen_score_metric_and_position = NULL,
+    rebalancing_months = inner_config@rebalancing_months,
+    initial_buffer_period = inner_config@initial_buffer_period,
+    port_construction_method = "custom_weights",
+    selected_benchmark = inner_config@selected_benchmark,
+    eligibility_quantile_range = inner_config@eligibility_quantile_range,
+    exp_ret_score_tilt = NULL, exp_ret_score_tilt_eta = NULL, mmaf_group_col = NULL,
+    cov_estimation_method = cov_est_method@cov_estimation_method,
+    cov_matrix_sample_size = cov_est_method@cov_matrix_sample_size,
+    active_returns = cov_est_method@active_returns,
+    cov_matrix_benchmark = cov_est_method@cov_matrix_benchmark,
+    daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL,
+    benchmark_returns_m_xts = inputs$benchmark_returns_m_xts@data,
+    liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL,
+    concentration_constraint_policy = NULL,
+    liquidity_m_df = inputs$liquidity_m_df@data,
+    main_liquidity_metric = inner_config@main_liquidity_metric,
+    liquidity_floor_cutoffs = inner_config@liquidity_floor_cutoffs,
+    volatility_m_df = inputs$volatility_m_df@data,
+    fwd_return_m_df = inputs$fwd_return_m_df@data,
+    stock_groups_m_df = NULL,
+    benchmark_weights_m_df = inputs$benchmark_weights_m_df@data,
+    transaction_costs_parameters = as.list(inner_config@transaction_costs_parameters),
+    custom_stock_weights_m_df = expected_projection@data,
+    custom_stock_metrics_m_df = NULL,
+    lower_quantile_winsorization = 0.025, upper_quantile_winsorization = 0.975,
+    verbose = FALSE, parallel = FALSE)))
+
+  expect_equal(results@meta_port_backtest_results@port_weights_m_df@data,
+               expected_inner@port_weights_m_df@data)
+  expect_equal(results@meta_port_backtest_results@port_returns_m_xts@data,
+               expected_inner@port_returns_m_xts@data)
+  expect_equal(results@meta_port_backtest_results@port_costs_m_xts@data,
+               expected_inner@port_costs_m_xts@data)
+
+  expect_true(any(is.finite(expected_inner@port_returns_m_xts@data$net_return)))
+})
+
+test_that("a pair under signal weighting is warned about, because the gap barely reaches it", {
+  #signal_transform runs over a pair the same way it runs over a full cross-section, so the two
+  #weights are nearly fixed however far apart the scores are. That is worth a warning rather than
+  #a refusal, since the allocation is still well defined.
+  inputs <- port_meta_inputs()
+  expect_warning(
+    suppressMessages(run_port_backtest(
+      signals_m_df = inputs$signals_m_df, fwd_return_m_df = inputs$fwd_return_m_df,
+      liquidity_m_df = inputs$liquidity_m_df, volatility_m_df = inputs$volatility_m_df,
+      config = port_meta_config(), port_backtest_cohort = port_meta_pair_cohort(),
+      benchmark_weights_m_df = inputs$benchmark_weights_m_df,
+      benchmark_returns_m_xts = inputs$benchmark_returns_m_xts,
+      verbose = FALSE, parallel = FALSE)),
+    "gap"
+  )
+})
+
+
+# The meta level is not benchmark-relative --------------------------------
+
+test_that("the meta universe carries no benchmark weights, and the benchmark reaches the covariance", {
+
+  #A base portfolio is not a benchmark constituent, so there is nothing to net its weight against
+  #and the meta allocation is not benchmark-relative: selected_benchmark is NULL when the meta
+  #weights are set. The benchmark series is not ignored, though. It still feeds the covariance
+  #estimate when active returns are configured, which is what the covariance-based methods
+  #construct from.
+  cohort <- port_meta_cohort()
+  config <- port_meta_config()
+
+  universe <- suppressWarnings(suppressMessages(derive_port_universe_m_df(
+    port_backtest_cohort = cohort, return_basis = config@return_basis,
+    cost_lookback = config@cost_lookback, verbose = FALSE)))
+
+  ##Nothing in the meta universe describes a benchmark position
+  expect_false(any(grepl("bench", names(universe@data), ignore.case = TRUE)))
+
+  ##nor in the meta weights the run produces, unlike a stock-level port_weights_m_df, which
+  ##carries bench_weights alongside eop_port_weights whenever a benchmark is set
+  results <- run_port_meta_backtest()
+  expect_false(any(grepl("bench", names(results@meta_port_weights_m_df@data),
+                         ignore.case = TRUE)))
+  expect_true("bench_weights" %in%
+                names(results@meta_port_backtest_results@port_weights_m_df@data))
+
+  ##Under risk parity the covariance is what the weights are built from, and the benchmark reaches
+  ##it through active returns, so the two bases must not produce the same allocation
+  active <- run_port_meta_backtest(config = port_meta_config(
+    port_construction_method = "rp", active_returns = TRUE))
+  absolute <- run_port_meta_backtest(config = port_meta_config(
+    port_construction_method = "rp", active_returns = FALSE))
+
+  expect_false(isTRUE(all.equal(active@meta_port_weights_m_df@data$weights,
+                                absolute@meta_port_weights_m_df@data$weights)))
+
+  ##and both are real allocations rather than one of them collapsing
+  expect_true(all(is.finite(active@meta_port_weights_m_df@data$weights)))
+  expect_true(all(is.finite(absolute@meta_port_weights_m_df@data$weights)))
+})
+
+
+# Every meta plot renders -------------------------------------------------
+# The fixtures live in this file, so the smoke tests do too. A plot method is only exercised when
+# it is drawn: a column renamed out from under it, or a slot that is NULL on one path and not the
+# other, shows up here and nowhere else.
+
+test_that("every multi-portfolio meta plot renders", {
+  results <- run_port_meta_backtest()
+
+  ##A null device, so the tests draw without writing files
+  grDevices::pdf(NULL)
+  on.exit(grDevices::dev.off(), add = TRUE)
+
+  plot_names <- c(
+    "Meta Weights Over Time",
+    "Meta vs Base Cumulative Returns",
+    "Meta vs Base Costs and Turnover",
+    "Meta vs Base Portfolio Stats",
+    "Meta Score vs Meta Weight")
+
+  for (plot_name in plot_names) {
+    expect_no_error(suppressWarnings(suppressMessages(
+      plot(results, plot_id = plot_name))))
+  }
+
+  ##and by index, since the menu resolves either way
+  expect_no_error(suppressWarnings(suppressMessages(plot(results, plot_id = 1))))
+
+  ##An unknown name is refused rather than silently drawing nothing
+  expect_error(plot(results, plot_id = "Not A Plot"), "Invalid 'plot_id'")
+})
+
+test_that("every risk-targeted meta plot renders", {
+  results <- run_risk_targeted()
+
+  grDevices::pdf(NULL)
+  on.exit(grDevices::dev.off(), add = TRUE)
+
+  plot_names <- c(
+    "Meta Weights Over Time",
+    "Meta vs Base Cumulative Returns",
+    "Meta vs Base Costs and Turnover",
+    "Meta vs Base Portfolio Stats",
+    "Capital Market Line",
+    "Risky Weight vs Sleeve Risk",
+    "Realised vs Target Risk")
+
+  for (plot_name in plot_names) {
+    expect_no_error(suppressWarnings(suppressMessages(
+      plot(results, plot_id = plot_name, rolling_window = 2))))
+  }
+})
+
+test_that("the exposure plot renders only when a signal was used", {
+  grDevices::pdf(NULL)
+  on.exit(grDevices::dev.off(), add = TRUE)
+
+  ##With a signal there are two factors to separate, so the plot has something to say
+  with_signal <- run_risk_targeted(
+    risk_targeted_config(exposure_method = "trend", exposure_center = 0.75,
+                         exposure_sensitivity = 0.25),
+    exposure_m_df = risk_targeted_exposure_metric())
+  expect_no_error(suppressWarnings(suppressMessages(
+    plot(with_signal, plot_id = "Exposure and Risk Ratio", rolling_window = 2))))
+})
+
+test_that("the cumulative return plot starts every series at the meta portfolio's own first date", {
+
+  #The meta portfolio starts later than its bases, and compounding each from its own start would
+  #hand the bases a head start that has nothing to do with the allocation.
+  results <- run_port_meta_backtest()
+  meta_start <- min(zoo::index(results@meta_port_backtest_results@port_returns_m_xts@data))
+  base_returns <- results@port_backtest_cohort@port_returns_m_xts_list$net_returns_m_xts@data
+  base_start <- min(zoo::index(base_returns))
+
+  ##The premise of the fix: the bases really do start earlier, so the plot has to cut them
+  expect_lt(base_start, meta_start)
+
+  grDevices::pdf(NULL)
+  on.exit(grDevices::dev.off(), add = TRUE)
+  expect_no_error(suppressWarnings(suppressMessages(
+    plot(results, plot_id = "Meta vs Base Cumulative Returns"))))
+})
+
+test_that("sleeve labels are numbered keys with the mapping kept alongside", {
+
+  #Backtest identifiers run to fifty characters, which crowds a legend out of the panel, so the
+  #plots key them by number and print the mapping to the console
+  labels <- .meta_sleeve_labels(c("c__long_name_two", "c__long_name_one"))
+
+  expect_equal(unname(labels$map), c("1", "2"))
+  ##Sorted, so the key a portfolio gets does not depend on the order the cohort was built in
+  expect_equal(names(labels$map), c("c__long_name_one", "c__long_name_two"))
+  expect_equal(labels$labels, c(1L, 2L))
+  expect_equal(labels$names, c("c__long_name_one", "c__long_name_two"))
+})
+
+
+# Adding the passive ETF is what lowers tracking error --------------------
+
+test_that("tracking error falls monotonically as the passive ETF takes more of the portfolio", {
+
+  #The claim the whole risk-targeted path rests on, demonstrated rather than asserted at a single
+  #weight. Pinning min_weight and max_weight together fixes the split, so the only thing that
+  #changes across the runs is how much of the portfolio sits in the ETF. If the residual really
+  #replicates the benchmark, realised tracking error has to fall as its share rises.
+  fixed_weight_run <- function(weight) {
+    run_risk_targeted(risk_targeted_config(min_weight = weight, max_weight = weight))
+  }
+
+  risky_shares <- c(1, 0.6, 0.2)
+  runs <- lapply(risky_shares, fixed_weight_run)
+
+  ##The rule really was pinned, so each run holds the share it was asked to hold
+  for (i in seq_along(risky_shares)) {
+    expect_equal(unique(runs[[i]]@meta_port_stats_m_df@data$risky_weight), risky_shares[i],
+                 tolerance = 1e-10)
+  }
+
+  sleeve <- runs[[1]]@port_backtest_cohort@port_backtest_results_list[[1]]
+  sleeve_returns <- sleeve@port_returns_m_xts@data
+
+  ##Compared over the dates every run covers, so the windows are identical
+  shared <- Reduce(intersect, c(
+    list(as.character(zoo::index(sleeve_returns))),
+    lapply(runs, function(r)
+      as.character(zoo::index(r@meta_port_backtest_results@port_returns_m_xts@data)))))
+  expect_gt(length(shared), 1)
+
+  active_of <- function(returns_xts, column = "net_active_return") {
+    as.numeric(returns_xts[as.character(zoo::index(returns_xts)) %in% shared, column])
+  }
+  tracking_error <- function(values) stats::sd(values, na.rm = TRUE) * sqrt(12)
+
+  realised <- vapply(runs, function(r)
+    tracking_error(active_of(r@meta_port_backtest_results@port_returns_m_xts@data)), numeric(1))
+
+  ##Falling in the ETF's share, which is the point
+  expect_true(all(diff(realised) < 0))
+
+  ##and the fall is material rather than a rounding artefact
+  expect_lt(realised[length(realised)], realised[1] / 2)
+
+  ##At a full risky weight the meta portfolio is the sleeve, so it has to track the sleeve's own
+  ##active returns closely. Costs differ slightly because the blend is rebalanced through a
+  ##different set of trades, so this is a correlation rather than an equality.
+  sleeve_active <- active_of(sleeve_returns)
+  expect_gt(stats::cor(active_of(runs[[1]]@meta_port_backtest_results@port_returns_m_xts@data),
+                       sleeve_active), 0.95)
+
+  ##and the same ordering holds on raw active returns, so it is not a cost artefact
+  realised_raw <- vapply(runs, function(r)
+    tracking_error(active_of(r@meta_port_backtest_results@port_returns_m_xts@data,
+                             "raw_active_return")), numeric(1))
+  expect_true(all(diff(realised_raw) < 0))
+})
+
+test_that("the residual is not a base portfolio, so it has no row in the port universe", {
+
+  #The meta weights span the sleeve and the residual, while port_universe_m_df spans only the
+  #cohort. The asymmetry is deliberate: the universe carries the realised and ex-ante statistics
+  #of already-backtested portfolios, and the residual has no backtest behind it, so every column
+  #would be missing. Anything that reads the two together has to be told about the residual
+  #separately, which is why project_meta_weights_to_stocks takes residual_ticker as an argument.
+  results <- run_risk_targeted()
+
+  universe_tickers <- unique(results@port_universe_m_df@data$tickers)
+  weight_tickers <- unique(results@meta_port_weights_m_df@data$tickers)
+
+  expect_false(risk_targeted_residual %in% universe_tickers)
+  expect_true(risk_targeted_residual %in% weight_tickers)
+  expect_true(all(universe_tickers %in% weight_tickers))
+
+  ##The universe is exactly the cohort, no more and no less
+  cohort_names <- vapply(results@port_backtest_cohort@port_backtest_results_list,
+                         function(base) base@backtest_identifier, character(1))
+  expect_setequal(universe_tickers, cohort_names)
+
+  ##and the residual still reaches the portfolio, through the projection rather than the universe
+  projected <- results@projected_stock_weights_m_df@data
+  expect_true(any(projected$tickers == risk_targeted_residual & projected$weights > 0))
 })
