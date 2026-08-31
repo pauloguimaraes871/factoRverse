@@ -11,8 +11,8 @@
 
 \item{plot_id}{A character string naming a plot, or its numeric index. If \code{NULL}, a menu is
 shown. One of \code{"Meta Weights Over Time"},
-\code{"Meta vs Base Cumulative Returns"}, \code{"Meta Costs and Turnover"},
-\code{"Meta Score vs Meta Weight"}, \code{"Meta Port Stats Over Time"},
+\code{"Meta vs Base Cumulative Returns"}, \code{"Meta vs Base Costs and Turnover"},
+\code{"Meta vs Base Portfolio Stats"}, \code{"Meta Score vs Meta Weight"},
 \code{"Plot Stock-Level Backtest"} or \code{"Plot Base Portfolio Cohort"}.}
 
 \item{palette}{One of \code{"cyberpunk"}, \code{"br"} or \code{"journal"}.}

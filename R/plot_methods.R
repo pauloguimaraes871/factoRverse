@@ -9085,6 +9085,27 @@ setMethod("plot", "port_backtest_cohort", function(x, plot_id = NULL, vertical_l
 }
 
 
+## Backtest identifiers run to fifty characters and crowd a legend out of the panel, so the plots
+## key them by number and the mapping is printed to the console, the way the sb plots label their
+## backtests.
+.meta_sleeve_labels <- function(sleeve_names) {
+  sleeve_names <- sort(unique(sleeve_names))
+  labels <- seq_along(sleeve_names)
+  list(map = stats::setNames(as.character(labels), sleeve_names),
+       names = sleeve_names,
+       labels = labels)
+}
+
+
+.print_meta_legend <- function(labels) {
+  cat("\nLegend:\n")
+  for (i in seq_along(labels$labels)) {
+    cat(paste(labels$labels[i], ":", labels$names[i], "\n"))
+  }
+  invisible(NULL)
+}
+
+
 ## The plots that do not depend on how the meta weights were chosen. Returns TRUE when it handled
 ## the request, so each method can fall through to its own plots.
 .plot_meta_backtest_common <- function(x, plot_name, colors) {
@@ -9094,36 +9115,53 @@ setMethod("plot", "port_backtest_cohort", function(x, plot_id = NULL, vertical_l
 
   if (plot_name == "Meta Weights Over Time") {
     ##Stacked, because the sleeves sum to one and the question is how the split moved
+    labels <- .meta_sleeve_labels(meta_weights$tickers)
+    plot_data <- meta_weights
+    plot_data$sleeve <- factor(labels$map[plot_data$tickers], levels = labels$labels)
+
     figure <- ggplot2::ggplot(
-      meta_weights, ggplot2::aes(x = .data$dates, y = .data$weights, fill = .data$tickers)) +
+      plot_data, ggplot2::aes(x = .data$dates, y = .data$weights, fill = .data$sleeve)) +
       ggplot2::geom_area(alpha = 0.85) +
       ggplot2::scale_fill_manual(values = colors$categorical) +
       ggplot2::scale_y_continuous(labels = scales::percent) +
       .meta_plot_theme(colors) +
-      ggplot2::labs(title = "Meta Weights Over Time", x = NULL, y = "Weight", fill = "Sleeve")
+      ggplot2::labs(title = "Meta Weights Over Time", x = NULL, y = "Weight",
+                    fill = "Sleeve")
+
+    .print_meta_legend(labels)
     print(figure)
     return(TRUE)
   }
 
   if (plot_name == "Meta vs Base Cumulative Returns") {
     ##The meta line is the stock-level portfolio, netted across base portfolios holding the same
-    ##names, so it is the one that can honestly be compared against the bases
+    ##names, so it is the one that can honestly be compared against the bases. Every series is cut
+    ##to the meta portfolio's own first date: it starts later than its bases, and compounding each
+    ##from its own start would hand the bases a head start unrelated to the allocation.
     meta_returns <- stock_results@port_returns_m_xts@data
-    series <- data.frame(
-      dates = zoo::index(meta_returns),
-      series = "meta portfolio",
-      cumulative = cumprod(1 + as.numeric(meta_returns[, "net_return"]) / 100) - 1,
-      stringsAsFactors = FALSE)
+    meta_dates <- zoo::index(meta_returns)
+    common_start <- min(meta_dates)
+
+    cumulative_from <- function(dates, values) {
+      keep <- dates >= common_start
+      data.frame(dates = dates[keep],
+                 cumulative = cumprod(1 + values[keep] / 100) - 1,
+                 stringsAsFactors = FALSE)
+    }
+
+    series <- cbind(cumulative_from(meta_dates, as.numeric(meta_returns[, "net_return"])),
+                    series = "meta", stringsAsFactors = FALSE)
 
     cohort_returns <- x@port_backtest_cohort@port_returns_m_xts_list$net_returns_m_xts
+    labels <- NULL
     if (!is.null(cohort_returns)) {
       base_data <- cohort_returns@data
+      labels <- .meta_sleeve_labels(setdiff(colnames(base_data), "selected_bench_return"))
       for (base_name in colnames(base_data)) {
-        series <- rbind(series, data.frame(
-          dates = zoo::index(base_data),
-          series = base_name,
-          cumulative = cumprod(1 + as.numeric(base_data[, base_name]) / 100) - 1,
-          stringsAsFactors = FALSE))
+        label <- if (base_name %in% names(labels$map)) labels$map[[base_name]] else base_name
+        series <- rbind(series, cbind(
+          cumulative_from(zoo::index(base_data), as.numeric(base_data[, base_name])),
+          series = label, stringsAsFactors = FALSE))
       }
     }
 
@@ -9134,27 +9172,105 @@ setMethod("plot", "port_backtest_cohort", function(x, plot_id = NULL, vertical_l
       ggplot2::scale_y_continuous(labels = scales::percent) +
       .meta_plot_theme(colors) +
       ggplot2::labs(title = "Meta Portfolio Against Its Base Portfolios",
-                    subtitle = "Cumulative net returns",
+                    subtitle = paste0("Net returns, compounded from ", format(common_start)),
                     x = NULL, y = "Cumulative return", color = NULL)
+
+    if (!is.null(labels)) .print_meta_legend(labels)
     print(figure)
     return(TRUE)
   }
 
-  if (plot_name == "Meta Costs and Turnover") {
-    costs <- stock_results@port_costs_m_xts@data
-    long_costs <- do.call(rbind, lapply(colnames(costs), function(column) {
-      data.frame(dates = zoo::index(costs), metric = column,
-                 value = as.numeric(costs[, column]), stringsAsFactors = FALSE)
-    }))
+  if (plot_name == "Meta vs Base Costs and Turnover") {
+    ##Costs and turnover on their own say nothing: the question is whether allocating across the
+    ##base portfolios traded more or less than the base portfolios themselves did, since trades
+    ##that net across bases holding the same names are never charged.
+    gather_costs <- function(costs_xts, label) {
+      do.call(rbind, lapply(colnames(costs_xts), function(column) {
+        data.frame(dates = zoo::index(costs_xts), metric = column,
+                   value = as.numeric(costs_xts[, column]), series = label,
+                   stringsAsFactors = FALSE)
+      }))
+    }
+
+    long_costs <- gather_costs(stock_results@port_costs_m_xts@data, "meta")
+
+    base_list <- x@port_backtest_cohort@port_backtest_results_list
+    base_names <- vapply(base_list, function(results) results@backtest_identifier, character(1))
+    labels <- .meta_sleeve_labels(base_names)
+    for (i in seq_along(base_list)) {
+      long_costs <- rbind(long_costs, gather_costs(
+        base_list[[i]]@port_costs_m_xts@data, labels$map[[base_names[i]]]))
+    }
+
+    ##Only the columns both sides carry, so the panels compare like with like
+    shared_metrics <- Reduce(intersect, split(long_costs$metric, long_costs$series))
+    long_costs <- long_costs[long_costs$metric %in% shared_metrics, , drop = FALSE]
 
     figure <- ggplot2::ggplot(
-      long_costs, ggplot2::aes(x = .data$dates, y = .data$value)) +
-      ggplot2::geom_col(fill = colors$primary, alpha = 0.85) +
+      long_costs, ggplot2::aes(x = .data$dates, y = .data$value, color = .data$series)) +
+      ggplot2::geom_line(linewidth = 0.8) +
+      ggplot2::scale_color_manual(values = colors$categorical) +
       ggplot2::facet_wrap(~ metric, scales = "free_y") +
       .meta_plot_theme(colors) +
-      ggplot2::labs(title = "Meta Portfolio Costs and Turnover",
-                    subtitle = "Priced at stock level, so trades that net across base portfolios are not charged",
-                    x = NULL, y = NULL)
+      ggplot2::labs(title = "Costs and Turnover Against the Base Portfolios",
+                    subtitle = "Priced at stock level",
+                    x = NULL, y = NULL, color = NULL)
+
+    .print_meta_legend(labels)
+    print(figure)
+    return(TRUE)
+  }
+
+  if (plot_name == "Meta vs Base Portfolio Stats") {
+    ##Stock-level statistics on both sides, which is what makes them comparable. The meta-level
+    ##analytics in meta_port_stats_m_df describe an allocation over portfolios and have no
+    ##counterpart among the bases, so they are not what belongs in a comparison.
+    gather_stats <- function(results, label) {
+      stats_data <- results@port_stats_m_df@data
+      if (is.null(stats_data)) return(NULL)
+      numeric_columns <- names(stats_data)[vapply(stats_data, is.numeric, logical(1))]
+      numeric_columns <- setdiff(numeric_columns, c("id", "dates"))
+      do.call(rbind, lapply(numeric_columns, function(column) {
+        data.frame(dates = stats_data$dates, basis = stats_data$tickers, metric = column,
+                   value = stats_data[[column]], series = label, stringsAsFactors = FALSE)
+      }))
+    }
+
+    long_stats <- gather_stats(stock_results, "meta")
+    base_list <- x@port_backtest_cohort@port_backtest_results_list
+    base_names <- vapply(base_list, function(results) results@backtest_identifier, character(1))
+    labels <- .meta_sleeve_labels(base_names)
+    for (i in seq_along(base_list)) {
+      long_stats <- rbind(long_stats, gather_stats(base_list[[i]], labels$map[[base_names[i]]]))
+    }
+
+    if (is.null(long_stats) || nrow(long_stats) == 0) {
+      stop("No portfolio statistics are available to compare.")
+    }
+
+    ##port_stats_m_df carries one row per return basis, so the net view is taken rather than
+    ##averaging net and raw into a single meaningless number
+    if ("net_return" %in% long_stats$basis) {
+      long_stats <- long_stats[long_stats$basis == "net_return", , drop = FALSE]
+    }
+
+    ##A handful of headline figures, or the facet grid is unreadable
+    headline <- c("ann_track_err", "info_ratio", "ann_ret", "act_ann_ret", "ann_vol")
+    chosen <- intersect(headline, unique(long_stats$metric))
+    if (length(chosen) == 0) chosen <- utils::head(unique(long_stats$metric), 4)
+    long_stats <- long_stats[long_stats$metric %in% chosen, , drop = FALSE]
+
+    figure <- ggplot2::ggplot(
+      long_stats, ggplot2::aes(x = .data$dates, y = .data$value, color = .data$series)) +
+      ggplot2::geom_line(linewidth = 0.8) +
+      ggplot2::scale_color_manual(values = colors$categorical) +
+      ggplot2::facet_wrap(~ metric, scales = "free_y") +
+      .meta_plot_theme(colors) +
+      ggplot2::labs(title = "Portfolio Statistics Against the Base Portfolios",
+                    subtitle = "Net return basis",
+                    x = NULL, y = NULL, color = NULL)
+
+    .print_meta_legend(labels)
     print(figure)
     return(TRUE)
   }
@@ -9183,8 +9299,8 @@ setMethod("plot", "port_backtest_cohort", function(x, plot_id = NULL, vertical_l
 #' @param x An object of class `port_metabacktest_results`.
 #' @param plot_id A character string naming a plot, or its numeric index. If `NULL`, a menu is
 #'   shown. One of \code{"Meta Weights Over Time"},
-#'   \code{"Meta vs Base Cumulative Returns"}, \code{"Meta Costs and Turnover"},
-#'   \code{"Meta Score vs Meta Weight"}, \code{"Meta Port Stats Over Time"},
+#'   \code{"Meta vs Base Cumulative Returns"}, \code{"Meta vs Base Costs and Turnover"},
+#'   \code{"Meta vs Base Portfolio Stats"}, \code{"Meta Score vs Meta Weight"},
 #'   \code{"Plot Stock-Level Backtest"} or \code{"Plot Base Portfolio Cohort"}.
 #' @param palette One of `"cyberpunk"`, `"br"` or `"journal"`.
 #' @return Invisibly returns the input object.
@@ -9198,9 +9314,9 @@ setMethod("plot", "port_metabacktest_results", function(x, plot_id = NULL,
   available_plots <- c(
     "Meta Weights Over Time",
     "Meta vs Base Cumulative Returns",
-    "Meta Costs and Turnover",
+    "Meta vs Base Costs and Turnover",
+    "Meta vs Base Portfolio Stats",
     "Meta Score vs Meta Weight",
-    "Meta Port Stats Over Time",
     "Plot Stock-Level Backtest",
     "Plot Base Portfolio Cohort"
   )
@@ -9239,37 +9355,8 @@ setMethod("plot", "port_metabacktest_results", function(x, plot_id = NULL,
       .meta_plot_theme(colors) +
       ggplot2::labs(
         title = "Meta Score Against Meta Weight",
-        subtitle = paste0("Score: ", score_name,
-                          ". Shown as supplied, before the transform applied inside the allocation"),
+        subtitle = paste0("Score: ", score_name, ", as supplied"),
         x = score_name, y = "Meta weight", color = "Sleeve")
-    print(figure)
-    return(invisible(x))
-  }
-
-  if (plot_name == "Meta Port Stats Over Time") {
-    stats_data <- x@meta_port_stats_m_df@data
-    value_cols <- setdiff(names(stats_data), c("id", "tickers", "dates"))
-    value_cols <- value_cols[vapply(stats_data[value_cols], is.numeric, logical(1))]
-    ##A handful of the most telling ones, since the full set does not fit a readable grid
-    preferred <- c("exp_ret", "risk", "sharpe", "diversification_ratio",
-                   "n_eff_weights", "wavg_pairwise_corr")
-    value_cols <- intersect(preferred, value_cols)
-    if (length(value_cols) == 0) stop("No plottable statistics found in meta_port_stats_m_df.")
-
-    long_stats <- do.call(rbind, lapply(value_cols, function(column) {
-      data.frame(dates = stats_data$dates, metric = column,
-                 value = stats_data[[column]], stringsAsFactors = FALSE)
-    }))
-
-    figure <- ggplot2::ggplot(
-      long_stats, ggplot2::aes(x = .data$dates, y = .data$value)) +
-      ggplot2::geom_line(color = colors$primary, linewidth = 0.8) +
-      ggplot2::facet_wrap(~ metric, scales = "free_y") +
-      .meta_plot_theme(colors) +
-      ggplot2::labs(
-        title = "Meta-Level Portfolio Statistics",
-        subtitle = "Measured over base portfolios: risk is absolute, exp_ret is a transformed score",
-        x = NULL, y = NULL)
     print(figure)
     return(invisible(x))
   }
@@ -9305,7 +9392,8 @@ setMethod("plot", "risk_target_metabacktest_results", function(x, plot_id = NULL
   available_plots <- c(
     "Meta Weights Over Time",
     "Meta vs Base Cumulative Returns",
-    "Meta Costs and Turnover",
+    "Meta vs Base Costs and Turnover",
+    "Meta vs Base Portfolio Stats",
     "Capital Market Line",
     "Risky Weight vs Sleeve Risk",
     "Realised vs Target Risk",
@@ -9387,9 +9475,7 @@ setMethod("plot", "risk_target_metabacktest_results", function(x, plot_id = NULL
       ggplot2::theme(legend.position = "none") +
       ggplot2::labs(
         title = "Capital Market Line",
-        subtitle = paste0(
-          "Dashed: every static blend of residual and sleeve. Dotted: the target. ",
-          "A meta point off the line is what timing the blend added or cost."),
+        subtitle = "Dashed: static blends. Dotted: the target.",
         x = paste0(risk_label, " (annualised, %)"),
         y = paste0(return_label, " (annualised, %)"))
     print(figure)
@@ -9410,8 +9496,13 @@ setMethod("plot", "risk_target_metabacktest_results", function(x, plot_id = NULL
         stringsAsFactors = FALSE)
     }
 
+    ##Each point is one rebalance date, so it is labelled with that date. Without the label the
+    ##points read as an unexplained scatter rather than as the sequence the rule actually walked.
+    point_data <- stats_data
+    point_data$label <- format(point_data$dates)
+
     figure <- ggplot2::ggplot(
-      stats_data, ggplot2::aes(x = .data$sleeve_risk, y = .data$risky_weight)) +
+      point_data, ggplot2::aes(x = .data$sleeve_risk, y = .data$risky_weight)) +
       {
         if (!is.null(curve)) {
           ggplot2::geom_line(data = curve,
@@ -9419,56 +9510,83 @@ setMethod("plot", "risk_target_metabacktest_results", function(x, plot_id = NULL
                              color = colors$reference, linetype = "dashed", linewidth = 0.7)
         }
       } +
-      ggplot2::geom_point(color = colors$primary, size = 3) +
+      ggplot2::geom_point(ggplot2::aes(color = "one rebalance date"), size = 3) +
+      ggplot2::geom_text(ggplot2::aes(label = .data$label), color = colors$text,
+                         size = 3, vjust = -1.1) +
       {
         if (!is.null(params)) {
           ggplot2::geom_hline(yintercept = c(params@min_weight, params@max_weight),
                               color = colors$tertiary, linetype = "dotted")
         }
       } +
+      ggplot2::scale_color_manual(values = stats::setNames(colors$primary,
+                                                           "one rebalance date")) +
       ggplot2::scale_y_continuous(labels = scales::percent) +
       .meta_plot_theme(colors) +
       ggplot2::labs(
-        title = "The Targeting Rule At Work",
-        subtitle = "Dashed: the rule at an exposure of one. Dotted: the weight bounds.",
+        title = "Risky Weight vs Sleeve Risk",
+        subtitle = "Dashed: Meta Portfolio. Dotted: Weight bounds.",
         x = paste0("Estimated sleeve ", tolower(risk_label), " (annualised, %)"),
-        y = "Weight on the risky sleeve")
+        y = "Weight on the risky sleeve", color = NULL)
     print(figure)
     return(invisible(x))
   }
 
   if (plot_name == "Realised vs Target Risk") {
-    ##implied_risk is an identity when nothing binds, so on its own it cannot say whether the rule
-    ##worked. The realised rolling figure is the one that can, and a line persistently above the
-    ##target means the risk estimator is too slow to catch risk as it rises.
-    meta_returns <- x@meta_port_backtest_results@port_returns_m_xts@data
-    meta_series <- as.numeric(meta_returns[, return_col])
-    meta_dates <- zoo::index(meta_returns)
+    ##Four things are at play and only together do they say whether targeting earned its keep.
+    ##target is what was asked for. intended is what the estimate implied, an identity with the
+    ##target whenever no bound binds, so on its own it is not evidence. The two realised lines are
+    ##the evidence: the sleeve on its own against the blend, so the gap between them is what
+    ##holding the residual actually bought.
+    rolling_risk <- function(series) {
+      out <- rep(NA_real_, length(series))
+      if (length(series) >= rolling_window) {
+        for (i in seq(rolling_window, length(series))) {
+          out[i] <- annualise_risk(series[(i - rolling_window + 1):i])
+        }
+      }
+      out
+    }
 
-    realised <- rep(NA_real_, length(meta_series))
-    if (length(meta_series) >= rolling_window) {
-      for (i in seq(rolling_window, length(meta_series))) {
-        realised[i] <- annualise_risk(meta_series[(i - rolling_window + 1):i])
+    meta_returns <- x@meta_port_backtest_results@port_returns_m_xts@data
+    meta_dates <- zoo::index(meta_returns)
+    realised_meta <- rolling_risk(as.numeric(meta_returns[, return_col]))
+
+    series <- rbind(
+      data.frame(dates = stats_data$dates, series = "target",
+                 value = stats_data$target, stringsAsFactors = FALSE),
+      data.frame(dates = stats_data$dates, series = "intended, from the estimate",
+                 value = stats_data$implied_risk, stringsAsFactors = FALSE),
+      data.frame(dates = meta_dates,
+                 series = paste0("realised, meta portfolio (", rolling_window, "m)"),
+                 value = realised_meta, stringsAsFactors = FALSE))
+
+    ##The sleeve on its own, which is the counterfactual the blend is judged against
+    base_list <- x@port_backtest_cohort@port_backtest_results_list
+    if (length(base_list) >= 1) {
+      sleeve_returns <- base_list[[1]]@port_returns_m_xts@data
+      if (return_col %in% colnames(sleeve_returns)) {
+        series <- rbind(series, data.frame(
+          dates = zoo::index(sleeve_returns),
+          series = paste0("realised, risky sleeve (", rolling_window, "m)"),
+          value = rolling_risk(as.numeric(sleeve_returns[, return_col])),
+          stringsAsFactors = FALSE))
       }
     }
 
-    series <- rbind(
-      data.frame(dates = stats_data$dates, series = "intended",
-                 value = stats_data$implied_risk, stringsAsFactors = FALSE),
-      data.frame(dates = stats_data$dates, series = "target",
-                 value = stats_data$target, stringsAsFactors = FALSE),
-      data.frame(dates = meta_dates, series = paste0("realised (", rolling_window, "m rolling)"),
-                 value = realised, stringsAsFactors = FALSE))
     series <- series[!is.na(series$value), , drop = FALSE]
+    if (nrow(series) == 0) {
+      stop("No risk figures are available to plot. The sample may be shorter than rolling_window.")
+    }
 
     figure <- ggplot2::ggplot(
       series, ggplot2::aes(x = .data$dates, y = .data$value, color = .data$series)) +
       ggplot2::geom_line(linewidth = 0.8) +
-      ggplot2::scale_color_manual(values = c(colors$primary, colors$tertiary, colors$secondary)) +
+      ggplot2::scale_color_manual(values = colors$categorical) +
       .meta_plot_theme(colors) +
       ggplot2::labs(
         title = "Realised Risk Against the Target",
-        subtitle = "Intended equals the target whenever no bound binds, so only realised is evidence",
+        subtitle = paste0("Rolling ", rolling_window, "m windows"),
         x = NULL, y = paste0(risk_label, " (annualised, %)"), color = NULL)
     print(figure)
     return(invisible(x))
@@ -9495,8 +9613,8 @@ setMethod("plot", "risk_target_metabacktest_results", function(x, plot_id = NULL
       ggplot2::scale_color_manual(values = c(colors$primary, colors$secondary, colors$positive)) +
       .meta_plot_theme(colors) +
       ggplot2::labs(
-        title = "The Two Halves of the Weight Rule",
-        subtitle = "The weight is the exposure times the risk ratio, before the bounds clip it",
+        title = "Exposure and Risk Ratio Over Time",
+        subtitle = "Exposure times the risk ratio, before the bounds",
         x = NULL, y = NULL, color = NULL)
     print(figure)
     return(invisible(x))
