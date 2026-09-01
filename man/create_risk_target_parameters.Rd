@@ -40,6 +40,29 @@ through active weights rather than by subtracting the benchmark from the returns
 
 \item{vol_window}{Numeric months for \code{"realized_rolling"}. Default 6.}
 
+\item{exposure_method}{How the exposure multiplier \eqn{s} is derived from a metric on the
+sleeve. \code{"none"} (default) fixes it at one, so the weight is the risk ratio alone.
+\code{"trend"} reads only the sign of the metric, \code{"ts_adjusted"} scores it against its own
+history over \code{exposure_window}, and \code{"as_is"} passes it through as the multiplier.}
+
+\item{exposure_window}{Numeric months of history for \code{"ts_adjusted"}. Ignored by the other
+methods. Default \code{NULL}.}
+
+\item{exposure_center}{Numeric, the multiplier when the metric says nothing either way.
+Default 1.}
+
+\item{exposure_sensitivity}{Numeric, how far the multiplier moves from \code{exposure_center}. Its
+sign sets the direction, so a negative value leans away from a high metric. Required by
+\code{"trend"} and \code{"ts_adjusted"}, which have no safe default for it. Default \code{NULL}.}
+
+\item{exposure_bounds}{Numeric of length two, the box the multiplier is clipped to before the
+risk ratio scales it. Default \code{c(0, 1)}.
+
+The signal is read at the rebalance date and only from data available then, and it is kept
+apart from the risk ratio on purpose: a constant \eqn{s} folds into the target by
+rescaling it to \eqn{target \times s^{1/p}}, so only a time-varying signal adds
+anything at all.}
+
 \item{min_weight, max_weight}{Numeric bounds on the risky sleeve. Default 0 and 1.}
 }
 \value{

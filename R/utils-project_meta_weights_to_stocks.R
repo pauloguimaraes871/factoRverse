@@ -60,8 +60,10 @@
 #'   rather than a plain vector of dates because the cohort's weights begin at its own buffer, so
 #'   only this object knows which stocks were quoted on the earlier dates. Defaults to \code{NULL},
 #'   covering just the dates the cohort spans.
-#' @param tolerance Numeric, default \code{0.02}. How far a per-date weight sum may sit from one
-#'   before the projection is refused.
+#' @param tolerance Numeric, default \code{1e-6}. How far a per-date weight sum may
+#'   sit from one before the projection is refused. Both sides are exact by construction, since
+#'   meta and base weights alike come from set_portfolio_weights(), so this is floating-point
+#'   slack rather than an allowance for cash or leverage.
 #' @param verbose Logical, default \code{TRUE}.
 #'
 #' @return A \code{weights_m_df} with columns \code{id}, \code{tickers}, \code{dates} and
@@ -73,7 +75,7 @@ project_meta_weights_to_stocks <- function(meta_weights_m_df,
                                            port_backtest_cohort,
                                            signals_m_df = NULL,
                                            residual_ticker = NULL,
-                                           tolerance = 0.02,
+                                           tolerance = 1e-6,
                                            verbose = TRUE) {
 
   #Validate inputs

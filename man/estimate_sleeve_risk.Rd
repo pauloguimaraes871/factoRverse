@@ -12,6 +12,7 @@ estimate_sleeve_risk(
   selected_benchmark = NULL,
   stock_groups_m_d_ref = NULL,
   vol_m_df = NULL,
+  expected_risky_ticker = NULL,
   return_basis = "net"
 )
 }

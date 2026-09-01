@@ -3816,6 +3816,22 @@ setClass(
       stop("chosen_score_metric_and_position must be NULL when port_construction_method is custom_weights")
     }
 
+    #Supplied weights reach the engine through a route that returns before the policy cascade,
+    #so a policy attached alongside them is never applied. Refusing it is the difference between
+    #a constraint that does not bind and one that was silently discarded.
+    if (object@port_construction_method == "custom_weights") {
+      inert_policies <- c(
+        liquidity_constraint_policy = !is.null(object@liquidity_constraint_policy),
+        turnover_constraint_policy = !is.null(object@turnover_constraint_policy),
+        concentration_constraint_policy = !is.null(object@concentration_constraint_policy))
+      if (any(inert_policies)) {
+        stop(paste(names(inert_policies)[inert_policies], collapse = " and "),
+             " cannot be combined with port_construction_method 'custom_weights': the weights ",
+             "are supplied rather than derived, so the eligibility cascade these policies act on ",
+             "never runs and they would be silently ignored.")
+      }
+    }
+
     if (!object@port_construction_method %in% c("ew", "sw", "cw", "cs", "rp", "mvo", "hrp", "mmaf", "slsaf", "custom_weights")){
       stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'mvo', 'hrp', 'mmaf', 'slsaf' or 'custom_weights'.")
     }
@@ -4041,6 +4057,12 @@ setClass(
 #'   base portfolios' statistics feeds the meta universe.
 #' @slot cost_lookback \code{NULL} for an expanding cost average, or a single positive whole number
 #'   of trailing cost observations.
+#' @slot stock_cov_matrix_sample_size Numeric, in \strong{trading days}. The covariance
+#'   window used by the stock-level run for its analytics. It is separate from the meta-level
+#'   window in \code{meta_port_backtest_config@cov_est_method}, which counts
+#'   \strong{months} because the meta level allocates over portfolios whose returns are
+#'   monthly. Reusing one number for both would mean 36 months at one level and 36 days at the
+#'   other. Defaults to 252.
 #' @slot config_name A character string naming the configuration.
 #'
 #' @seealso \code{\link{create_port_metabacktest_config}}, \code{\link{port_universe_m_df-class}},
@@ -4053,12 +4075,15 @@ setClass(
     type = "character",
     return_basis = "character",
     cost_lookback = "ANY",
+    stock_cov_matrix_sample_size = "numeric",
     risk_target_parameters = "ANY",
     config_name = "character"
   ),
   prototype = list(
     type = "multi_port",
-    risk_target_parameters = NULL
+    risk_target_parameters = NULL,
+    ##A daily default, because this window is applied to daily stock returns
+    stock_cov_matrix_sample_size = 252
   ),
   validity = function(object) {
 
@@ -4069,6 +4094,64 @@ setClass(
     if (length(object@type) != 1 || !object@type %in% c("multi_port", "risk_targeted")) {
       stop("type must be either 'multi_port' or 'risk_targeted'.")
     }
+
+    #Checks common to both paths, run before the type branch so neither can skip them
+    ####################
+    ##Constraint policies that would be silently inert
+    ###At meta level these describe stock properties portfolios do not have; at stock level the
+    ###meta weights are applied as custom weights, which bypass them. That holds on both paths.
+    if (!is.null(inner_config@liquidity_constraint_policy)) {
+      stop("liquidity_constraint_policy is not supported at meta-level: portfolios have no liquidity ",
+           "classification, and the stock-level run applies the meta weights directly.")
+    }
+    if (!is.null(inner_config@turnover_constraint_policy)) {
+      stop("turnover_constraint_policy is not supported at meta-level: the stock-level run applies ",
+           "the meta weights directly, so a buffer rule would have nothing to act on.")
+    }
+    if (!is.null(inner_config@concentration_constraint_policy)) {
+      stop("concentration_constraint_policy is not supported at meta-level: it requires benchmark ",
+           "weights over the allocated assets, which do not exist for a set of portfolios.")
+    }
+
+    ##Return basis
+    if (length(object@return_basis) != 1 || !object@return_basis %in% c("net", "raw")) {
+      stop("return_basis must be a single character value, either 'net' or 'raw'.")
+    }
+
+    ##Cost lookback
+    if (!is.null(object@cost_lookback)) {
+      if (!is.numeric(object@cost_lookback) || length(object@cost_lookback) != 1 ||
+          is.na(object@cost_lookback) || object@cost_lookback < 1 ||
+          object@cost_lookback %% 1 != 0) {
+        stop("cost_lookback must be NULL or a single positive whole number of months.")
+      }
+    }
+
+    ##Config name
+    if (length(object@config_name) != 1) {
+      stop("config_name must be a single character string.")
+    }
+
+    ##Covariance sample size is counted in months at meta level, so a daily-sized window is
+    ##almost certainly the create_port_backtest_config default left unchanged
+    if (port_construction_method %in% c("rp", "hrp", "mvo")) {
+      cov_matrix_sample_size <- inner_config@cov_est_method@cov_matrix_sample_size
+      if (cov_matrix_sample_size > 120) {
+        warning("cov_matrix_sample_size is ", cov_matrix_sample_size, ", but at meta-level it counts ",
+                "months of portfolio returns rather than trading days. This asks for ",
+                round(cov_matrix_sample_size / 12, 1), " years of history. The default carried by ",
+                "create_port_backtest_config() is the daily 252; consider setting it explicitly.")
+      }
+    }
+
+    ##The stock-level analytics window, in trading days
+    if (length(object@stock_cov_matrix_sample_size) != 1 ||
+        !is.finite(object@stock_cov_matrix_sample_size) ||
+        object@stock_cov_matrix_sample_size < 2 ||
+        object@stock_cov_matrix_sample_size %% 1 != 0) {
+      stop("stock_cov_matrix_sample_size must be a single whole number of at least 2 trading days.")
+    }
+    ####################
 
     ##The two paths carry different parameters, and neither should silently ignore the other's
     if (object@type == "risk_targeted") {
@@ -4134,52 +4217,6 @@ setClass(
            "It names the column of port_universe_m_df used as the meta score.")
     }
 
-    ##Constraint policies that would be silently inert
-    ###At meta level these describe stock properties portfolios do not have; at stock level the
-    ###meta weights are applied as custom weights, which bypass them.
-    if (!is.null(inner_config@liquidity_constraint_policy)) {
-      stop("liquidity_constraint_policy is not supported at meta-level: portfolios have no liquidity ",
-           "classification, and the stock-level run applies the meta weights directly.")
-    }
-    if (!is.null(inner_config@turnover_constraint_policy)) {
-      stop("turnover_constraint_policy is not supported at meta-level: the stock-level run applies ",
-           "the meta weights directly, so a buffer rule would have nothing to act on.")
-    }
-    if (!is.null(inner_config@concentration_constraint_policy)) {
-      stop("concentration_constraint_policy is not supported at meta-level: it requires benchmark ",
-           "weights over the allocated assets, which do not exist for a set of portfolios.")
-    }
-
-    ##Return basis
-    if (length(object@return_basis) != 1 || !object@return_basis %in% c("net", "raw")) {
-      stop("return_basis must be a single character value, either 'net' or 'raw'.")
-    }
-
-    ##Cost lookback
-    if (!is.null(object@cost_lookback)) {
-      if (!is.numeric(object@cost_lookback) || length(object@cost_lookback) != 1 ||
-          is.na(object@cost_lookback) || object@cost_lookback < 1 ||
-          object@cost_lookback %% 1 != 0) {
-        stop("cost_lookback must be NULL or a single positive whole number of months.")
-      }
-    }
-
-    ##Config name
-    if (length(object@config_name) != 1) {
-      stop("config_name must be a single character string.")
-    }
-
-    ##Covariance sample size is counted in months at meta level, so a daily-sized window is
-    ##almost certainly the create_port_backtest_config default left unchanged
-    if (port_construction_method %in% c("rp", "hrp", "mvo")) {
-      cov_matrix_sample_size <- inner_config@cov_est_method@cov_matrix_sample_size
-      if (cov_matrix_sample_size > 120) {
-        warning("cov_matrix_sample_size is ", cov_matrix_sample_size, ", but at meta-level it counts ",
-                "months of portfolio returns rather than trading days. This asks for ",
-                round(cov_matrix_sample_size / 12, 1), " years of history. The default carried by ",
-                "create_port_backtest_config() is the daily 252; consider setting it explicitly.")
-      }
-    }
 
     TRUE
   }

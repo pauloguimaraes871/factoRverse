@@ -421,3 +421,62 @@ testthat::test_that("add_risk_target_parameters refuses a multi-portfolio config
     multi %>% add_risk_target_parameters(create_risk_target_parameters("BOVA11", target = 4)),
     "only available when type is 'risk_targeted'")
 })
+
+
+# Checks that used to be skipped by whichever branch ran ------------------
+
+testthat::test_that("a risk-targeted config is held to the common checks too", {
+
+  ## These used to sit after the type branch, and the risk-targeted branch returned before reaching
+  ## them. A policy attached to that path is as inert as one attached to the other, so refusing it
+  ## on one and accepting it on the other was the wrong asymmetry.
+  build <- function(...) {
+    suppressMessages(create_port_metabacktest_config(
+      make_risk_targeted_inner(), type = "risk_targeted", ...))
+  }
+
+  testthat::expect_error(build(return_basis = "nonsense", verbose = FALSE),
+                         "return_basis must be")
+  testthat::expect_error(build(cost_lookback = 0, verbose = FALSE),
+                         "cost_lookback must be")
+  testthat::expect_error(build(stock_cov_matrix_sample_size = 1, verbose = FALSE),
+                         "stock_cov_matrix_sample_size must be")
+
+  ## and the same for a constraint policy the stock-level run would never apply
+  inner_with_policy <- create_port_backtest_config(
+    chosen_score_metric_and_position = NULL,
+    eligibility_quantile_range = c(0, 1),
+    initial_buffer_period = 24, rebalancing_months = c(6, 12),
+    selected_benchmark = "ibov",
+    cov_est_method = create_cov_est_method("sample", 36, TRUE, "ibov"),
+    main_liquidity_metric = "mean_volfin_3m",
+    port_construction_method = "ew", config_name = "with_policy") %>%
+    add_liquidity_floor_cutoffs(
+      metric_name = "mean_volfin_3m",
+      metric_cutoffs = list(c(micro_caps = 1, small_caps = 50000, mid_caps = 100000,
+                              large_caps = 200000, mega_caps = 500000))) %>%
+    add_liquidity_constraint_policy(liquidity_floor_rule = "small_caps")
+
+  testthat::expect_error(
+    suppressMessages(create_port_metabacktest_config(
+      inner_with_policy, type = "risk_targeted", verbose = FALSE)),
+    "liquidity_constraint_policy is not supported")
+})
+
+testthat::test_that("the stock-level covariance window is separate from the meta one", {
+
+  ## One counts months over portfolio returns, the other trading days over stock returns. Reusing a
+  ## single number meant 36 stood for 36 months at one level and 36 days at the other.
+  config <- suppressMessages(create_port_metabacktest_config(
+    make_meta_port_config(), stock_cov_matrix_sample_size = 120, verbose = FALSE))
+
+  testthat::expect_equal(config@stock_cov_matrix_sample_size, 120)
+  testthat::expect_false(identical(
+    config@stock_cov_matrix_sample_size,
+    config@meta_port_backtest_config@cov_est_method@cov_matrix_sample_size))
+
+  ## and it defaults to a daily figure rather than inheriting the monthly one
+  default_config <- suppressMessages(create_port_metabacktest_config(
+    make_meta_port_config(), verbose = FALSE))
+  testthat::expect_equal(default_config@stock_cov_matrix_sample_size, 252)
+})

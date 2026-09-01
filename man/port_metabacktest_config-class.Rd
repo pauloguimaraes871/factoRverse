@@ -22,6 +22,13 @@ base portfolios' statistics feeds the meta universe.}
 \item{\code{cost_lookback}}{\code{NULL} for an expanding cost average, or a single positive whole number
 of trailing cost observations.}
 
+\item{\code{stock_cov_matrix_sample_size}}{Numeric, in \strong{trading days}. The covariance
+window used by the stock-level run for its analytics. It is separate from the meta-level
+window in \code{meta_port_backtest_config@cov_est_method}, which counts
+\strong{months} because the meta level allocates over portfolios whose returns are
+monthly. Reusing one number for both would mean 36 months at one level and 36 days at the
+other. Defaults to 252.}
+
 \item{\code{config_name}}{A character string naming the configuration.}
 }}
 

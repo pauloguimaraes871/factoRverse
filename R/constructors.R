@@ -5861,6 +5861,7 @@ setMethod(
   signature(meta_port_backtest_config = "port_backtest_config"),
   function(meta_port_backtest_config, type = c("multi_port", "risk_targeted"),
            return_basis = "net", cost_lookback = NULL, risk_target_parameters = NULL,
+           stock_cov_matrix_sample_size = 252,
            config_name = "not_identified", verbose = TRUE, ...) {
 
     type <- match.arg(type)
@@ -5870,6 +5871,7 @@ setMethod(
                                 meta_port_backtest_config = meta_port_backtest_config,
                                 type = type,
                                 return_basis = return_basis,
+                                stock_cov_matrix_sample_size = stock_cov_matrix_sample_size,
                                 cost_lookback = cost_lookback,
                                 risk_target_parameters = risk_target_parameters,
                                 config_name = config_name
@@ -5908,6 +5910,24 @@ setMethod(
 #'   observations with `active_returns = FALSE`, since a tracking-error target is expressed
 #'   through active weights rather than by subtracting the benchmark from the returns.
 #' @param vol_window Numeric months for `"realized_rolling"`. Default 6.
+#' @param exposure_method How the exposure multiplier \eqn{s} is derived from a metric on the
+#'   sleeve. `"none"` (default) fixes it at one, so the weight is the risk ratio alone.
+#'   `"trend"` reads only the sign of the metric, `"ts_adjusted"` scores it against its own
+#'   history over `exposure_window`, and `"as_is"` passes it through as the multiplier.
+#' @param exposure_window Numeric months of history for `"ts_adjusted"`. Ignored by the other
+#'   methods. Default `NULL`.
+#' @param exposure_center Numeric, the multiplier when the metric says nothing either way.
+#'   Default 1.
+#' @param exposure_sensitivity Numeric, how far the multiplier moves from `exposure_center`. Its
+#'   sign sets the direction, so a negative value leans away from a high metric. Required by
+#'   `"trend"` and `"ts_adjusted"`, which have no safe default for it. Default `NULL`.
+#' @param exposure_bounds Numeric of length two, the box the multiplier is clipped to before the
+#'   risk ratio scales it. Default `c(0, 1)`.
+#'
+#'   The signal is read at the rebalance date and only from data available then, and it is kept
+#'   apart from the risk ratio on purpose: a constant \eqn{s} folds into the target by
+#'   rescaling it to \eqn{target \times s^{1/p}}, so only a time-varying signal adds
+#'   anything at all.
 #' @param min_weight,max_weight Numeric bounds on the risky sleeve. Default 0 and 1.
 #'
 #' @return An object of class `risk_target_parameters`.
@@ -5951,6 +5971,43 @@ create_risk_target_parameters <- function(residual_ticker,
       active_returns = FALSE,
       cov_matrix_benchmark = NULL
     )
+  }
+
+  # The two risk sources read series of different frequency, and the number that sets the window
+  # lives in a different slot for each. The package convention is that a covariance over stocks
+  # is daily and a covariance over portfolios is monthly, so a window that looks like it was
+  # written for the other frequency is worth saying out loud: nothing downstream can tell a
+  # 60-day window from a 60-month one, and both run without complaint.
+  ##ex_ante reads daily stock returns, so its window counts trading days
+  if (vol_source == "ex_ante" && !is.null(vol_cov_est_method)) {
+    daily_window <- vol_cov_est_method@cov_matrix_sample_size
+    if (!is.null(daily_window) && is.finite(daily_window) && daily_window < 21) {
+      rlang::warn(paste0(
+        "vol_source is 'ex_ante', so cov_matrix_sample_size counts trading days on the daily ",
+        "stock returns, and ", daily_window, " of them is less than a month of data. If it was ",
+        "meant as a number of months, multiply it by about 21."))
+    }
+  }
+  ##realized_rolling reads the sleeve's monthly returns, so its window counts months
+  if (vol_source == "realized_rolling") {
+    if (!is.null(vol_cov_est_method)) {
+      rlang::warn(paste0(
+        "vol_source is 'realized_rolling', which reads the sleeve's own monthly returns and ",
+        "never estimates a covariance matrix, so vol_cov_est_method is ignored. Use ",
+        "vol_source = 'ex_ante' to estimate risk from daily stock returns instead."))
+    }
+    if (!is.null(vol_window) && is.finite(vol_window) && vol_window > 60) {
+      rlang::warn(paste0(
+        "vol_source is 'realized_rolling', so vol_window counts months of portfolio returns, ",
+        "and ", vol_window, " of them is over five years. If it was meant as a number of ",
+        "trading days, divide it by about 21."))
+    }
+  }
+  ##supplied takes the figure as given, so neither window is read
+  if (vol_source == "supplied" && !is.null(vol_cov_est_method)) {
+    rlang::warn(paste0(
+      "vol_source is 'supplied', so the risk figure is taken from vol_m_df as an annualised ",
+      "number and vol_cov_est_method is ignored."))
   }
 
   methods::new("risk_target_parameters",

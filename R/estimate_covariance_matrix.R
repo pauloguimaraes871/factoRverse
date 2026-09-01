@@ -40,7 +40,9 @@ estimate_covariance_matrix <- function(tickers, returns_m_xts_upd_ref,
   if(is.null(cov_matrix_sample_size)){
     dates_to_sample <- returns_m_xts_upd_ref_dates #In case of cov_matrix_sample_size = NULL, use whole period
   } else {
-    dates_to_sample <- returns_m_xts_upd_ref_dates[(n_dates - cov_matrix_sample_size):n_dates]
+    ###Exactly cov_matrix_sample_size observations. Indexing from (n - size) took one more than
+    ###asked for, so a window of 60 sampled 61 rows.
+    dates_to_sample <- utils::tail(returns_m_xts_upd_ref_dates, cov_matrix_sample_size)
   }
   ###############################
 

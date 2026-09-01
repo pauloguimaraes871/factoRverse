@@ -1639,6 +1639,8 @@ setMethod("run_port_backtest",
                 }
                 derive_exposure_signal(
                   metric_m_df = exposure_m_df,
+                  ##The signal has to be computed for the sleeve it leans on, not merely for one asset
+                  expected_risky_ticker = risky_name,
                   method = risk_target_params@exposure_method,
                   window = risk_target_params@exposure_window,
                   center = risk_target_params@exposure_center,
@@ -1662,6 +1664,7 @@ setMethod("run_port_backtest",
                     NULL
                   },
                   vol_m_df = vol_m_df,
+                  expected_risky_ticker = risky_name,
                   return_basis = config@return_basis
                 )
 
@@ -1914,10 +1917,16 @@ setMethod("run_port_backtest",
 
               #Covariance, for the stock-level analytics
               cov_estimation_method = cov_est_method@cov_estimation_method,
+              ##Which frequency this window counts depends on what the stock-level run estimates
+              ##its covariance from. With daily stock returns it is trading days, and it gets its
+              ##own setting; without them the engine falls back to the monthly return panel, where
+              ##the meta-level window is the one on the right scale. Forwarding the meta window in
+              ##both cases meant a value of 36 stood for 36 months at one level and 36 days at the
+              ##other, which is what the identical branches here used to hide.
               cov_matrix_sample_size = if (is.null(daily_stock_returns_m_xts)) {
                 cov_est_method@cov_matrix_sample_size
               } else {
-                cov_est_method@cov_matrix_sample_size
+                config@stock_cov_matrix_sample_size
               },
               active_returns = cov_est_method@active_returns,
               cov_matrix_benchmark = cov_est_method@cov_matrix_benchmark,

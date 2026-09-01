@@ -13,6 +13,7 @@ create_port_metabacktest_config(meta_port_backtest_config, ...)
   return_basis = "net",
   cost_lookback = NULL,
   risk_target_parameters = NULL,
+  stock_cov_matrix_sample_size = 252,
   config_name = "not_identified",
   verbose = TRUE,
   ...

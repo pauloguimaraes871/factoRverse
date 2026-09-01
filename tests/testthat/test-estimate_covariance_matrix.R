@@ -18,7 +18,7 @@ test_that("estimate_covariance_matrix works for sample and raw_returns", {
 
   #min date
   dates <- zoo::index(expected_results) %>% as.Date()
-  min_date <- dates[length(dates) - covariance_matrix_sample_size]
+  min_date <- dates[length(dates) - covariance_matrix_sample_size + 1] #exactly N observations
   expected_results <- expected_results[which(zoo::index(expected_results) >= min_date),]
 
   #clean
@@ -70,7 +70,7 @@ test_that("estimate_covariance_matrix works for ewma and active returns", {
 
   #min date
   dates <- zoo::index(expected_results) %>% as.Date()
-  min_date <- dates[length(dates) - covariance_matrix_sample_size]
+  min_date <- dates[length(dates) - covariance_matrix_sample_size + 1] #exactly N observations
   expected_results <- expected_results[which(zoo::index(expected_results) >= min_date),]
 
   #clean
@@ -132,7 +132,7 @@ test_that("estimate_covariance_matrix works for shrink_cc and active returns", {
 
   #min date
   dates <- zoo::index(expected_results) %>% as.Date()
-  min_date <- dates[length(dates) - covariance_matrix_sample_size]
+  min_date <- dates[length(dates) - covariance_matrix_sample_size + 1] #exactly N observations
   expected_results <- expected_results[which(zoo::index(expected_results) >= min_date),]
 
   #clean
@@ -195,7 +195,7 @@ test_that("estimate_covariance_matrix works for shrink_id and active returns", {
 
   #min date
   dates <- zoo::index(expected_results) %>% as.Date()
-  min_date <- dates[length(dates) - covariance_matrix_sample_size]
+  min_date <- dates[length(dates) - covariance_matrix_sample_size + 1] #exactly N observations
   expected_results <- expected_results[which(zoo::index(expected_results) >= min_date),]
 
   #clean
@@ -258,7 +258,7 @@ test_that("estimate_covariance_matrix works for CC and active returns", {
 
   #min date
   dates <- zoo::index(expected_results) %>% as.Date()
-  min_date <- dates[length(dates) - covariance_matrix_sample_size]
+  min_date <- dates[length(dates) - covariance_matrix_sample_size + 1] #exactly N observations
   expected_results <- expected_results[which(zoo::index(expected_results) >= min_date),]
 
   #clean
@@ -323,7 +323,7 @@ test_that("estimate_covariance_matrix works for pca1 and active_returns", {
 
   #min date
   dates <- zoo::index(expected_results) %>% as.Date()
-  min_date <- dates[length(dates) - covariance_matrix_sample_size]
+  min_date <- dates[length(dates) - covariance_matrix_sample_size + 1] #exactly N observations
   expected_results <- expected_results[which(zoo::index(expected_results) >= min_date),]
 
   #clean
@@ -402,7 +402,7 @@ test_that("estimate_covariance_matrix works for pca2 and active_returns", {
 
   #min date
   dates <- zoo::index(expected_results) %>% as.Date()
-  min_date <- dates[length(dates) - covariance_matrix_sample_size]
+  min_date <- dates[length(dates) - covariance_matrix_sample_size + 1] #exactly N observations
   expected_results <- expected_results[which(zoo::index(expected_results) >= min_date),]
 
   #clean

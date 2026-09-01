@@ -7,6 +7,7 @@
 derive_exposure_signal(
   metric_m_df,
   metric = NULL,
+  expected_risky_ticker = NULL,
   method = c("trend", "ts_adjusted", "as_is"),
   window = NULL,
   center = 1,
@@ -22,6 +23,10 @@ and \code{dates} plus the metric column, carrying exactly one ticker: the risky 
 
 \item{metric}{Character naming the metric column. Defaults to the only non-key column when there
 is exactly one.}
+
+\item{expected_risky_ticker}{Optional character naming the risky sleeve. When given, the
+metric must describe exactly that asset. Carrying one ticker is not the same as carrying
+the right one, and a metric for something else would drive the multiplier unnoticed.}
 
 \item{method}{One of \code{"trend"}, \code{"ts_adjusted"} or \code{"as_is"}.}
 

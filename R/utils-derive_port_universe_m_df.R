@@ -58,8 +58,11 @@
 #' @param port_backtest_cohort An object of class \code{port_backtest_cohort}.
 #' @param return_basis Character, \code{"net"} (default) or \code{"raw"}. Selects which row of each
 #'   base \code{port_stats_m_df} is used: net of transaction costs, or gross.
-#' @param cost_lookback Optional positive integer. Number of trailing cost observations averaged
-#'   into the \code{avg_} columns. \code{NULL} (default) uses an expanding average.
+#' @param cost_lookback Optional positive integer, counted in \strong{calendar months}
+#'   rather than in realized cost observations. The cost series carries a row per backtest date,
+#'   so a lookback of 3 averages the last three months and not the last three rebalances. For a
+#'   portfolio that rebalances quarterly or less often most of those months carry no trade, and
+#'   the average is diluted toward zero accordingly. Leave \code{NULL} for an expanding average.
 #' @param custom_port_metrics_m_df Optional \code{meta_dataframe} of user-computed per-portfolio
 #'   metrics, joined on \code{id}. Its \code{tickers} must be the base backtest identifiers and it
 #'   must carry only numeric, non-missing columns on a complete ticker-by-date panel. Column names

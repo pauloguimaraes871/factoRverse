@@ -193,3 +193,33 @@ testthat::test_that("a constant exposure is redundant with the target, a varying
   weights <- vapply(varying, function(s) risk_to_weight(8, scaled, exposure = s), numeric(1))
   testthat::expect_false(length(unique(weights)) == 1L)
 })
+
+
+testthat::test_that("an exposure metric for the wrong asset is refused", {
+
+  ## Carrying one ticker is not the same as carrying the right one. Without this the multiplier
+  ## could be driven by a metric computed for something else entirely, and nothing downstream
+  ## would show it.
+  metric <- make_exposure_metric(rep(1, 12), tickers = "some_other_asset")
+
+  testthat::expect_error(
+    derive_exposure_signal(metric, method = "as_is", expected_risky_ticker = "the_sleeve",
+                           verbose = FALSE),
+    "the risky sleeve is")
+
+  ## and the same metric is accepted once it names the sleeve it leans on
+  right_metric <- make_exposure_metric(rep(1, 12), tickers = "the_sleeve")
+  testthat::expect_no_error(suppressMessages(
+    derive_exposure_signal(right_metric, method = "as_is", expected_risky_ticker = "the_sleeve",
+                           verbose = FALSE)))
+})
+
+testthat::test_that("two readings on one date are refused", {
+  ## The signal would otherwise depend on which row happened to come first
+  metric <- make_exposure_metric(rep(1, 12))
+  duplicated_dates <- rbind(metric, metric[1, , drop = FALSE])
+
+  testthat::expect_error(
+    derive_exposure_signal(duplicated_dates, method = "as_is", verbose = FALSE),
+    "at most one row per date")
+})

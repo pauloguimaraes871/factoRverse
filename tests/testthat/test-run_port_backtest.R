@@ -10360,7 +10360,9 @@ risk_targeted_config <- function(target = 10, p = 1, min_weight = 0.2, max_weigh
                                      lambda = "dynamic", strategy_aum = 25000)
 
   suppressMessages(create_port_metabacktest_config(
-    inner, type = "risk_targeted", config_name = "te_managed", verbose = FALSE)) %>%
+    inner, type = "risk_targeted", config_name = "te_managed",
+    #The toy daily panel runs 228 days, so the stock-level analytics window has to fit inside it
+    stock_cov_matrix_sample_size = 60, verbose = FALSE)) %>%
     add_risk_target_parameters(
       residual_ticker = risk_targeted_residual, target = target,
       target_metric = "tracking_error", p = p,
@@ -10377,7 +10379,11 @@ risk_targeted_config <- function(target = 10, p = 1, min_weight = 0.2, max_weigh
 risk_targeted_exposure_metric <- function(values = NULL) {
   own_dates <- sort(unique(risk_targeted_inputs()$signals_m_df@data$dates))
   if (is.null(values)) values <- ifelse(own_dates < as.Date("2023-03-01"), 5, -5)
-  df <- data.frame(id = paste0("sleeve-", own_dates), tickers = "sleeve", dates = own_dates,
+  ##Named for the sleeve it leans on. derive_exposure_signal() now requires that, since carrying
+  ##one ticker is not the same as carrying the right one.
+  sleeve_name <- risk_targeted_cohort()@port_backtest_results_list[[1]]@backtest_identifier
+  df <- data.frame(id = paste0(sleeve_name, "-", own_dates), tickers = sleeve_name,
+                   dates = own_dates,
                    trailing_return = values, stringsAsFactors = FALSE)
   df
 }
@@ -10582,7 +10588,7 @@ test_that("a risk-targeted config is refused when its inputs do not support it",
   #A residual that is not tradable in the stock universe
   absent <- suppressMessages(create_port_metabacktest_config(
     risk_targeted_config()@meta_port_backtest_config, type = "risk_targeted",
-    config_name = "absent", verbose = FALSE)) %>%
+    config_name = "absent", stock_cov_matrix_sample_size = 60, verbose = FALSE)) %>%
     add_risk_target_parameters(residual_ticker = "NOT_A_STOCK", target = 10,
                        vol_cov_est_method = create_cov_est_method("ewma", 60, FALSE, NULL))
 
@@ -11398,7 +11404,8 @@ rt_update_config <- function(target = 10) {
                                      lambda = "dynamic", strategy_aum = 25000)
 
   suppressMessages(create_port_metabacktest_config(
-    inner, type = "risk_targeted", config_name = "rt_update", verbose = FALSE)) %>%
+    inner, type = "risk_targeted", config_name = "rt_update",
+    stock_cov_matrix_sample_size = 60, verbose = FALSE)) %>%
     add_risk_target_parameters(
       residual_ticker = risk_targeted_residual, target = target,
       target_metric = "tracking_error", p = 1, min_weight = 0.2, max_weight = 1,
@@ -12170,4 +12177,118 @@ test_that("the residual is not a base portfolio, so it has no row in the port un
   ##and the residual still reaches the portfolio, through the projection rather than the universe
   projected <- results@projected_stock_weights_m_df@data
   expect_true(any(projected$tickers == risk_targeted_residual & projected$weights > 0))
+})
+
+
+# The residual is checked against the benchmark, not assumed to track it ---
+
+test_that("a cash-like residual is caught by the tracking-error check", {
+
+  #The check that this branch is not dead. A constant-return residual has a tracking error equal to
+  #the benchmark's own volatility, so it is the furthest any asset can sit from the index while
+  #still being paired with a tracking-error target. Blending toward it raises tracking error rather
+  #than lowering it, and nothing else in the run would say so.
+  inputs <- risk_targeted_inputs()
+  cash_fwd <- inputs$fwd_return_m_df@data
+  is_residual <- cash_fwd$tickers == risk_targeted_residual
+  last_date <- max(cash_fwd$dates)
+  cash_fwd$fwd_return_1m[is_residual] <- 0.8
+  cash_fwd$fwd_return_1m[is_residual & cash_fwd$dates == last_date] <- NA_real_
+
+  cash_inputs <- inputs
+  cash_inputs$fwd_return_m_df <- suppressWarnings(suppressMessages(create_meta_dataframe(
+    cash_fwd, meta_dataframe_name = inputs$fwd_return_m_df@meta_dataframe_name, type = "target")))
+
+  expect_warning(
+    suppressMessages(run_port_backtest(
+      signals_m_df = cash_inputs$signals_m_df, fwd_return_m_df = cash_inputs$fwd_return_m_df,
+      liquidity_m_df = cash_inputs$liquidity_m_df, volatility_m_df = cash_inputs$volatility_m_df,
+      config = risk_targeted_config(), port_backtest_cohort = risk_targeted_cohort(),
+      benchmark_weights_m_df = cash_inputs$benchmark_weights_m_df,
+      benchmark_returns_m_xts = cash_inputs$benchmark_returns_m_xts,
+      daily_stock_returns_m_xts = cash_inputs$daily_stock_returns_m_xts,
+      daily_bench_returns_m_xts = cash_inputs$daily_bench_returns_m_xts,
+      stock_groups_m_df = cash_inputs$stock_groups_m_df,
+      verbose = FALSE, parallel = FALSE)),
+    "does not track")
+})
+
+test_that("a replicating residual passes the check without complaint", {
+
+  #The other half of the guard. A warning that fires for every configuration is no guard at all,
+  #which is what the previous version amounted to: it read a workflow element nothing ever wrote,
+  #so the NULL branch was the only one reachable.
+  inputs <- risk_targeted_inputs()
+
+  warnings_raised <- character()
+  withCallingHandlers(
+    suppressMessages(run_port_backtest(
+      signals_m_df = inputs$signals_m_df, fwd_return_m_df = inputs$fwd_return_m_df,
+      liquidity_m_df = inputs$liquidity_m_df, volatility_m_df = inputs$volatility_m_df,
+      config = risk_targeted_config(), port_backtest_cohort = risk_targeted_cohort(),
+      benchmark_weights_m_df = inputs$benchmark_weights_m_df,
+      benchmark_returns_m_xts = inputs$benchmark_returns_m_xts,
+      daily_stock_returns_m_xts = inputs$daily_stock_returns_m_xts,
+      daily_bench_returns_m_xts = inputs$daily_bench_returns_m_xts,
+      stock_groups_m_df = inputs$stock_groups_m_df,
+      verbose = FALSE, parallel = FALSE)),
+    warning = function(w) {
+      warnings_raised <<- c(warnings_raised, conditionMessage(w))
+      invokeRestart("muffleWarning")
+    })
+
+  expect_false(any(grepl("does not track", warnings_raised)))
+  expect_false(any(grepl("whether the residual tracks", warnings_raised)))
+})
+
+
+test_that("supplied weights cannot carry constraint policies that would be ignored", {
+
+  #The custom-weight route returns before the eligibility cascade, so a policy attached alongside
+  #it never runs. A constraint that does not bind and one that was silently discarded look the
+  #same from the outside, which is what makes this worth refusing at construction.
+  base_config <- function(...) {
+    create_port_backtest_config(
+      chosen_score_metric_and_position = NULL,
+      eligibility_quantile_range = c(0, 1),
+      initial_buffer_period = 2, rebalancing_months = c(1, 4),
+      selected_benchmark = "ibov",
+      main_liquidity_metric = "mean_volfin_3m",
+      port_construction_method = "custom_weights", config_name = "cw", ...)
+  }
+
+  expect_error(
+    base_config() %>%
+      add_liquidity_floor_cutoffs(
+        metric_name = "mean_volfin_3m",
+        metric_cutoffs = list(c(micro_caps = 1, small_caps = 50000, mid_caps = 100000,
+                                large_caps = 200000, mega_caps = 500000))) %>%
+      add_liquidity_constraint_policy(liquidity_floor_rule = "small_caps"),
+    "cannot be combined with port_construction_method 'custom_weights'")
+
+  #and the same config is fine without one
+  expect_s4_class(base_config(), "port_backtest_config")
+})
+
+test_that("the risk-targeted route checks its inputs against the cohort", {
+
+  #These identity checks used to sit after the meta-score section, which the risk-targeted route
+  #returned before reaching. A cohort built from one set of inputs could then be executed against
+  #another without complaint.
+  inputs <- risk_targeted_inputs()
+  wrong_signals <- inputs$signals_m_df
+  wrong_signals@meta_dataframe_name <- "some_other_signals"
+
+  expect_error(
+    suppressWarnings(suppressMessages(run_port_backtest(
+      signals_m_df = wrong_signals, fwd_return_m_df = inputs$fwd_return_m_df,
+      liquidity_m_df = inputs$liquidity_m_df, volatility_m_df = inputs$volatility_m_df,
+      config = risk_targeted_config(), port_backtest_cohort = risk_targeted_cohort(),
+      benchmark_weights_m_df = inputs$benchmark_weights_m_df,
+      benchmark_returns_m_xts = inputs$benchmark_returns_m_xts,
+      daily_stock_returns_m_xts = inputs$daily_stock_returns_m_xts,
+      daily_bench_returns_m_xts = inputs$daily_bench_returns_m_xts,
+      stock_groups_m_df = inputs$stock_groups_m_df,
+      verbose = FALSE, parallel = FALSE))),
+    "Object name mismatch")
 })

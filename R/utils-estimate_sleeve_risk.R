@@ -63,6 +63,7 @@ estimate_sleeve_risk <- function(current_date,
                                  selected_benchmark = NULL,
                                  stock_groups_m_d_ref = NULL,
                                  vol_m_df = NULL,
+                                 expected_risky_ticker = NULL,
                                  return_basis = "net") {
 
   current_date <- as.Date(current_date)
@@ -78,10 +79,38 @@ estimate_sleeve_risk <- function(current_date,
     if (length(risk_column) != 1L) {
       rlang::abort("vol_m_df must carry exactly one risk column besides id, tickers and dates.")
     }
+    ##A supplied series describes the risky sleeve, so it has to say which asset it describes.
+    ##Filtering on the date alone and taking the first row made the estimate depend on the row
+    ##order of the object, and would silently accept a series for something else entirely.
+    if (!is.null(expected_risky_ticker)) {
+      vol_m_df <- vol_m_df[vol_m_df$tickers == expected_risky_ticker, , drop = FALSE]
+      if (nrow(vol_m_df) == 0L) {
+        rlang::abort(paste0("vol_m_df carries no rows for the risky sleeve '",
+                            expected_risky_ticker, "'."))
+      }
+    } else if (length(unique(vol_m_df$tickers)) != 1L) {
+      rlang::abort(paste0(
+        "vol_m_df must describe exactly one asset, the risky sleeve, but carries ",
+        length(unique(vol_m_df$tickers)), "."))
+    }
+
     row <- vol_m_df[as.Date(vol_m_df$dates) == current_date, , drop = FALSE]
     if (nrow(row) == 0L) return(NA_real_)
-    ##Taken as annualised: only the caller knows what frequency it was computed at
-    return(as.numeric(row[[risk_column]][1]))
+    if (nrow(row) > 1L) {
+      rlang::abort(paste0("vol_m_df carries ", nrow(row), " rows at ", format(current_date),
+                          " for the risky sleeve. It must carry exactly one row per date."))
+    }
+
+    ##Taken as annualised: only the caller knows what frequency it was computed at. A risk of
+    ##zero or less would have the targeting rule divide by it, so it is refused rather than
+    ##allowed through as an unbounded weight.
+    supplied_risk <- as.numeric(row[[risk_column]])
+    if (!is.finite(supplied_risk) || supplied_risk <= 0) {
+      rlang::abort(paste0("vol_m_df gives a risk of ", supplied_risk, " at ",
+                          format(current_date),
+                          ". It must be a finite positive annualised figure."))
+    }
+    return(supplied_risk)
   }
   ####################
 
@@ -132,12 +161,28 @@ estimate_sleeve_risk <- function(current_date,
     weights_m_d_ref$risk_weights <- weights_m_d_ref$eop_port_weights
   }
 
-  ##Only names carrying a position contribute, and a covariance matrix cannot be formed for names
-  ##the daily series does not cover
+  ##Only names carrying a position contribute to risk. On a tracking-error target that includes
+  ##benchmark constituents the sleeve does not hold, whose active weight is negative.
   held <- weights_m_d_ref %>%
-    dplyr::filter(abs(risk_weights) > 0) %>%
-    dplyr::filter(tickers %in% colnames(daily_stock_returns_m_xts))
+    dplyr::filter(abs(risk_weights) > 0)
   if (nrow(held) == 0L) return(NA_real_)
+
+  ##A name carrying weight but missing from the daily panel used to be filtered away here. That
+  ##is not a harmless omission: its variance and every covariance it contributes drop out of the
+  ##estimate, so the sleeve looks less risky than it is and the targeting rule, which divides the
+  ##target by that figure, allocates more to it. Failing is the only safe answer, since the
+  ##weights cannot be renormalised without changing the portfolio being measured.
+  missing_tickers <- setdiff(held$tickers, colnames(daily_stock_returns_m_xts))
+  if (length(missing_tickers) > 0L) {
+    rlang::abort(paste0(
+      "daily_stock_returns_m_xts is missing ", length(missing_tickers), " name",
+      if (length(missing_tickers) == 1L) "" else "s", " that carry risk weight at ",
+      format(current_date), ": ", paste(utils::head(missing_tickers, 10), collapse = ", "),
+      if (length(missing_tickers) > 10L) ", ..." else "",
+      ". Dropping them would understate the sleeve's risk and overallocate to it, so the daily ",
+      "panel has to cover every name the sleeve holds and, for a tracking-error target, every ",
+      "benchmark constituent it is measured against."))
+  }
 
   returns_upd_ref <- daily_stock_returns_m_xts[
     zoo::index(daily_stock_returns_m_xts) <= current_date, , drop = FALSE]

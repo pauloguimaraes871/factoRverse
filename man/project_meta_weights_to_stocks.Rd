@@ -9,7 +9,7 @@ project_meta_weights_to_stocks(
   port_backtest_cohort,
   signals_m_df = NULL,
   residual_ticker = NULL,
-  tolerance = 0.02,
+  tolerance = 1e-06,
   verbose = TRUE
 )
 }
@@ -34,8 +34,10 @@ Its meta weight becomes that ticker's stock weight directly, with no portfolio w
 multiply through. It must not be one of the cohort's base portfolios, and it must be a row of
 \code{signals_m_df}.}
 
-\item{tolerance}{Numeric, default \code{0.02}. How far a per-date weight sum may sit from one
-before the projection is refused.}
+\item{tolerance}{Numeric, default \code{1e-6}. How far a per-date weight sum may
+sit from one before the projection is refused. Both sides are exact by construction, since
+meta and base weights alike come from set_portfolio_weights(), so this is floating-point
+slack rather than an allowance for cash or leverage.}
 
 \item{verbose}{Logical, default \code{TRUE}.}
 }

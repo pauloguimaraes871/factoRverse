@@ -284,18 +284,107 @@ check_inputs_meta_port_backtest <- function(config,
                         "daily stock returns, so daily_stock_returns_m_xts must be supplied."))
     }
 
-    ##The residual has to match the target metric, and only the data can say whether it does.
-    ##An index-tracking residual makes tracking error scale linearly toward zero; a residual that
-    ##does not track leaves a floor the rule can never reach, so the weight pins at its bound.
+    ##The residual has to match the target metric, and only the data can say whether it does. An
+    ##index-tracking residual makes tracking error scale linearly toward zero as the sleeve is
+    ##cut. A residual that does not track has a tracking error of its own that the blend can
+    ##never get below, so the weight pins at a bound and the rule moves risk the wrong way. The
+    ##pathological case is a constant-return line: its tracking error equals the benchmark's own
+    ##volatility, the furthest any asset can sit from the index.
     if (risk_target_params@target_metric == "tracking_error" && !is.null(benchmark_returns_m_xts)) {
-      residual_returns <- port_universe_m_df@port_metabacktest_workflow$residual_returns
-      if (is.null(residual_returns)) {
+
+      residual_forward <- fwd_return_m_df@data %>%
+        dplyr::filter(tickers == residual_ticker) %>%
+        dplyr::arrange(dates)
+      benchmark_xts <- benchmark_returns_m_xts@data
+
+      if (nrow(residual_forward) > 2L && cohort_benchmark %in% colnames(benchmark_xts)) {
+
+        ###fwd_return_1m at t is the return from t to t+1, and the engine reads the benchmark
+        ###return at t+1 to form the active return, so the two are compared on that alignment
+        own_dates <- residual_forward$dates
+        benchmark_by_date <- stats::setNames(
+          as.numeric(benchmark_xts[, cohort_benchmark]),
+          as.character(zoo::index(benchmark_xts)))
+        next_benchmark <- vapply(own_dates, function(current) {
+          later <- own_dates[own_dates > current]
+          if (length(later) == 0L) return(NA_real_)
+          key <- as.character(min(later))
+          if (!key %in% names(benchmark_by_date)) return(NA_real_)
+          unname(benchmark_by_date[[key]])
+        }, numeric(1))
+
+        tracking_difference <- residual_forward$fwd_return_1m - next_benchmark
+        usable <- sum(is.finite(tracking_difference))
+
+        if (usable > 2L) {
+          ###Both annualised the same way, so the ratio is what matters rather than either level
+          residual_tracking_error <- stats::sd(tracking_difference, na.rm = TRUE) * sqrt(12)
+          benchmark_volatility <- stats::sd(as.numeric(benchmark_xts[, cohort_benchmark]),
+                                            na.rm = TRUE) * sqrt(12)
+
+          ###A replication tracks to a small fraction of the index's own volatility. Half of it is
+          ###far beyond anything a tracker produces and still well short of the constant-return
+          ###case, which sits at the whole of it.
+          if (is.finite(residual_tracking_error) && is.finite(benchmark_volatility) &&
+              benchmark_volatility > 0 &&
+              residual_tracking_error > 0.5 * benchmark_volatility) {
+            rlang::warn(paste0(
+              "'", residual_ticker, "' has a realised tracking error of ",
+              round(residual_tracking_error, 2), " against '", cohort_benchmark,
+              "', whose own volatility is ", round(benchmark_volatility, 2),
+              ". A 'tracking_error' target assumes the residual tracks the benchmark, so that ",
+              "blending toward it drives tracking error to zero. This one does not track: ",
+              "blending toward it will raise tracking error instead, and the weight will pin at ",
+              "a bound. Use an index-replicating residual, or set target_metric = 'volatility' ",
+              "if the residual is meant to be riskless."))
+          }
+        } else {
+          rlang::warn(paste0(
+            "Not enough overlapping observations to check whether '", residual_ticker,
+            "' tracks '", cohort_benchmark, "'. A 'tracking_error' target assumes it does."))
+        }
+      } else {
         rlang::warn(paste0(
-          "A 'tracking_error' target assumes the residual sleeve tracks the benchmark, so that ",
-          "blending toward it drives tracking error to zero. That holds for an index ETF and not ",
-          "for a cash-like line, against which tracking error instead rises as the risky sleeve ",
-          "shrinks. Check that '", residual_ticker, "' tracks '", cohort_benchmark, "'."))
+          "Could not read a forward return series for '", residual_ticker, "' or a '",
+          cohort_benchmark, "' column, so whether the residual tracks the benchmark was not ",
+          "checked. A 'tracking_error' target assumes it does."))
       }
+    }
+  }
+  ####################
+
+  #Base data objects match the cohort
+  ####################
+  ##Ahead of the type branch, because both paths execute against these objects. The
+  ##risk-targeted route used to return before reaching this, so a cohort built from one set of
+  ##inputs could be run against another without complaint.
+  ##Matched by name, the same way extract_returns_m_xts() checks a cohort against its inputs
+  ##Only the objects both levels must share. Stock groups and the two daily return series are
+  ##optional extras the meta level may legitimately need and the base portfolios may never have
+  ##seen: the ex-ante risk estimate reads daily returns whether or not the sleeve was run with
+  ##them, so a difference there is not a disagreement about the data being backtested.
+  workflow_common <- port_backtest_cohort@backtest_workflow_common
+
+  expected_names <- list(
+    signals_object_name = if (!is.null(signals_m_df)) signals_m_df@meta_dataframe_name else NULL,
+    fwd_return_object_name = if (!is.null(fwd_return_m_df)) fwd_return_m_df@meta_dataframe_name else NULL,
+    liquidity_object_name = if (!is.null(liquidity_m_df)) liquidity_m_df@meta_dataframe_name else NULL,
+    volatility_object_name = if (!is.null(volatility_m_df)) volatility_m_df@meta_dataframe_name else NULL,
+    benchmark_weights_object_name = if (!is.null(benchmark_weights_m_df)) benchmark_weights_m_df@meta_dataframe_name else NULL,
+    benchmark_returns_object_name = if (!is.null(benchmark_returns_m_xts)) benchmark_returns_m_xts@meta_xts_name else NULL
+  )
+
+  for (workflow_field in names(expected_names)) {
+    supplied_name <- expected_names[[workflow_field]]
+    if (is.null(supplied_name)) next
+
+    cohort_name <- workflow_common[[workflow_field]]
+    if (is.null(cohort_name)) next
+
+    if (!identical(supplied_name, cohort_name)) {
+      rlang::abort(paste0("Object name mismatch for ", workflow_field, ": the cohort was built ",
+                          "with '", cohort_name, "' but '", supplied_name, "' was supplied. The ",
+                          "meta backtest must run on the same data as its base portfolios."))
     }
   }
   ####################
@@ -372,38 +461,6 @@ check_inputs_meta_port_backtest <- function(config,
                          "-month tolerance. This is look-ahead safe but the figures may no longer ",
                          "describe the portfolios; align the meta rebalancing_months with the base ",
                          "ones to remove it."))
-    }
-  }
-  ####################
-
-  #Base data objects match the cohort
-  ####################
-  ##Matched by name, the same way extract_returns_m_xts() checks a cohort against its inputs
-  workflow_common <- port_backtest_cohort@backtest_workflow_common
-
-  expected_names <- list(
-    signals_object_name = if (!is.null(signals_m_df)) signals_m_df@meta_dataframe_name else NULL,
-    fwd_return_object_name = if (!is.null(fwd_return_m_df)) fwd_return_m_df@meta_dataframe_name else NULL,
-    liquidity_object_name = if (!is.null(liquidity_m_df)) liquidity_m_df@meta_dataframe_name else NULL,
-    volatility_object_name = if (!is.null(volatility_m_df)) volatility_m_df@meta_dataframe_name else NULL,
-    benchmark_weights_object_name = if (!is.null(benchmark_weights_m_df)) benchmark_weights_m_df@meta_dataframe_name else NULL,
-    stock_groups_object_name = if (!is.null(stock_groups_m_df)) stock_groups_m_df@meta_dataframe_name else NULL,
-    benchmark_returns_object_name = if (!is.null(benchmark_returns_m_xts)) benchmark_returns_m_xts@meta_xts_name else NULL,
-    daily_stocks_returns_object_name = if (!is.null(daily_stock_returns_m_xts)) daily_stock_returns_m_xts@meta_xts_name else NULL,
-    daily_bench_returns_object_name = if (!is.null(daily_bench_returns_m_xts)) daily_bench_returns_m_xts@meta_xts_name else NULL
-  )
-
-  for (workflow_field in names(expected_names)) {
-    supplied_name <- expected_names[[workflow_field]]
-    if (is.null(supplied_name)) next
-
-    cohort_name <- workflow_common[[workflow_field]]
-    if (is.null(cohort_name)) next
-
-    if (!identical(supplied_name, cohort_name)) {
-      rlang::abort(paste0("Object name mismatch for ", workflow_field, ": the cohort was built ",
-                          "with '", cohort_name, "' but '", supplied_name, "' was supplied. The ",
-                          "meta backtest must run on the same data as its base portfolios."))
     }
   }
   ####################

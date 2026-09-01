@@ -53,6 +53,9 @@
 #'   and \code{dates} plus the metric column, carrying exactly one ticker: the risky sleeve.
 #' @param metric Character naming the metric column. Defaults to the only non-key column when there
 #'   is exactly one.
+#' @param expected_risky_ticker Optional character naming the risky sleeve. When given, the
+#'   metric must describe exactly that asset. Carrying one ticker is not the same as carrying
+#'   the right one, and a metric for something else would drive the multiplier unnoticed.
 #' @param method One of \code{"trend"}, \code{"ts_adjusted"} or \code{"as_is"}.
 #' @param window Positive whole number, required for \code{"ts_adjusted"}. Length of the trailing
 #'   window in observations. Dates without a full window get no exposure.
@@ -79,6 +82,7 @@
 #' @export
 derive_exposure_signal <- function(metric_m_df,
                                    metric = NULL,
+                                   expected_risky_ticker = NULL,
                                    method = c("trend", "ts_adjusted", "as_is"),
                                    window = NULL,
                                    center = 1,
@@ -101,6 +105,23 @@ derive_exposure_signal <- function(metric_m_df,
   if (length(unique(metric_m_df$tickers)) != 1L) {
     rlang::abort(paste0("metric_m_df must carry exactly one ticker, the risky sleeve, but carries ",
                         length(unique(metric_m_df$tickers)), "."))
+  }
+
+  ##One ticker is not the same as the right ticker. Without this, a metric computed for some
+  ##other asset drives the exposure multiplier and nothing downstream can tell.
+  if (!is.null(expected_risky_ticker)) {
+    own_ticker <- unique(metric_m_df$tickers)
+    if (!identical(as.character(own_ticker), as.character(expected_risky_ticker))) {
+      rlang::abort(paste0(
+        "metric_m_df describes '", own_ticker, "' but the risky sleeve is '",
+        expected_risky_ticker, "'. An exposure signal has to be computed for the sleeve it ",
+        "leans on."))
+    }
+  }
+
+  ##A date carrying two readings makes the signal order-dependent
+  if (any(duplicated(metric_m_df$dates))) {
+    rlang::abort("metric_m_df must carry at most one row per date.")
   }
 
   candidate_metrics <- setdiff(names(metric_m_df), c("id", "tickers", "dates"))
