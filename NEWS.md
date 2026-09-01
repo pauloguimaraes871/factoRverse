@@ -1,6 +1,7 @@
-# factoRverse 0.8.0
+# factoRverse 0.9.0
 
 ## New features
+
 * Meta portfolio backtesting: allocate across a cohort of already-backtested
   portfolios, or scale a single portfolio against a passive residual so the
   combination targets a stated level of risk. Configured through the new
@@ -65,6 +66,49 @@
   positively-weighted assets as the eligible set, so no expected-return score is
   derived and none may be supplied alongside them.
 
+## Bug fixes
+
+* `estimate_covariance_matrix()` sampled `cov_matrix_sample_size + 1`
+  observations whenever more were available, because it indexed from
+  `n - size` inclusive. The window is now exactly the number asked for. This
+  changes every covariance estimate in the package by one observation, so
+  results stored under earlier versions will not reproduce bit for bit, though
+  the economic difference at a 252-day window is negligible.
+
+* `estimate_covariance_matrix()` also short-circuits to `stats::var()` when
+  exactly one ticker is passed, and that branch returned before the estimation
+  window was selected. A one-name portfolio was therefore measured over its
+  whole history while the same portfolio holding two names was measured over
+  `cov_matrix_sample_size`, so risk figures from portfolios of different breadth
+  were not comparable. The window is now selected before the branch, and the
+  not-enough-dates guard applies to both paths.
+
+* One covariance window was serving two frequencies in a meta backtest. The meta
+  level counts months, because it allocates over portfolios whose returns are
+  monthly, while the stock level counts trading days when daily returns are
+  supplied. Forwarding the meta number to both meant a value of 36 stood for 36
+  months at one level and 36 days at the other.
+  `port_metabacktest_config` gains `stock_cov_matrix_sample_size` for the daily
+  side, and `create_risk_target_parameters()` warns when a window looks written
+  for the wrong frequency, or when a covariance method is supplied to a
+  `vol_source` that never estimates one.
+
+* The stock-level `port_backtest_results` produced by a meta backtest was not a
+  well-formed object of its class: it carried a flat workflow rather than one
+  batch keyed by date, and reported its identifier as `"not_identified"`, so
+  `show()` on the slot failed outright.
+
+* `create_port_backtest_cohort()` read `dates_covered` and `dates_backtest` from
+  the last workflow batch of each result. That is correct for a backtest that ran
+  once and wrong for one that has been updated, where the last batch describes
+  only the window that update recomputed. A cohort of updated portfolios claimed
+  a span far shorter than what it held, and `derive_port_universe_m_df()`
+  truncated the meta universe to it. The two date grids are now unioned across
+  batches.
+
+# factoRverse 0.8.0
+
+## New features
 
 * New portfolio construction method `"slsaf"`, the Simulated Long-Short
   Allocation Framework, configured through the new `slsaf_parameters` object
@@ -139,27 +183,6 @@
   shrinks towards.
 
 ## Bug fixes
-
-* `estimate_covariance_matrix()` short-circuits to `stats::var()` when exactly
-  one ticker is passed, and that branch returned before the estimation window was
-  selected. A one-name portfolio was therefore measured over its whole history
-  while the same portfolio holding two names was measured over
-  `cov_matrix_sample_size`, so risk figures from portfolios of different breadth
-  were not comparable. The window is now selected before the branch, and the
-  not-enough-dates guard applies to both paths.
-
-* The stock-level `port_backtest_results` produced by a meta backtest was not a
-  well-formed object of its class: it carried a flat workflow rather than one
-  batch keyed by date, and reported its identifier as `"not_identified"`, so
-  `show()` on the slot failed outright.
-
-* `create_port_backtest_cohort()` read `dates_covered` and `dates_backtest` from
-  the last workflow batch of each result. That is correct for a backtest that ran
-  once and wrong for one that has been updated, where the last batch describes
-  only the window that update recomputed. A cohort of updated portfolios claimed
-  a span far shorter than what it held, and `derive_port_universe_m_df()`
-  truncated the meta universe to it. The two date grids are now unioned across
-  batches.
 
 * The `"Stats Summary"` table of `summary(port_backtest_results)` referenced
   `port_stats_m_df` without it ever being extracted from the object, so the
