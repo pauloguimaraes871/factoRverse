@@ -4331,7 +4331,7 @@ test_that("MMAF - run_sb_backtest works with top_down (RP constrained at macro-l
   ##MMAF Config
   mmaf_config <- create_sb_backtest_config(sb_algorithm = "mmaf", rebalancing_months = 4, custom_objective = "max_info_ratio",
                                            training_sample_size = 5, target_fwd_name = "fwd_premium_3m") %>%
-    add_cov_est_method(cov_estimation_method = "ewma", cov_matrix_sample_size = 2, active_returns = TRUE, cov_matrix_benchmark = "ibov") %>%
+    add_cov_est_method(cov_estimation_method = "ewma", cov_matrix_sample_size = 3, active_returns = TRUE, cov_matrix_benchmark = "ibov") %>%
     add_mmaf_parameters(mmaf_group_col = "theme", mmaf_method = "top_down", top_down_proxy_port_method = "hrp",
                         macro_port_construction_method = "rp", micro_port_construction_method = "mvo") %>%
     add_rp_parameters(rp_method = "cyclical-spinu", level = "macro", exp_ret_score_tilt = "inner", exp_ret_score_tilt_eta = 1) %>%
@@ -4398,7 +4398,7 @@ test_that("MMAF - run_sb_backtest works with top_down (RP constrained at macro-l
                                 selected_features_corrected_positions_m_refit = selected_features_first_rebal,
                                 most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
                                 selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_m_xts_upd_ref,
-                                cov_matrix_sample_size = 2, cov_estimation_method = "ewma", active_returns = TRUE,
+                                cov_matrix_sample_size = 3, cov_estimation_method = "ewma", active_returns = TRUE,
                                 groups_m_d_ref = signal_themes_m_df@data %>% dplyr::filter(dates == "2023-02-15"),
                                 custom_objective_translated = "max_info_ratio", huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
                                 keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
@@ -4499,7 +4499,7 @@ test_that("MMAF - run_sb_backtest works with top_down (RP constrained at macro-l
                  selected_features_corrected_positions_m_refit = selected_features_first_rebal,
                  most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
                  selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_m_xts_upd_ref,
-                 cov_matrix_sample_size = 2, cov_estimation_method = "ewma", active_returns = TRUE,
+                 cov_matrix_sample_size = 3, cov_estimation_method = "ewma", active_returns = TRUE,
                  groups_m_d_ref = signal_themes_m_df@data %>% dplyr::filter(dates == "2023-04-15"),
                  custom_objective_translated = "max_info_ratio", huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
                  keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
@@ -4726,7 +4726,7 @@ test_that("MMAF - run_sb_backtest works with top_down (RP constrained at macro-l
                  selected_features_corrected_positions_m_refit = selected_features_first_rebal,
                  most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
                  selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_m_xts_upd_ref,
-                 cov_matrix_sample_size = 2, cov_estimation_method = "ewma", active_returns = TRUE,
+                 cov_matrix_sample_size = 3, cov_estimation_method = "ewma", active_returns = TRUE,
                  groups_m_d_ref = signal_themes_m_df@data,
                  custom_objective_translated = "max_info_ratio", huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
                  keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
@@ -4770,7 +4770,7 @@ test_that("MMAF - run_sb_backtest works with top_down (RP constrained at macro-l
                  selected_features_corrected_positions_m_refit = selected_features_first_rebal,
                  most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
                  selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_m_xts_upd_ref,
-                 cov_matrix_sample_size = 2, cov_estimation_method = "ewma", active_returns = TRUE,
+                 cov_matrix_sample_size = 3, cov_estimation_method = "ewma", active_returns = TRUE,
                  groups_m_d_ref = signal_themes_m_df@data,
                  custom_objective_translated = "max_info_ratio", huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
                  keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
@@ -4910,7 +4910,7 @@ test_that("MMAF - run_sb_backtest works with bottom_up (MVO constrained at macro
   ##MMAF Config
   mmaf_config <- create_sb_backtest_config(sb_algorithm = "mmaf", rebalancing_months = 4, custom_objective = "max_info_ratio",
                                            training_sample_size = 5, target_fwd_name = "fwd_premium_3m") %>%
-    add_cov_est_method(cov_estimation_method = "ewma", cov_matrix_sample_size = 2, active_returns = TRUE, cov_matrix_benchmark = "ibov") %>%
+    add_cov_est_method(cov_estimation_method = "ewma", cov_matrix_sample_size = 3, active_returns = TRUE, cov_matrix_benchmark = "ibov") %>%
     add_mmaf_parameters(mmaf_group_col = "theme", mmaf_method = "bottom_up",
                         macro_port_construction_method = "mvo", micro_port_construction_method = "rp") %>%
     add_rp_parameters(rp_method = "cyclical-spinu", level = "micro",
@@ -4964,7 +4964,7 @@ test_that("MMAF - run_sb_backtest works with bottom_up (MVO constrained at macro
                  selected_features_corrected_positions_m_refit = selected_features_first_rebal,
                  most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
                  selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_m_xts_upd_ref,
-                 cov_matrix_sample_size = 2, cov_estimation_method = "ewma", active_returns = TRUE,
+                 cov_matrix_sample_size = 3, cov_estimation_method = "ewma", active_returns = TRUE,
                  groups_m_d_ref = signal_themes_m_df@data %>% dplyr::filter(dates == "2023-02-15"),
                  custom_objective_translated = "max_info_ratio", huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
                  keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
@@ -5067,7 +5067,7 @@ test_that("MMAF - run_sb_backtest works with bottom_up (MVO constrained at macro
                  selected_features_corrected_positions_m_refit = selected_features_first_rebal,
                  most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
                  selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_m_xts_upd_ref,
-                 cov_matrix_sample_size = 2, cov_estimation_method = "ewma", active_returns = TRUE,
+                 cov_matrix_sample_size = 3, cov_estimation_method = "ewma", active_returns = TRUE,
                  groups_m_d_ref = signal_themes_m_df@data %>% dplyr::filter(dates == "2023-04-15"),
                  custom_objective_translated = "max_info_ratio", huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
                  keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
@@ -5296,7 +5296,7 @@ test_that("MMAF - run_sb_backtest works with bottom_up (MVO constrained at macro
                  selected_features_corrected_positions_m_refit = selected_features_first_rebal,
                  most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
                  selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_m_xts_upd_ref,
-                 cov_matrix_sample_size = 2, cov_estimation_method = "ewma", active_returns = TRUE,
+                 cov_matrix_sample_size = 3, cov_estimation_method = "ewma", active_returns = TRUE,
                  groups_m_d_ref = signal_themes_m_df@data,
                  custom_objective_translated = "max_info_ratio", huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
                  keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
@@ -5343,7 +5343,7 @@ test_that("MMAF - run_sb_backtest works with bottom_up (MVO constrained at macro
                  selected_features_corrected_positions_m_refit = selected_features_first_rebal,
                  most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
                  selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_m_xts_upd_ref,
-                 cov_matrix_sample_size = 2, cov_estimation_method = "ewma", active_returns = TRUE,
+                 cov_matrix_sample_size = 3, cov_estimation_method = "ewma", active_returns = TRUE,
                  groups_m_d_ref = signal_themes_m_df@data,
                  custom_objective_translated = "max_info_ratio", huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
                  keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
