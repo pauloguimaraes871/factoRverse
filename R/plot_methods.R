@@ -6896,9 +6896,17 @@ setMethod(
       "Universe Data"
     )
     ## Build options
+    ## The Micro level is offered on the strength of the slot, not the method name. Every
+    ## layered method fills @micro with sub-portfolios, and the dispatch below is already
+    ## generic: it lists names(x@micro) and delegates plot() to the chosen entry. Gating
+    ## on "mmaf" therefore hid the legs of an slsaf portfolio that was carrying them.
+    ## NULL entries are dropped rather than counted, since slsaf leaves the short leg NULL
+    ## when every constituent is eligible and the long leg NULL when no budget is
+    ## released, and offering one would delegate plot() to NULL.
+    micro_list <- if (is.list(x@micro)) Filter(Negate(is.null), x@micro) else list()
     level_opts <- c("Portfolio")
     if (!is.null(x@macro)) level_opts <- c(level_opts, "Macro")
-    if (identical(x@port_construction_method, "mmaf") && !is.null(x@micro)) level_opts <- c(level_opts, "Micro")
+    if (length(micro_list) > 0L) level_opts <- c(level_opts, "Micro")
 
     ## If there's only Portfolio, skip the menu
     if (length(level_opts) == 1L) {
@@ -6932,8 +6940,9 @@ setMethod(
     }
 
     if (identical(pick_label, "Micro")) {
-      micro_list <- x@micro
-      if (!is.list(micro_list) || length(micro_list) < 1L) stop("Micro portfolio list is empty.")
+      ## micro_list was filtered when the level options were built, so what is selected
+      ## here is always a populated sub-portfolio
+      if (length(micro_list) < 1L) stop("Micro portfolio list is empty.")
       micro_names <- names(micro_list)
       if (is.null(micro_names)) micro_names <- as.character(seq_along(micro_list))
 
@@ -6954,7 +6963,7 @@ setMethod(
 
       if (is.na(m_idx) || m_idx < 1L || m_idx > length(micro_list)) stop("Invalid micro selection.")
 
-      plot(micro_list[[m_idx]],, palette = palette, chosen_weights = chosen_weights, add_bench = add_bench,
+      plot(micro_list[[m_idx]], palette = palette, chosen_weights = chosen_weights, add_bench = add_bench,
            tickers = tickers, type = type, chosen_risk_metrics = chosen_risk_metrics,
            by_group = by_group, groups = groups, active_weights = active_weights, top_n = top_n, ...)
 

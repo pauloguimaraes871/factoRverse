@@ -4256,7 +4256,9 @@ setClass(
 #' @slot group_col A \code{character} naming the group column of \code{groups} used for macro/group aggregation (used in MMAF and group-level analytics).
 #' @slot mmaf_method An object for storing the MMAF method (used in MMAF).
 #' @slot group_cov_matrix An object for storing the group covariance matrix (used in MMAF).
-#' @slot micro An object for storing the micro-level portfolio (used in MMAF).
+#' @slot micro A named list of sub-portfolios, filled by any layered method: the
+#'   per-group portfolios under MMAF, and the `long` and `short` legs under SLSAF. A leg
+#'   with nothing to build is `NULL`.
 #' @slot macro An object for storing the macro-level portfolio (used in MMAF).
 #' @slot selected_benchmark_port An object for storing the selected benchmark portfolio.
 #' @slot port_stats A one-row \code{data.frame} of portfolio (and, when applicable, group and active/benchmark-relative) analytics for this portfolio.
