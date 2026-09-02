@@ -68,6 +68,36 @@
 
 ## Bug fixes
 
+* `create_slsaf_portfolio()` aborted with `Weights do not sum to 1` on some
+  configurations and not others, with no economic pattern, at a rate that scaled
+  with the number of rebalance dates rather than with the parameters. Benchmark
+  files are published rounded to six decimal places, so every per-date sum is an
+  exact multiple of `1e-6` and a gap of exactly one quantum is the ordinary case
+  rather than an accident. The repair was gated at the same tolerance the
+  sum-to-one assertion uses, and both comparisons were strict, so such a gap was
+  neither repaired nor reliably accepted: the overlay is self-financing, so
+  `sum(w) = sum(b)` exactly, and the inherited gap landed on the assertion
+  boundary where the floating-point noise of the particular long-leg arithmetic
+  decided whether the build survived. Every gap is now repaired. Which inputs are
+  accepted is unchanged: the renormalization allowance still refuses an input
+  that is further than `2e-3` from 1, and the `1e-4` band still warns.
+
+* `derive_slsaf_leg_diagnostics()` could refuse a portfolio that had been built
+  successfully, taking every `slsaf` leg plot down with it. It recomposed the
+  portfolio total from three separately accumulated group sums and compared it
+  against its own hardcoded tolerance, so it and the constructor could land on
+  opposite sides of the same boundary for the same portfolio. The invariant is
+  now asserted on `sum(weights)`, and the decomposition is checked against that
+  total at a floating-point tolerance, which still catches an asset belonging to
+  neither leg. `leg_budget` gains `port_weight_total`.
+
+* The `Micro` plot level was offered only when `port_construction_method` was
+  `"mmaf"`, so an `slsaf` portfolio could not reach either of its legs even
+  though it carries both and the dispatch below the gate is already generic. The
+  level is now offered whenever the portfolio carries a populated sub-portfolio,
+  giving `slsaf` users `Micro -> long / short`. Empty legs are not offered, since
+  `slsaf` leaves the short leg empty when every constituent is eligible.
+
 * `estimate_covariance_matrix()` sampled `cov_matrix_sample_size + 1`
   observations whenever more were available, because it indexed from
   `n - size` inclusive. The window is now exactly the number asked for. This
