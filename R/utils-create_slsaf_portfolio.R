@@ -98,7 +98,13 @@ create_slsaf_portfolio <- function(universe_m_d_ref,
                                    verbose = TRUE){
 
   ## Tolerances: one for declaring a budget economically empty, one for assertions, and
-  ## one bounding how far the benchmark may be renormalized before the input is refused
+  ## one bounding how far the benchmark may be renormalized before the input is refused.
+  ## The last two answer different questions and must not be conflated. tol_bench_gap
+  ## judges input data quality, and is the loose one because an index that is 0.2% short
+  ## of full coverage is still that index. tol_check judges this function's own
+  ## arithmetic, and is tight because nothing here should be off by more than float
+  ## noise; it also bounds the long-only and never-overweight invariants, which would
+  ## become meaningless at a data-quality tolerance.
   tol_empty <- 1e-8
   tol_check <- 1e-6
   tol_bench_gap <- 2e-3
@@ -199,9 +205,19 @@ create_slsaf_portfolio <- function(universe_m_d_ref,
     ### assertion is non-monotone in data quality: sum(w) = sum(b) exactly, because the
     ### overlay is self-financing, so a benchmark file rounded to four decimals (0.99995)
     ### would skip normalization and then die at the assertion, while a worse file would
-    ### normalize and pass. The warning sits between the two, where the gap is too large
-    ### to be rounding and so means a constituent is genuinely absent.
-    if (bench_weights_gap > tol_check){
+    ### normalize and pass. Gating it at the same tolerance is no better, because it
+    ### leaves the assertion boundary itself unrepaired: index files are published
+    ### rounded, so a gap arrives as an exact multiple of the quantum, and a gap of one
+    ### quantum is then inherited whole by the portfolio and compared against the very
+    ### tolerance it equals. Whether it passes is decided by the float noise of b - u on
+    ### the short block and b + U*l on the long block, which is to say by which long-leg
+    ### method happened to run. Repairing every gap removes the boundary rather than
+    ### moving it, and costs one division by a number within tol_bench_gap of 1.
+    ###
+    ### The acceptance decision is not made here. tol_bench_gap above is what refuses an
+    ### input, and the warning below is what reports one, so this gate changes only
+    ### whether an already-accepted gap is carried or closed.
+    if (bench_weights_gap > 0){
 
       if (bench_weights_gap > 1e-4){
         warning(paste0("Benchmark weights in universe_m_d_ref sum to ",
