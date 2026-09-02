@@ -321,12 +321,15 @@ test_that("a renormalized benchmark is persisted into the returned universe", {
   expect_equal(sum(results$universe_m_d_ref$weights - returned_bench), 0, tolerance = 1e-10)
 })
 
-test_that("the normalization threshold matches the tolerance the final invariant uses", {
+test_that("the normalization threshold is strictly tighter than the final invariant", {
 
   #Since the overlay is self-financing, sum(w) = sum(b) exactly. Gating normalization at
-  #a looser tolerance than the sum-to-one assertion was therefore non-monotone in data
-  #quality: a benchmark file merely rounded to four decimals skipped normalization and
-  #died at the assertion, while a materially incomplete one normalized and passed.
+  #a looser tolerance than the sum-to-one assertion is non-monotone in data quality: a
+  #benchmark file merely rounded to four decimals would skip normalization and die at
+  #the assertion, while a materially incomplete one would normalize and pass. Gating it
+  #at the same tolerance is no better, since it leaves the assertion boundary itself
+  #unrepaired; the repair therefore covers every gap, and the bands below describe only
+  #which of them the user is told about.
   build_scaled_benchmark <- function(bench_total){
     tickers <- c("SHORT1", "SHORT2", "LONG1")
     data.frame(
@@ -388,6 +391,125 @@ test_that("the normalization threshold matches the tolerance the final invariant
     ),
     "renormalization allowance"
   )
+})
+
+#Helper: a benchmark quantised to six decimal places, one quantum away from summing to 1.
+#Real index files are published rounded, so every per-date sum is an exact multiple of
+#the quantum and a gap of exactly one quantum is the natural case, not a rare accident.
+#The weights below are frozen literals rather than generated, because the defect they
+#reproduce lives in the last bits of the sum.
+build_slsaf_quantised_universe <- function(extra_micro_units = 1L){
+
+  n_short <- 8L
+  n_long  <- 8L
+
+  ##Integer micro-units, so every weight is exactly representable at six decimals
+  units <- c(40713L, 50026L, 67578L, 96902L, 35123L, 96043L, 100091L, 75268L,
+             72498L, 22890L, 35498L, 32926L, 77561L, 51074L, 84803L, 61007L)
+  units[1] <- units[1] + extra_micro_units - 1L
+
+  tickers <- c(paste0("S", seq_len(n_short)), paste0("L", seq_len(n_long)))
+  scores <- c(0.945857, 1.192715, 0.642032, 0.999701, 1.141235, 0.490928, 0.886506,
+              0.413000, 1.974109, 2.140560, 1.618746, 2.135343, 2.817567, 2.076489,
+              2.274912, 2.439392)
+
+  data.frame(
+    id      = paste0(tickers, "-2020-01-15"),
+    tickers = tickers,
+    dates   = rep(as.Date("2020-01-15"), n_short + n_long),
+    exp_ret_score_raw  = scores,
+    exp_ret_score      = scores,
+    ibov_bench_weights = units / 1e6,
+    is_long_candidate  = c(rep(0L, n_short), rep(1L, n_long)),
+    is_short_candidate = c(rep(1L, n_short), rep(0L, n_long)),
+    is_eligible        = rep(1, n_short + n_long),
+    stringsAsFactors = FALSE
+  )
+}
+
+#Helper: the inputs the risk-based and cap-based long legs need, so the gap can be
+#exercised on every arithmetic path rather than only the score-based ones
+build_slsaf_long_leg_inputs <- function(tickers){
+
+  ##A well-conditioned covariance matrix: the ridge keeps every long-leg subset
+  ##invertible, so a method failing here is failing on the gap and nothing else
+  set.seed(99)
+  factor_returns <- matrix(stats::rnorm(length(tickers) * 60), nrow = 60)
+  covariance_matrix <- stats::cov(factor_returns) / 100
+  diag(covariance_matrix) <- diag(covariance_matrix) + 0.01
+  dimnames(covariance_matrix) <- list(tickers, tickers)
+
+  list(
+    covariance_matrix = covariance_matrix,
+    liquidity_m_d_ref = data.frame(
+      tickers = tickers,
+      market_cap = seq(100, 100 * length(tickers), length.out = length(tickers)),
+      stringsAsFactors = FALSE
+    )
+  )
+}
+
+test_that("a benchmark gap of one quantum is repaired rather than carried", {
+
+  #The gap that motivated this: sum(w) = sum(b) exactly, so an unrepaired benchmark gap
+  #is inherited whole by the portfolio and lands on the assertion boundary, where float
+  #noise from the particular long-leg arithmetic decides whether the build survives.
+  #That is why the same date aborted one configuration and spared another.
+  universe_m_d_ref <- build_slsaf_quantised_universe()
+  bench_weights <- universe_m_d_ref$ibov_bench_weights
+
+  #The fixture is the pathological case and not merely a nearby one: quantised to six
+  #decimals, a non-zero gap, and a gap the old gate declined to repair
+  expect_equal(max(abs(bench_weights - round(bench_weights, 6))), 0)
+  expect_gt(abs(sum(bench_weights) - 1), 0)
+  expect_false(abs(sum(bench_weights) - 1) > 1e-6)
+
+  long_leg_inputs <- build_slsaf_long_leg_inputs(universe_m_d_ref$tickers)
+
+  #Every long leg must survive it, since the failure is decided by which arithmetic runs
+  for (method in c("ew", "sw", "cw", "cs", "rp", "hrp", "mvo")){
+
+    results <- create_slsaf_portfolio(
+      universe_m_d_ref = universe_m_d_ref,
+      selected_benchmark = "ibov",
+      long_port_config = create_sub_port_config(method),
+      covariance_matrix = long_leg_inputs$covariance_matrix,
+      liquidity_m_d_ref = long_leg_inputs$liquidity_m_d_ref,
+      cap_weighting_metric = "market_cap",
+      verbose = FALSE
+    )
+
+    #The repair must leave nothing behind for a downstream tolerance to absorb
+    expect_equal(sum(results$weights), 1, tolerance = 1e-12,
+                 label = paste0("sum(weights) under long leg '", method, "'"))
+    expect_equal(sum(results$universe_m_d_ref$ibov_bench_weights), 1, tolerance = 1e-12,
+                 label = paste0("stored benchmark total under long leg '", method, "'"))
+  }
+})
+
+test_that("the quantum gap is repaired in either direction", {
+
+  #Which side of the tolerance a one-quantum gap computes to depends on the weights, so
+  #a benchmark short of 1 and one over it are separate cases and both must be repaired
+  for (extra_micro_units in c(1L, -1L)){
+
+    universe_m_d_ref <- build_slsaf_quantised_universe(extra_micro_units)
+
+    #Nothing here is large enough to be worth telling the user about
+    expect_no_warning(
+      results <- create_slsaf_portfolio(
+        universe_m_d_ref = universe_m_d_ref,
+        selected_benchmark = "ibov",
+        long_port_config = create_sub_port_config("sw"),
+        verbose = FALSE
+      )
+    )
+
+    expect_equal(sum(results$weights), 1, tolerance = 1e-12,
+                 label = paste0("sum(weights) at ", extra_micro_units, " micro-unit(s)"))
+    expect_equal(sum(results$universe_m_d_ref$ibov_bench_weights), 1, tolerance = 1e-12,
+                 label = paste0("stored benchmark total at ", extra_micro_units, " micro-unit(s)"))
+  }
 })
 
 test_that("the construction invariants describe the weights actually returned", {
