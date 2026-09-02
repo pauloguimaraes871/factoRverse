@@ -1,3 +1,111 @@
+# factoRverse 0.9.0
+
+## New features
+
+* Meta portfolio backtesting: allocate across a cohort of already-backtested
+  portfolios, or scale a single portfolio against a passive residual so the
+  combination targets a stated level of risk. Configured through the new
+  `port_metabacktest_config` (`create_port_metabacktest_config()`), which wraps
+  an ordinary `port_backtest_config` describing the meta allocation and is
+  dispatched through the existing `run_port_backtest()` generic alongside a
+  `port_backtest_cohort`.
+
+  A `type` selector chooses between the two paths. Under `"multi_port"` the base
+  portfolios form a cross-section, scored on a column of the new
+  `port_universe_m_df` (`derive_port_universe_m_df()`), which carries each base
+  portfolio's realised and ex-ante statistics along with running cost averages.
+  The methods that carry over to a handful of portfolios are `"ew"`, `"sw"`,
+  `"rp"`, `"hrp"` and `"mvo"`; `"slsaf"` and `"mmaf"` are refused because they
+  are overlays on a stock cross-section, and `"cw"` and `"cs"` because they
+  weight by a liquidity metric a portfolio does not have.
+
+  Under `"risk_targeted"` there is no cross-section to rank. One risky sleeve is
+  scaled against a residual sleeve by
+  `w = s * (target / risk)^p`, clipped to `min_weight` and `max_weight`, with
+  the residual taking the remainder. At `p = 1` this is ordinary risk targeting
+  and at `p = 2` the inverse-variance response of a volatility-managed
+  portfolio. The exposure multiplier `s` comes from
+  `derive_exposure_signal()`, which turns a metric into a lean through a trend
+  rule, a ratio to the metric's own history, or a pass-through. It is deliberately
+  separate from the risk ratio: a constant `s` folds into the target by
+  rescaling it, so only a time-varying signal adds anything, and offering an
+  inverse-of-risk mapping there as well would let the volatility scaling be
+  applied twice without showing up in the output.
+
+  The residual and the target metric have to agree, and nothing errors when they
+  do not. A residual that tracks the benchmark makes tracking error scale
+  linearly toward zero as the sleeve is cut, so `target_metric =
+  "tracking_error"` is valid. A residual that is riskless makes total volatility
+  scale linearly instead, so `"volatility"` is valid. Crossing them does not
+  fail, it stops working: a constant-return residual has a tracking error equal
+  to the benchmark's own volatility, and blending toward it turns the portfolio
+  into a large underweight of the market and raises tracking error rather than
+  lowering it. Validation checks the residual's realised tracking error and
+  warns when the pairing looks wrong.
+
+  Both paths produce meta weights that are projected down to individual stocks
+  by `project_meta_weights_to_stocks()` and run as an ordinary stock-level
+  backtest through `"custom_weights"`, so returns, costs and turnover are the
+  real ones, netted across base portfolios that hold the same names. Results are
+  returned as `port_metabacktest_results`, or `risk_target_metabacktest_results`
+  on the targeted path, both carrying `show` and `plot` methods.
+  `update_port_backtest()` extends a meta backtest by one month, given a cohort
+  whose base portfolios have themselves been rolled forward.
+
+  Current risk on the targeted path comes from `estimate_sleeve_risk()`, which
+  defaults to re-estimating a covariance matrix from daily stock returns over a
+  short window and applying the sleeve's current weights. That describes the
+  portfolio held now, where a rolling window of past monthly portfolio returns
+  describes a chain of past compositions instead, and inheriting the figure from
+  the base backtest's `port_stats` would use a long window that is also stale
+  between rebalances.
+
+* `port_backtest_config` accepts `port_construction_method = "custom_weights"`,
+  which it previously refused. Supplied weights reach the engine through a
+  weights-based route in `classify_investment_universe()`, which takes the
+  positively-weighted assets as the eligible set, so no expected-return score is
+  derived and none may be supplied alongside them.
+
+## Bug fixes
+
+* `estimate_covariance_matrix()` sampled `cov_matrix_sample_size + 1`
+  observations whenever more were available, because it indexed from
+  `n - size` inclusive. The window is now exactly the number asked for. This
+  changes every covariance estimate in the package by one observation, so
+  results stored under earlier versions will not reproduce bit for bit, though
+  the economic difference at a 252-day window is negligible.
+
+* `estimate_covariance_matrix()` also short-circuits to `stats::var()` when
+  exactly one ticker is passed, and that branch returned before the estimation
+  window was selected. A one-name portfolio was therefore measured over its
+  whole history while the same portfolio holding two names was measured over
+  `cov_matrix_sample_size`, so risk figures from portfolios of different breadth
+  were not comparable. The window is now selected before the branch, and the
+  not-enough-dates guard applies to both paths.
+
+* One covariance window was serving two frequencies in a meta backtest. The meta
+  level counts months, because it allocates over portfolios whose returns are
+  monthly, while the stock level counts trading days when daily returns are
+  supplied. Forwarding the meta number to both meant a value of 36 stood for 36
+  months at one level and 36 days at the other.
+  `port_metabacktest_config` gains `stock_cov_matrix_sample_size` for the daily
+  side, and `create_risk_target_parameters()` warns when a window looks written
+  for the wrong frequency, or when a covariance method is supplied to a
+  `vol_source` that never estimates one.
+
+* The stock-level `port_backtest_results` produced by a meta backtest was not a
+  well-formed object of its class: it carried a flat workflow rather than one
+  batch keyed by date, and reported its identifier as `"not_identified"`, so
+  `show()` on the slot failed outright.
+
+* `create_port_backtest_cohort()` read `dates_covered` and `dates_backtest` from
+  the last workflow batch of each result. That is correct for a backtest that ran
+  once and wrong for one that has been updated, where the last batch describes
+  only the window that update recomputed. A cohort of updated portfolios claimed
+  a span far shorter than what it held, and `derive_port_universe_m_df()`
+  truncated the meta universe to it. The two date grids are now unioned across
+  batches.
+
 # factoRverse 0.8.0
 
 ## New features

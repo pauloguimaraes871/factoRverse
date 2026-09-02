@@ -2170,7 +2170,7 @@ test_that("mmaf works when one of groups has zero weights", {
                  selected_features_corrected_positions_m_refit = selected_features_first_rebal,
                  most_recent_signal_universe_m_d_ref = most_recent_signal_universe_m_d_ref,
                  selected_backtest_returns_corrected_positions_m_xts_upd_ref = selected_backtest_returns_m_xts_upd_ref,
-                 cov_matrix_sample_size = 2, cov_estimation_method = "ewma", active_returns = TRUE,
+                 cov_matrix_sample_size = 3, cov_estimation_method = "ewma", active_returns = TRUE,
                  groups_m_d_ref = signal_themes_m_df@data %>% dplyr::filter(dates == as.Date("2023-04-15")),
                  custom_objective_translated = "max_info_ratio", huber_delta = 1, quantile_tau = 0.5, early_stop = NULL,
                  keras_architecture_parameters = NULL, optimal_hyper = NULL, chosen_eval_metric_translated = NULL,
@@ -2218,7 +2218,7 @@ test_that("mmaf works when one of groups has zero weights", {
         dplyr::mutate(weights = theme_sb_bench_weights/sum(theme_sb_bench_weights),
                       is_eligible = ifelse(weights > 0, 1, 0)),
       all_returns_m_xts_upd_ref = bench_assets_returns_m_xts_upd_ref,
-      cov_matrix_sample_size = 2,
+      cov_matrix_sample_size = 3,
       cov_estimation_method = "ewma",
       groups_m_d_ref = signal_themes_m_df@data %>% dplyr::filter(dates == as.Date("2023-04-15"))
     )$port_stats

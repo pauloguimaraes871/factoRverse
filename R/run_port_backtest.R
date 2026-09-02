@@ -264,6 +264,226 @@ setMethod("update_port_backtest",
           })
 
 
+#' @describeIn update_port_backtest Extends a meta portfolio backtest by one month, from a
+#'   \code{port_metabacktest_results} object.
+#'
+#' A meta backtest sits on top of a cohort, so it cannot be rolled forward on its own: the base
+#' portfolios have to be extended first and handed back as \code{updated_port_backtest_cohort},
+#' the same way the base method takes an \code{updated_sb_backtest_results}. Each base portfolio
+#' in that cohort must carry the same \code{backtest_identifier} as before and cover one further
+#' month.
+#'
+#' As in the base method, the recomputation starts at the last date of the old backtest rather
+#' than at the new one, so the now-populated forward returns at that date can roll the portfolio
+#' forward. The meta weights for that date are recomputed and replace the old ones, and the new
+#' date is appended.
+#'
+#' @param updated_port_backtest_cohort A \code{port_backtest_cohort} whose base portfolios are the
+#'   one-month continuation of the ones the old meta backtest allocated across.
+#' @param custom_port_metrics_m_df,vol_m_df,exposure_m_df,max_stats_age_months Passed through to
+#'   \code{run_port_backtest}, as in the original run.
+#'
+#' @include class_definitions.R
+#' @exportMethod update_port_backtest
+setMethod("update_port_backtest",
+          signature(signals_m_df = "meta_dataframe", fwd_return_m_df = "meta_dataframe",
+                    liquidity_m_df = "meta_dataframe", volatility_m_df = "meta_dataframe",
+                    old_results = "port_metabacktest_results"),
+          function(signals_m_df, fwd_return_m_df, liquidity_m_df, volatility_m_df, old_results,
+                   updated_port_backtest_cohort,
+                   custom_port_metrics_m_df = NULL,
+                   stock_groups_m_df = NULL, benchmark_weights_m_df = NULL,
+                   daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL,
+                   benchmark_returns_m_xts = NULL,
+                   custom_stock_metrics_m_df = NULL,
+                   vol_m_df = NULL, exposure_m_df = NULL, max_stats_age_months = NULL,
+                   verbose = TRUE, parallel = TRUE, .test_seed = NULL) {
+
+            if (missing(updated_port_backtest_cohort) || is.null(updated_port_backtest_cohort)) {
+              stop("updated_port_backtest_cohort must be provided. A meta backtest allocates across ",
+                   "base portfolios, so those have to be extended by a month first and handed back ",
+                   "here; there is nothing for the meta level to allocate over otherwise.")
+            }
+            if (!methods::is(updated_port_backtest_cohort, "port_backtest_cohort")) {
+              stop("updated_port_backtest_cohort must be an object of class 'port_backtest_cohort'.")
+            }
+
+            ##The stock-level results carry the workflow the base update machinery reads
+            old_inner_results <- old_results@meta_port_backtest_results
+            old_inner_workflow <- old_inner_results@port_backtest_workflow[[
+              length(old_inner_results@port_backtest_workflow)]]
+
+            #Check adherence between the new objects and the old ones
+            #######################
+            ##Same one-month rule the base method applies
+            if (signals_m_df@current_date !=
+                lubridate::add_with_rollback(old_inner_workflow$current_date, months(1))) {
+              stop("The current_date in the new signals_m_df is not equal to the current_date in ",
+                   "the old_results + 1 month")
+            }
+
+            ##The cohort is the meta level's input the way signals are the base level's, so it gets
+            ##the same treatment: the same portfolios, one month further on
+            old_base_ids <- sort(vapply(old_results@port_backtest_cohort@port_backtest_results_list,
+                                        function(results) results@backtest_identifier, character(1)))
+            new_base_ids <- sort(vapply(updated_port_backtest_cohort@port_backtest_results_list,
+                                        function(results) results@backtest_identifier, character(1)))
+            if (!identical(old_base_ids, new_base_ids)) {
+              stop("The base portfolios in updated_port_backtest_cohort do not match the ones the ",
+                   "old meta backtest allocated across. Expected: ",
+                   paste(old_base_ids, collapse = ", "), ". Got: ",
+                   paste(new_base_ids, collapse = ", "), ".")
+            }
+
+            ##Every base portfolio must have moved forward exactly one month, or the meta weights
+            ##for the new date would be formed from statistics that stop short of it
+            expected_date <- lubridate::add_with_rollback(old_inner_workflow$current_date, months(1))
+            for (base_results in updated_port_backtest_cohort@port_backtest_results_list) {
+              base_workflow <- base_results@port_backtest_workflow[[
+                length(base_results@port_backtest_workflow)]]
+              if (as.Date(base_workflow$current_date) != as.Date(expected_date)) {
+                stop("Base portfolio '", base_results@backtest_identifier, "' in ",
+                     "updated_port_backtest_cohort ends at ", as.Date(base_workflow$current_date),
+                     ", not at ", as.Date(expected_date),
+                     ". Every base portfolio must be updated before the meta backtest is.")
+              }
+            }
+            #######################
+
+            #Update the configuration
+            #######################
+            ##The buffer is set so the recomputation starts at the last date of the old backtest,
+            ##whose forward returns are now populated and can roll the portfolio into the new one
+            new_config <- old_results@port_metabacktest_config
+            new_inner_config <- new_config@meta_port_backtest_config
+            new_inner_config@initial_buffer_period <- old_inner_workflow$n_dates
+            new_config@meta_port_backtest_config <- new_inner_config
+
+            if (new_inner_config@initial_buffer_period !=
+                length(unique(signals_m_df@data$dates)) - 1) {
+              stop("The new initial_buffer_period is not equal to amount of unique dates in ",
+                   "signals_m_df - 1")
+            }
+
+            winsorization_probs <- sort(c(old_inner_workflow$lower_quantile_winsorization,
+                                          old_inner_workflow$upper_quantile_winsorization))
+            #######################
+
+            #Re-run over the tail
+            #######################
+            .old_backtest_covered_dates <- sort(old_inner_workflow$dates_covered)
+            .old_backtest_port_weights_m_d_ref <- old_inner_results@port_weights_m_df@data %>%
+              dplyr::filter(dates == max(.old_backtest_covered_dates))
+            .old_backtest_port_returns_m_xts <- old_inner_results@port_returns_m_xts@data
+            .old_backtest_port_costs_d_ref <- old_inner_results@port_costs_m_xts@data %>%
+              as.data.frame() %>% dplyr::slice_tail(n = 1)
+
+            updated_meta_results <- run_port_backtest(
+              signals_m_df = signals_m_df, fwd_return_m_df = fwd_return_m_df,
+              liquidity_m_df = liquidity_m_df, volatility_m_df = volatility_m_df,
+              config = new_config, port_backtest_cohort = updated_port_backtest_cohort,
+              custom_port_metrics_m_df = custom_port_metrics_m_df,
+              stock_groups_m_df = stock_groups_m_df,
+              benchmark_weights_m_df = benchmark_weights_m_df,
+              daily_stock_returns_m_xts = daily_stock_returns_m_xts,
+              daily_bench_returns_m_xts = daily_bench_returns_m_xts,
+              benchmark_returns_m_xts = benchmark_returns_m_xts,
+              custom_stock_metrics_m_df = custom_stock_metrics_m_df,
+              vol_m_df = vol_m_df, exposure_m_df = exposure_m_df,
+              max_stats_age_months = max_stats_age_months,
+              winsorization_probs = winsorization_probs,
+              verbose = verbose, parallel = parallel, .test_seed = .test_seed,
+              .update = TRUE,
+              .old_backtest_port_weights_m_d_ref = .old_backtest_port_weights_m_d_ref,
+              .old_backtest_port_returns_m_xts = .old_backtest_port_returns_m_xts,
+              .old_backtest_port_costs_d_ref = .old_backtest_port_costs_d_ref,
+              .old_backtest_covered_dates = .old_backtest_covered_dates
+            )
+            #######################
+
+            #Consolidate
+            #######################
+            ##Stock level, through the same machinery the base update uses
+            new_inner_results <- updated_meta_results@meta_port_backtest_results
+            new_outputs_list <- list(
+              port_weights_m_df = new_inner_results@port_weights_m_df,
+              stock_universe_m_df = new_inner_results@stock_universe_m_df,
+              port_stats_m_df = new_inner_results@port_stats_m_df,
+              port_returns_m_xts = new_inner_results@port_returns_m_xts,
+              port_costs_m_xts = new_inner_results@port_costs_m_xts,
+              port_metrics_m_xts = new_inner_results@port_metrics_m_xts
+            )
+            consolidated <- consolidate_backtest_results(
+              new_backtest_outputs_list = new_outputs_list,
+              old_backtest_results = old_inner_results)
+
+            new_inner_results@port_weights_m_df   <- consolidated[["port_weights_m_df"]]
+            new_inner_results@stock_universe_m_df <- consolidated[["stock_universe_m_df"]]
+            new_inner_results@port_stats_m_df     <- consolidated[["port_stats_m_df"]]
+            new_inner_results@port_returns_m_xts  <- consolidated[["port_returns_m_xts"]]
+            new_inner_results@port_costs_m_xts    <- consolidated[["port_costs_m_xts"]]
+            new_inner_results@port_metrics_m_xts  <- consolidated[["port_metrics_m_xts"]]
+            new_inner_results@transactions_log@data <- c(old_inner_results@transactions_log@data,
+                                                         new_inner_results@transactions_log@data)
+            new_inner_results@port_backtest_workflow <- c(
+              old_inner_results@port_backtest_workflow,
+              new_inner_results@port_backtest_workflow)
+            names(new_inner_results@port_backtest_workflow)[
+              length(new_inner_results@port_backtest_workflow)] <-
+              paste0("update_", signals_m_df@current_date)
+
+            updated_meta_results@meta_port_backtest_results <- new_inner_results
+
+            ##Meta level. The re-run recomputes the last old date as well as the new one, so the
+            ##overlap is dropped from the old side rather than the new: the new figures are the
+            ##ones formed with the forward returns now available.
+            updated_meta_results@meta_port_weights_m_df <- .bind_meta_update(
+              old_results@meta_port_weights_m_df, updated_meta_results@meta_port_weights_m_df)
+            updated_meta_results@meta_port_stats_m_df <- .bind_meta_update(
+              old_results@meta_port_stats_m_df, updated_meta_results@meta_port_stats_m_df)
+            ##The projection is rebuilt from the consolidated meta weights rather than bound like
+            ##the two above. project_meta_weights_to_stocks() fills every date of the panel, not
+            ##only the rebalance dates, so the projection produced by the recomputed window
+            ##carries fill values for the dates before it rather than the allocation that actually
+            ##held then. Binding those rows on would overwrite real history with that fill, which
+            ##is the one thing an update must never do.
+            updated_meta_results@projected_stock_weights_m_df <- project_meta_weights_to_stocks(
+              meta_weights_m_df = updated_meta_results@meta_port_weights_m_df@data,
+              port_backtest_cohort = updated_port_backtest_cohort,
+              signals_m_df = signals_m_df,
+              residual_ticker = if (new_config@type == "risk_targeted") {
+                new_config@risk_target_parameters@residual_ticker
+              } else {
+                NULL
+              },
+              verbose = verbose
+            )
+            #######################
+
+            updated_meta_results
+          })
+
+
+## Binds the recomputed tail of a meta object onto the old one, keeping the new rows wherever the
+## two overlap. Both are meta_dataframes ordered by id, so the result is re-sorted to match.
+.bind_meta_update <- function(old_object, new_object) {
+
+  if (is.null(old_object)) return(new_object)
+  if (is.null(new_object)) return(old_object)
+
+  old_data <- old_object@data
+  new_data <- new_object@data
+
+  kept_old <- old_data[!old_data$id %in% new_data$id, , drop = FALSE]
+  bound <- dplyr::bind_rows(kept_old, new_data)
+  bound <- bound[order(bound$id), , drop = FALSE]
+  rownames(bound) <- NULL
+
+  new_object@data <- bound
+  methods::validObject(new_object)
+  new_object
+}
+
 #run_port_backtest--------------------------------------
 #' Run Portfolio Backtest
 #'
@@ -1233,6 +1453,568 @@ setMethod("run_port_backtest",
 
 
 
+#' @describeIn run_port_backtest Allocate across a cohort of already-backtested portfolios
+#'
+#' Runs a meta-portfolio backtest: at each meta rebalance date, weights are chosen across the base
+#' portfolios of a `port_backtest_cohort` using those portfolios' own characteristics, and the
+#' resulting allocation is then run as an ordinary stock-level portfolio.
+#'
+#' @details
+#' # The two levels
+#'
+#' The method works at two levels, and the distinction matters for reading the results.
+#'
+#' At the **meta level** each base portfolio is an asset. Its characteristics are assembled by
+#' [derive_port_universe_m_df()] into a [port_universe_m_df-class], the chosen meta score is turned
+#' into an expected-return score by [derive_stock_universe_m_d_ref()], eligibility is set by
+#' [classify_investment_universe()], and weights are set by [set_portfolio_weights()]. Covariance,
+#' where the construction method needs it, is estimated from the base portfolios' own monthly
+#' return series, so `cov_matrix_sample_size` counts months here rather than trading days.
+#'
+#' At the **stock level** those meta weights are multiplied through each base portfolio's own stock
+#' weights by [project_meta_weights_to_stocks()], and the result is run through the ordinary
+#' backtest engine as a `custom_weights` portfolio. This is what makes the costs real: base
+#' portfolios frequently hold the same names, so a meta rebalance nets off at stock level and
+#' trades far less than the portfolio-level turnover would suggest.
+#'
+#' # What is knowable when
+#'
+#' Meta weights at date `t` are set from statistics the cohort had produced by `t`. Base portfolio
+#' analytics exist only on base rebalance dates, so a meta rebalance may be reading figures formed
+#' earlier; that is look-ahead safe and reported by `stats_age_months`, and
+#' [check_inputs_meta_port_backtest()] warns when it exceeds `max_stats_age_months`.
+#'
+#' @param port_backtest_cohort A `port_backtest_cohort` holding the base portfolios to allocate
+#' @param vol_m_df Optional `meta_dataframe` of supplied risk for the risky sleeve, read when
+#'   `vol_source` is `"supplied"`. One row per date for the sleeve, carrying a single
+#'   annualised risk column.
+#' @param exposure_m_df Optional `meta_dataframe` carrying the metric the exposure signal is
+#'   derived from, required when `exposure_method` is anything but `"none"`. It must describe
+#'   the risky sleeve.
+#'   across. Its backtests must have been run on the same data objects passed here.
+#' @param custom_port_metrics_m_df Optional `meta_dataframe` of user-computed per-portfolio metrics,
+#'   joined into the port universe and available as a meta score. See
+#'   [derive_port_universe_m_df()].
+#' @param max_stats_age_months Optional whole number. Age above which carried base statistics raise
+#'   a warning at meta rebalance dates. `NULL` reports the observed age without a threshold.
+#'
+#' @return An object of class [port_metabacktest_results-class].
+#'
+#' @examples
+#' \dontrun{
+#'   meta_config <- create_port_metabacktest_config(
+#'     meta_port_backtest_config = create_port_backtest_config(
+#'       chosen_score_metric_and_position = c(ann_info_ratio = "long"),
+#'       eligibility_quantile_range = c(0, 1),
+#'       initial_buffer_period = 24, rebalancing_months = c(6, 12),
+#'       selected_benchmark = "ibov", main_liquidity_metric = "mean_volfin_3m",
+#'       port_construction_method = "sw", config_name = "meta_sw_ir"
+#'     ),
+#'     config_name = "meta_sw_ir"
+#'   )
+#'
+#'   meta_results <- run_port_backtest(
+#'     signals_m_df = signals_m_df, fwd_return_m_df = fwd_return_m_df,
+#'     liquidity_m_df = liquidity_m_df, volatility_m_df = volatility_m_df,
+#'     config = meta_config, port_backtest_cohort = port_cohort,
+#'     benchmark_weights_m_df = benchmark_weights_m_df,
+#'     benchmark_returns_m_xts = benchmark_returns_m_xts
+#'   )
+#' }
+#' @export
+setMethod("run_port_backtest",
+          signature(signals_m_df = "meta_dataframe", fwd_return_m_df = "meta_dataframe",
+                    liquidity_m_df = "meta_dataframe", volatility_m_df = "meta_dataframe",
+                    config = "port_metabacktest_config"),
+
+          function(signals_m_df, fwd_return_m_df, liquidity_m_df, volatility_m_df, config,
+                   port_backtest_cohort,
+                   custom_port_metrics_m_df = NULL,
+                   stock_groups_m_df = NULL, benchmark_weights_m_df = NULL,
+                   daily_stock_returns_m_xts = NULL, daily_bench_returns_m_xts = NULL,
+                   benchmark_returns_m_xts = NULL,
+                   custom_stock_metrics_m_df = NULL,
+                   vol_m_df = NULL,
+                   exposure_m_df = NULL,
+                   max_stats_age_months = NULL,
+                   winsorization_probs = c(0.025, 0.975),
+                   verbose = TRUE, parallel = TRUE, .test_seed = NULL,
+                   #Update. Threaded through to the stock-level run, which is where the rolled
+                   #portfolio and the previously realised returns and costs are needed.
+                   .update = FALSE, .old_backtest_port_weights_m_d_ref = NULL,
+                   .old_backtest_port_returns_m_xts = NULL,
+                   .old_backtest_port_costs_d_ref = NULL, .old_backtest_covered_dates = NULL) {
+
+            #Initial preparation
+            ###########################
+            if (verbose) {
+              if (!requireNamespace("crayon", quietly = TRUE) ||
+                  !requireNamespace("tictoc", quietly = TRUE)) {
+                stop("Packages 'crayon' and 'tictoc' are required to generate logs. ",
+                     "Please install them using install.packages() or set verbose as FALSE.")
+              }
+            }
+            if (missing(port_backtest_cohort)) {
+              stop("port_backtest_cohort must be provided for a meta portfolio backtest.")
+            }
+
+            inner_config <- config@meta_port_backtest_config
+            lower_quantile_winsorization <- min(winsorization_probs)
+            upper_quantile_winsorization <- max(winsorization_probs)
+            ###########################
+
+            #Build the port universe
+            ###########################
+            if (verbose) {
+              cat("\n")
+              cat(crayon::cyan("Deriving the meta portfolio universe\n"))
+            }
+
+            port_universe_m_df <- derive_port_universe_m_df(
+              port_backtest_cohort = port_backtest_cohort,
+              return_basis = config@return_basis,
+              cost_lookback = config@cost_lookback,
+              custom_port_metrics_m_df = custom_port_metrics_m_df,
+              allow_single_portfolio = config@type == "risk_targeted",
+              verbose = verbose
+            )
+            ###########################
+
+            #Validate
+            ###########################
+            validation <- check_inputs_meta_port_backtest(
+              config = config,
+              port_backtest_cohort = port_backtest_cohort,
+              port_universe_m_df = port_universe_m_df,
+              signals_m_df = signals_m_df, fwd_return_m_df = fwd_return_m_df,
+              liquidity_m_df = liquidity_m_df, volatility_m_df = volatility_m_df,
+              benchmark_weights_m_df = benchmark_weights_m_df,
+              benchmark_returns_m_xts = benchmark_returns_m_xts,
+              daily_stock_returns_m_xts = daily_stock_returns_m_xts,
+              daily_bench_returns_m_xts = daily_bench_returns_m_xts,
+              stock_groups_m_df = stock_groups_m_df,
+              max_stats_age_months = max_stats_age_months,
+              verbose = verbose
+            )
+            meta_rebalance_dates <- validation$meta_rebalance_dates
+            ###########################
+
+            #Base portfolio return series for covariance estimation
+            ###########################
+            ##The assets at meta level are portfolios, so their return series is the cohort's own.
+            ##It is monthly, which is why cov_matrix_sample_size counts months here.
+            returns_slot <- if (config@return_basis == "net") "net_returns_m_xts" else "raw_returns_m_xts"
+            base_returns_xts <- port_backtest_cohort@port_returns_m_xts_list[[returns_slot]]@data
+            base_portfolio_names <- sort(unique(port_universe_m_df@data$tickers))
+
+            bench_column <- "selected_bench_return"
+            meta_bench_returns_xts <- if (bench_column %in% colnames(base_returns_xts)) {
+              base_returns_xts[, bench_column, drop = FALSE]
+            } else {
+              NULL
+            }
+            base_returns_xts <- base_returns_xts[, base_portfolio_names, drop = FALSE]
+
+            cov_est_method <- inner_config@cov_est_method
+            meta_active_returns <- cov_est_method@active_returns && !is.null(meta_bench_returns_xts)
+            ###########################
+
+            #Risk-targeted path: the weight comes from the targeting rule, not a cross-section
+            ###########################
+            if (config@type == "risk_targeted") {
+
+              risk_target_params <- config@risk_target_parameters
+              risky_results <- port_backtest_cohort@port_backtest_results_list[[1]]
+              risky_name <- risky_results@backtest_identifier
+
+              if (verbose) {
+                cat("\n")
+                cat(crayon::cyan(paste0("Targeting ", risk_target_params@target, " ",
+                                        risk_target_params@target_metric, " over ",
+                                        length(meta_rebalance_dates), " rebalance dates\n")))
+              }
+
+              ##The exposure multiplier s_t, from a trend or valuation signal on the sleeve. Left
+              ##as 'none' it is 1 throughout and the weight reduces to the risk ratio alone.
+              exposure_path <- if (risk_target_params@exposure_method == "none") {
+                NULL
+              } else {
+                if (is.null(exposure_m_df)) {
+                  stop("exposure_method is '", risk_target_params@exposure_method, "', so exposure_m_df ",
+                       "must be supplied: it carries the metric the exposure is derived from.")
+                }
+                derive_exposure_signal(
+                  metric_m_df = exposure_m_df,
+                  ##The signal has to be computed for the sleeve it leans on, not merely for one asset
+                  expected_risky_ticker = risky_name,
+                  method = risk_target_params@exposure_method,
+                  window = risk_target_params@exposure_window,
+                  center = risk_target_params@exposure_center,
+                  sensitivity = risk_target_params@exposure_sensitivity,
+                  min_exposure = risk_target_params@exposure_bounds[1],
+                  max_exposure = risk_target_params@exposure_bounds[2],
+                  verbose = verbose
+                )
+              }
+
+              risk_path <- purrr::map_dfr(meta_rebalance_dates, function(current_date) {
+                sleeve_risk <- estimate_sleeve_risk(
+                  current_date = current_date,
+                  risk_target_params = risk_target_params,
+                  risky_port_backtest_results = risky_results,
+                  daily_stock_returns_m_xts = if (!is.null(daily_stock_returns_m_xts)) daily_stock_returns_m_xts@data else NULL,
+                  selected_benchmark = inner_config@selected_benchmark,
+                  stock_groups_m_d_ref = if (!is.null(stock_groups_m_df)) {
+                    stock_groups_m_df@data %>% dplyr::filter(as.Date(dates) == current_date)
+                  } else {
+                    NULL
+                  },
+                  vol_m_df = vol_m_df,
+                  expected_risky_ticker = risky_name,
+                  return_basis = config@return_basis
+                )
+
+                exposure <- if (is.null(exposure_path)) {
+                  1
+                } else {
+                  matched <- exposure_path$exposure[exposure_path$dates == as.Date(current_date)]
+                  if (length(matched) == 1L) matched else NA_real_
+                }
+
+                data.frame(dates = as.Date(current_date),
+                           sleeve_risk = sleeve_risk,
+                           exposure = exposure,
+                           risky_weight = risk_to_weight(sleeve_risk, risk_target_params, exposure),
+                           stringsAsFactors = FALSE)
+              })
+
+              ##A date with no risk estimate has no defensible weight, so it is refused rather
+              ##than filled with a guess
+              if (any(is.na(risk_path$risky_weight))) {
+                missing_risk <- any(is.na(risk_path$sleeve_risk))
+                stop("The weight on the risky sleeve is undefined on ",
+                     sum(is.na(risk_path$risky_weight)), " of ", nrow(risk_path),
+                     " rebalance dates, starting at ",
+                     min(risk_path$dates[is.na(risk_path$risky_weight)]),
+                     ". ",
+                     if (missing_risk) {
+                       paste0("There is not enough history for the configured vol_source; ",
+                              "consider a larger initial_buffer_period or a shorter estimation ",
+                              "window.")
+                     } else {
+                       paste0("The risk estimate exists, so it is the exposure signal that is ",
+                              "missing on those dates: exposure_m_df does not reach them, or its ",
+                              "trailing window does not.")
+                     })
+              }
+
+              ##The residual takes whatever the risky sleeve leaves
+              meta_port_weights_m_df <- dplyr::bind_rows(
+                risk_path %>%
+                  dplyr::transmute(tickers = risky_name, dates = dates, weights = risky_weight),
+                risk_path %>%
+                  dplyr::transmute(tickers = risk_target_params@residual_ticker, dates = dates,
+                                   weights = 1 - risky_weight)
+              ) %>%
+                dplyr::mutate(id = paste0(tickers, "-", dates)) %>%
+                dplyr::select(id, tickers, dates, weights) %>%
+                dplyr::arrange(id) %>%
+                as.data.frame()
+              rownames(meta_port_weights_m_df) <- NULL
+
+              ##There is no cross-sectional port object at meta level on this path, so the risk
+              ##path itself is what gets reported as the meta-level diagnostics
+              meta_port_stats_m_df <- risk_path %>%
+                dplyr::transmute(
+                  id = paste0("meta_port-", dates),
+                  tickers = "meta_port",
+                  dates = dates,
+                  sleeve_risk = sleeve_risk,
+                  ##Reported separately from the weight so the two halves of the rule can be read
+                  ##apart: whether a change came from the signal or from the risk estimate
+                  exposure = exposure,
+                  risky_weight = risky_weight,
+                  target = risk_target_params@target,
+                  ##The risk the rule intends the blend to carry. With no exposure signal it
+                  ##equals the target exactly whenever the weight is unclipped, so a departure
+                  ##says a bound bound rather than that the targeting failed. With one it equals
+                  ##exposure times the target, since leaning less is meant to carry less risk.
+                  ##Whether it actually worked is a question about realised returns, which only
+                  ##exist after the stock-level run.
+                  implied_risk = sleeve_risk * risky_weight
+                ) %>%
+                as.data.frame()
+
+              meta_port_list <- list(NULL)
+
+            } else {
+
+            #Outer loop: set the meta weights
+            ###########################
+            if (verbose) {
+              cat("\n")
+              cat(crayon::cyan(paste0("Setting meta weights over ", length(meta_rebalance_dates),
+                                      " rebalance dates\n")))
+            }
+
+            meta_port_list <- list()
+            meta_weights_list <- list()
+            meta_stats_list <- list()
+
+            for (i in seq_along(meta_rebalance_dates)) {
+
+              current_date <- meta_rebalance_dates[i]
+              port_universe_m_d_ref <- port_universe_m_df@data %>%
+                dplyr::filter(dates == current_date)
+
+              ##Turn the chosen meta score into an expected-return score, exactly as the stock
+              ##level turns a chosen characteristic into one
+              meta_universe_m_d_ref <- derive_stock_universe_m_d_ref(
+                signals_m_d_ref = port_universe_m_d_ref,
+                oos_predictions_m_d_ref = NULL,
+                chosen_score_metric_and_position = inner_config@chosen_score_metric_and_position,
+                chosen_scaler = inner_config@chosen_scaler,
+                scaler_m_d_ref = NULL,
+                scaler_shrinkage = if (is.null(inner_config@scaler_shrinkage)) 0 else inner_config@scaler_shrinkage,
+                lower_quantile_winsorization = lower_quantile_winsorization,
+                upper_quantile_winsorization = upper_quantile_winsorization
+              )
+
+              ##Rank and select base portfolios. The liquidity, turnover and concentration rules
+              ##are rejected by the config's validity, so none of them can reach here.
+              meta_universe_m_d_ref <- classify_investment_universe(
+                universe_m_d_ref = meta_universe_m_d_ref,
+                eligibility_quantile_range = inner_config@eligibility_quantile_range,
+                min_eligible_assets_fallback = inner_config@min_eligible_assets_fallback,
+                use_raw_for_eligibility = if (is.null(inner_config@use_raw_for_eligibility)) {
+                  FALSE
+                } else {
+                  inner_config@use_raw_for_eligibility
+                },
+                asset_object = "stocks",
+                verbose = verbose
+              )
+
+              ##Point-in-time return sample: a return stamped at t was realized over the month
+              ##ending at t, so including it uses nothing dated later
+              base_returns_upd_ref <- base_returns_xts[
+                zoo::index(base_returns_xts) <= current_date, , drop = FALSE]
+              meta_bench_upd_ref <- if (!is.null(meta_bench_returns_xts)) {
+                meta_bench_returns_xts[zoo::index(meta_bench_returns_xts) <= current_date, ,
+                                       drop = FALSE]
+              } else {
+                NULL
+              }
+
+              if (!is.null(.test_seed)) set.seed(.test_seed)
+
+              ##A base portfolio is not a benchmark constituent, so the meta universe carries no
+              ##bench weights column and selected_benchmark stays NULL here. The benchmark series
+              ##still feeds the covariance estimate when active returns are configured.
+              meta_port <- set_portfolio_weights(
+                universe_m_d_ref = meta_universe_m_d_ref,
+                port_construction_method = inner_config@port_construction_method,
+                covariance_matrix = NULL,
+                eligible_returns_m_xts_upd_ref = base_returns_upd_ref,
+                selected_benchmark_m_xts_upd_ref = meta_bench_upd_ref,
+                active_returns = meta_active_returns,
+                cov_estimation_method = cov_est_method@cov_estimation_method,
+                cov_matrix_sample_size = cov_est_method@cov_matrix_sample_size,
+                rp_method = if (!is.null(inner_config@rp_parameters)) inner_config@rp_parameters@rp_method else "cyclical-spinu",
+                exp_ret_score_tilt = if (!is.null(inner_config@rp_parameters)) inner_config@rp_parameters@exp_ret_score_tilt else NULL,
+                exp_ret_score_tilt_eta = if (!is.null(inner_config@rp_parameters)) inner_config@rp_parameters@exp_ret_score_tilt_eta else NULL,
+                linkage = if (!is.null(inner_config@hrp_parameters)) inner_config@hrp_parameters@linkage else "single",
+                n_random_ports = if (!is.null(inner_config@mvo_parameters)) inner_config@mvo_parameters@n_random_ports else 2000,
+                random_ports_method = if (!is.null(inner_config@mvo_parameters)) inner_config@mvo_parameters@random_ports_method else "sample",
+                opt_objective = if (!is.null(inner_config@mvo_parameters)) inner_config@mvo_parameters@opt_objective else "sharpe",
+                opt_method = if (!is.null(inner_config@mvo_parameters)) inner_config@mvo_parameters@opt_method else "random",
+                ridge_pen = if (!is.null(inner_config@mvo_parameters)) inner_config@mvo_parameters@ridge_pen else NULL,
+                n_resamples = if (!is.null(inner_config@mvo_parameters)) inner_config@mvo_parameters@n_resamples else 0,
+                exp_ret_score_jitter = if (!is.null(inner_config@mvo_parameters)) inner_config@mvo_parameters@exp_ret_score_jitter else 0,
+                cov_eigval_jitter = if (!is.null(inner_config@mvo_parameters)) inner_config@mvo_parameters@cov_eigval_jitter else 0,
+                top_down_proxy_port_method = "ew", mmaf_group_col = NULL,
+                selected_benchmark = NULL,
+                lower_quantile_winsorization = lower_quantile_winsorization,
+                upper_quantile_winsorization = upper_quantile_winsorization,
+                parallel = parallel, verbose = verbose
+              )
+
+              meta_port_list[[i]] <- meta_port
+
+              ##Collect the weights and the meta-level analytics for this date
+              meta_weights_list[[i]] <- meta_port@universe_m_d_ref@data %>%
+                dplyr::select(id, tickers, dates, weights)
+
+              ##The reported risk here is unambiguously absolute: calculate_port_stats()
+              ##re-estimates its own covariance with active returns switched off, so
+              ##cov_est_method@active_returns reaches only the covariance used to construct the
+              ##weights of the covariance-based methods, never the analytics.
+              meta_stats_list[[i]] <- data.frame(
+                id = paste0("meta_port-", current_date),
+                tickers = "meta_port",
+                dates = as.Date(current_date),
+                stringsAsFactors = FALSE
+              ) %>%
+                dplyr::bind_cols(meta_port@port_stats)
+            }
+            ###########################
+
+            #Consolidate the meta weights
+            ###########################
+            meta_port_weights_m_df <- do.call(rbind, meta_weights_list) %>%
+              dplyr::arrange(id) %>%
+              as.data.frame()
+            rownames(meta_port_weights_m_df) <- NULL
+
+            meta_port_stats_m_df <- do.call(dplyr::bind_rows, meta_stats_list) %>%
+              dplyr::arrange(id) %>%
+              as.data.frame()
+            rownames(meta_port_stats_m_df) <- NULL
+
+            }
+            ###########################
+
+            #Project onto stocks
+            ###########################
+            if (verbose) {
+              cat("\n")
+              cat(crayon::cyan("Projecting meta weights onto stocks\n"))
+            }
+
+            projected_stock_weights_m_df <- project_meta_weights_to_stocks(
+              meta_weights_m_df = meta_port_weights_m_df,
+              port_backtest_cohort = port_backtest_cohort,
+              signals_m_df = signals_m_df,
+              residual_ticker = if (config@type == "risk_targeted") {
+                config@risk_target_parameters@residual_ticker
+              } else {
+                NULL
+              },
+              verbose = verbose
+            )
+            ###########################
+
+            #Run the stock-level backtest
+            ###########################
+            if (verbose) {
+              cat("\n")
+              cat(crayon::cyan("Running the stock-level backtest on the projected weights\n"))
+            }
+
+            meta_port_backtest_results <- run_port_backtest_internal(
+              #Base objects. No score source: the weights are supplied.
+              signals_m_df = signals_m_df@data,
+              oos_predictions_m_df = NULL,
+              chosen_score_metric_and_position = NULL,
+
+              #Backtest scheme, shared with the meta level
+              rebalancing_months = inner_config@rebalancing_months,
+              initial_buffer_period = inner_config@initial_buffer_period,
+
+              #Construction
+              port_construction_method = "custom_weights",
+              selected_benchmark = inner_config@selected_benchmark,
+              eligibility_quantile_range = inner_config@eligibility_quantile_range,
+
+              #The engine's own defaults assume a score-driven method; a custom_weights run has no
+              #tilt to apply, and its validator refuses one for any method other than rp or hrp
+              exp_ret_score_tilt = NULL, exp_ret_score_tilt_eta = NULL,
+              mmaf_group_col = NULL,
+
+              #Covariance, for the stock-level analytics
+              cov_estimation_method = cov_est_method@cov_estimation_method,
+              ##Which frequency this window counts depends on what the stock-level run estimates
+              ##its covariance from. With daily stock returns it is trading days, and it gets its
+              ##own setting; without them the engine falls back to the monthly return panel, where
+              ##the meta-level window is the one on the right scale. Forwarding the meta window in
+              ##both cases meant a value of 36 stood for 36 months at one level and 36 days at the
+              ##other, which is what the identical branches here used to hide.
+              cov_matrix_sample_size = if (is.null(daily_stock_returns_m_xts)) {
+                cov_est_method@cov_matrix_sample_size
+              } else {
+                config@stock_cov_matrix_sample_size
+              },
+              active_returns = cov_est_method@active_returns,
+              cov_matrix_benchmark = cov_est_method@cov_matrix_benchmark,
+              daily_stock_returns_m_xts = if (!is.null(daily_stock_returns_m_xts)) daily_stock_returns_m_xts@data else NULL,
+              daily_bench_returns_m_xts = if (!is.null(daily_bench_returns_m_xts)) daily_bench_returns_m_xts@data else NULL,
+              benchmark_returns_m_xts = if (!is.null(benchmark_returns_m_xts)) benchmark_returns_m_xts@data else NULL,
+
+              #Constraints are refused by the config's validity, so all three are absent
+              liquidity_constraint_policy = NULL, turnover_constraint_policy = NULL,
+              concentration_constraint_policy = NULL,
+
+              #Stock information
+              liquidity_m_df = liquidity_m_df@data,
+              main_liquidity_metric = inner_config@main_liquidity_metric,
+              liquidity_floor_cutoffs = inner_config@liquidity_floor_cutoffs,
+              volatility_m_df = volatility_m_df@data,
+              fwd_return_m_df = fwd_return_m_df@data,
+              stock_groups_m_df = if (!is.null(stock_groups_m_df)) stock_groups_m_df@data else NULL,
+              benchmark_weights_m_df = if (!is.null(benchmark_weights_m_df)) benchmark_weights_m_df@data else NULL,
+              transaction_costs_parameters = if (!is.null(inner_config@transaction_costs_parameters)) {
+                as.list(inner_config@transaction_costs_parameters)
+              } else {
+                NULL
+              },
+
+              #The projected weights
+              custom_stock_weights_m_df = projected_stock_weights_m_df@data,
+              custom_stock_metrics_m_df = if (!is.null(custom_stock_metrics_m_df)) custom_stock_metrics_m_df@data else NULL,
+
+              #Misc
+              lower_quantile_winsorization = lower_quantile_winsorization,
+              upper_quantile_winsorization = upper_quantile_winsorization,
+              verbose = verbose, parallel = parallel, .test_seed = .test_seed,
+              .update = .update,
+              .old_backtest_port_weights_m_d_ref = .old_backtest_port_weights_m_d_ref,
+              .old_backtest_port_returns_m_xts = .old_backtest_port_returns_m_xts,
+              .old_backtest_port_costs_d_ref = .old_backtest_port_costs_d_ref,
+              .old_backtest_covered_dates = .old_backtest_covered_dates
+            )
+            ###########################
+
+            ##The stock-level object has to be a well-formed port_backtest_results, which means
+            ##carrying the identity and the workflow shape the base method gives its own result.
+            ##run_port_backtest_internal() supplies neither, so without this the inner object
+            ##reports its identifier as 'not_identified', its workflow is a flat list rather than
+            ##one batch keyed by date, show() on the slot fails outright, and
+            ##update_port_backtest() cannot find the date it has to continue from.
+            meta_port_backtest_results@port_backtest_config <- inner_config
+            meta_port_backtest_results@backtest_identifier <-
+              paste0("mc__", config@config_name, "_sl__", inner_config@config_name)
+            meta_port_backtest_results@port_backtest_workflow$config_name <-
+              inner_config@config_name
+            meta_port_backtest_results@port_backtest_workflow$backtest_identifier <-
+              meta_port_backtest_results@backtest_identifier
+            meta_port_backtest_results@port_backtest_workflow$current_date <-
+              signals_m_df@current_date
+            meta_port_backtest_results@port_backtest_workflow$lower_quantile_winsorization <-
+              lower_quantile_winsorization
+            meta_port_backtest_results@port_backtest_workflow$upper_quantile_winsorization <-
+              upper_quantile_winsorization
+
+            meta_port_backtest_results@port_backtest_workflow <-
+              list(meta_port_backtest_results@port_backtest_workflow)
+            names(meta_port_backtest_results@port_backtest_workflow) <-
+              as.character(signals_m_df@current_date)
+
+            #Consolidate
+            ###########################
+            create_port_metabacktest_results(
+              port_metabacktest_config = config,
+              meta_port_backtest_results = meta_port_backtest_results,
+              port_backtest_cohort = port_backtest_cohort,
+              port_universe_m_df = port_universe_m_df,
+              meta_port_weights_m_df = meta_port_weights_m_df,
+              projected_stock_weights_m_df = projected_stock_weights_m_df,
+              meta_port_stats_m_df = meta_port_stats_m_df,
+              final_meta_port = meta_port_list[[length(meta_port_list)]]
+            )
+          }
+)
+
+
 #' Run Portfolio Backtest (Internal)
 #'
 #' Internal engine for portfolio backtesting. Called by \code{run_port_backtest()}.
@@ -1782,30 +2564,44 @@ run_port_backtest_internal <- function(
 
         ####Create stock_universe_m_d_ref and classify it
         ##############################
+        #####Weights-based route
+        #####A custom_weights portfolio whose caller supplied no score source has no
+        #####expected-return view of its own: the weights already encode the decision. Skip score
+        #####derivation and let eligibility follow the weights instead.
+        weights_based_eligibility <- port_construction_method == "custom_weights" &&
+          is.null(chosen_score_metric_and_position) && is.null(oos_predictions_m_d_ref)
+
         #####Derive Stock Universe
-        stock_universe_m_d_ref <- derive_stock_universe_m_d_ref(
-          #Signals
-          signals_m_d_ref = signals_m_d_ref,
+        if (weights_based_eligibility) {
+          stock_universe_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates)
+        } else {
+          stock_universe_m_d_ref <- derive_stock_universe_m_d_ref(
+            #Signals
+            signals_m_d_ref = signals_m_d_ref,
 
-          #OOS Predictions
-          oos_predictions_m_d_ref = oos_predictions_m_d_ref,
+            #OOS Predictions
+            oos_predictions_m_d_ref = oos_predictions_m_d_ref,
 
-          #Chosen Score Metric and Position
-          chosen_score_metric_and_position = chosen_score_metric_and_position,
+            #Chosen Score Metric and Position
+            chosen_score_metric_and_position = chosen_score_metric_and_position,
 
-          #Scaling
-          chosen_scaler = chosen_scaler, scaler_m_d_ref = scaler_m_d_ref,
-          scaler_shrinkage = scaler_shrinkage,
+            #Scaling
+            chosen_scaler = chosen_scaler, scaler_m_d_ref = scaler_m_d_ref,
+            scaler_shrinkage = scaler_shrinkage,
 
-          #Winsorization
-          lower_quantile_winsorization = lower_quantile_winsorization,
-          upper_quantile_winsorization = upper_quantile_winsorization
-        )
+            #Winsorization
+            lower_quantile_winsorization = lower_quantile_winsorization,
+            upper_quantile_winsorization = upper_quantile_winsorization
+          )
+        }
 
         #####Classify Stock Universe
         stock_universe_m_d_ref <- classify_investment_universe(
           #Stock Universe
           universe_m_d_ref = stock_universe_m_d_ref,
+
+          #Weights-based eligibility (custom_weights without a score source)
+          custom_weights_m_d_ref = if (weights_based_eligibility) custom_stock_weights_m_d_ref else NULL,
 
           #Use raw scores for eligibility
           use_raw_for_eligibility = use_raw_for_eligibility,

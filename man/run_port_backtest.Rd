@@ -3,6 +3,7 @@
 \name{run_port_backtest}
 \alias{run_port_backtest}
 \alias{run_port_backtest,meta_dataframe,meta_dataframe,meta_dataframe,meta_dataframe,port_backtest_config-method}
+\alias{run_port_backtest,meta_dataframe,meta_dataframe,meta_dataframe,meta_dataframe,port_metabacktest_config-method}
 \title{Run Portfolio Backtest}
 \usage{
 run_port_backtest(
@@ -32,6 +33,34 @@ run_port_backtest(
   custom_stock_metrics_m_df = NULL,
   user_defined_OR_rules_m_df = NULL,
   user_defined_AND_rules_m_df = NULL,
+  winsorization_probs = c(0.025, 0.975),
+  verbose = TRUE,
+  parallel = TRUE,
+  .test_seed = NULL,
+  .update = FALSE,
+  .old_backtest_port_weights_m_d_ref = NULL,
+  .old_backtest_port_returns_m_xts = NULL,
+  .old_backtest_port_costs_d_ref = NULL,
+  .old_backtest_covered_dates = NULL
+)
+
+\S4method{run_port_backtest}{meta_dataframe,meta_dataframe,meta_dataframe,meta_dataframe,port_metabacktest_config}(
+  signals_m_df,
+  fwd_return_m_df,
+  liquidity_m_df,
+  volatility_m_df,
+  config,
+  port_backtest_cohort,
+  custom_port_metrics_m_df = NULL,
+  stock_groups_m_df = NULL,
+  benchmark_weights_m_df = NULL,
+  daily_stock_returns_m_xts = NULL,
+  daily_bench_returns_m_xts = NULL,
+  benchmark_returns_m_xts = NULL,
+  custom_stock_metrics_m_df = NULL,
+  vol_m_df = NULL,
+  exposure_m_df = NULL,
+  max_stats_age_months = NULL,
   winsorization_probs = c(0.025, 0.975),
   verbose = TRUE,
   parallel = TRUE,
@@ -97,6 +126,24 @@ run_port_backtest(
 \item{.old_backtest_port_costs_d_ref}{(Internal) Previously computed cost series (used when \code{.update = TRUE}).}
 
 \item{.old_backtest_covered_dates}{(Internal) Dates already covered in the previous backtest (used when \code{.update = TRUE}).}
+
+\item{port_backtest_cohort}{A \code{port_backtest_cohort} holding the base portfolios to allocate}
+
+\item{custom_port_metrics_m_df}{Optional \code{meta_dataframe} of user-computed per-portfolio metrics,
+joined into the port universe and available as a meta score. See
+\code{\link[=derive_port_universe_m_df]{derive_port_universe_m_df()}}.}
+
+\item{vol_m_df}{Optional \code{meta_dataframe} of supplied risk for the risky sleeve, read when
+\code{vol_source} is \code{"supplied"}. One row per date for the sleeve, carrying a single
+annualised risk column.}
+
+\item{exposure_m_df}{Optional \code{meta_dataframe} carrying the metric the exposure signal is
+derived from, required when \code{exposure_method} is anything but \code{"none"}. It must describe
+the risky sleeve.
+across. Its backtests must have been run on the same data objects passed here.}
+
+\item{max_stats_age_months}{Optional whole number. Age above which carried base statistics raise
+a warning at meta rebalance dates. \code{NULL} reports the observed age without a threshold.}
 }
 \value{
 An object of class \code{port_backtest_results}, containing:
@@ -112,6 +159,8 @@ An object of class \code{port_backtest_results}, containing:
 \item \code{port_backtest_workflow}: A list tracking workflow metadata, inputs, and date coverage.
 \item \code{backtest_identifier}: A character identifier of the form \code{"c__<config>_s__<signals>_f__<fwd_return>"}.
 }
+
+An object of class \linkS4class{port_metabacktest_results}.
 }
 \description{
 Run Portfolio Backtest
@@ -224,7 +273,43 @@ enter with zero weight, and surviving names are carried forward by \code{roll_po
 
 Executes a full pipeline portfolio backtest, from asset/signal classification and eligibility filtering to benchmark construction and weight optimization, based on expected return scores (\code{exp_ret_score}) or signal performance. This function is designed to incorporate realistic portfolio constraints and rules—such as turnover, liquidity, group representativeness, and user-defined filters—while also supporting fallback logic to ensure a viable investment universe is selected in each rebalance date.
 
+\item \code{run_port_backtest(
+  signals_m_df = meta_dataframe,
+  fwd_return_m_df = meta_dataframe,
+  liquidity_m_df = meta_dataframe,
+  volatility_m_df = meta_dataframe,
+  config = port_metabacktest_config
+)}: Allocate across a cohort of already-backtested portfolios
+
+Runs a meta-portfolio backtest: at each meta rebalance date, weights are chosen across the base
+portfolios of a \code{port_backtest_cohort} using those portfolios' own characteristics, and the
+resulting allocation is then run as an ordinary stock-level portfolio.
+
 }}
+\section{The two levels}{
+The method works at two levels, and the distinction matters for reading the results.
+
+At the \strong{meta level} each base portfolio is an asset. Its characteristics are assembled by
+\code{\link[=derive_port_universe_m_df]{derive_port_universe_m_df()}} into a \linkS4class{port_universe_m_df}, the chosen meta score is turned
+into an expected-return score by \code{\link[=derive_stock_universe_m_d_ref]{derive_stock_universe_m_d_ref()}}, eligibility is set by
+\code{\link[=classify_investment_universe]{classify_investment_universe()}}, and weights are set by \code{\link[=set_portfolio_weights]{set_portfolio_weights()}}. Covariance,
+where the construction method needs it, is estimated from the base portfolios' own monthly
+return series, so \code{cov_matrix_sample_size} counts months here rather than trading days.
+
+At the \strong{stock level} those meta weights are multiplied through each base portfolio's own stock
+weights by \code{\link[=project_meta_weights_to_stocks]{project_meta_weights_to_stocks()}}, and the result is run through the ordinary
+backtest engine as a \code{custom_weights} portfolio. This is what makes the costs real: base
+portfolios frequently hold the same names, so a meta rebalance nets off at stock level and
+trades far less than the portfolio-level turnover would suggest.
+}
+
+\section{What is knowable when}{
+Meta weights at date \code{t} are set from statistics the cohort had produced by \code{t}. Base portfolio
+analytics exist only on base rebalance dates, so a meta rebalance may be reading figures formed
+earlier; that is look-ahead safe and reported by \code{stats_age_months}, and
+\code{\link[=check_inputs_meta_port_backtest]{check_inputs_meta_port_backtest()}} warns when it exceeds \code{max_stats_age_months}.
+}
+
 \examples{
 \dontrun{
   # Single-signal (book-yield) equal-weighted backtest against the ibov benchmark.
@@ -252,5 +337,25 @@ Executes a full pipeline portfolio backtest, from asset/signal classification an
   # Alternatively, drive the backtest from a blended signal (run_sb_backtest output):
   # results <- run_port_backtest(signals_m_df, fwd_return_m_df, liquidity_m_df,
   #                              volatility_m_df, config, sb_backtest_results = sb_results)
+}
+\dontrun{
+  meta_config <- create_port_metabacktest_config(
+    meta_port_backtest_config = create_port_backtest_config(
+      chosen_score_metric_and_position = c(ann_info_ratio = "long"),
+      eligibility_quantile_range = c(0, 1),
+      initial_buffer_period = 24, rebalancing_months = c(6, 12),
+      selected_benchmark = "ibov", main_liquidity_metric = "mean_volfin_3m",
+      port_construction_method = "sw", config_name = "meta_sw_ir"
+    ),
+    config_name = "meta_sw_ir"
+  )
+
+  meta_results <- run_port_backtest(
+    signals_m_df = signals_m_df, fwd_return_m_df = fwd_return_m_df,
+    liquidity_m_df = liquidity_m_df, volatility_m_df = volatility_m_df,
+    config = meta_config, port_backtest_cohort = port_cohort,
+    benchmark_weights_m_df = benchmark_weights_m_df,
+    benchmark_returns_m_xts = benchmark_returns_m_xts
+  )
 }
 }

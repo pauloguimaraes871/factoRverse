@@ -26,3 +26,6 @@ docs/
 # Ignore Claude Code files
 .claude/
 CLAUDE.md
+
+# Ignore test-run plot artifacts
+tests/testthat/Rplots.pdf

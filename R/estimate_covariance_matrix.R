@@ -20,6 +20,32 @@ estimate_covariance_matrix <- function(tickers, returns_m_xts_upd_ref,
                                        active_returns, selected_benchmark_m_xts_upd_ref,
                                        verbose = TRUE){
 
+  #Select the estimation window
+  ###############################
+  ##This runs before the single-ticker branch below so that both paths measure risk over the same
+  ##period. Selecting the window inside each path instead let them drift: the one-name case used
+  ##to take the variance of the whole series while the multi-name case honoured
+  ##cov_matrix_sample_size, so a sleeve holding one stock was measured over a different, and
+  ##usually far longer, window than the same sleeve holding two.
+
+  #Get dates sequence and tickers to create sample
+  returns_m_xts_upd_ref_dates <- zoo::index(returns_m_xts_upd_ref)
+  n_dates <- length(returns_m_xts_upd_ref_dates)
+
+  ##check
+  if(!is.null(cov_matrix_sample_size) && n_dates < cov_matrix_sample_size){
+    stop("Not enough dates to estimate covariance matrix")
+  }
+
+  if(is.null(cov_matrix_sample_size)){
+    dates_to_sample <- returns_m_xts_upd_ref_dates #In case of cov_matrix_sample_size = NULL, use whole period
+  } else {
+    ###Exactly cov_matrix_sample_size observations. Indexing from (n - size) took one more than
+    ###asked for, so a window of 60 sampled 61 rows.
+    dates_to_sample <- utils::tail(returns_m_xts_upd_ref_dates, cov_matrix_sample_size)
+  }
+  ###############################
+
   # If only one ticker is being provided, fallback to returning a variance
   if(length(tickers) == 1){
     if(verbose){
@@ -27,8 +53,12 @@ estimate_covariance_matrix <- function(tickers, returns_m_xts_upd_ref,
       cat(crayon::yellow("Only one ticker provided. Returning variance."))
       cat("\n")
     }
-    #Get returns for the ticker
-    returns_vector <- returns_m_xts_upd_ref[, col_match(returns_m_xts_upd_ref, tickers), drop = FALSE]
+    #Get returns for the ticker, over the same window the multi-ticker path uses
+    returns_vector <- returns_m_xts_upd_ref[
+      returns_m_xts_upd_ref_dates %in% dates_to_sample, #Get all dates in dates_to_sample
+      col_match(returns_m_xts_upd_ref, tickers),
+      drop = FALSE
+    ]
     #Calculate variance
     variance_value <- stats::var(returns_vector, na.rm = TRUE)
     #Return as a 1x1 matrix
@@ -56,21 +86,6 @@ estimate_covariance_matrix <- function(tickers, returns_m_xts_upd_ref,
   }
   #Generate return sample
   ###############################
-
-  #Get dates sequence and tickers to create sample
-  returns_m_xts_upd_ref_dates <- zoo::index(returns_m_xts_upd_ref)
-  n_dates <- length(returns_m_xts_upd_ref_dates)
-
-  ##check
-  if(!is.null(cov_matrix_sample_size) && n_dates < cov_matrix_sample_size){
-    stop("Not enough dates to estimate covariance matrix")
-  }
-
-  if(is.null(cov_matrix_sample_size)){
-    dates_to_sample <- returns_m_xts_upd_ref_dates #In case of cov_matrix_sample_size = NULL, use whole period
-  } else {
-    dates_to_sample <- returns_m_xts_upd_ref_dates[(n_dates - cov_matrix_sample_size):n_dates]
-  }
 
   #Get all rows that comprehend current_date - cov_matrix_sample_size
   returns_m_xts_sample <- returns_m_xts_upd_ref[

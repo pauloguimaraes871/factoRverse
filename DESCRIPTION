@@ -1,6 +1,6 @@
 Package: factoRverse
 Title: Portfolio Construction with ML-Based and Characteristics-Based Signals
-Version: 0.8.0
+Version: 0.9.0
 Authors@R: 
 	person("Paulo", "Guimaraes", , "paulo.guimaraes871@gmail.com", role = c("aut", "cre"),
            comment = c(ORCID = "0009-0002-2719-7731"))
@@ -127,6 +127,7 @@ Collate:
     'utils-calculate_port_stats.R'
     'utils-calculate_trade_orders.R'
     'utils-calculate_transaction_costs.R'
+    'utils-check_inputs_meta_port_backtest.R'
     'utils-check_inputs_meta_sb_backtest.R'
     'utils-check_inputs_port_backtest.R'
     'utils-check_inputs_sb_backtest.R'
@@ -151,11 +152,14 @@ Collate:
     'utils-create_signal_weighted_portfolio.R'
     'utils-create_slsaf_portfolio.R'
     'utils-define_signal_eligibility.R'
+    'utils-derive_exposure_signal.R'
     'utils-derive_informative_priors_from_data.R'
+    'utils-derive_port_universe_m_df.R'
     'utils-derive_signal_universe_m_df.R'
     'utils-derive_slsaf_leg_diagnostics.R'
     'utils-derive_stock_universe_m_d_ref.R'
     'utils-dofuture.R'
+    'utils-estimate_sleeve_risk.R'
     'utils-expand_sub_port_config.R'
     'utils-explain_prediction.R'
     'utils-extract_returns_m_xts.R'
@@ -171,6 +175,7 @@ Collate:
     'utils-merge_and_rescale_weights.R'
     'utils-pipe.R'
     'utils-prepare_hierarchical_model_inputs.R'
+    'utils-project_meta_weights_to_stocks.R'
     'utils-roll_fwd_port_weights.R'
     'utils-roll_port.R'
     'utils-select_and_correct_signals.R'

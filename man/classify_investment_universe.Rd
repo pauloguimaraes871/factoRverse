@@ -27,6 +27,7 @@ classify_investment_universe(
   user_defined_AND_rules_m_d_ref = NULL,
   user_defined_OR_rules_m_d_ref = NULL,
   include_benchmark_in_universe = FALSE,
+  custom_weights_m_d_ref = NULL,
   asset_object = "stocks",
   use_raw_for_eligibility = FALSE,
   verbose = TRUE
@@ -120,6 +121,17 @@ what may only be underweighted). \code{is_eligible} becomes the union of the two
 required by long/short layered methods such as \code{slsaf}, which must represent the whole
 benchmark in order to express an underweight. Requires \code{selected_benchmark} and
 \code{benchmark_weights_m_d_ref}. Defaults to FALSE, leaving eligibility unchanged.}
+
+\item{custom_weights_m_d_ref}{Optional data frame of user-supplied weights with columns \code{id} and
+\code{weights}. When provided, eligibility follows the weights directly: every asset with a positive
+weight is eligible and every other asset is not, and the promotion cascade is skipped entirely.
+This is the \code{custom_weights} route, where the weights are given rather than derived, so there is
+no expected-return score to rank on and nothing for the quantile, liquidity, turnover or
+concentration rules to act upon. It also makes eligibility agree with
+\code{set_portfolio_weights()}, which already defines the eligible set for \code{custom_weights} as the
+assets carrying a positive weight. An all-\code{NA} \code{exp_ret_score} column is appended so the
+\code{stock_universe_m_df} contract still holds; downstream analytics drop it rather than treat the
+missing values as data. Defaults to NULL, leaving classification unchanged.}
 
 \item{asset_object}{A character indicating whether the analysis is being applied to "stocks" or "signal_portfolios"}
 

@@ -2220,3 +2220,421 @@ setMethod("show", "port_backtest_cohort", function(object) {
 
 
 
+
+#risk_target_parameters-------------------------------------------
+#' @title Show Risk-Targeting Parameters
+#' @description Displays the risk-targeting configuration contained in a `risk_target_parameters` object:
+#' the residual sleeve, the target and the metric it is stated in, the response exponent, where
+#' the current risk estimate comes from, the exposure signal if one is used, and the bounds on the
+#' risky sleeve.
+#' @param object A `risk_target_parameters` object.
+#' @return Invisibly returns NULL.
+#' @method show risk_target_parameters
+#' @export
+methods::setMethod("show", "risk_target_parameters", function(object) {
+  .print_risk_target_parameters(object, hide_title = FALSE)
+})
+
+.print_risk_target_parameters <- function(object, hide_title = FALSE) {
+
+  if (!hide_title){
+    cat("\nRisk-Targeting Parameters:\n")
+  }
+
+  ##The residual and the target metric have to agree, and nothing errors when they do not, so the
+  ##pairing being assumed is named here rather than left for the reader to infer from the ticker
+  cat(" Residual Sleeve: ", object@residual_ticker, "\n")
+  cat(" Target: ", object@target, " (", object@target_metric, ")\n", sep = "")
+  if (object@target_metric == "tracking_error"){
+    cat("   Assumes the residual tracks the benchmark, so tracking error scales with the weight.\n")
+  } else {
+    cat("   Assumes the residual is riskless, so total volatility scales with the weight.\n")
+  }
+
+  ##p carries the whole shape of the response, so the two conventional values are named
+  response_reading <- if (isTRUE(all.equal(object@p, 1))) {
+    "risk targeting"
+  } else if (isTRUE(all.equal(object@p, 2))) {
+    "inverse variance, as in a volatility-managed portfolio"
+  } else {
+    "non-standard response"
+  }
+  cat(" Response Exponent p: ", object@p, " (", response_reading, ")\n", sep = "")
+
+  cat(" Risk Source: ", object@vol_source, "\n")
+  if (object@vol_source == "ex_ante"){
+    cat("   Covariance re-estimated from daily stock returns at each rebalance date.\n")
+    if (!is.null(object@vol_cov_est_method)){
+      cat("   Estimation Method: ", object@vol_cov_est_method@cov_estimation_method, "\n")
+      cat("   Sample Size (days): ", object@vol_cov_est_method@cov_matrix_sample_size, "\n")
+    }
+  }
+  if (object@vol_source == "realized_rolling"){
+    cat("   Rolling Window (months): ", object@vol_window, "\n")
+  }
+
+  ##The exposure signal is the other half of the weight rule, so it is reported even when unused
+  cat(" Exposure Signal: ", object@exposure_method, "\n")
+  if (object@exposure_method == "none"){
+    cat("   The weight is the risk ratio alone.\n")
+  } else {
+    cat("   Centre: ", object@exposure_center, "\n")
+    cat("   Sensitivity: ",
+        if (is.null(object@exposure_sensitivity)) "not set" else object@exposure_sensitivity, "\n")
+    if (!is.null(object@exposure_window)){
+      cat("   Window (months): ", object@exposure_window, "\n")
+    }
+    cat("   Bounds: ", paste0(object@exposure_bounds[1], " to ", object@exposure_bounds[2]), "\n")
+  }
+
+  cat(" Risky Sleeve Bounds: ", paste0(object@min_weight, " to ", object@max_weight), "\n")
+  cat("   The residual is therefore capped at ", 1 - object@min_weight, "\n")
+
+  invisible(NULL)
+}
+
+
+#port_metabacktest_config------------------------------------------------
+#' @title Show Method for port_metabacktest_config Class
+#' @description Displays a `port_metabacktest_config`: the meta-level allocation scheme, how the
+#' meta universe reads the base portfolios, and the wrapped `port_backtest_config`, which is
+#' delegated to its own `show` method.
+#' @param object An object of class `port_metabacktest_config`.
+#' @return Invisibly returns NULL.
+#' @method show port_metabacktest_config
+#' @export
+setMethod("show", "port_metabacktest_config", function(object) {
+
+  inner_config <- object@meta_port_backtest_config
+
+  cat(crayon::yellow("Portfolio Metabacktest Configuration\n"))
+  cat("Config Name: ", object@config_name, "\n")
+  cat("Type: ", object@type, "\n")
+  cat("========================================\n")
+
+  # Meta allocation scheme
+  cat(crayon::cyan("Meta Allocation Scheme:\n"))
+
+  if (object@type == "risk_targeted"){
+
+    ##On this path the weight comes from the targeting rule, so the cross-sectional slots of the
+    ##wrapped config are inert. Saying so is more useful than printing a method that is unused.
+    cat("  One risky sleeve scaled against a residual sleeve.\n")
+    cat("  port_construction_method is unused here: the weight comes from the targeting rule\n")
+    cat("  rather than from ranking a cross-section.\n")
+
+    if (is.null(object@risk_target_parameters)){
+      cat(crayon::red("  risk_target_parameters: not set.\n"))
+      cat("  The configuration is incomplete. Supply them with add_risk_target_parameters() before running.\n")
+    } else {
+      .print_risk_target_parameters(object@risk_target_parameters, hide_title = TRUE)
+    }
+
+  } else {
+
+    cat("  Portfolio Construction Method: ", inner_config@port_construction_method, "\n")
+    ##The meta score is a column of port_universe_m_df rather than a stock characteristic
+    cat("  Meta Score: ",
+        paste0(names(inner_config@chosen_score_metric_and_position), " - ",
+               inner_config@chosen_score_metric_and_position), "\n")
+    cat("  Eligibility Quantile Range: ",
+        paste0(min(inner_config@eligibility_quantile_range), "-",
+               max(inner_config@eligibility_quantile_range)), "\n")
+    cat("  Min Eligible Assets Fallback: ",
+        ifelse(is.null(inner_config@min_eligible_assets_fallback), "None",
+               inner_config@min_eligible_assets_fallback), "\n")
+  }
+  cat("\n")
+
+  # Meta universe construction
+  cat(crayon::cyan("Meta Universe Construction:\n"))
+  cat("  Return Basis: ", object@return_basis, "\n")
+  cat("  Cost Lookback: ",
+      if (is.null(object@cost_lookback)) "expanding average" else paste0(object@cost_lookback, " months"),
+      "\n")
+  cat("\n")
+
+  # The wrapped configuration
+  cat("========================================\n")
+  cat(crayon::cyan("Wrapped port_backtest_config:\n"))
+  ##It serves both levels at once: its schedule and benchmark set the meta rebalance dates, while
+  ##main_liquidity_metric and transaction_costs_parameters price the stock-level trades the meta
+  ##allocation implies once it is pushed through to individual stocks.
+  methods::show(inner_config)
+
+  invisible(NULL)
+})
+
+
+#port_metabacktest_results--------------------------------------------
+#' @title Show Method for port_metabacktest_results Class
+#' @description Displays a `port_metabacktest_results` object at both of its levels: the meta
+#' allocation across base portfolios, and a summary of the stock-level portfolio those meta
+#' weights imply.
+#' @param object An object of class `port_metabacktest_results`.
+#' @return Invisibly returns the input object.
+#' @method show port_metabacktest_results
+#' @export
+setMethod("show", "port_metabacktest_results", function(object) {
+
+  .print_meta_backtest_header(object)
+
+  # Meta level
+  cat(crayon::cyan("Meta Allocation:\n"))
+  .print_mean_meta_weights(object)
+  cat("\n")
+
+  cat(crayon::cyan("Meta-Level Analytics (means over rebalance dates):\n"))
+  ##Two of these read differently from their stock-level namesakes. exp_ret is the weighted meta
+  ##score after signal_transform, so it is dimensionless rather than a return in percent, and
+  ##sharpe inherits that. risk is measured on the base portfolios raw returns rather than active
+  ##ones, so it is absolute. The benchmark-relative view is in the stock-level object below.
+  .print_meta_stats_means(object)
+  cat("\n")
+
+  # Stock level
+  .print_meta_stock_level_summary(object)
+
+  invisible(object)
+})
+
+
+#risk_target_metabacktest_results---------------------------------------------
+#' @title Show Method for risk_target_metabacktest_results Class
+#' @description Displays a `risk_target_metabacktest_results` object. Where the multi-portfolio summary
+#' reports a cross-sectional allocation, this one reports the targeting rule at work: the risk
+#' estimated for the sleeve, the weight the rule set from it, how often the bounds bound, and how
+#' the realised risk compares against the level asked for.
+#' @param object An object of class `risk_target_metabacktest_results`.
+#' @return Invisibly returns the input object.
+#' @method show risk_target_metabacktest_results
+#' @export
+setMethod("show", "risk_target_metabacktest_results", function(object) {
+
+  .print_meta_backtest_header(object)
+
+  # The targeting rule
+  cat(crayon::cyan("Risk-Targeting Rule:\n"))
+  if (!is.null(object@risk_target_parameters)){
+    .print_risk_target_parameters(object@risk_target_parameters, hide_title = TRUE)
+  } else {
+    ##The residual is a slot of its own, so it can still be named when the parameters are gone
+    cat(" Residual Sleeve: ", object@residual_ticker, "\n")
+    cat("  risk_target_parameters not available\n")
+  }
+  cat("\n")
+
+  # What the rule did
+  cat(crayon::cyan("The Rule At Work:\n"))
+  .print_risk_target_rule_summary(object)
+  cat("\n")
+
+  # Stock level
+  .print_meta_stock_level_summary(object)
+
+  invisible(object)
+})
+
+
+# Helpers shared by the meta backtest show methods -----------------------
+
+## The header is identical on both paths: what was run, over which base portfolios, on which
+## schedule. Only the body below it differs.
+.print_meta_backtest_header <- function(object) {
+
+  config <- object@port_metabacktest_config
+
+  cat(crayon::cyan("Portfolio Meta Backtest Results\n"))
+  cat("Backtest Identifier: ", object@backtest_identifier, "\n")
+  cat("========================================\n")
+
+  cat("Configuration:\n")
+  if (!is.null(config)){
+    cat("  Config Name: ", config@config_name, "\n")
+    cat("  Type: ", config@type, "\n")
+    cat("  Return Basis: ", config@return_basis, "\n")
+    cat("  Selected Benchmark: ",
+        ifelse(is.null(config@meta_port_backtest_config@selected_benchmark), "None",
+               config@meta_port_backtest_config@selected_benchmark), "\n")
+  } else {
+    cat("  Not available\n")
+  }
+
+  cat("\nBase Portfolios:\n")
+  cohort <- object@port_backtest_cohort
+  if (!is.null(cohort)){
+    base_ids <- vapply(cohort@port_backtest_results_list,
+                       function(results) results@backtest_identifier, character(1))
+    cat("  Cohort Name: ", cohort@cohort_name, "\n")
+    cat("  Number of Base Portfolios: ", length(base_ids), "\n")
+    cat("  Identifiers: ", paste(base_ids, collapse = ", "), "\n")
+  } else {
+    cat("  Not available\n")
+  }
+
+  cat("\nMeta Rebalance Schedule:\n")
+  if (!is.null(object@meta_port_weights_m_df)){
+    meta_dates <- sort(unique(object@meta_port_weights_m_df@data$dates))
+    cat("  Number of Rebalance Dates: ", length(meta_dates), "\n")
+    cat("  First Rebalance Date: ", format(min(meta_dates)), "\n")
+    cat("  Last Rebalance Date: ", format(max(meta_dates)), "\n")
+  } else {
+    cat("  Not available\n")
+  }
+  cat("========================================\n\n")
+
+  invisible(NULL)
+}
+
+
+.print_mean_meta_weights <- function(object) {
+
+  if (is.null(object@meta_port_weights_m_df)){
+    cat("  Not available\n")
+    return(invisible(NULL))
+  }
+
+  weights_df <- object@meta_port_weights_m_df@data
+  mean_weights <- tapply(weights_df$weights, weights_df$tickers, mean, na.rm = TRUE)
+  mean_weights <- sort(mean_weights, decreasing = TRUE)
+
+  cat("  Mean weight per sleeve, over rebalance dates:\n")
+  print(round(mean_weights, 4))
+
+  invisible(NULL)
+}
+
+
+.print_meta_stats_means <- function(object) {
+
+  if (is.null(object@meta_port_stats_m_df)){
+    cat("  Not available\n")
+    return(invisible(NULL))
+  }
+
+  stats_df <- object@meta_port_stats_m_df@data
+  value_cols <- setdiff(names(stats_df), c("id", "tickers", "dates"))
+  value_cols <- value_cols[vapply(stats_df[value_cols], is.numeric, logical(1))]
+
+  if (length(value_cols) == 0){
+    cat("  Not available\n")
+    return(invisible(NULL))
+  }
+
+  means <- vapply(stats_df[value_cols], function(column) mean(column, na.rm = TRUE), numeric(1))
+  print(round(means, 4))
+
+  ##exp_ret and risk share their names with stock-level statistics that mean something different
+  ##here, and a printed table of numbers gives the reader no other cue
+  if ("exp_ret" %in% value_cols){
+    cat("  exp_ret is the weighted meta score after signal_transform, so it is dimensionless\n")
+    cat("  rather than a return in percent, and sharpe inherits that.\n")
+  }
+  if ("risk" %in% value_cols){
+    cat("  risk is measured on the base portfolios raw returns, so it is absolute rather than\n")
+    cat("  benchmark-relative.\n")
+  }
+
+  invisible(NULL)
+}
+
+
+## The stock-level object is the one to compare against a benchmark: its returns, costs and
+## turnover are the real ones, netted across base portfolios that hold the same names.
+.print_meta_stock_level_summary <- function(object) {
+
+  stock_results <- object@meta_port_backtest_results
+
+  cat(crayon::cyan("Stock-Level Portfolio:\n"))
+  cat("  Backtest Identifier: ", stock_results@backtest_identifier, "\n")
+
+  if (!is.null(object@projected_stock_weights_m_df)){
+    held <- object@projected_stock_weights_m_df@data
+    held <- held[!is.na(held$weights) & held$weights > 0, , drop = FALSE]
+    cat("  Number of Stocks Held: ", length(unique(held$tickers)), "\n")
+  }
+
+  ##Weights are supplied here rather than derived, so no expected-return statistics exist on this
+  ##object. That view lives at the meta level above.
+  cat("  Portfolio Returns Means:\n")
+  print(stock_results@port_returns_m_xts@data %>%
+          sapply(function(column) round(mean(column, na.rm = TRUE), 4)))
+  cat("  Portfolio Costs Means:\n")
+  print(stock_results@port_costs_m_xts@data %>%
+          sapply(function(column) round(mean(column, na.rm = TRUE), 4)))
+
+  cat("\n  Call show() on the meta_port_backtest_results slot for its full summary.\n")
+
+  invisible(NULL)
+}
+
+
+## The targeting diagnostics. implied_risk equals the target exactly whenever the weight is
+## unclipped, so a gap between them says a bound was binding rather than that the rule failed.
+## Whether it actually worked is a question about realised returns, which exist only after the
+## stock-level run, so the realised figure is reported alongside.
+.print_risk_target_rule_summary <- function(object) {
+
+  if (is.null(object@meta_port_stats_m_df)){
+    cat("  Not available\n")
+    return(invisible(NULL))
+  }
+
+  stats_df <- object@meta_port_stats_m_df@data
+  params <- object@risk_target_parameters
+
+
+  if ("sleeve_risk" %in% names(stats_df)){
+    cat("  Estimated Sleeve Risk: mean ", round(mean(stats_df$sleeve_risk, na.rm = TRUE), 2),
+        ", range ", round(min(stats_df$sleeve_risk, na.rm = TRUE), 2),
+        " to ", round(max(stats_df$sleeve_risk, na.rm = TRUE), 2), "\n", sep = "")
+  }
+
+  if ("risky_weight" %in% names(stats_df)){
+    cat("  Risky Weight: mean ", round(mean(stats_df$risky_weight, na.rm = TRUE), 4),
+        ", range ", round(min(stats_df$risky_weight, na.rm = TRUE), 4),
+        " to ", round(max(stats_df$risky_weight, na.rm = TRUE), 4), "\n", sep = "")
+
+    ##How often a bound bound, since that is what separates a rule that missed its target from
+    ##one that was not allowed to reach it
+    if (!is.null(params)){
+      at_floor <- sum(abs(stats_df$risky_weight - params@min_weight) < 1e-10, na.rm = TRUE)
+      at_cap <- sum(abs(stats_df$risky_weight - params@max_weight) < 1e-10, na.rm = TRUE)
+      n_dates <- sum(!is.na(stats_df$risky_weight))
+      cat("  Dates at a Bound: ", at_floor, " at the floor, ", at_cap, " at the cap, of ",
+          n_dates, "\n", sep = "")
+    }
+  }
+
+  ##The exposure signal is reported apart from the risk estimate so a move in the weight can be
+  ##attributed to one or the other
+  if ("exposure" %in% names(stats_df)){
+    if (isTRUE(all.equal(unname(stats_df$exposure), rep(1, nrow(stats_df))))){
+      cat("  Exposure Signal: none, the weight is the risk ratio alone\n")
+    } else {
+      cat("  Exposure Signal: mean ", round(mean(stats_df$exposure, na.rm = TRUE), 4),
+          ", range ", round(min(stats_df$exposure, na.rm = TRUE), 4),
+          " to ", round(max(stats_df$exposure, na.rm = TRUE), 4), "\n", sep = "")
+    }
+  }
+
+  if (all(c("implied_risk", "target") %in% names(stats_df))){
+    cat("  Intended Risk: mean ", round(mean(stats_df$implied_risk, na.rm = TRUE), 2),
+        " against a target of ", round(mean(stats_df$target, na.rm = TRUE), 2), "\n", sep = "")
+  }
+
+  ##The realised figure, which is the only one that says whether the targeting worked. A figure
+  ##persistently above the target means the risk estimator is too slow to catch risk as it rises.
+  if (!is.null(params)){
+    returns_data <- object@meta_port_backtest_results@port_returns_m_xts@data
+    return_col <- if (params@target_metric == "tracking_error") "net_active_return" else "net_return"
+    if (return_col %in% colnames(returns_data)){
+      ###Meta backtests run on a monthly schedule, so monthly returns annualise by sqrt(12)
+      realised <- stats::sd(as.numeric(returns_data[, return_col]), na.rm = TRUE) * sqrt(12)
+      cat("  Realised ", params@target_metric, " (", return_col, ", annualised): ",
+          round(realised, 2), " against a target of ", round(params@target, 2), "\n", sep = "")
+    }
+  }
+
+  invisible(NULL)
+}

@@ -59,7 +59,9 @@ If not provided, a default is created using method "sample" and sample size 252;
 \item{port_construction_method}{A character string representing the portfolio construction method.
 Must be one of "ew" (equal-weight), "sw" (signal-weight), "cw" (cap-weight), "cs" (cap-scaled), "rp" (risk parity),
 "hrp" (hierarchical risk parity), "mvo" (mean-variance optimization), or "mmaf" (micro-macro allocation framework).
-"custom_weights" is not supported through this constructor.}
+"custom_weights" supplies its weights rather than deriving them, so it requires
+chosen_score_metric_and_position to be NULL and custom_stock_weights_m_df to be passed to
+run_port_backtest().}
 
 \item{mvo_parameters}{An object of class \code{mvo_parameters} for mean-variance optimization. Only required if \code{port_construction_method} is "mvo".
 If missing and port_construction_method is "mvo", a default is created.}

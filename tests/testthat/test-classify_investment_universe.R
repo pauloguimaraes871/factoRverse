@@ -1804,3 +1804,110 @@ test_that("include_benchmark_in_universe validates its own preconditions", {
     "no benchmark weight and cannot be split"
   )
 })
+
+test_that("classify_investment_universe sets eligibility from supplied weights on the custom_weights route", {
+
+  #Create signals_m_d_ref
+  load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
+
+  current_date <- "2001-07-15"
+  signals_m_d_ref <- signals_m_df[which(signals_m_df$dates == current_date),]
+  stock_universe_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates)
+
+  #Weights are supplied rather than derived, so two names hold a position and two do not
+  custom_weights_m_d_ref <- stock_universe_m_d_ref %>%
+    dplyr::mutate(weights = c(0.7, 0.3, 0, 0))
+
+  results <- classify_investment_universe(
+    universe_m_d_ref = stock_universe_m_d_ref,
+    custom_weights_m_d_ref = custom_weights_m_d_ref,
+    verbose = FALSE
+  )
+
+  #Eligibility follows the weights exactly
+  expect_equal(results$is_eligible, c(1L, 1L, 0L, 0L))
+  expect_equal(results$pre_eligible_assets, c(1L, 1L, 0L, 0L))
+
+  #The stock_universe_m_df contract still holds, but the score is absent rather than invented
+  expect_true("exp_ret_score" %in% names(results))
+  expect_true(all(is.na(results$exp_ret_score)))
+  expect_equal(utils::tail(names(results), 1), "exp_ret_score")
+
+  #Keys are untouched
+  expect_equal(results$id, stock_universe_m_d_ref$id)
+  expect_equal(results$tickers, stock_universe_m_d_ref$tickers)
+})
+
+test_that("the custom_weights route ignores the rules that have nothing to act on", {
+
+  load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
+
+  current_date <- "2001-07-15"
+  signals_m_d_ref <- signals_m_df[which(signals_m_df$dates == current_date),]
+  stock_universe_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates)
+  custom_weights_m_d_ref <- stock_universe_m_d_ref %>%
+    dplyr::mutate(weights = c(0.7, 0.3, 0, 0))
+
+  #A quantile range would ordinarily promote the top half on exp_ret_score. Here there is no
+  #score to rank, so the weights decide and the range is simply not consulted.
+  with_quantile <- classify_investment_universe(
+    universe_m_d_ref = stock_universe_m_d_ref,
+    custom_weights_m_d_ref = custom_weights_m_d_ref,
+    eligibility_quantile_range = c(0.0, 0.5),
+    verbose = FALSE
+  )
+  without_quantile <- classify_investment_universe(
+    universe_m_d_ref = stock_universe_m_d_ref,
+    custom_weights_m_d_ref = custom_weights_m_d_ref,
+    verbose = FALSE
+  )
+
+  expect_equal(with_quantile, without_quantile)
+})
+
+test_that("the custom_weights route validates the weights it is given", {
+
+  load(paste(test_path(),"/testdata/","artificial_port_obj.RData", sep =""))
+
+  current_date <- "2001-07-15"
+  signals_m_d_ref <- signals_m_df[which(signals_m_df$dates == current_date),]
+  stock_universe_m_d_ref <- signals_m_d_ref %>% dplyr::select(id, tickers, dates)
+  custom_weights_m_d_ref <- stock_universe_m_d_ref %>%
+    dplyr::mutate(weights = c(0.7, 0.3, 0, 0))
+
+  #Missing the weights column
+  expect_error(
+    classify_investment_universe(
+      universe_m_d_ref = stock_universe_m_d_ref,
+      custom_weights_m_d_ref = stock_universe_m_d_ref, verbose = FALSE),
+    "must contain 'id' and 'weights'"
+  )
+
+  #NA weights would silently make an asset ineligible
+  na_weights <- custom_weights_m_d_ref
+  na_weights$weights[1] <- NA_real_
+  expect_error(
+    classify_investment_universe(
+      universe_m_d_ref = stock_universe_m_d_ref,
+      custom_weights_m_d_ref = na_weights, verbose = FALSE),
+    "must not contain NA weights"
+  )
+
+  #An uncovered asset would join to NA and be dropped without saying so
+  expect_error(
+    classify_investment_universe(
+      universe_m_d_ref = stock_universe_m_d_ref,
+      custom_weights_m_d_ref = custom_weights_m_d_ref[-1, ], verbose = FALSE),
+    "must cover every id"
+  )
+
+  #An all-zero set of weights would produce an empty portfolio
+  zero_weights <- custom_weights_m_d_ref
+  zero_weights$weights <- 0
+  expect_error(
+    classify_investment_universe(
+      universe_m_d_ref = stock_universe_m_d_ref,
+      custom_weights_m_d_ref = zero_weights, verbose = FALSE),
+    "positive custom weight"
+  )
+})

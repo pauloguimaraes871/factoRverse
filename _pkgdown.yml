@@ -58,6 +58,7 @@ reference:
   - "groups_m_df-class"
   - "weights_m_df-class"
   - "stock_universe_m_df-class"
+  - "port_universe_m_df-class"
   - "oos_sb_outputs_m_df-class"
   - "feature_importance_m_df-class"
 
@@ -147,11 +148,19 @@ reference:
     them as a group.
   contents:
   - create_port_backtest_config
+  - create_port_metabacktest_config
+  - create_risk_target_parameters
+  - add_risk_target_parameters
   - run_port_backtest
   - update_port_backtest
   - create_port_backtest_cohort
+  - create_port_metabacktest_results
   - "port_backtest_config-class"
+  - "port_metabacktest_config-class"
+  - "risk_target_parameters-class"
   - "port_backtest_results-class"
+  - "port_metabacktest_results-class"
+  - "risk_target_metabacktest_results-class"
   - "port_backtest_cohort-class"
 
 - title: Constraints, liquidity & transaction costs
@@ -200,6 +209,8 @@ reference:
   - classify_investment_universe
   - classify_stock_liquidity
   - derive_stock_universe_m_d_ref
+  - derive_port_universe_m_df
+  - derive_exposure_signal
   - calculate_trade_orders
   - validate_exp_ret_score_tilt
   - add_rp_parameters

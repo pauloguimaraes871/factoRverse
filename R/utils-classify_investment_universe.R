@@ -105,6 +105,16 @@
 #' benchmark in order to express an underweight. Requires `selected_benchmark` and
 #' `benchmark_weights_m_d_ref`. Defaults to FALSE, leaving eligibility unchanged.
 #' @param asset_object A character indicating whether the analysis is being applied to "stocks" or "signal_portfolios"
+#' @param custom_weights_m_d_ref Optional data frame of user-supplied weights with columns `id` and
+#' `weights`. When provided, eligibility follows the weights directly: every asset with a positive
+#' weight is eligible and every other asset is not, and the promotion cascade is skipped entirely.
+#' This is the `custom_weights` route, where the weights are given rather than derived, so there is
+#' no expected-return score to rank on and nothing for the quantile, liquidity, turnover or
+#' concentration rules to act upon. It also makes eligibility agree with
+#' `set_portfolio_weights()`, which already defines the eligible set for `custom_weights` as the
+#' assets carrying a positive weight. An all-`NA` `exp_ret_score` column is appended so the
+#' `stock_universe_m_df` contract still holds; downstream analytics drop it rather than treat the
+#' missing values as data. Defaults to NULL, leaving classification unchanged.
 #' @param verbose A logical indicating whether to print messages during the function execution.
 #' @export
 classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
@@ -118,9 +128,97 @@ classify_investment_universe <- function(universe_m_d_ref, #Signals d_ref
                                          target_port_m_d_ref = NULL, ridge_pen = NULL, #Shrinkage
                                          user_defined_AND_rules_m_d_ref = NULL, user_defined_OR_rules_m_d_ref = NULL, #User defined rules
                                          include_benchmark_in_universe = FALSE, #Long/short block split
+                                         custom_weights_m_d_ref = NULL, #Weights-based eligibility
                                          asset_object = "stocks", use_raw_for_eligibility = FALSE, verbose = TRUE
 
 ){
+  ###Weights-based eligibility
+  #################
+  ##When the weights are supplied rather than derived, there is no expected-return score to rank
+  ##on and nothing for the promotion cascade to decide: eligibility is simply which assets carry a
+  ##position. Returning here also keeps this in step with set_portfolio_weights(), which already
+  ##treats the positively-weighted assets as the eligible set on the custom_weights route.
+  if (!is.null(custom_weights_m_d_ref)) {
+
+    if (!all(c("id", "weights") %in% names(custom_weights_m_d_ref))) {
+      stop("custom_weights_m_d_ref must contain 'id' and 'weights' columns.")
+    }
+    if (!"id" %in% names(universe_m_d_ref)) {
+      stop("universe_m_d_ref must contain an 'id' column to match custom_weights_m_d_ref.")
+    }
+    if (any(is.na(custom_weights_m_d_ref$weights))) {
+      stop("custom_weights_m_d_ref must not contain NA weights.")
+    }
+    if (any(!universe_m_d_ref$id %in% custom_weights_m_d_ref$id)) {
+      stop("custom_weights_m_d_ref must cover every id in universe_m_d_ref.")
+    }
+
+    universe_m_d_ref <- universe_m_d_ref %>%
+      dplyr::select(-dplyr::any_of("exp_ret_score")) %>%
+      dplyr::left_join(
+        custom_weights_m_d_ref %>%
+          dplyr::select(id, weights) %>%
+          dplyr::rename(supplied_weights = weights),
+        by = "id"
+      ) %>%
+      dplyr::mutate(
+        pre_eligible_assets = as.integer(supplied_weights > 0),
+        is_eligible = as.integer(supplied_weights > 0)
+      ) %>%
+      dplyr::select(-supplied_weights)
+
+    ###This route skips the promotion cascade, not the enrichment the cascade happens to perform.
+    ###Downstream analytics read group labels, liquidity metrics and benchmark weights off the
+    ###universe itself, so they are attached here even though no rule consults them.
+    attach_reference <- function(universe, reference, label) {
+      if (is.null(reference)) return(universe)
+      if (!"id" %in% names(reference)) {
+        stop(label, " must contain an 'id' column to be matched to universe_m_d_ref.")
+      }
+      universe %>%
+        dplyr::left_join(
+          reference %>% dplyr::select(-dplyr::any_of(c("tickers", "dates"))),
+          by = "id"
+        )
+    }
+
+    universe_m_d_ref <- universe_m_d_ref %>%
+      attach_reference(groups_m_d_ref, "groups_m_d_ref") %>%
+      attach_reference(liquidity_m_d_ref, "liquidity_m_d_ref")
+
+    if (!is.null(selected_benchmark) && !is.null(benchmark_weights_m_d_ref)) {
+      bench_column <- paste0(selected_benchmark, "_bench_weights")
+      universe_m_d_ref <- universe_m_d_ref %>%
+        dplyr::left_join(
+          benchmark_weights_m_d_ref %>%
+            dplyr::select(id, !!rlang::sym(selected_benchmark)) %>%
+            dplyr::rename(!!rlang::sym(bench_column) := !!rlang::sym(selected_benchmark)),
+          by = "id"
+        )
+    }
+
+    ###The stock_universe_m_df contract requires the column, but a custom-weights portfolio has
+    ###no expected-return view of its own, so it is missing rather than zero. Portfolio analytics
+    ###drop an entirely missing score instead of reading it as data. Added last so it stays the
+    ###final column, which is what the rest of the pipeline expects.
+    universe_m_d_ref <- universe_m_d_ref %>%
+      dplyr::mutate(exp_ret_score = NA_real_)
+
+    if (sum(universe_m_d_ref$is_eligible) == 0L) {
+      stop("No asset carries a positive custom weight, so the portfolio would be empty.")
+    }
+
+    if (isTRUE(verbose)) {
+      cat("\n")
+      cat(paste0("Eligibility set from supplied weights: ",
+                 crayon::magenta(sum(universe_m_d_ref$is_eligible)), " of ",
+                 nrow(universe_m_d_ref), " assets carry a position.\n"))
+    }
+
+    return(universe_m_d_ref)
+  }
+  #################
+
   ###Check objects
   #################
   ##Check if last col is exp_ret_score

@@ -16,9 +16,10 @@
 #' @param ss_backtest_workflow Optional list. Required when creating \code{signal_universe} objects.
 #' @param sb_backtest_workflow Optional list. Required when creating \code{oos_sb_outputs} objects.
 #' @param port_backtest_workflow Optional list. Required when creating \code{stock_universe} objects.
+#' @param port_metabacktest_workflow Optional list. Required when creating \code{port_universe} objects.
 #' @param type Character. When using the \code{data.frame} method this selects the subclass to instantiate.
 #'   Accepted values include \code{"generic"}, \code{"signals"}, \code{"features"}, \code{"signal_universe"},
-#'   \code{"stock_universe"}, \code{"oos_sb_outputs"}, \code{"groups"}, \code{"target"},
+#'   \code{"stock_universe"}, \code{"port_universe"}, \code{"oos_sb_outputs"}, \code{"groups"}, \code{"target"},
 #'   \code{"weights"}, \code{"priors"}, \code{"feature_importance"}, \code{"raw"}.
 #' @param tickers Character vector. (list-method) entity identifiers for rows of wide input.
 #' @param dates Date vector. (list-method) column identifiers / time points for wide input.
@@ -67,6 +68,7 @@ setGeneric("create_meta_dataframe", function(data, meta_dataframe_name = "not_id
 #' @param ss_backtest_workflow Optional list. Required when \code{type = "signal_universe"}.
 #' @param sb_backtest_workflow Optional list. Required when \code{type = "oos_sb_outputs"}.
 #' @param port_backtest_workflow Optional list. Required when \code{type = "stock_universe"}.
+#' @param port_metabacktest_workflow Optional list. Required when \code{type = "port_universe"}.
 #' @param type Character. Determines which subclass is instantiated (see generic \code{type} values). For \code{"generic"} the method
 #'   warns about missing monthly dates but still constructs the object; specialized \code{type} values enforce additional required workflow args.
 #' @param ... Additional arguments (ignored by many branches).
@@ -102,11 +104,12 @@ setGeneric("create_meta_dataframe", function(data, meta_dataframe_name = "not_id
 setMethod(
   "create_meta_dataframe", signature(data = "data.frame", meta_dataframe_name = "ANY"),
   function(data, meta_dataframe_name = "not_identified",
-           workflow = NULL, ss_backtest_workflow = NULL, sb_backtest_workflow = NULL, port_backtest_workflow = NULL, type = "generic", ...) {
+           workflow = NULL, ss_backtest_workflow = NULL, sb_backtest_workflow = NULL, port_backtest_workflow = NULL,
+           port_metabacktest_workflow = NULL, type = "generic", ...) {
     # Check for type argument
-    if (!type %in% c("generic", "signal_universe", "stock_universe", "oos_sb_outputs", "groups",
+    if (!type %in% c("generic", "signal_universe", "stock_universe", "port_universe", "oos_sb_outputs", "groups",
                      "target", "weights", "priors", "signals", "features", "feature_importance", "raw")) {
-      stop("type argument must be one of 'generic', 'signal_universe', 'stock_universe', 'oos_sb_outputs', 'groups', 'target',
+      stop("type argument must be one of 'generic', 'signal_universe', 'stock_universe', 'port_universe', 'oos_sb_outputs', 'groups', 'target',
                      'weights', 'priors', 'signals', 'features', 'feature_importance' or 'raw'.")
     }
 
@@ -221,6 +224,27 @@ setMethod(
                      n_obs = total_observations_count,
                      meta_dataframe_name = meta_dataframe_name,
                      port_backtest_workflow = port_backtest_workflow,
+                     current_date = current_date
+        )
+      )
+    }
+    if (type == "port_universe") {
+      # Check for workflow
+      if (is.null(port_metabacktest_workflow)) {
+        stop("port_metabacktest_workflow argument must be provided for port_universe type")
+      }
+
+      # Store metadata and column names
+      return(
+        methods::new("port_universe_m_df",
+                     data = data,
+                     workflow = workflow,
+                     signals = names(data)[-c(1:3)],
+                     unique_dates = unique_dates_count,
+                     unique_tickers = unique_tickers_count,
+                     n_obs = total_observations_count,
+                     meta_dataframe_name = meta_dataframe_name,
+                     port_metabacktest_workflow = port_metabacktest_workflow,
                      current_date = current_date
         )
       )
@@ -4943,7 +4967,9 @@ setMethod(
 #' @param port_construction_method A character string representing the portfolio construction method.
 #' Must be one of "ew" (equal-weight), "sw" (signal-weight), "cw" (cap-weight), "cs" (cap-scaled), "rp" (risk parity),
 #' "hrp" (hierarchical risk parity), "mvo" (mean-variance optimization), or "mmaf" (micro-macro allocation framework).
-#' "custom_weights" is not supported through this constructor.
+#' "custom_weights" supplies its weights rather than deriving them, so it requires
+#' chosen_score_metric_and_position to be NULL and custom_stock_weights_m_df to be passed to
+#' run_port_backtest().
 #' @param mvo_parameters An object of class `mvo_parameters` for mean-variance optimization. Only required if `port_construction_method` is "mvo".
 #' If missing and port_construction_method is "mvo", a default is created.
 #' @param rp_parameters An object of class `rp_parameters` for risk parity portfolios. Only required if `port_construction_method` is "rp".
@@ -5766,6 +5792,430 @@ add_liquidity_floor_cutoffs <- function(object, metric_name, metric_cutoffs) {
 
 
 
+# port_metabacktest_config-----------------------------------------------
+#' Create Port Meta Backtest Configuration
+#'
+#' The `create_port_metabacktest_config` function creates a `port_metabacktest_config` object that
+#' configures a meta-portfolio backtest: an allocation across several already-backtested portfolios,
+#' rebalanced on a schedule, driven by those portfolios' own characteristics. It wraps a single
+#' `port_backtest_config` describing the meta allocation together with the rules for reading the
+#' base portfolios' characteristics out of a cohort. The base portfolios themselves are supplied
+#' later, as a `port_backtest_cohort`, to [run_port_backtest()].
+#'
+#' @details
+#' The meta score is the `chosen_score_metric_and_position` of the wrapped config, and it must name
+#' a column of the [port_universe_m_df-class] that [derive_port_universe_m_df()] builds from the
+#' cohort. Because that object carries some statistics in both an ex-ante and a realized flavour,
+#' this constructor reports which flavour the chosen score is; see [message_meta_score_basis()].
+#'
+#' See [port_metabacktest_config-class] for which slots of the wrapped config act at the meta level
+#' and which act at the stock level.
+#'
+#' @param meta_port_backtest_config A `port_backtest_config` describing the meta allocation. Its
+#' @param type Either `"multi_port"`, allocating across a cohort, or `"risk_targeted"`,
+#'   scaling one sleeve against a residual.
+#' @param risk_target_parameters A `risk_target_parameters` object, used only when `type` is
+#'   `"risk_targeted"`. May be `NULL` at construction and supplied later with
+#'   [add_risk_target_parameters()].
+#' @param stock_cov_matrix_sample_size Numeric, in \strong{trading days}: the covariance
+#'   window the stock-level run uses for its analytics. Separate from the meta-level window,
+#'   which counts \strong{months} because the meta level allocates over portfolios.
+#'   Defaults to 252.
+#'   `port_construction_method` must be one of `"ew"`, `"sw"`, `"rp"`, `"hrp"` or `"mvo"`, and its
+#'   `chosen_score_metric_and_position` must name a column of the derived `port_universe_m_df`.
+#' @param return_basis Character, `"net"` (default) or `"raw"`. Which return basis of the base
+#'   portfolios' statistics feeds the meta universe.
+#' @param cost_lookback `NULL` (default) for an expanding cost average, or a single positive whole
+#'   number of trailing months.
+#' @param config_name Name of the backtest configuration.
+#' @param verbose Logical, default `TRUE`. Whether to report the meta score's basis.
+#' @param ... Additional arguments (not used).
+#'
+#' @return A `port_metabacktest_config` object.
+#'
+#' @examples
+#' \dontrun{
+#'   # Allocate across base portfolios by their realized information ratio, signal-weighted.
+#'   meta_config <- create_port_backtest_config(
+#'     chosen_score_metric_and_position = c(ann_info_ratio = "long"),
+#'     eligibility_quantile_range = c(0, 1),
+#'     initial_buffer_period = 24,
+#'     rebalancing_months = c(6, 12),
+#'     selected_benchmark = "ibov",
+#'     main_liquidity_metric = "mean_volfin_3m",
+#'     port_construction_method = "sw",
+#'     config_name = "meta_sw_ir"
+#'   )
+#'
+#'   port_meta_config <- create_port_metabacktest_config(
+#'     meta_port_backtest_config = meta_config,
+#'     return_basis = "net",
+#'     config_name = "meta_sw_ir"
+#'   )
+#' }
+#'
+#' @seealso [port_metabacktest_config-class], [derive_port_universe_m_df()],
+#'   [create_port_backtest_config()]
+#' @export
+setGeneric("create_port_metabacktest_config", function(meta_port_backtest_config, ...) {
+  standardGeneric("create_port_metabacktest_config")
+})
+
+
+#' @describeIn create_port_metabacktest_config Create a meta-backtest config from a meta-level
+#'   `port_backtest_config`.
+#' @export
+setMethod(
+  "create_port_metabacktest_config",
+  signature(meta_port_backtest_config = "port_backtest_config"),
+  function(meta_port_backtest_config, type = c("multi_port", "risk_targeted"),
+           return_basis = "net", cost_lookback = NULL, risk_target_parameters = NULL,
+           stock_cov_matrix_sample_size = 252,
+           config_name = "not_identified", verbose = TRUE, ...) {
+
+    type <- match.arg(type)
+
+    # Create the port_metabacktest_config object (validity does the checking)
+    meta_config <- methods::new("port_metabacktest_config",
+                                meta_port_backtest_config = meta_port_backtest_config,
+                                type = type,
+                                return_basis = return_basis,
+                                stock_cov_matrix_sample_size = stock_cov_matrix_sample_size,
+                                cost_lookback = cost_lookback,
+                                risk_target_parameters = risk_target_parameters,
+                                config_name = config_name
+    )
+
+    # Report whether the chosen meta score is an ex-ante or a realized figure. The two live side
+    # by side in port_universe_m_df under names that do not advertise the difference, and picking
+    # one where the other was intended changes what the allocation optimizes. There is nothing to
+    # report when the weights are supplied or produced by the risk-targeting rule.
+    chosen_score <- names(meta_port_backtest_config@chosen_score_metric_and_position)
+    if (isTRUE(verbose) && length(chosen_score) == 1L) {
+      message_meta_score_basis(stat_name = chosen_score, verbose = TRUE)
+    }
+
+    return(meta_config)
+  }
+)
+
+
+# risk_target_parameters--------------------------------------------------------
+#' Create risk_target_parameters
+#'
+#' Builds the parameters for the `risk_targeted` meta-portfolio path, which scales a risky sleeve
+#' against a residual sleeve so the combination targets a stated level of risk. See
+#' [risk_target_parameters-class] for how the residual and the target metric have to match, and for what
+#' each `vol_source` measures.
+#'
+#' @param residual_ticker Character naming the residual sleeve. It must be a row of the data
+#'   objects the backtest runs on, carrying its own return, liquidity and volatility.
+#' @param target Numeric, in the target metric's own units.
+#' @param target_metric `"tracking_error"` (default) or `"volatility"`. Must match what the
+#'   residual is: an index-tracking residual for the former, a riskless one for the latter.
+#' @param p Numeric exponent, 1 for risk targeting and 2 for the inverse-variance response.
+#' @param vol_source `"ex_ante"` (default), `"realized_rolling"` or `"supplied"`.
+#' @param vol_cov_est_method A `cov_est_method` for `"ex_ante"`. Defaults to EWMA over 60 daily
+#'   observations with `active_returns = FALSE`, since a tracking-error target is expressed
+#'   through active weights rather than by subtracting the benchmark from the returns.
+#' @param vol_window Numeric months for `"realized_rolling"`. Default 6.
+#' @param exposure_method How the exposure multiplier \eqn{s} is derived from a metric on the
+#'   sleeve. `"none"` (default) fixes it at one, so the weight is the risk ratio alone.
+#'   `"trend"` reads only the sign of the metric, `"ts_adjusted"` scores it against its own
+#'   history over `exposure_window`, and `"as_is"` passes it through as the multiplier.
+#' @param exposure_window Numeric months of history for `"ts_adjusted"`. Ignored by the other
+#'   methods. Default `NULL`.
+#' @param exposure_center Numeric, the multiplier when the metric says nothing either way.
+#'   Default 1.
+#' @param exposure_sensitivity Numeric, how far the multiplier moves from `exposure_center`. Its
+#'   sign sets the direction, so a negative value leans away from a high metric. Required by
+#'   `"trend"` and `"ts_adjusted"`, which have no safe default for it. Default `NULL`.
+#' @param exposure_bounds Numeric of length two, the box the multiplier is clipped to before the
+#'   risk ratio scales it. Default `c(0, 1)`.
+#'
+#'   The signal is read at the rebalance date and only from data available then, and it is kept
+#'   apart from the risk ratio on purpose: a constant \eqn{s} folds into the target by
+#'   rescaling it to \eqn{target \times s^{1/p}}, so only a time-varying signal adds
+#'   anything at all.
+#' @param min_weight,max_weight Numeric bounds on the risky sleeve. Default 0 and 1.
+#'
+#' @return An object of class `risk_target_parameters`.
+#'
+#' @examples
+#' \dontrun{
+#'   # Hold at least half the risky sleeve, targeting 4 percent annualised tracking error
+#'   risk_target_params <- create_risk_target_parameters(
+#'     residual_ticker = "BOVA11", target = 4, target_metric = "tracking_error",
+#'     p = 1, min_weight = 0.5
+#'   )
+#' }
+#' @seealso [risk_target_parameters-class], [add_risk_target_parameters()]
+#' @export
+create_risk_target_parameters <- function(residual_ticker,
+                                  target,
+                                  target_metric = c("tracking_error", "volatility"),
+                                  p = 1,
+                                  vol_source = c("ex_ante", "realized_rolling", "supplied"),
+                                  vol_cov_est_method = NULL,
+                                  vol_window = 6,
+                                  exposure_method = c("none", "trend", "ts_adjusted", "as_is"),
+                                  exposure_window = NULL,
+                                  exposure_center = 1,
+                                  exposure_sensitivity = NULL,
+                                  exposure_bounds = c(0, 1),
+                                  min_weight = 0,
+                                  max_weight = 1) {
+
+  target_metric <- match.arg(target_metric)
+  vol_source <- match.arg(vol_source)
+  exposure_method <- match.arg(exposure_method)
+
+  # A short, responsive window on daily data, which is the frequency the volatility-managed
+  # literature estimates realised risk at. Left on raw returns so a tracking-error target can be
+  # expressed through active weights without counting the benchmark twice.
+  if (vol_source == "ex_ante" && is.null(vol_cov_est_method)) {
+    vol_cov_est_method <- create_cov_est_method(
+      cov_estimation_method = "ewma",
+      cov_matrix_sample_size = 60,
+      active_returns = FALSE,
+      cov_matrix_benchmark = NULL
+    )
+  }
+
+  # The two risk sources read series of different frequency, and the number that sets the window
+  # lives in a different slot for each. The package convention is that a covariance over stocks
+  # is daily and a covariance over portfolios is monthly, so a window that looks like it was
+  # written for the other frequency is worth saying out loud: nothing downstream can tell a
+  # 60-day window from a 60-month one, and both run without complaint.
+  ##ex_ante reads daily stock returns, so its window counts trading days
+  if (vol_source == "ex_ante" && !is.null(vol_cov_est_method)) {
+    daily_window <- vol_cov_est_method@cov_matrix_sample_size
+    if (!is.null(daily_window) && is.finite(daily_window) && daily_window < 21) {
+      rlang::warn(paste0(
+        "vol_source is 'ex_ante', so cov_matrix_sample_size counts trading days on the daily ",
+        "stock returns, and ", daily_window, " of them is less than a month of data. If it was ",
+        "meant as a number of months, multiply it by about 21."))
+    }
+  }
+  ##realized_rolling reads the sleeve's monthly returns, so its window counts months
+  if (vol_source == "realized_rolling") {
+    if (!is.null(vol_cov_est_method)) {
+      rlang::warn(paste0(
+        "vol_source is 'realized_rolling', which reads the sleeve's own monthly returns and ",
+        "never estimates a covariance matrix, so vol_cov_est_method is ignored. Use ",
+        "vol_source = 'ex_ante' to estimate risk from daily stock returns instead."))
+    }
+    if (!is.null(vol_window) && is.finite(vol_window) && vol_window > 60) {
+      rlang::warn(paste0(
+        "vol_source is 'realized_rolling', so vol_window counts months of portfolio returns, ",
+        "and ", vol_window, " of them is over five years. If it was meant as a number of ",
+        "trading days, divide it by about 21."))
+    }
+  }
+  ##supplied takes the figure as given, so neither window is read
+  if (vol_source == "supplied" && !is.null(vol_cov_est_method)) {
+    rlang::warn(paste0(
+      "vol_source is 'supplied', so the risk figure is taken from vol_m_df as an annualised ",
+      "number and vol_cov_est_method is ignored."))
+  }
+
+  methods::new("risk_target_parameters",
+               residual_ticker = residual_ticker,
+               target = target,
+               target_metric = target_metric,
+               p = p,
+               vol_source = vol_source,
+               vol_cov_est_method = vol_cov_est_method,
+               vol_window = vol_window,
+               exposure_method = exposure_method,
+               exposure_window = exposure_window,
+               exposure_center = exposure_center,
+               exposure_sensitivity = exposure_sensitivity,
+               exposure_bounds = exposure_bounds,
+               min_weight = min_weight,
+               max_weight = max_weight
+  )
+}
+
+
+#' @title Add risk_target_parameters to a meta backtest config
+#'
+#' @description
+#' Either attaches an existing `risk_target_parameters` object or builds one from the arguments given.
+#' Only meaningful when the configuration's `type` is `"risk_targeted"`.
+#'
+#' @param object An object of class `port_metabacktest_config`.
+#' @param risk_target_params An object of class `risk_target_parameters`, or missing to build one.
+#' @param residual_ticker,target,target_metric,p Passed to [create_risk_target_parameters()].
+#' @param vol_source,vol_cov_est_method,vol_window Passed to [create_risk_target_parameters()].
+#' @param min_weight,max_weight Passed to [create_risk_target_parameters()].
+#' @param exposure_method,exposure_window,exposure_center,exposure_sensitivity,exposure_bounds Passed to [create_risk_target_parameters()].
+#' @param ... Additional arguments (not used).
+#'
+#' @return The updated `port_metabacktest_config`.
+#' @seealso [create_risk_target_parameters()], [risk_target_parameters-class]
+#' @export
+setGeneric("add_risk_target_parameters", function(object, risk_target_params, ...) {
+  standardGeneric("add_risk_target_parameters")
+})
+
+
+#' @describeIn add_risk_target_parameters Attach an existing `risk_target_parameters` object.
+#' @export
+setMethod(
+  "add_risk_target_parameters",
+  signature(object = "port_metabacktest_config", risk_target_params = "risk_target_parameters"),
+  function(object, risk_target_params, ...) {
+
+    if (object@type != "risk_targeted") {
+      stop("risk_target_parameters is only available when type is 'risk_targeted'; this configuration is '",
+           object@type, "'.")
+    }
+
+    object@risk_target_parameters <- risk_target_params
+    methods::validObject(object)
+
+    return(object)
+  }
+)
+
+
+#' @describeIn add_risk_target_parameters Build a `risk_target_parameters` object and attach it.
+#' @export
+setMethod(
+  "add_risk_target_parameters",
+  signature(object = "port_metabacktest_config", risk_target_params = "missing"),
+  function(object,
+           risk_target_params,
+           residual_ticker,
+           target,
+           target_metric = c("tracking_error", "volatility"),
+           p = 1,
+           vol_source = c("ex_ante", "realized_rolling", "supplied"),
+           vol_cov_est_method = NULL,
+           vol_window = 6,
+           exposure_method = c("none", "trend", "ts_adjusted", "as_is"),
+           exposure_window = NULL,
+           exposure_center = 1,
+           exposure_sensitivity = NULL,
+           exposure_bounds = c(0, 1),
+           min_weight = 0,
+           max_weight = 1,
+           ...) {
+
+    if (object@type != "risk_targeted") {
+      stop("risk_target_parameters is only available when type is 'risk_targeted'; this configuration is '",
+           object@type, "'.")
+    }
+
+    risk_target_params <- create_risk_target_parameters(
+      residual_ticker = residual_ticker,
+      target = target,
+      target_metric = match.arg(target_metric),
+      p = p,
+      vol_source = match.arg(vol_source),
+      vol_cov_est_method = vol_cov_est_method,
+      vol_window = vol_window,
+      exposure_method = match.arg(exposure_method),
+      exposure_window = exposure_window,
+      exposure_center = exposure_center,
+      exposure_sensitivity = exposure_sensitivity,
+      exposure_bounds = exposure_bounds,
+      min_weight = min_weight,
+      max_weight = max_weight
+    )
+
+    object@risk_target_parameters <- risk_target_params
+    methods::validObject(object)
+
+    return(object)
+  }
+)
+
+
+# port_metabacktest_results----------------------------------------------
+#' Create a port_metabacktest_results Object
+#'
+#' Assembles the output of a meta-portfolio backtest, wrapping the meta-level allocation and the
+#' stock-level backtest it implies into a single object. Normally called by [run_port_backtest()]
+#' rather than directly.
+#'
+#' @param port_metabacktest_config The `port_metabacktest_config` used.
+#' @param meta_port_backtest_results A `port_backtest_results` for the stock-level portfolio.
+#' @param port_backtest_cohort The `port_backtest_cohort` allocated across.
+#' @param port_universe_m_df The `port_universe_m_df` the meta weights were chosen from.
+#' @param meta_port_weights_m_df A `data.frame` of meta weights per base portfolio per rebalance
+#'   date, coerced to a `weights_m_df`.
+#' @param projected_stock_weights_m_df The `weights_m_df` handed to the stock-level backtest.
+#' @param meta_port_stats_m_df A `data.frame` of meta-level analytics per rebalance date, coerced
+#'   to a `meta_dataframe`.
+#' @param final_meta_port The `port` object for the last meta rebalance date.
+#'
+#' @return An object of class [port_metabacktest_results-class].
+#' @seealso [run_port_backtest()], [port_metabacktest_results-class]
+#' @export
+create_port_metabacktest_results <- function(port_metabacktest_config,
+                                             meta_port_backtest_results,
+                                             port_backtest_cohort,
+                                             port_universe_m_df,
+                                             meta_port_weights_m_df,
+                                             projected_stock_weights_m_df,
+                                             meta_port_stats_m_df,
+                                             final_meta_port) {
+
+  # Coerce the two tabular results, if they are not already meta objects
+  if (!methods::is(meta_port_weights_m_df, "meta_dataframe")) {
+    meta_port_weights_m_df <- suppressWarnings(create_meta_dataframe(
+      data = meta_port_weights_m_df,
+      meta_dataframe_name = paste0(port_metabacktest_config@config_name, "__meta_weights"),
+      type = "weights"
+    ))
+  }
+  if (!methods::is(meta_port_stats_m_df, "meta_dataframe")) {
+    meta_port_stats_m_df <- suppressWarnings(create_meta_dataframe(
+      data = meta_port_stats_m_df,
+      meta_dataframe_name = paste0(port_metabacktest_config@config_name, "__meta_stats")
+    ))
+  }
+
+  # The identifier names both halves: which allocation rule, over which cohort
+  backtest_identifier <- paste0("mc__", port_metabacktest_config@config_name,
+                                "_ch__", port_backtest_cohort@cohort_name)
+
+  # The risk-targeted path carries diagnostics and a plot view of its own, so it gets the
+  # subclass. The multi-portfolio path adds nothing beyond the parent and uses it directly.
+  if (port_metabacktest_config@type == "risk_targeted") {
+    return(methods::new(
+      "risk_target_metabacktest_results",
+      port_metabacktest_config = port_metabacktest_config,
+      meta_port_backtest_results = meta_port_backtest_results,
+      port_backtest_cohort = port_backtest_cohort,
+      port_universe_m_df = port_universe_m_df,
+      meta_port_weights_m_df = meta_port_weights_m_df,
+      projected_stock_weights_m_df = projected_stock_weights_m_df,
+      meta_port_stats_m_df = meta_port_stats_m_df,
+      final_meta_port = final_meta_port,
+      backtest_identifier = backtest_identifier,
+      residual_ticker = port_metabacktest_config@risk_target_parameters@residual_ticker,
+      risk_target_parameters = port_metabacktest_config@risk_target_parameters
+    ))
+  }
+
+  methods::new(
+    "port_metabacktest_results",
+    port_metabacktest_config = port_metabacktest_config,
+    meta_port_backtest_results = meta_port_backtest_results,
+    port_backtest_cohort = port_backtest_cohort,
+    port_universe_m_df = port_universe_m_df,
+    meta_port_weights_m_df = meta_port_weights_m_df,
+    projected_stock_weights_m_df = projected_stock_weights_m_df,
+    meta_port_stats_m_df = meta_port_stats_m_df,
+    final_meta_port = final_meta_port,
+    backtest_identifier = backtest_identifier
+  )
+}
+
+
 # create_port_backtest_cohort--------------------------------------------
 #' Create Portfolio Backtest Cohort
 #'
@@ -5840,6 +6290,27 @@ create_port_backtest_cohort <- function(port_backtest_results_list, cohort_name)
 
   ## Extract the workflow list from each backtest object
   workflow_list <- lapply(port_backtest_results_list, function(x) x@port_backtest_workflow[[length(x@port_backtest_workflow)]])
+  ## A results object that has been through update_port_backtest() carries one workflow batch per
+  ## run, and only the last describes the window that update recomputed. The object itself still
+  ## holds the whole history in its weights, returns and stats, so reading the date grids off the
+  ## last batch alone would make the cohort claim a span far shorter than what it contains, and
+  ## derive_port_universe_m_df() would then truncate the meta universe to that window. The grids
+  ## are therefore unioned across batches; every other parameter is correctly the latest one.
+  union_workflow_dates <- function(results, key) {
+    collected <- lapply(results@port_backtest_workflow, function(batch) batch[[key]])
+    collected <- collected[!vapply(collected, is.null, logical(1))]
+    if (length(collected) == 0) return(NULL)
+    sort(unique(do.call(c, collected)))
+  }
+  workflow_list <- lapply(seq_along(port_backtest_results_list), function(i) {
+    results <- port_backtest_results_list[[i]]
+    batch <- workflow_list[[i]]
+    for (key in c("dates_covered", "dates_backtest")) {
+      unioned <- union_workflow_dates(results, key)
+      if (!is.null(unioned)) batch[[key]] <- unioned
+    }
+    batch
+  })
   ## Store the common values from the first backtest for comparison
   common_values <- workflow_list[[1]][required_params]
   ## Loop over each backtest and verify required parameters match

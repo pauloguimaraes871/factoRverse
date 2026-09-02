@@ -785,6 +785,88 @@ setClass(
   }
 )
 
+
+#' port_universe_m_df-class
+#'
+#' An S4 subclass of \code{meta_dataframe} representing a universe of already-backtested
+#' portfolios, used as the input to a meta-portfolio allocation.
+#'
+#' @description
+#' \code{port_universe_m_df} is the meta-level analogue of \code{\link{stock_universe_m_df-class}}:
+#' each row is one base portfolio on one date, and each column is a characteristic of that
+#' portfolio that could be used to set its meta weight. It is produced by
+#' \code{\link{derive_port_universe_m_df}} from a \code{\link{port_backtest_cohort-class}}.
+#'
+#' @section Column families:
+#' \describe{
+#'   \item{portfolio statistics}{Carried over unchanged from each base backtest's
+#'     \code{port_stats_m_df}, filtered to one return basis. These mix two kinds of number under
+#'     similar names: figures such as \code{track_err} and \code{info_ratio} are computed from a
+#'     realized return series, while \code{act_risk} and \code{IR} are computed from the
+#'     portfolio's positions and a covariance matrix at the formation date. Selecting one where
+#'     the other was intended silently changes what a meta allocation optimizes, so
+#'     \code{\link{message_meta_score_basis}} announces which kind a chosen score is.}
+#'   \item{\code{avg_}}{Running average of a realized cost or turnover figure, over cost
+#'     observations strictly preceding the row's date.}
+#'   \item{\code{metric_}}{Weight-aggregated custom stock metric at the row's date.}
+#' }
+#' Base statistics are produced only on base rebalance dates and are carried forward to
+#' intervening dates. \code{stats_age_months} reports how stale each row is; a value greater than
+#' zero means the statistics were formed at an earlier date, which matters most for risk figures.
+#'
+#' @section Validity:
+#' Objects must satisfy parent-class validation and additionally:
+#' \itemize{
+#'   \item every column other than \code{id}, \code{tickers} and \code{dates} must be numeric;
+#'   \item \code{stats_age_months} must be present;
+#'   \item a column named \code{exp_ret_score} must \strong{not} be present. The meta score is
+#'     created downstream by \code{\link{derive_stock_universe_m_d_ref}} from the user's chosen
+#'     metric, so its presence here would mean a characteristic was silently promoted to the score.
+#' }
+#' Unlike \code{stock_universe_m_df}, \code{pre_eligible_assets} and \code{is_eligible} are
+#' \emph{not} required: this object is built before \code{\link{classify_investment_universe}} runs.
+#'
+#' @slot port_metabacktest_workflow ANY. Metadata describing how the universe was derived
+#'   (source cohort, return basis, cost window, dates covered).
+#'
+#' @seealso \code{\link{stock_universe_m_df-class}}, \code{\link{port_backtest_cohort-class}},
+#'   \code{\link{derive_port_universe_m_df}}
+#' @name port_universe_m_df-class
+#' @rdname port_universe_m_df-class
+#' @aliases port_universe_m_df
+#' @exportClass port_universe_m_df
+setClass(
+  "port_universe_m_df",
+  slots = c(
+    port_metabacktest_workflow = "ANY"
+  ),
+  contains = "meta_dataframe",
+  validity = function(object) {
+
+    colnames <- colnames(object@data)
+    value_cols <- setdiff(colnames, c("id", "tickers", "dates"))
+
+    #The meta score is derived downstream; a column with this name here would mean an ordinary
+    #characteristic was silently promoted to the expected-return score
+    if ("exp_ret_score" %in% colnames) {
+      return(paste0("port_universe_m_df must not contain an 'exp_ret_score' column. ",
+                    "The meta score is created downstream from the chosen metric."))
+    }
+
+    if (!"stats_age_months" %in% colnames) {
+      return("port_universe_m_df object must contain a stats_age_months column.")
+    }
+
+    if (length(value_cols) > 0 &&
+        !all(vapply(object@data[value_cols], is.numeric, logical(1)))) {
+      return("All columns of port_universe_m_df other than id, tickers and dates must be numeric.")
+    }
+
+    # If all checks pass
+    TRUE
+  }
+)
+
 #' weights_m_df-class
 #'
 #' An S4 subclass of \code{meta_dataframe} representing weight matrices used for portfolio construction.
@@ -1904,6 +1986,203 @@ setClass("hrp_parameters",
            }
          }
 )
+
+#risk_target_parameters---------------------------------------------------------
+#' Define the `risk_target_parameters` S4 Class
+#'
+#' Parameters for the `risk_targeted` meta-portfolio path: scaling a single risky sleeve against a
+#' residual sleeve so that the combination targets a stated level of risk. The weight on the risky
+#' sleeve is
+#' \deqn{w_t = \min\left(\max\left(\left(\frac{target}{risk_t}\right)^{p},\ min\_weight\right),\ max\_weight\right)}
+#' and the residual sleeve takes whatever is left. At \eqn{p = 1} this is ordinary risk targeting;
+#' at \eqn{p = 2} it is the inverse-variance response of a volatility-managed portfolio.
+#'
+#' @section The residual must match the target metric:
+#' This is the easiest thing to get wrong here, and it is silent when wrong.
+#' \itemize{
+#'   \item A residual that \strong{tracks the benchmark}, such as an index ETF, makes tracking
+#'     error scale linearly in the weight: halving the risky sleeve halves the tracking error, and
+#'     a fully residual portfolio has none. \code{target_metric = "tracking_error"} is then valid.
+#'   \item A residual that is \strong{riskless}, such as a cash line, makes total volatility scale
+#'     linearly instead. \code{target_metric = "volatility"} is then valid.
+#'   \item Crossing them does not error, it just stops working. Blending toward cash while
+#'     targeting tracking error \emph{raises} tracking error past a point, since a fully cash
+#'     portfolio is maximally far from the index, so the rule chases a level it can never reach.
+#' }
+#' Validation cannot read a ticker's mind, so it checks the residual's own realised tracking error
+#' against the benchmark and warns when a tracking-error target is paired with a residual that does
+#' not track.
+#'
+#' @section Estimating current risk:
+#' \code{vol_source} chooses where \eqn{risk_t} comes from.
+#' \describe{
+#'   \item{\code{"ex_ante"}}{Re-estimates a covariance matrix from daily stock returns over a short
+#'     window and applies the sleeve's current weights. This is the default because it describes
+#'     the portfolio held now: a rolling window of past monthly portfolio returns describes a chain
+#'     of past compositions instead, and inheriting the risk figure from the base backtest's
+#'     \code{port_stats} would use a long window that is also stale between rebalances. Requires
+#'     \code{daily_stock_returns_m_xts}.}
+#'   \item{\code{"realized_rolling"}}{Standard deviation of the sleeve's own past monthly returns
+#'     over \code{vol_window} months. Fewer observations and a slower response.}
+#'   \item{\code{"supplied"}}{A series the caller computes, passed to the backtest as data.}
+#' }
+#' For a tracking-error target the covariance is applied to \emph{active} weights, portfolio minus
+#' benchmark, which is how \code{calculate_port_stats} derives \code{act_risk}. The estimator itself
+#' therefore works on raw returns, so \code{active_returns} in \code{vol_cov_est_method} should stay
+#' \code{FALSE} to avoid subtracting the benchmark twice.
+#'
+#' @slot residual_ticker Character naming the residual sleeve, which must be a row of the data
+#'   objects the backtest runs on.
+#' @slot target Numeric, in the target metric's own units, typically annualised percentage points.
+#' @slot target_metric Either `"tracking_error"` or `"volatility"`.
+#' @slot p Numeric exponent. 1 for risk targeting, 2 for the inverse-variance response.
+#' @slot vol_source One of `"ex_ante"`, `"realized_rolling"` or `"supplied"`.
+#' @slot vol_cov_est_method A `cov_est_method` used when `vol_source` is `"ex_ante"`.
+#' @slot vol_window Numeric months, used when `vol_source` is `"realized_rolling"`.
+#' @slot exposure_method How the exposure multiplier \eqn{s} is derived from a metric on
+#'   the sleeve: `"none"`, `"trend"`, `"ts_adjusted"` or `"as_is"`.
+#' @slot exposure_window Numeric months of history for `"ts_adjusted"`, `NULL` otherwise.
+#' @slot exposure_center Numeric, the multiplier when the metric says nothing either way.
+#' @slot exposure_sensitivity Numeric, how far the multiplier moves from the centre. Its sign
+#'   sets the direction. Required by `"trend"` and `"ts_adjusted"`.
+#' @slot exposure_bounds Numeric of length two, the box the multiplier is clipped to before the
+#'   risk ratio scales it.
+#' @slot min_weight,max_weight Numeric bounds on the risky sleeve, so the residual is capped at
+#'   `1 - min_weight`.
+#'
+#' @seealso [create_risk_target_parameters()], [add_risk_target_parameters()],
+#'   \code{\link{port_metabacktest_config-class}}
+#' @export
+setClass("risk_target_parameters",
+         slots = list(
+           residual_ticker = "character",
+           target = "numeric",
+           target_metric = "character",
+           p = "numeric",
+           vol_source = "character",
+           vol_cov_est_method = "ANY",
+           vol_window = "numeric",
+           exposure_method = "character",
+           exposure_window = "ANY",
+           exposure_center = "numeric",
+           exposure_sensitivity = "ANY",
+           exposure_bounds = "numeric",
+           min_weight = "numeric",
+           max_weight = "numeric"
+         ),
+         prototype = list(
+           target_metric = "tracking_error",
+           p = 1,
+           vol_source = "ex_ante",
+           vol_cov_est_method = NULL,
+           vol_window = 6,
+           exposure_method = "none",
+           exposure_window = NULL,
+           exposure_center = 1,
+           exposure_sensitivity = NULL,
+           exposure_bounds = c(0, 1),
+           min_weight = 0,
+           max_weight = 1
+         ),
+         validity = function(object) {
+
+           ##Residual sleeve
+           if (length(object@residual_ticker) != 1 || is.na(object@residual_ticker) ||
+               !nzchar(object@residual_ticker)) {
+             stop("residual_ticker must be a single non-empty character value.")
+           }
+
+           ##Target
+           if (length(object@target) != 1 || !is.finite(object@target) || object@target <= 0) {
+             stop("target must be a single positive finite number, in the target metric's units.")
+           }
+           if (length(object@target_metric) != 1 ||
+               !object@target_metric %in% c("tracking_error", "volatility")) {
+             stop("target_metric must be either 'tracking_error' or 'volatility'.")
+           }
+
+           ##Response
+           if (length(object@p) != 1 || !is.finite(object@p) || object@p <= 0) {
+             stop("p must be a single positive finite number. Use 1 for risk targeting and 2 for ",
+                  "the inverse-variance response.")
+           }
+
+           ##Risk estimate
+           if (length(object@vol_source) != 1 ||
+               !object@vol_source %in% c("ex_ante", "realized_rolling", "supplied")) {
+             stop("vol_source must be one of 'ex_ante', 'realized_rolling' or 'supplied'.")
+           }
+           if (object@vol_source == "ex_ante") {
+             if (is.null(object@vol_cov_est_method) ||
+                 !inherits(object@vol_cov_est_method, "cov_est_method")) {
+               stop("vol_cov_est_method must be a 'cov_est_method' object when vol_source is 'ex_ante'.")
+             }
+             ###The benchmark is expressed through active weights, not by subtracting it from the
+             ###returns, so subtracting it here too would count it twice
+             if (isTRUE(object@vol_cov_est_method@active_returns)) {
+               stop("vol_cov_est_method must have active_returns = FALSE. A tracking-error target ",
+                    "is expressed by applying active weights to a raw covariance matrix, so ",
+                    "estimating the covariance on active returns as well would subtract the ",
+                    "benchmark twice.")
+             }
+           }
+           if (object@vol_source == "realized_rolling") {
+             if (length(object@vol_window) != 1 || is.na(object@vol_window) ||
+                 object@vol_window < 2 || object@vol_window %% 1 != 0) {
+               stop("vol_window must be a single whole number of at least 2 months when ",
+                    "vol_source is 'realized_rolling'.")
+             }
+           }
+
+           ##Exposure signal
+           if (length(object@exposure_method) != 1 ||
+               !object@exposure_method %in% c("none", "trend", "ts_adjusted", "as_is")) {
+             stop("exposure_method must be one of 'none', 'trend', 'ts_adjusted' or 'as_is'. ",
+                  "There is deliberately no inverse-of-risk mapping: that is what the ",
+                  "(target / risk)^p term does, and having it in both places would let the ",
+                  "volatility scaling be applied twice.")
+           }
+           if (object@exposure_method %in% c("trend", "ts_adjusted")) {
+             if (is.null(object@exposure_sensitivity) ||
+                 !is.numeric(object@exposure_sensitivity) ||
+                 length(object@exposure_sensitivity) != 1 ||
+                 !is.finite(object@exposure_sensitivity)) {
+               stop("exposure_sensitivity must be a single finite number for exposure_method '",
+                    object@exposure_method, "'. Its sign sets the direction of the rule, so it ",
+                    "has no default.")
+             }
+           }
+           if (object@exposure_method == "ts_adjusted") {
+             if (is.null(object@exposure_window) || !is.numeric(object@exposure_window) ||
+                 length(object@exposure_window) != 1 || is.na(object@exposure_window) ||
+                 object@exposure_window < 2 || object@exposure_window %% 1 != 0) {
+               stop("exposure_window must be a single whole number of at least 2 for ",
+                    "exposure_method 'ts_adjusted'.")
+             }
+           }
+           if (length(object@exposure_bounds) != 2 || any(!is.finite(object@exposure_bounds)) ||
+               object@exposure_bounds[1] < 0 ||
+               object@exposure_bounds[1] > object@exposure_bounds[2]) {
+             stop("exposure_bounds must be two finite numbers, non-negative and non-decreasing.")
+           }
+
+           ##Bounds on the risky sleeve
+           if (length(object@min_weight) != 1 || length(object@max_weight) != 1 ||
+               !is.finite(object@min_weight) || !is.finite(object@max_weight)) {
+             stop("min_weight and max_weight must each be a single finite number.")
+           }
+           if (object@min_weight < 0 || object@max_weight > 1) {
+             stop("min_weight and max_weight must lie within [0, 1]: these are long-only weights ",
+                  "on the risky sleeve, with the residual taking the remainder.")
+           }
+           if (object@min_weight > object@max_weight) {
+             stop("min_weight must not exceed max_weight.")
+           }
+
+           TRUE
+         }
+)
+
 
 #mmaf_parameters--------------------------------------------------------
 #' Define the `mmaf_parameters` S4 Class
@@ -3454,7 +3733,7 @@ setClass(
 #' @slot rebalancing_months A numeric value representing the number of months for rebalancing.
 #' @slot cov_est_method An object of class `cov_est_method` representing the covariance estimation method and relevant parameters. Current methods are: 'sample', 'ewma', 'cc' (constant correlation),
 #' 'pca1', 'pca2', 'shrink_id' (shrinkage to identity matrix), 'shrink_cc' (shrinkage to constant correlation). This is only relevant for the covariance-based methods 'rp', 'hrp', 'mvo' and 'mmaf'.
-#' @slot port_construction_method A character string representing the type of portfolio. Must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'hrp', 'mvo', 'mmaf' or 'slsaf' ('custom_weights' is not supported for this config). For signal portfolios,
+#' @slot port_construction_method A character string representing the type of portfolio. Must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'hrp', 'mvo', 'mmaf', 'slsaf' or 'custom_weights'. For signal portfolios,
 #' 'cw' and 'cs' are not applicable. For signal portfolios, this is inferred based on sb_algorithm.
 #' @slot mvo_parameters An object of class `mvo_parameters` representing the parameters for mean-variance optimization. This is only relevant for 'mvo'.
 #' @slot rp_parameters An object of class `rp_parameters` representing the parameters for risk parity. This is only relevant for 'rp'.
@@ -3537,15 +3816,32 @@ setClass(
     }
 
     #Port method
-    if (object@port_construction_method == "custom_weights"){
-      stop("custom_weights port_construction_method is not supported at this time.")
-    }
+    #The custom_weights method supplies its weights rather than deriving them, so there is no
+    #score to rank on and no cross-sectional rule to apply. The engine reaches it through the
+    #weights-based route in classify_investment_universe() and through set_portfolio_weights(),
+    #which takes the positively-weighted assets as the eligible set.
     if (object@port_construction_method == "custom_weights" && !is.null(object@chosen_score_metric_and_position)){
       stop("chosen_score_metric_and_position must be NULL when port_construction_method is custom_weights")
     }
 
-    if (!object@port_construction_method %in% c("ew", "sw", "cw", "cs", "rp", "mvo", "hrp", "mmaf", "slsaf")){
-      stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'mvo', 'hrp', 'mmaf' or 'slsaf'.")
+    #Supplied weights reach the engine through a route that returns before the policy cascade,
+    #so a policy attached alongside them is never applied. Refusing it is the difference between
+    #a constraint that does not bind and one that was silently discarded.
+    if (object@port_construction_method == "custom_weights") {
+      inert_policies <- c(
+        liquidity_constraint_policy = !is.null(object@liquidity_constraint_policy),
+        turnover_constraint_policy = !is.null(object@turnover_constraint_policy),
+        concentration_constraint_policy = !is.null(object@concentration_constraint_policy))
+      if (any(inert_policies)) {
+        stop(paste(names(inert_policies)[inert_policies], collapse = " and "),
+             " cannot be combined with port_construction_method 'custom_weights': the weights ",
+             "are supplied rather than derived, so the eligibility cascade these policies act on ",
+             "never runs and they would be silently ignored.")
+      }
+    }
+
+    if (!object@port_construction_method %in% c("ew", "sw", "cw", "cs", "rp", "mvo", "hrp", "mmaf", "slsaf", "custom_weights")){
+      stop("port_construction_method must be one of 'ew', 'sw', 'cw', 'cs', 'rp', 'mvo', 'hrp', 'mmaf', 'slsaf' or 'custom_weights'.")
     }
 
     #Check if eligibility_quantile_range has length of 2 between 0 and 1
@@ -3726,6 +4022,209 @@ setClass(
         stop("concentration_constraint_policy benchmark must be the same as selected_benchmark")
       }
     }
+
+    TRUE
+  }
+)
+
+
+#port_metabacktest_config-----------------------------------------------
+#' Class for Port Meta Backtest Config
+#'
+#' An S4 class specifying how meta weights are attributed across a set of already-backtested
+#' portfolios. It wraps a single \code{port_backtest_config} describing the meta allocation,
+#' together with the rules for reading the base portfolios' characteristics out of a
+#' \code{\link{port_backtest_cohort-class}}. The base portfolios themselves are supplied later,
+#' as a cohort, to \code{\link{run_port_backtest}}.
+#'
+#' @section Which slots act at which level:
+#' The wrapped \code{port_backtest_config} serves two levels at once, and it is worth being
+#' explicit about which of its slots does what:
+#' \describe{
+#'   \item{meta level, allocating across base portfolios}{\code{port_construction_method},
+#'     \code{chosen_score_metric_and_position} (the meta score, a column of
+#'     \code{\link{port_universe_m_df-class}}), \code{eligibility_quantile_range},
+#'     \code{min_eligible_assets_fallback}, the scaler slots, \code{cov_est_method} and the
+#'     \code{mvo_parameters} / \code{rp_parameters} / \code{hrp_parameters} blocks.}
+#'   \item{stock level, running the resulting weights as a portfolio}{
+#'     \code{main_liquidity_metric} and \code{transaction_costs_parameters}, which price the
+#'     trades the meta allocation implies once it is pushed through to individual stocks.}
+#'   \item{both levels}{\code{rebalancing_months} and \code{initial_buffer_period}, which set the
+#'     single schedule on which meta weights are formed, and \code{selected_benchmark}.}
+#' }
+#'
+#' @section Covariance sample size is in months:
+#' At meta level the assets are portfolios and their return series are monthly, so
+#' \code{cov_est_method@@cov_matrix_sample_size} counts months rather than trading days. The
+#' default carried by \code{\link{create_port_backtest_config}} is 252, which is a daily figure;
+#' left unchanged it would ask for 21 years of monthly history. Validity warns when a
+#' covariance-based method is combined with an implausibly long sample.
+#'
+#' @slot meta_port_backtest_config A \code{port_backtest_config} describing the meta allocation.
+#' @slot return_basis A character, \code{"net"} or \code{"raw"}, selecting which return basis of the
+#'   base portfolios' statistics feeds the meta universe.
+#' @slot cost_lookback \code{NULL} for an expanding cost average, or a single positive whole number
+#'   of trailing cost observations.
+#' @slot stock_cov_matrix_sample_size Numeric, in \strong{trading days}. The covariance
+#'   window used by the stock-level run for its analytics. It is separate from the meta-level
+#'   window in \code{meta_port_backtest_config@cov_est_method}, which counts
+#'   \strong{months} because the meta level allocates over portfolios whose returns are
+#'   monthly. Reusing one number for both would mean 36 months at one level and 36 days at the
+#'   other. Defaults to 252.
+#' @slot config_name A character string naming the configuration.
+#'
+#' @seealso \code{\link{create_port_metabacktest_config}}, \code{\link{port_universe_m_df-class}},
+#'   \code{\link{port_backtest_cohort-class}}
+#' @export
+setClass(
+  "port_metabacktest_config",
+  slots = list(
+    meta_port_backtest_config = "port_backtest_config",
+    type = "character",
+    return_basis = "character",
+    cost_lookback = "ANY",
+    stock_cov_matrix_sample_size = "numeric",
+    risk_target_parameters = "ANY",
+    config_name = "character"
+  ),
+  prototype = list(
+    type = "multi_port",
+    risk_target_parameters = NULL,
+    ##A daily default, because this window is applied to daily stock returns
+    stock_cov_matrix_sample_size = 252
+  ),
+  validity = function(object) {
+
+    inner_config <- object@meta_port_backtest_config
+    port_construction_method <- inner_config@port_construction_method
+
+    ##Type
+    if (length(object@type) != 1 || !object@type %in% c("multi_port", "risk_targeted")) {
+      stop("type must be either 'multi_port' or 'risk_targeted'.")
+    }
+
+    #Checks common to both paths, run before the type branch so neither can skip them
+    ####################
+    ##Constraint policies that would be silently inert
+    ###At meta level these describe stock properties portfolios do not have; at stock level the
+    ###meta weights are applied as custom weights, which bypass them. That holds on both paths.
+    if (!is.null(inner_config@liquidity_constraint_policy)) {
+      stop("liquidity_constraint_policy is not supported at meta-level: portfolios have no liquidity ",
+           "classification, and the stock-level run applies the meta weights directly.")
+    }
+    if (!is.null(inner_config@turnover_constraint_policy)) {
+      stop("turnover_constraint_policy is not supported at meta-level: the stock-level run applies ",
+           "the meta weights directly, so a buffer rule would have nothing to act on.")
+    }
+    if (!is.null(inner_config@concentration_constraint_policy)) {
+      stop("concentration_constraint_policy is not supported at meta-level: it requires benchmark ",
+           "weights over the allocated assets, which do not exist for a set of portfolios.")
+    }
+
+    ##Return basis
+    if (length(object@return_basis) != 1 || !object@return_basis %in% c("net", "raw")) {
+      stop("return_basis must be a single character value, either 'net' or 'raw'.")
+    }
+
+    ##Cost lookback
+    if (!is.null(object@cost_lookback)) {
+      if (!is.numeric(object@cost_lookback) || length(object@cost_lookback) != 1 ||
+          is.na(object@cost_lookback) || object@cost_lookback < 1 ||
+          object@cost_lookback %% 1 != 0) {
+        stop("cost_lookback must be NULL or a single positive whole number of months.")
+      }
+    }
+
+    ##Config name
+    if (length(object@config_name) != 1) {
+      stop("config_name must be a single character string.")
+    }
+
+    ##Covariance sample size is counted in months at meta level, so a daily-sized window is
+    ##almost certainly the create_port_backtest_config default left unchanged
+    if (port_construction_method %in% c("rp", "hrp", "mvo")) {
+      cov_matrix_sample_size <- inner_config@cov_est_method@cov_matrix_sample_size
+      if (cov_matrix_sample_size > 120) {
+        warning("cov_matrix_sample_size is ", cov_matrix_sample_size, ", but at meta-level it counts ",
+                "months of portfolio returns rather than trading days. This asks for ",
+                round(cov_matrix_sample_size / 12, 1), " years of history. The default carried by ",
+                "create_port_backtest_config() is the daily 252; consider setting it explicitly.")
+      }
+    }
+
+    ##The stock-level analytics window, in trading days
+    if (length(object@stock_cov_matrix_sample_size) != 1 ||
+        !is.finite(object@stock_cov_matrix_sample_size) ||
+        object@stock_cov_matrix_sample_size < 2 ||
+        object@stock_cov_matrix_sample_size %% 1 != 0) {
+      stop("stock_cov_matrix_sample_size must be a single whole number of at least 2 trading days.")
+    }
+    ####################
+
+    ##The two paths carry different parameters, and neither should silently ignore the other's
+    if (object@type == "risk_targeted") {
+      ###Left NULL, the configuration is incomplete rather than invalid, so it can be built first
+      ###and completed with add_risk_target_parameters(). residual_ticker and target have no sensible
+      ###defaults, so unlike the other parameter blocks this one cannot be defaulted into place.
+      ###check_inputs_meta_port_backtest() refuses to run without it, the same way a backtest
+      ###refuses to run without transaction_costs_parameters.
+      if (!is.null(object@risk_target_parameters) &&
+          !inherits(object@risk_target_parameters, "risk_target_parameters")) {
+        stop("risk_target_parameters must be a 'risk_target_parameters' object when type is 'risk_targeted'.")
+      }
+      ###The weight on the risky sleeve comes from the targeting rule, so nothing here ranks a
+      ###cross-section. 'custom_weights' is the value that says so, and requiring it keeps the
+      ###wrapped config honest about itself: its own show method reports a NULL score as coming
+      ###from SB predictions for every other method, which would be untrue on this path. It also
+      ###matches what the stock-level run actually does, since that is invoked with
+      ###'custom_weights' on the projected weights. The wrapped config refuses a score alongside
+      ###'custom_weights', so requiring it here also settles that the meta score must be NULL.
+      if (port_construction_method != "custom_weights") {
+        stop("port_construction_method must be 'custom_weights' when type is 'risk_targeted': ",
+             "the weight on the risky sleeve comes from the risk-targeting rule rather than from ",
+             "ranking a cross-section, and 'custom_weights' is the value that says so. Got '",
+             port_construction_method, "'.")
+      }
+      ###Scaling against a residual is defined relative to a benchmark for a tracking-error target,
+      ###and the benchmark also anchors the stock-level run
+      if (!is.null(object@risk_target_parameters) &&
+          object@risk_target_parameters@target_metric == "tracking_error" &&
+          is.null(inner_config@selected_benchmark)) {
+        stop("A 'tracking_error' target needs a selected_benchmark in meta_port_backtest_config.")
+      }
+      return(TRUE)
+    }
+
+    ##type == "multi_port" from here on
+    if (!is.null(object@risk_target_parameters)) {
+      stop("risk_target_parameters is only used when type is 'risk_targeted'.")
+    }
+
+    ##Methods that do not carry over to a set of portfolios
+    ###slsaf and mmaf are overlays on a stock cross-section: the first expresses conviction
+    ###relative to benchmark constituents, the second allocates within and across stock groups.
+    ###Neither has a counterpart over a handful of portfolios.
+    if (port_construction_method %in% c("slsaf", "mmaf")) {
+      stop("port_construction_method '", port_construction_method, "' is not supported at meta-level. ",
+           "It is defined as an overlay on a stock cross-section (benchmark constituents for 'slsaf', ",
+           "stock groups for 'mmaf') and has no counterpart over a set of portfolios.")
+    }
+    ###cw and cs weight by a liquidity metric, which portfolios do not have
+    if (port_construction_method %in% c("cw", "cs")) {
+      stop("port_construction_method '", port_construction_method, "' is not supported at meta-level. ",
+           "It weights by a liquidity metric, which a portfolio does not have.")
+    }
+    if (!port_construction_method %in% c("ew", "sw", "rp", "hrp", "mvo")) {
+      stop("port_construction_method at meta-level must be one of 'ew', 'sw', 'rp', 'hrp' or 'mvo'.")
+    }
+
+    ##A derived meta score is needed for every method that ranks the cross-section, because the
+    ##universe must carry an exp_ret_score before classify_investment_universe can select from it
+    if (is.null(inner_config@chosen_score_metric_and_position)) {
+      stop("chosen_score_metric_and_position must be provided in meta_port_backtest_config. ",
+           "It names the column of port_universe_m_df used as the meta score.")
+    }
+
 
     TRUE
   }
@@ -4300,6 +4799,162 @@ setClass("port_backtest_cohort",
            TRUE
          }
 )
+
+
+#port_metabacktest_results--------------------------------------------
+#' S4 Class for Portfolio Meta Backtest Results
+#'
+#' Holds the results of allocating across a cohort of already-backtested portfolios: the meta
+#' allocation itself, the stock-level backtest it implies, and the objects that connect the two.
+#'
+#' @section The two levels:
+#' A meta backtest happens at two levels and this object keeps both, because neither answers the
+#' other's questions:
+#' \describe{
+#'   \item{meta level}{\code{meta_port_weights_m_df} and \code{meta_port_stats_m_df} record how
+#'     much of the portfolio each base portfolio was given and what the allocation looked like as
+#'     an allocation, including its expected-return score, risk and relative risk contributions
+#'     across base portfolios. \code{final_meta_port} is the \code{port} object from the last meta
+#'     rebalance.}
+#'   \item{stock level}{\code{meta_port_backtest_results} is an ordinary
+#'     \code{port_backtest_results} for the portfolio those meta weights imply once pushed through
+#'     to individual stocks. Its returns, costs and turnover are the real ones, netted across base
+#'     portfolios that hold the same names, and it is what should be compared against a benchmark
+#'     or against the base portfolios themselves.}
+#' }
+#' Note that the stock-level object reports no expected-return statistics: its weights are supplied
+#' rather than derived, so \code{exp_ret} and its ratios are missing by construction. The
+#' expected-return view lives at the meta level, in \code{meta_port_stats_m_df}.
+#'
+#' @section Reading meta_port_stats_m_df:
+#' Two of its columns are easy to misread.
+#' \itemize{
+#'   \item \code{exp_ret} is the weighted average of the meta score after
+#'     \code{\link{signal_transform}}, so it is a dimensionless cross-sectional quantity and not a
+#'     return in percent. \code{sharpe} inherits that, being \code{exp_ret / risk}.
+#'   \item \code{risk}, and everything else derived from the covariance matrix, is measured on the
+#'     base portfolios' own returns, not on active returns, and so is an absolute figure. This
+#'     holds regardless of \code{cov_est_method@@active_returns}, which
+#'     \code{\link{create_port_backtest_config}} turns on automatically whenever a benchmark is
+#'     set: that setting reaches only the covariance used to \emph{construct} weights under
+#'     \code{rp}, \code{hrp} and \code{mvo}, because \code{calculate_port_stats()} re-estimates its
+#'     own covariance with active returns switched off to avoid counting the benchmark twice.
+#' }
+#' The stock-level object in \code{meta_port_backtest_results} is benchmark-relative in the
+#' ordinary way and needs no such caveat.
+#'
+#' @slot port_metabacktest_config The \code{port_metabacktest_config} used.
+#' @slot meta_port_backtest_results A \code{port_backtest_results} for the stock-level portfolio.
+#' @slot port_backtest_cohort The \code{port_backtest_cohort} allocated across.
+#' @slot port_universe_m_df The \code{port_universe_m_df} the meta weights were chosen from.
+#' @slot meta_port_weights_m_df A \code{weights_m_df} of meta weights per base portfolio per
+#'   rebalance date.
+#' @slot projected_stock_weights_m_df A \code{weights_m_df} of the stock-level weights those meta
+#'   weights imply, as handed to the stock-level backtest.
+#' @slot meta_port_stats_m_df A \code{meta_dataframe} of meta-level portfolio analytics per
+#'   rebalance date.
+#' @slot final_meta_port The \code{port} object for the last meta rebalance date.
+#' @slot backtest_identifier A character identifying the backtest.
+#'
+#' @seealso \code{\link{port_metabacktest_config-class}}, \code{\link{port_universe_m_df-class}},
+#'   \code{\link{port_backtest_results-class}}
+#' @export
+setClass(
+  "port_metabacktest_results",
+  slots = list(
+    port_metabacktest_config = "ANY",
+    meta_port_backtest_results = "port_backtest_results",
+    port_backtest_cohort = "ANY",
+    port_universe_m_df = "ANY",
+    meta_port_weights_m_df = "ANY",
+    projected_stock_weights_m_df = "ANY",
+    meta_port_stats_m_df = "ANY",
+    final_meta_port = "ANY",
+    backtest_identifier = "character"
+  ),
+  validity = function(object) {
+
+    if (!is.null(object@port_metabacktest_config) &&
+        !inherits(object@port_metabacktest_config, "port_metabacktest_config")) {
+      return("port_metabacktest_config must be a 'port_metabacktest_config' object")
+    }
+    if (!is.null(object@port_backtest_cohort) &&
+        !inherits(object@port_backtest_cohort, "port_backtest_cohort")) {
+      return("port_backtest_cohort must be a 'port_backtest_cohort' object")
+    }
+    if (!is.null(object@port_universe_m_df) &&
+        !inherits(object@port_universe_m_df, "port_universe_m_df")) {
+      return("port_universe_m_df must be a 'port_universe_m_df' object")
+    }
+    if (!is.null(object@meta_port_weights_m_df) &&
+        !inherits(object@meta_port_weights_m_df, "meta_dataframe")) {
+      return("meta_port_weights_m_df must be a 'meta_dataframe' object")
+    }
+    if (!is.null(object@projected_stock_weights_m_df) &&
+        !inherits(object@projected_stock_weights_m_df, "meta_dataframe")) {
+      return("projected_stock_weights_m_df must be a 'meta_dataframe' object")
+    }
+    if (!is.null(object@meta_port_stats_m_df) &&
+        !inherits(object@meta_port_stats_m_df, "meta_dataframe")) {
+      return("meta_port_stats_m_df must be a 'meta_dataframe' object")
+    }
+    if (!is.null(object@final_meta_port) && !inherits(object@final_meta_port, "port")) {
+      return("final_meta_port must be a 'port' object")
+    }
+    if (length(object@backtest_identifier) != 1) {
+      return("backtest_identifier must be a single character string")
+    }
+
+    TRUE
+  }
+)
+
+#risk_target_metabacktest_results---------------------------------------------
+#' S4 Class for Risk-Targeted Meta Backtest Results
+#'
+#' The result of the `risk_targeted` path: a single risky sleeve scaled against a residual sleeve
+#' so the combination targets a stated level of risk. Extends
+#' \code{\link{port_metabacktest_results-class}} with the diagnostics that only make sense for a
+#' targeting rule, and carries its own plot method for the capital-market-line view.
+#'
+#' @section Reading meta_port_stats_m_df on this path:
+#' Where the multi-portfolio path reports cross-sectional portfolio analytics, this one reports the
+#' targeting rule at work: \code{sleeve_risk} is the risky sleeve's estimated risk at each
+#' rebalance date, \code{risky_weight} the weight the rule set from it, \code{target} the level
+#' asked for, and \code{implied_risk} the product \eqn{sleeve\_risk \times risky\_weight}.
+#'
+#' \code{implied_risk} equals \code{target} exactly whenever the weight is unclipped, so a
+#' departure from it says a bound was binding, not that the targeting failed. Whether the rule
+#' actually worked is a question about realised returns, which exist only after the stock-level run:
+#' compare the realised tracking error of
+#' \code{meta_port_backtest_results@@port_returns_m_xts} against \code{target}. A realised figure
+#' persistently above the target means the risk estimator is too slow to catch risk as it rises.
+#'
+#' @slot residual_ticker Character naming the residual sleeve.
+#' @slot risk_target_parameters The `risk_target_parameters` used.
+#'
+#' @seealso \code{\link{port_metabacktest_results-class}}, \code{\link{risk_target_parameters-class}}
+#' @export
+setClass(
+  "risk_target_metabacktest_results",
+  contains = "port_metabacktest_results",
+  slots = list(
+    residual_ticker = "character",
+    risk_target_parameters = "ANY"
+  ),
+  validity = function(object) {
+    if (length(object@residual_ticker) != 1) {
+      return("residual_ticker must be a single character string")
+    }
+    if (!is.null(object@risk_target_parameters) &&
+        !inherits(object@risk_target_parameters, "risk_target_parameters")) {
+      return("risk_target_parameters must be a 'risk_target_parameters' object")
+    }
+    TRUE
+  }
+)
+
+
 
 
 

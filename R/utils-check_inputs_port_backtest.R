@@ -316,9 +316,14 @@ check_inputs_port_backtest <- function(
     }
   }
 
-  #Check that at least one of chosen_score_metric_and_position or oos_predictions_m_df is provided
-  if (is.null(chosen_score_metric_and_position) && is.null(oos_predictions_m_df)){
-    stop("either chosen_score_metric_and_position or oos_predictions_m_df should be provided.")
+  #Check that a source of expected-return scores is provided
+  #A custom_weights portfolio is the exception: its weights are supplied rather than derived from a
+  #score, so there is nothing for a score to do. Requiring one here made that path unreachable even
+  #though the checks below contemplate it.
+  if (is.null(chosen_score_metric_and_position) && is.null(oos_predictions_m_df) &&
+      !(port_construction_method == "custom_weights" && !is.null(custom_stock_weights_m_df))){
+    stop("either chosen_score_metric_and_position or oos_predictions_m_df should be provided, ",
+         "unless port_construction_method is 'custom_weights' and custom_stock_weights_m_df is supplied.")
   }
 
   #######daily stock returns
