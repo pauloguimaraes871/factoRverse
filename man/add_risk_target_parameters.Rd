@@ -41,6 +41,8 @@ add_risk_target_parameters(object, risk_target_params, ...)
 
 \item{vol_source, vol_cov_est_method, vol_window}{Passed to \code{\link[=create_risk_target_parameters]{create_risk_target_parameters()}}.}
 
+\item{exposure_method, exposure_window, exposure_center, exposure_sensitivity, exposure_bounds}{Passed to \code{\link[=create_risk_target_parameters]{create_risk_target_parameters()}}.}
+
 \item{min_weight, max_weight}{Passed to \code{\link[=create_risk_target_parameters]{create_risk_target_parameters()}}.}
 }
 \value{

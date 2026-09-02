@@ -2039,6 +2039,14 @@ setClass("hrp_parameters",
 #' @slot vol_source One of `"ex_ante"`, `"realized_rolling"` or `"supplied"`.
 #' @slot vol_cov_est_method A `cov_est_method` used when `vol_source` is `"ex_ante"`.
 #' @slot vol_window Numeric months, used when `vol_source` is `"realized_rolling"`.
+#' @slot exposure_method How the exposure multiplier \eqn{s} is derived from a metric on
+#'   the sleeve: `"none"`, `"trend"`, `"ts_adjusted"` or `"as_is"`.
+#' @slot exposure_window Numeric months of history for `"ts_adjusted"`, `NULL` otherwise.
+#' @slot exposure_center Numeric, the multiplier when the metric says nothing either way.
+#' @slot exposure_sensitivity Numeric, how far the multiplier moves from the centre. Its sign
+#'   sets the direction. Required by `"trend"` and `"ts_adjusted"`.
+#' @slot exposure_bounds Numeric of length two, the box the multiplier is clipped to before the
+#'   risk ratio scales it.
 #' @slot min_weight,max_weight Numeric bounds on the risky sleeve, so the residual is capped at
 #'   `1 - min_weight`.
 #'

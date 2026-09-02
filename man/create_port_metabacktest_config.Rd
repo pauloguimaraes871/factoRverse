@@ -20,17 +20,29 @@ create_port_metabacktest_config(meta_port_backtest_config, ...)
 )
 }
 \arguments{
-\item{meta_port_backtest_config}{A \code{port_backtest_config} describing the meta allocation. Its
-\code{port_construction_method} must be one of \code{"ew"}, \code{"sw"}, \code{"rp"}, \code{"hrp"} or \code{"mvo"}, and its
-\code{chosen_score_metric_and_position} must name a column of the derived \code{port_universe_m_df}.}
+\item{meta_port_backtest_config}{A \code{port_backtest_config} describing the meta allocation. Its}
 
 \item{...}{Additional arguments (not used).}
+
+\item{type}{Either \code{"multi_port"}, allocating across a cohort, or \code{"risk_targeted"},
+scaling one sleeve against a residual.}
 
 \item{return_basis}{Character, \code{"net"} (default) or \code{"raw"}. Which return basis of the base
 portfolios' statistics feeds the meta universe.}
 
 \item{cost_lookback}{\code{NULL} (default) for an expanding cost average, or a single positive whole
 number of trailing months.}
+
+\item{risk_target_parameters}{A \code{risk_target_parameters} object, used only when \code{type} is
+\code{"risk_targeted"}. May be \code{NULL} at construction and supplied later with
+\code{\link[=add_risk_target_parameters]{add_risk_target_parameters()}}.}
+
+\item{stock_cov_matrix_sample_size}{Numeric, in \strong{trading days}: the covariance
+window the stock-level run uses for its analytics. Separate from the meta-level window,
+which counts \strong{months} because the meta level allocates over portfolios.
+Defaults to 252.
+\code{port_construction_method} must be one of \code{"ew"}, \code{"sw"}, \code{"rp"}, \code{"hrp"} or \code{"mvo"}, and its
+\code{chosen_score_metric_and_position} must name a column of the derived \code{port_universe_m_df}.}
 
 \item{config_name}{Name of the backtest configuration.}
 

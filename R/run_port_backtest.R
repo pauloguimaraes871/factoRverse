@@ -1485,6 +1485,12 @@ setMethod("run_port_backtest",
 #' [check_inputs_meta_port_backtest()] warns when it exceeds `max_stats_age_months`.
 #'
 #' @param port_backtest_cohort A `port_backtest_cohort` holding the base portfolios to allocate
+#' @param vol_m_df Optional `meta_dataframe` of supplied risk for the risky sleeve, read when
+#'   `vol_source` is `"supplied"`. One row per date for the sleeve, carrying a single
+#'   annualised risk column.
+#' @param exposure_m_df Optional `meta_dataframe` carrying the metric the exposure signal is
+#'   derived from, required when `exposure_method` is anything but `"none"`. It must describe
+#'   the risky sleeve.
 #'   across. Its backtests must have been run on the same data objects passed here.
 #' @param custom_port_metrics_m_df Optional `meta_dataframe` of user-computed per-portfolio metrics,
 #'   joined into the port universe and available as a meta score. See

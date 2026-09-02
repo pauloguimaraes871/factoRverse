@@ -30,6 +30,19 @@ objects the backtest runs on.}
 
 \item{\code{vol_window}}{Numeric months, used when \code{vol_source} is \code{"realized_rolling"}.}
 
+\item{\code{exposure_method}}{How the exposure multiplier \eqn{s} is derived from a metric on
+the sleeve: \code{"none"}, \code{"trend"}, \code{"ts_adjusted"} or \code{"as_is"}.}
+
+\item{\code{exposure_window}}{Numeric months of history for \code{"ts_adjusted"}, \code{NULL} otherwise.}
+
+\item{\code{exposure_center}}{Numeric, the multiplier when the metric says nothing either way.}
+
+\item{\code{exposure_sensitivity}}{Numeric, how far the multiplier moves from the centre. Its sign
+sets the direction. Required by \code{"trend"} and \code{"ts_adjusted"}.}
+
+\item{\code{exposure_bounds}}{Numeric of length two, the box the multiplier is clipped to before the
+risk ratio scales it.}
+
 \item{\code{min_weight,max_weight}}{Numeric bounds on the risky sleeve, so the residual is capped at
 \code{1 - min_weight}.}
 }}

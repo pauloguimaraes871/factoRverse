@@ -127,12 +127,20 @@ run_port_backtest(
 
 \item{.old_backtest_covered_dates}{(Internal) Dates already covered in the previous backtest (used when \code{.update = TRUE}).}
 
-\item{port_backtest_cohort}{A \code{port_backtest_cohort} holding the base portfolios to allocate
-across. Its backtests must have been run on the same data objects passed here.}
+\item{port_backtest_cohort}{A \code{port_backtest_cohort} holding the base portfolios to allocate}
 
 \item{custom_port_metrics_m_df}{Optional \code{meta_dataframe} of user-computed per-portfolio metrics,
 joined into the port universe and available as a meta score. See
 \code{\link[=derive_port_universe_m_df]{derive_port_universe_m_df()}}.}
+
+\item{vol_m_df}{Optional \code{meta_dataframe} of supplied risk for the risky sleeve, read when
+\code{vol_source} is \code{"supplied"}. One row per date for the sleeve, carrying a single
+annualised risk column.}
+
+\item{exposure_m_df}{Optional \code{meta_dataframe} carrying the metric the exposure signal is
+derived from, required when \code{exposure_method} is anything but \code{"none"}. It must describe
+the risky sleeve.
+across. Its backtests must have been run on the same data objects passed here.}
 
 \item{max_stats_age_months}{Optional whole number. Age above which carried base statistics raise
 a warning at meta rebalance dates. \code{NULL} reports the observed age without a threshold.}

@@ -70,6 +70,7 @@ utils::globalVariables(c(
   "alpha_t_stat", "exp_ret_score_temp", "custom_weights_m_d_ref", "target_weights", "base_weights", "exp_ret_score_raw",
   "scaler", "macro_cap_weighting_metric", "size_abs", "weight", "size", "Asset", "act_sharpe", "act_n_groups",
   "bench_w", "act_group_sharpe", "ExpRet", "Row", "Col", "Risk", "Return", "Sharpe", "assets", "ind_max_weights",
-  "ind_min_weights", "col_quintenary", "mean_var", "sd_var", "port_stats_m_df"
+  "ind_min_weights", "col_quintenary", "mean_var", "sd_var", "port_stats_m_df",
+  "base_weight", "exposure", "meta_weight", "portfolio", "risky_weight", "sleeve_risk", "source_dates", "stats_age_months", "supplied_weights", "total"
 ))
 

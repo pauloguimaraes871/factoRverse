@@ -5812,6 +5812,15 @@ add_liquidity_floor_cutoffs <- function(object, metric_name, metric_cutoffs) {
 #' and which act at the stock level.
 #'
 #' @param meta_port_backtest_config A `port_backtest_config` describing the meta allocation. Its
+#' @param type Either `"multi_port"`, allocating across a cohort, or `"risk_targeted"`,
+#'   scaling one sleeve against a residual.
+#' @param risk_target_parameters A `risk_target_parameters` object, used only when `type` is
+#'   `"risk_targeted"`. May be `NULL` at construction and supplied later with
+#'   [add_risk_target_parameters()].
+#' @param stock_cov_matrix_sample_size Numeric, in \strong{trading days}: the covariance
+#'   window the stock-level run uses for its analytics. Separate from the meta-level window,
+#'   which counts \strong{months} because the meta level allocates over portfolios.
+#'   Defaults to 252.
 #'   `port_construction_method` must be one of `"ew"`, `"sw"`, `"rp"`, `"hrp"` or `"mvo"`, and its
 #'   `chosen_score_metric_and_position` must name a column of the derived `port_universe_m_df`.
 #' @param return_basis Character, `"net"` (default) or `"raw"`. Which return basis of the base
@@ -6040,6 +6049,7 @@ create_risk_target_parameters <- function(residual_ticker,
 #' @param residual_ticker,target,target_metric,p Passed to [create_risk_target_parameters()].
 #' @param vol_source,vol_cov_est_method,vol_window Passed to [create_risk_target_parameters()].
 #' @param min_weight,max_weight Passed to [create_risk_target_parameters()].
+#' @param exposure_method,exposure_window,exposure_center,exposure_sensitivity,exposure_bounds Passed to [create_risk_target_parameters()].
 #' @param ... Additional arguments (not used).
 #'
 #' @return The updated `port_metabacktest_config`.
