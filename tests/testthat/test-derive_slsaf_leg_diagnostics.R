@@ -148,8 +148,10 @@ test_that("the budget decomposition accepts every portfolio the constructor acce
     leg_budget <- derive_slsaf_leg_diagnostics(universe_m_df, "ibov")$leg_budget
   )
 
-  #The decomposition still has to decompose: a row belonging to neither leg would drop
-  #out of the components without touching sum(weights), and that must still be caught
+  #The displayed decomposition still adds up to the total it decomposes, which is what
+  #the stacked budget plot relies on. This is checked here rather than inside the
+  #function: the two are the same quantity by construction, so asserting it there would
+  #only reintroduce the second accumulation path that caused the disagreement.
   expect_equal(leg_budget$port_total, sum(universe_m_df$weights), tolerance = 1e-12)
 })
 

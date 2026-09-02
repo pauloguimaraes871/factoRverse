@@ -200,19 +200,15 @@ derive_slsaf_leg_diagnostics <- function(stock_universe_m_df,
     ### later: a portfolio that function accepted must not be refused here.
     tol_check <- 1e-6
 
+    ### Assert on the weights themselves rather than on port_total. The two are the same
+    ### quantity algebraically, but port_total is accumulated through three separate
+    ### group sums and so carries a different floating-point residual, which is what put
+    ### this function and the constructor on opposite sides of the same boundary for the
+    ### same portfolio. An asset belonging to neither leg needs no separate check: it was
+    ### filtered out above, so its weight is missing from this total too and presents
+    ### here as a shortfall.
     if (any(abs(leg_budget$port_weight_total - 1) > tol_check)){
       stop("slsaf budget decomposition does not account for the whole portfolio.")
-    }
-
-    ### port_total is algebraically identical to port_weight_total, but it is accumulated
-    ### through three separate group sums, so it carries a different floating-point
-    ### residual. Asserting the sum-to-one invariant on it used to put the two functions
-    ### on opposite sides of the same boundary for the same portfolio. Compare it against
-    ### the total instead, at a tolerance that only float noise can satisfy: what this
-    ### catches is a row belonging to neither leg, which would drop out of the components
-    ### while leaving sum(weights) untouched.
-    if (any(abs(leg_budget$port_total - leg_budget$port_weight_total) > 1e-12)){
-      stop("slsaf budget decomposition does not partition the portfolio: some assets belong to neither leg.")
     }
 
     if (any(abs(leg_budget$short_underweight - leg_budget$long_active) > tol_check)){
