@@ -21273,7 +21273,7 @@ test_that("run_sb_backtest does not works with NAs in last target_fwd+ 1 periods
 #####################################
 #HETEROGENEOUS BASE FEATURES
 
-test_that("Metabacktesting with .allow_heterogeneous_base_features is a no-op when OFF and runs a mixed pool when ON", {
+test_that("Metabacktesting with allow_heterogeneous_base_features is a no-op when OFF and runs a mixed pool when ON", {
 
   ## Two claims are pinned here:
   ##   1. Turning the flag ON changes nothing for a pool that did not need it. This is
@@ -21384,6 +21384,13 @@ test_that("Metabacktesting with .allow_heterogeneous_base_features is a no-op wh
                                                features_passthrough = "none",
                                                config_name = "meta_rf_glmnet_het")
 
+  ##The same configuration with the relaxation declared. Everything else is held equal,
+  ##so any difference between the two runs below is attributable to the flag alone.
+  meta_config_allow <- create_sb_metabacktest_config(meta_sb_backtest_config = meta_learner_config,
+                                                    features_passthrough = "none",
+                                                    config_name = "meta_rf_glmnet_het",
+                                                    allow_heterogeneous_base_features = TRUE)
+
 
   #The flag is a no-op on a homogeneous pool
   ##################################
@@ -21400,8 +21407,7 @@ test_that("Metabacktesting with .allow_heterogeneous_base_features is a no-op wh
     res_on <- run_sb_backtest(
       target_m_df = target_m_df, features_m_df = features_m_df,
       base_sb_backtest_results_list = list(rf_results, glmnet_results),
-      config = meta_config, parallel = FALSE, verbose = FALSE,
-      .allow_heterogeneous_base_features = TRUE)
+      config = meta_config_allow, parallel = FALSE, verbose = FALSE)
   ))
 
   ### The meta learner's realised out-of-sample predictions
@@ -21442,8 +21448,7 @@ test_that("Metabacktesting with .allow_heterogeneous_base_features is a no-op wh
     res_het <- run_sb_backtest(
       target_m_df = target_m_df, features_m_df = features_m_df,
       base_sb_backtest_results_list = list(het_rf_results, glmnet_results),
-      config = meta_config, parallel = FALSE, verbose = FALSE,
-      .allow_heterogeneous_base_features = TRUE)
+      config = meta_config_allow, parallel = FALSE, verbose = FALSE)
   ))
 
   expect_s4_class(res_het, "sb_metabacktest_results")
@@ -21495,12 +21500,13 @@ het_pool_config <- function(nm, signals){
     rebalancing_months = 11, config_name = nm, chosen_signals_and_positions = signals)
 }
 
-het_pool_meta_config <- function(nm){
+het_pool_meta_config <- function(nm, allow = FALSE){
   create_sb_metabacktest_config(
     meta_sb_backtest_config = create_sb_backtest_config(
       sb_algorithm = "ew", training_sample_size = 2, target_fwd_name = "fwd_premium_1m",
       rebalancing_months = 6, config_name = "meta"),
-    features_passthrough = "none", config_name = nm)
+    features_passthrough = "none", config_name = nm,
+    allow_heterogeneous_base_features = allow)
 }
 
 
@@ -21559,11 +21565,15 @@ test_that("Base learners fitted on different features_m_df objects blend under t
 
   #Blends under the relaxation
   ##################################
+  ### The relaxation is a property of the configuration, so the same call that was
+  ### refused above succeeds purely by being given a config that declares it.
+  meta_config_allow <- het_pool_meta_config("meta_real_het_allow", allow = TRUE)
+
   suppressWarnings(suppressMessages(
-    res_het <- run_sb_backtest(features_m_df = feats_a, target_m_df = target, config = meta_config,
+    res_het <- run_sb_backtest(features_m_df = feats_a, target_m_df = target,
+                               config = meta_config_allow,
                                base_sb_backtest_results_list = list(res_a, res_b),
-                               parallel = FALSE, verbose = FALSE,
-                               .allow_heterogeneous_base_features = TRUE)
+                               parallel = FALSE, verbose = FALSE)
   ))
 
   expect_s4_class(res_het, "sb_metabacktest_results")
@@ -21593,12 +21603,12 @@ test_that("Base learners fitted on different features_m_df objects blend under t
 
 test_that("A genuinely heterogeneous meta backtest records its pool and is updatable without being told again", {
 
-  ## An update is a continuation of a decision already taken, not a new one. The meta
-  ## method records .allow_heterogeneous_base_features in its workflow batch, and
-  ## update_sb_backtest() reads it back rather than asking again - the same way it
-  ## already recovers gsm_algorithm and the winsorization bounds. Without that recovery a
-  ## monthly job would have to remember the flag every month, and the month it forgot, a
-  ## book that had been running for a year would stop dead on the guards.
+  ## An update is a continuation of a decision already taken, not a new one. The
+  ## relaxation lives on sb_metabacktest_config, which travels inside the results object,
+  ## so update_sb_backtest() continues a heterogeneous run by construction: it hands
+  ## old_results@sb_metabacktest_config straight back to run_sb_backtest(). Were it an
+  ## argument instead, a monthly job would have to remember it every month, and the month
+  ## it forgot, a book that had been running for a year would stop dead on the guards.
   ##
   ## The negative expectation is the one that makes this a test rather than a
   ## demonstration: a result stored as HOMOGENEOUS must still refuse a heterogeneous pool
@@ -21635,14 +21645,14 @@ test_that("A genuinely heterogeneous meta backtest records its pool and is updat
                            config = cfg_b, parallel = FALSE, verbose = FALSE)
   }))
 
-  meta_config <- het_pool_meta_config("meta_real_het_update")
+  meta_config_allow <- het_pool_meta_config("meta_real_het_update", allow = TRUE)
+  meta_config_plain <- het_pool_meta_config("meta_real_hom_update")
 
   suppressWarnings(suppressMessages(
     res_het <- run_sb_backtest(features_m_df = feats_a_1, target_m_df = target_1,
-                               config = meta_config,
+                               config = meta_config_allow,
                                base_sb_backtest_results_list = list(a_1, b_1),
-                               parallel = FALSE, verbose = FALSE,
-                               .allow_heterogeneous_base_features = TRUE)
+                               parallel = FALSE, verbose = FALSE)
   ))
 
   ##A homogeneous counterpart, for the negative case below. Both learners are fitted on
@@ -21652,7 +21662,7 @@ test_that("A genuinely heterogeneous meta backtest records its pool and is updat
                                config = het_pool_config("ols_b", c(book_yield = "long", eps_yield = "long")),
                                parallel = FALSE, verbose = FALSE)
     res_hom <- run_sb_backtest(features_m_df = feats_a_1, target_m_df = target_1,
-                               config = meta_config,
+                               config = meta_config_plain,
                                base_sb_backtest_results_list = list(a_1, b_1_hom),
                                parallel = FALSE, verbose = FALSE)
   }))
@@ -21681,8 +21691,12 @@ test_that("A genuinely heterogeneous meta backtest records its pool and is updat
                               old_results = b_1, verbose = FALSE)
   }))
 
-  ### No .allow_heterogeneous_base_features is passed here, and no such argument exists
-  ### on update_sb_backtest(). It succeeds because res_het says it was built that way.
+  ### Nothing about the relaxation is passed here, and update_sb_backtest() has no such
+  ### argument. It succeeds because res_het carries the config that declares it, which is
+  ### the point of putting the decision on the config: it travels with the object instead
+  ### of having to be remembered and re-supplied every month.
+  expect_true(res_het@sb_metabacktest_config@allow_heterogeneous_base_features)
+
   suppressWarnings(suppressMessages(
     upd_het <- update_sb_backtest(features_m_df = feats_a_2, target_m_df = target_2,
                                   updated_base_sb_backtest_results = list(a_2, b_2),

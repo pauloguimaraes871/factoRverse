@@ -17,6 +17,7 @@ create_sb_metabacktest_config(
   config_name = "not_identified",
   normalize_base_predictions = TRUE,
   winsorize_base_predictions = TRUE,
+  allow_heterogeneous_base_features = FALSE,
   ...
 )
 }
@@ -33,6 +34,17 @@ meta-learner's inputs; or 'all' (all features) or 'none' (none). Default 'none'.
 \item{normalize_base_predictions}{A logical value indicating whether to normalize the base predictions.}
 
 \item{winsorize_base_predictions}{A logical value indicating whether to winsorize the base predictions.}
+
+\item{allow_heterogeneous_base_features}{Logical. If \code{TRUE}, permits base learners fitted on
+different feature sets, and on different \code{features_m_df} objects, to be stacked together, for
+research designs that combine learners trained on different representations of the same
+investable universe. Requires \code{features_passthrough = "none"}; the validity function refuses any
+other pairing, since only on that path does the meta learner ignore \code{features_m_df} and build
+its design matrix purely from the base learners' predictions joined on \code{id}. All base learners
+must still score an identical \code{id} set. Note that a mixed run is named after whichever
+\code{features_m_df} was supplied, so its provenance string records one vintage rather than the pool,
+and \code{explain_prediction()} is unavailable on the result. Defaults to \code{FALSE}, which reproduces
+historical behaviour exactly.}
 }
 \value{
 An \code{sb_metabacktest_config} object.

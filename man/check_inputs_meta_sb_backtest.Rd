@@ -54,14 +54,17 @@ check_inputs_meta_sb_backtest(
 
 \item{verbose}{A boolean indicating whether to print detailed messages.}
 
-\item{.allow_heterogeneous_base_features}{Logical; if \code{TRUE}, permits base
-learners that were fitted on different feature sets to be stacked together.
-Requires \code{features_passthrough == "none"}, because only then does the meta
-learner ignore \code{features_m_df} entirely and build its design matrix purely
-from the base learners' predictions joined on \code{id}. Defaults to
-\code{FALSE}, which reproduces the historical behaviour exactly. Intended for
-deliberate research designs that blend learners trained on different
-representations of the same investable universe.}
+\item{.allow_heterogeneous_base_features}{Logical; the relaxation resolved by
+\code{run_sb_backtest()} from \code{config@allow_heterogeneous_base_features}, passed
+in rather than re-read so this function can be exercised directly. If \code{TRUE},
+permits base learners that were fitted on different feature sets, and on different
+\code{features_m_df} objects, to be stacked together: the
+\code{chosen_signals_and_positions} and \code{features_object_name} checks are
+skipped, and an identical \code{id} set across base learners is asserted in their
+place. Requires \code{features_passthrough == "none"}, which the
+\code{sb_metabacktest_config} validity function already enforces at construction and
+which is re-checked here. Defaults to \code{FALSE}, which reproduces the historical
+behaviour exactly.}
 }
 \value{
 None. Stops execution if validation checks fail.

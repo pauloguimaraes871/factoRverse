@@ -3482,6 +3482,12 @@ setClass(
 #'   Alternatively, if \code{'all'}, all features are passed through. If \code{'none'}, no features are passed through. Default is \code{'none'}.
 #' @slot normalize_base_predictions Logical; if \code{TRUE}, normalizes the base learners' predictions before passing them to the meta learner. Default is \code{TRUE}.
 #' @slot winsorize_base_predictions Logical; if \code{TRUE}, winsorizes the base learners' predictions before passing them to the meta learner. Default is \code{FALSE}.
+#' @slot allow_heterogeneous_base_features Logical; if \code{TRUE}, permits base learners fitted on
+#'   different feature sets, and on different \code{features_m_df} objects, to be stacked together.
+#'   Requires \code{features_passthrough = "none"}, which the validity function enforces, since only
+#'   then does the meta learner ignore \code{features_m_df} and build its design matrix purely from
+#'   the base learners' predictions joined on \code{id}. All base learners must still score an
+#'   identical \code{id} set. Default is \code{FALSE}, which reproduces historical behaviour exactly.
 #' @slot config_name A character string with the name of the configuration
 #'
 #' @section Validity:
@@ -3499,8 +3505,10 @@ setClass(
     features_passthrough = "character",
     normalize_base_predictions = "logical",
     winsorize_base_predictions = "logical",
+    allow_heterogeneous_base_features = "logical",
     config_name = "character"
   ),
+  prototype = methods::prototype(allow_heterogeneous_base_features = FALSE),
   validity = function(object) {
 
     #Check for tuning strat
@@ -3524,6 +3532,25 @@ setClass(
     if (any(object@features_passthrough %in% c("long", "short", "force"))){
       stop ("features_passthrough should just declare which signals from features_m_df should be added to meta learner features.
             Postions will be corrected based on base-level chosen_signals_and_positions.")
+    }
+
+    #Check for allow_heterogeneous_base_features
+    ##The relaxation is only well-defined when nothing is passed through. With
+    ##features_passthrough != "none" the meta learner selects pass-through columns from
+    ##the single supplied features_m_df, so a pool whose learners saw different feature
+    ##sets makes "which learner's features?" ill-posed rather than merely unchecked.
+    ##Enforced here rather than at run time so the combination cannot be constructed at
+    ##all: the pairing is a property of the configuration, and a config that cannot exist
+    ##cannot be stored, reloaded a year later, and only then discovered to be invalid.
+    if (length(object@allow_heterogeneous_base_features) != 1 ||
+        is.na(object@allow_heterogeneous_base_features)){
+      stop("allow_heterogeneous_base_features must be a single non-missing logical.")
+    }
+    if (object@allow_heterogeneous_base_features &&
+        !(length(object@features_passthrough) == 1 && object@features_passthrough == "none")){
+      stop("allow_heterogeneous_base_features = TRUE requires features_passthrough = 'none'. ",
+           "Only then does the meta learner ignore features_m_df entirely and build its ",
+           "design matrix purely from the base learners' predictions joined on id.")
     }
 
     return(TRUE)

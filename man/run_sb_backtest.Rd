@@ -59,7 +59,6 @@ run_sb_backtest(
   verbose = TRUE,
   parallel = TRUE,
   .test_seed = NULL,
-  .allow_heterogeneous_base_features = FALSE,
   .update = FALSE,
   .old_meta_sb_backtest_results = NULL
 )
@@ -132,16 +131,6 @@ run_sb_backtest(
 \item{meta_custom_signal_weights_m_df}{(Optional) A \code{meta_dataframe} with weights for the meta learner signals. Used when \code{sb_algorithm = "custom_weights"}.}
 
 \item{meta_custom_signal_universe_metrics_m_df}{(Optional) A \code{meta_dataframe} of evaluation metrics to be used as custom signal-level features by the meta learner.}
-
-\item{.allow_heterogeneous_base_features}{(Advanced) Logical flag. If \code{TRUE}, permits base learners fitted on
-different feature sets, and on different \code{features_m_df} objects, to be stacked together. Requires
-\code{features_passthrough = "none"}, since only then does the meta learner ignore \code{features_m_df} and build its
-design matrix purely from base predictions joined on \code{id}; all base learners must still score an identical
-\code{id} set. Relaxes the \code{chosen_signals_and_positions} and \code{features_object_name} checks, and nothing else: the
-RP/HRP/MVO \code{signal_themes}/\code{backtest_returns} provenance checks and the target, sample-size and
-testing-window invariants all remain enforced. Note that a mixed run is named after whichever \code{features_m_df}
-was supplied, so its provenance string records one vintage rather than the pool, and \code{explain_prediction()}
-is not available on the result. Default is \code{FALSE}, which reproduces historical behaviour exactly.}
 
 \item{.old_meta_sb_backtest_results}{(Internal) A previously computed \code{sb_backtest_results} object for the meta learner, used only if \code{.update = TRUE}.}
 }

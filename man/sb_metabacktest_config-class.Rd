@@ -22,6 +22,13 @@ Alternatively, if \code{'all'}, all features are passed through. If \code{'none'
 
 \item{\code{winsorize_base_predictions}}{Logical; if \code{TRUE}, winsorizes the base learners' predictions before passing them to the meta learner. Default is \code{FALSE}.}
 
+\item{\code{allow_heterogeneous_base_features}}{Logical; if \code{TRUE}, permits base learners fitted on
+different feature sets, and on different \code{features_m_df} objects, to be stacked together.
+Requires \code{features_passthrough = "none"}, which the validity function enforces, since only
+then does the meta learner ignore \code{features_m_df} and build its design matrix purely from
+the base learners' predictions joined on \code{id}. All base learners must still score an
+identical \code{id} set. Default is \code{FALSE}, which reproduces historical behaviour exactly.}
+
 \item{\code{config_name}}{A character string with the name of the configuration}
 }}
 

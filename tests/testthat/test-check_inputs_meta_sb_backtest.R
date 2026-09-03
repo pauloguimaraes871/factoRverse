@@ -1068,7 +1068,11 @@ test_that("heterogeneous base features are allowed only under the explicit relax
   ### batch, never a real one - which is precisely the gap this pair of expectations
   ### exists to close. Under features_passthrough = "none" the supplied object reaches
   ### nothing but the provenance string, so the check guards a label, not a computation.
-  other_features_results <- het_ew_results
+  ### Built from the UNMUTATED ew_results, so features_object_name is the only thing that
+  ### differs. Derived from het_ew_results it would carry a rewritten
+  ### chosen_signals_and_positions too, the first check would fire first, and the
+  ### expectations below would pass while proving nothing about the second one.
+  other_features_results <- ew_results
   other_features_results@sb_backtest_workflow[[last_batch(other_features_results)]]$features_object_name <- "a_different_features_object"
 
   expect_error(

@@ -66,13 +66,24 @@
   positively-weighted assets as the eligible set, so no expected-return score is
   derived and none may be supplied alongside them.
 
-* `run_sb_backtest()` (the `sb_metabacktest_config` method) gains
-  `.allow_heterogeneous_base_features`, defaulting to `FALSE`. When `TRUE`, base
-  learners whose `chosen_signals_and_positions` differ may be blended together.
-  This supports research designs that combine learners trained on different
-  representations of the same investable universe, for example heuristic
-  learners fitted on aggregated signal clusters alongside machine-learning
-  learners fitted on the underlying individual signals.
+* `create_sb_metabacktest_config()` gains `allow_heterogeneous_base_features`,
+  defaulting to `FALSE`, carried on a new `sb_metabacktest_config` slot of the
+  same name. When `TRUE`, base learners fitted on different feature sets, and on
+  different `features_m_df` objects, may be blended together. This supports
+  research designs that combine learners trained on different representations of
+  the same investable universe, for example heuristic learners fitted on
+  aggregated signal clusters alongside machine-learning learners fitted on the
+  underlying individual signals.
+
+  It is a property of the meta design rather than of one invocation, so it lives
+  on the configuration next to `features_passthrough`, whose value governs
+  whether it is admissible at all. Two things follow from that placement. The
+  pairing is enforced by the class validity function, so a configuration that
+  sets the flag alongside any other `features_passthrough` cannot be constructed
+  rather than merely being rejected once a backtest is already running. And the
+  decision travels inside `sb_metabacktest_results`, so `update_sb_backtest()`
+  continues a heterogeneous run by construction, without a new argument and
+  without anything to remember month to month.
 
   The relaxation is deliberately narrow. It requires
   `features_passthrough = "none"`, because only in that configuration does the
@@ -114,15 +125,17 @@
   pool leaves both the meta design matrix and the meta learner's realised
   out-of-sample predictions bit-identical.
 
-  The meta workflow batch now records `heterogeneous_base_features`, so a stored
-  result declares the pool it was built from. `update_sb_backtest()` reads that
-  field back and continues a heterogeneous run without being told again, the same
-  way it already recovers `gsm_algorithm` and the winsorization bounds. An update
-  is a continuation of a decision already taken, not a new one, and requiring the
-  flag every month would mean the month it was forgotten a running book stopped
-  dead. Results written before the field existed carry `NULL`, which is read as
-  `FALSE`, so every stored homogeneous backtest keeps the guard; a run stored as
-  homogeneous still refuses a heterogeneous pool on update.
+  The meta workflow batch also records `heterogeneous_base_features`, so a
+  workflow batch remains a self-contained account of the run. This is provenance
+  only; nothing reads it back to make a decision.
+
+  Because the slot is new, an `sb_metabacktest_config` serialized by an earlier
+  version does not carry it, and R does not backfill a prototype into an object
+  written before a slot existed: both slot access and `validObject()` error on
+  such an object. Every read of the slot in package code therefore goes through
+  a defensive accessor that resolves a missing slot to `FALSE`, which is the
+  correct answer, since a pool built before the relaxation existed was
+  necessarily homogeneous. Stored configurations continue to run and to print.
 
   Note: `explain_prediction()` on an `sb_metabacktest_results` built from a
   heterogeneous pool is not supported. It requires every base learner's feature

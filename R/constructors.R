@@ -4837,6 +4837,16 @@ setGeneric("create_sb_metabacktest_config", function(meta_sb_backtest_config, fe
 #' @describeIn create_sb_metabacktest_config Create a meta-backtest config from a meta-learner `sb_backtest_config`.
 #'
 #' @param meta_sb_backtest_config A `sb_backtest_config` with the configuration for the meta learner.
+#' @param allow_heterogeneous_base_features Logical. If `TRUE`, permits base learners fitted on
+#'   different feature sets, and on different `features_m_df` objects, to be stacked together, for
+#'   research designs that combine learners trained on different representations of the same
+#'   investable universe. Requires `features_passthrough = "none"`; the validity function refuses any
+#'   other pairing, since only on that path does the meta learner ignore `features_m_df` and build
+#'   its design matrix purely from the base learners' predictions joined on `id`. All base learners
+#'   must still score an identical `id` set. Note that a mixed run is named after whichever
+#'   `features_m_df` was supplied, so its provenance string records one vintage rather than the pool,
+#'   and `explain_prediction()` is unavailable on the result. Defaults to `FALSE`, which reproduces
+#'   historical behaviour exactly.
 #' @param ... Additional arguments (not used).
 #'
 #' @return An `sb_metabacktest_config` object.
@@ -4846,6 +4856,7 @@ setMethod(
   signature(meta_sb_backtest_config = "sb_backtest_config", features_passthrough = "character"),
   function(meta_sb_backtest_config, features_passthrough = "none", config_name = "not_identified",
            normalize_base_predictions = TRUE, winsorize_base_predictions = TRUE,
+           allow_heterogeneous_base_features = FALSE,
            ...) {
 
 
@@ -4864,6 +4875,7 @@ setMethod(
                                 features_passthrough = features_passthrough,
                                 normalize_base_predictions = normalize_base_predictions,
                                 winsorize_base_predictions = winsorize_base_predictions,
+                                allow_heterogeneous_base_features = allow_heterogeneous_base_features,
                                 config_name = config_name
     )
     return(meta_config)

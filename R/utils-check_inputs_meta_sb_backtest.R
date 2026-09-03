@@ -18,14 +18,17 @@
 #' @param meta_backtest_returns_m_xts Optional xts object for meta backtest returns.
 #' @param meta_benchmark_returns_m_xts Optional xts object for meta benchmark returns.
 #' @param verbose A boolean indicating whether to print detailed messages.
-#' @param .allow_heterogeneous_base_features Logical; if \code{TRUE}, permits base
-#'   learners that were fitted on different feature sets to be stacked together.
-#'   Requires \code{features_passthrough == "none"}, because only then does the meta
-#'   learner ignore \code{features_m_df} entirely and build its design matrix purely
-#'   from the base learners' predictions joined on \code{id}. Defaults to
-#'   \code{FALSE}, which reproduces the historical behaviour exactly. Intended for
-#'   deliberate research designs that blend learners trained on different
-#'   representations of the same investable universe.
+#' @param .allow_heterogeneous_base_features Logical; the relaxation resolved by
+#'   \code{run_sb_backtest()} from \code{config@allow_heterogeneous_base_features}, passed
+#'   in rather than re-read so this function can be exercised directly. If \code{TRUE},
+#'   permits base learners that were fitted on different feature sets, and on different
+#'   \code{features_m_df} objects, to be stacked together: the
+#'   \code{chosen_signals_and_positions} and \code{features_object_name} checks are
+#'   skipped, and an identical \code{id} set across base learners is asserted in their
+#'   place. Requires \code{features_passthrough == "none"}, which the
+#'   \code{sb_metabacktest_config} validity function already enforces at construction and
+#'   which is re-checked here. Defaults to \code{FALSE}, which reproduces the historical
+#'   behaviour exactly.
 #'
 #' @return None. Stops execution if validation checks fail.
 check_inputs_meta_sb_backtest <- function(
@@ -236,13 +239,16 @@ check_inputs_meta_sb_backtest <- function(
   ###Validate the relaxation itself, and substitute the guarantee it gives up.
   if (.allow_heterogeneous_base_features) {
 
-    ####The relaxation is only well-defined when nothing is passed through. With
-    ####features_passthrough != "none", consolidate_oos_sb_outputs_m_df() selects
-    ####pass-through columns from the single supplied features_m_df, so a pool whose
-    ####learners saw different feature sets makes "which learner's features?"
-    ####ill-posed rather than merely unchecked. Fail rather than resolve it silently.
+    ####Backstop for the pairing the sb_metabacktest_config validity function already
+    ####refuses to construct. It is repeated here because validity runs at construction,
+    ####and a config can still be reached by assigning into a slot of an object that was
+    ####valid when it was built. The relaxation is only well-defined when nothing is
+    ####passed through: with features_passthrough != "none",
+    ####consolidate_oos_sb_outputs_m_df() selects pass-through columns from the single
+    ####supplied features_m_df, so a pool whose learners saw different feature sets makes
+    ####"which learner's features?" ill-posed rather than merely unchecked.
     if (!(length(config@features_passthrough) == 1 && config@features_passthrough == "none")) {
-      stop(".allow_heterogeneous_base_features = TRUE requires features_passthrough = 'none'.")
+      stop("allow_heterogeneous_base_features = TRUE requires features_passthrough = 'none'.")
     }
 
     ####What must hold regardless of which features each learner saw: the meta design
@@ -257,7 +263,7 @@ check_inputs_meta_sb_backtest <- function(
     )
     if (!all(purrr::map_lgl(base_ids_list, ~ identical(.x, base_ids_list[[1]])))) {
       stop("All base_sb_backtest_results must share an identical id set when ",
-           ".allow_heterogeneous_base_features = TRUE.")
+           "allow_heterogeneous_base_features = TRUE.")
     }
 
   }
