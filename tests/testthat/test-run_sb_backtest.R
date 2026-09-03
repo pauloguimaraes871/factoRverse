@@ -21711,17 +21711,30 @@ test_that("A genuinely heterogeneous meta backtest records its pool and is updat
 
   #A run stored as homogeneous still refuses a heterogeneous pool on update
   ##################################
-  ### The recovery reads the stored decision; it does not blanket-permit. Deleting this
+  ### The config carries the stored decision; it does not blanket-permit. Deleting this
   ### expectation would let a bug that always returned TRUE pass the rest of the file.
+  ###
+  ### Heterogeneity is introduced here by rewriting chosen_signals_and_positions rather
+  ### than by swapping in the learner that was genuinely fitted on the other object,
+  ### because backtest_identifier embeds features_object_name:
+  ###   paste0("c__", config_name, "_f__", features_object_name, "_t__", ...)
+  ### so a genuinely different-dataset learner also carries a different identifier, and
+  ### update_sb_backtest() rejects it on identifier mismatch long before the relaxation
+  ### is consulted. Holding the identifiers fixed is what lets this expectation reach
+  ### the guard it is about.
   suppressWarnings(suppressMessages(
     b_2_hom <- update_sb_backtest(features_m_df = feats_a_2, target_m_df = target_2,
                                   old_results = b_1_hom, verbose = FALSE)
   ))
 
+  b_2_hom_mixed <- b_2_hom
+  b_2_hom_mixed@sb_backtest_workflow[[length(b_2_hom_mixed@sb_backtest_workflow)]]$chosen_signals_and_positions <-
+    c(roe_3m = "long", sharpe_6m = "long")
+
   expect_error(
     suppressWarnings(suppressMessages(
       update_sb_backtest(features_m_df = feats_a_2, target_m_df = target_2,
-                         updated_base_sb_backtest_results = list(a_2, b_2),
+                         updated_base_sb_backtest_results = list(a_2, b_2_hom_mixed),
                          old_results = res_hom, parallel = FALSE, verbose = FALSE)
     )),
     "chosen_signals_and_positions of base objects differ"
