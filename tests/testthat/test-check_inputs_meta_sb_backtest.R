@@ -1059,16 +1059,25 @@ test_that("heterogeneous base features are allowed only under the explicit relax
   )
 
 
-  #Scope - the relaxation does NOT disable the features_object_name check
+  #The features_object_name check is relaxed too, and only by the flag
   ##############
-  ### This matters because the relaxation is deliberately narrow: it permits learners
-  ### fitted on different SIGNAL SETS, not a caller supplying an unrelated features_m_df.
-  wrong_features_results <- het_ew_results
-  wrong_features_results@sb_backtest_workflow[[last_batch(wrong_features_results)]]$features_object_name <- "wrong_name"
+  ### A pool whose learners were genuinely fitted on different features_m_df objects
+  ### cannot satisfy this check: the meta run is handed one features_m_df, so every
+  ### learner drawn from the other one fails the comparison. Relaxing the signal-set
+  ### check alone would therefore permit only a pool faked by rewriting a workflow
+  ### batch, never a real one - which is precisely the gap this pair of expectations
+  ### exists to close. Under features_passthrough = "none" the supplied object reaches
+  ### nothing but the provenance string, so the check guards a label, not a computation.
+  other_features_results <- het_ew_results
+  other_features_results@sb_backtest_workflow[[last_batch(other_features_results)]]$features_object_name <- "a_different_features_object"
 
   expect_error(
-    run_check(config_none, list(rp_results, wrong_features_results), allow = TRUE),
+    run_check(config_none, list(rp_results, other_features_results), allow = FALSE),
     "features_m_df object is not the same in every base SB base backtest results"
+  )
+
+  expect_no_error(
+    run_check(config_none, list(rp_results, other_features_results), allow = TRUE)
   )
 
 

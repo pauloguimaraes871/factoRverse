@@ -21463,3 +21463,265 @@ test_that("Metabacktesting with .allow_heterogeneous_base_features is a no-op wh
 })
 
 
+
+
+
+##Helpers shared by the two genuinely-heterogeneous tests below. The block above fakes a
+##mixed pool by rewriting chosen_signals_and_positions on a finished object, which is
+##enough to exercise the guards but is not the case the relaxation exists for. These two
+##build the real thing: two base learners each fitted on its own features_m_df, holding
+##disjoint columns and carrying its own meta_dataframe_name, which is the
+##clusters-vs-individual-signals split in the pipeline.
+het_pool_features <- function(features_raw, cols, nm, cutoff){
+  create_meta_dataframe(
+    features_raw %>%
+      dplyr::select(dplyr::all_of(c("id", "tickers", "dates", cols))) %>%
+      dplyr::filter(dates <= as.Date(cutoff)),
+    type = "features", meta_dataframe_name = nm)
+}
+
+het_pool_target <- function(targets_raw, cutoff){
+  create_meta_dataframe(
+    targets_raw %>% dplyr::filter(dates <= as.Date(cutoff)) %>%
+      dplyr::mutate(
+        fwd_return_1m  = dplyr::if_else(dates == as.Date(cutoff), NA_real_, fwd_return_1m),
+        fwd_premium_1m = dplyr::if_else(dates == as.Date(cutoff), NA_real_, fwd_premium_1m)),
+    meta_dataframe_name = "target", type = "target")
+}
+
+het_pool_config <- function(nm, signals){
+  create_sb_backtest_config(
+    sb_algorithm = "ols", target_fwd_name = "fwd_premium_1m", training_sample_size = 6,
+    rebalancing_months = 11, config_name = nm, chosen_signals_and_positions = signals)
+}
+
+het_pool_meta_config <- function(nm){
+  create_sb_metabacktest_config(
+    meta_sb_backtest_config = create_sb_backtest_config(
+      sb_algorithm = "ew", training_sample_size = 2, target_fwd_name = "fwd_premium_1m",
+      rebalancing_months = 6, config_name = "meta"),
+    features_passthrough = "none", config_name = nm)
+}
+
+
+test_that("Base learners fitted on different features_m_df objects blend under the relaxation", {
+
+  ## The case the flag exists for, built for real rather than simulated: learner A sees
+  ## only book_yield and eps_yield out of an object named "clusters_like", learner B only
+  ## roe_3m and sharpe_6m out of one named "signals_like". Such a pool trips BOTH guards,
+  ## and it can only trip the second one when the heterogeneity is genuine: the meta run
+  ## is handed one features_m_df, so whichever learner came from the other object fails
+  ## the features_object_name comparison. A pool faked by rewriting a workflow batch
+  ## never exercises that, which is why this test is not redundant with the block above.
+
+  load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
+
+  feats_a <- het_pool_features(toy_preprocessed_features, c("book_yield", "eps_yield"),
+                               "clusters_like", "2023-04-15")
+  feats_b <- het_pool_features(toy_preprocessed_features, c("roe_3m", "sharpe_6m"),
+                               "signals_like", "2023-04-15")
+  target  <- het_pool_target(toy_preprocessed_targets, "2023-04-15")
+
+  suppressWarnings(suppressMessages({
+    res_a <- run_sb_backtest(features_m_df = feats_a, target_m_df = target,
+                             config = het_pool_config("ols_a", c(book_yield = "long", eps_yield = "long")),
+                             parallel = FALSE, verbose = FALSE)
+    res_b <- run_sb_backtest(features_m_df = feats_b, target_m_df = target,
+                             config = het_pool_config("ols_b", c(roe_3m = "long", sharpe_6m = "long")),
+                             parallel = FALSE, verbose = FALSE)
+  }))
+
+  ### The pool really is heterogeneous on both axes the guards test
+  last_batch <- function(x) x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]
+  expect_false(identical(last_batch(res_a)$chosen_signals_and_positions,
+                         last_batch(res_b)$chosen_signals_and_positions))
+  expect_false(identical(last_batch(res_a)$features_object_name,
+                         last_batch(res_b)$features_object_name))
+
+  ### ...and homogeneous on the axis that must still hold, since the meta design matrix
+  ### is assembled by joining the base predictions on id
+  expect_identical(res_a@oos_sb_outputs_m_df@data$id, res_b@oos_sb_outputs_m_df@data$id)
+
+  meta_config <- het_pool_meta_config("meta_real_het")
+
+
+  #Refused by default
+  ##################################
+  expect_error(
+    suppressWarnings(suppressMessages(
+      run_sb_backtest(features_m_df = feats_a, target_m_df = target, config = meta_config,
+                      base_sb_backtest_results_list = list(res_a, res_b),
+                      parallel = FALSE, verbose = FALSE)
+    )),
+    "chosen_signals_and_positions of base objects differ"
+  )
+
+
+  #Blends under the relaxation
+  ##################################
+  suppressWarnings(suppressMessages(
+    res_het <- run_sb_backtest(features_m_df = feats_a, target_m_df = target, config = meta_config,
+                               base_sb_backtest_results_list = list(res_a, res_b),
+                               parallel = FALSE, verbose = FALSE,
+                               .allow_heterogeneous_base_features = TRUE)
+  ))
+
+  expect_s4_class(res_het, "sb_metabacktest_results")
+
+  ### One prediction column per base learner, keyed by backtest identifier
+  expect_true(
+    all(c(res_a@backtest_identifier, res_b@backtest_identifier) %in%
+          colnames(res_het@base_learners_oos_predictions_m_df@data))
+  )
+
+  ### Over the id set the base learners scored
+  expect_identical(
+    sort(unique(res_het@base_learners_oos_predictions_m_df@data$id)),
+    sort(unique(res_a@oos_sb_outputs_m_df@data$id))
+  )
+
+  ### The cost of relaxing the features_object_name check, pinned rather than left
+  ### implicit: the run is named after whichever features_m_df was supplied, so the
+  ### provenance string records one of the two vintages and not the pool.
+  expect_true(
+    grepl(feats_a@meta_dataframe_name,
+          res_het@base_learners_oos_predictions_m_df@meta_dataframe_name, fixed = TRUE)
+  )
+
+})
+
+
+test_that("A genuinely heterogeneous meta backtest records its pool and is updatable without being told again", {
+
+  ## An update is a continuation of a decision already taken, not a new one. The meta
+  ## method records .allow_heterogeneous_base_features in its workflow batch, and
+  ## update_sb_backtest() reads it back rather than asking again - the same way it
+  ## already recovers gsm_algorithm and the winsorization bounds. Without that recovery a
+  ## monthly job would have to remember the flag every month, and the month it forgot, a
+  ## book that had been running for a year would stop dead on the guards.
+  ##
+  ## The negative expectation is the one that makes this a test rather than a
+  ## demonstration: a result stored as HOMOGENEOUS must still refuse a heterogeneous pool
+  ## on update. That is what distinguishes recovering the stored value from always
+  ## permitting.
+  ##
+  ## Dates, sample sizes and the 1-month target mirror the GLMNET metabacktest update
+  ## test above, which is the arithmetic the update engine is known to accept. Base
+  ## learners declare chosen_signals_and_positions directly instead of going through a
+  ## signal-selection backtest, so no port cohort or ss update is needed; that path is
+  ## exercised by the tests that own it.
+
+  load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
+
+  meta_batch <- function(x){
+    wf <- x@meta_sb_backtest_results@sb_backtest_workflow
+    wf[[length(wf)]]
+  }
+
+  cfg_a <- het_pool_config("ols_a", c(book_yield = "long", eps_yield = "long"))
+  cfg_b <- het_pool_config("ols_b", c(roe_3m = "long", sharpe_6m = "long"))
+
+  ##Month 1
+  feats_a_1 <- het_pool_features(toy_preprocessed_features, c("book_yield", "eps_yield"),
+                                 "clusters_like", "2023-04-15")
+  feats_b_1 <- het_pool_features(toy_preprocessed_features, c("roe_3m", "sharpe_6m"),
+                                 "signals_like", "2023-04-15")
+  target_1  <- het_pool_target(toy_preprocessed_targets, "2023-04-15")
+
+  suppressWarnings(suppressMessages({
+    a_1 <- run_sb_backtest(features_m_df = feats_a_1, target_m_df = target_1,
+                           config = cfg_a, parallel = FALSE, verbose = FALSE)
+    b_1 <- run_sb_backtest(features_m_df = feats_b_1, target_m_df = target_1,
+                           config = cfg_b, parallel = FALSE, verbose = FALSE)
+  }))
+
+  meta_config <- het_pool_meta_config("meta_real_het_update")
+
+  suppressWarnings(suppressMessages(
+    res_het <- run_sb_backtest(features_m_df = feats_a_1, target_m_df = target_1,
+                               config = meta_config,
+                               base_sb_backtest_results_list = list(a_1, b_1),
+                               parallel = FALSE, verbose = FALSE,
+                               .allow_heterogeneous_base_features = TRUE)
+  ))
+
+  ##A homogeneous counterpart, for the negative case below. Both learners are fitted on
+  ##the same object, so this pool needs no relaxation and is stored without one.
+  suppressWarnings(suppressMessages({
+    b_1_hom <- run_sb_backtest(features_m_df = feats_a_1, target_m_df = target_1,
+                               config = het_pool_config("ols_b", c(book_yield = "long", eps_yield = "long")),
+                               parallel = FALSE, verbose = FALSE)
+    res_hom <- run_sb_backtest(features_m_df = feats_a_1, target_m_df = target_1,
+                               config = meta_config,
+                               base_sb_backtest_results_list = list(a_1, b_1_hom),
+                               parallel = FALSE, verbose = FALSE)
+  }))
+
+
+  #The run declares the pool it was built from
+  ##################################
+  ### Recorded either way, so an absent field means "written before this was recorded"
+  ### rather than "homogeneous".
+  expect_true(meta_batch(res_het)$heterogeneous_base_features)
+  expect_false(meta_batch(res_hom)$heterogeneous_base_features)
+
+
+  #The update recovers the relaxation without being passed it again
+  ##################################
+  feats_a_2 <- het_pool_features(toy_preprocessed_features, c("book_yield", "eps_yield"),
+                                 "clusters_like", "2023-05-15")
+  feats_b_2 <- het_pool_features(toy_preprocessed_features, c("roe_3m", "sharpe_6m"),
+                                 "signals_like", "2023-05-15")
+  target_2  <- het_pool_target(toy_preprocessed_targets, "2023-05-15")
+
+  suppressWarnings(suppressMessages({
+    a_2 <- update_sb_backtest(features_m_df = feats_a_2, target_m_df = target_2,
+                              old_results = a_1, verbose = FALSE)
+    b_2 <- update_sb_backtest(features_m_df = feats_b_2, target_m_df = target_2,
+                              old_results = b_1, verbose = FALSE)
+  }))
+
+  ### No .allow_heterogeneous_base_features is passed here, and no such argument exists
+  ### on update_sb_backtest(). It succeeds because res_het says it was built that way.
+  suppressWarnings(suppressMessages(
+    upd_het <- update_sb_backtest(features_m_df = feats_a_2, target_m_df = target_2,
+                                  updated_base_sb_backtest_results = list(a_2, b_2),
+                                  old_results = res_het, parallel = FALSE, verbose = FALSE)
+  ))
+
+  expect_s4_class(upd_het, "sb_metabacktest_results")
+
+  ### The updated batch carries it forward, so the month after next also works
+  expect_true(meta_batch(upd_het)$heterogeneous_base_features)
+
+
+  #A run stored as homogeneous still refuses a heterogeneous pool on update
+  ##################################
+  ### The recovery reads the stored decision; it does not blanket-permit. Deleting this
+  ### expectation would let a bug that always returned TRUE pass the rest of the file.
+  suppressWarnings(suppressMessages(
+    b_2_hom <- update_sb_backtest(features_m_df = feats_a_2, target_m_df = target_2,
+                                  old_results = b_1_hom, verbose = FALSE)
+  ))
+
+  expect_error(
+    suppressWarnings(suppressMessages(
+      update_sb_backtest(features_m_df = feats_a_2, target_m_df = target_2,
+                         updated_base_sb_backtest_results = list(a_2, b_2),
+                         old_results = res_hom, parallel = FALSE, verbose = FALSE)
+    )),
+    "chosen_signals_and_positions of base objects differ"
+  )
+
+  ### ...and the same stored-homogeneous result updates fine on a homogeneous pool, so
+  ### the refusal above is about the pool and not about the update path itself.
+  suppressWarnings(suppressMessages(
+    upd_hom <- update_sb_backtest(features_m_df = feats_a_2, target_m_df = target_2,
+                                  updated_base_sb_backtest_results = list(a_2, b_2_hom),
+                                  old_results = res_hom, parallel = FALSE, verbose = FALSE)
+  ))
+
+  expect_s4_class(upd_hom, "sb_metabacktest_results")
+  expect_false(meta_batch(upd_hom)$heterogeneous_base_features)
+
+})
