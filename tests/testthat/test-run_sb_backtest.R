@@ -21270,3 +21270,196 @@ test_that("run_sb_backtest does not works with NAs in last target_fwd+ 1 periods
 #END OTHER TESTS
 
 
+#####################################
+#HETEROGENEOUS BASE FEATURES
+
+test_that("Metabacktesting with .allow_heterogeneous_base_features is a no-op when OFF and runs a mixed pool when ON", {
+
+  ## Two claims are pinned here:
+  ##   1. Turning the flag ON changes nothing for a pool that did not need it. This is
+  ##      the package-level analogue of the pipeline's bit-exact reconciliation gate:
+  ##      it is what licenses attributing any downstream difference to the pool change
+  ##      rather than to the relaxation itself.
+  ##   2. A genuinely heterogeneous pool - learners fitted on different signal sets -
+  ##      completes end to end and yields one prediction column per base learner.
+
+  load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
+
+  set.seed(123)
+  mocked_backtest_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
+    asset_turnover_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 5, sd = 3.5),
+    book_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1, sd = 5),
+    dps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 15, sd = 0.4),
+    eps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.0005, sd = 0.3),
+    mom_res_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 3.15, sd = 3.5),
+    roe_3m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.1, sd = 2),
+    sharpe_6m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 2.5, sd = 5),
+    low_idio_vol_mrkt_ewma = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.05, sd = 7.5)
+  ), order.by = unique(toy_preprocessed_features$dates)), meta_xts_name = "backtest")
+
+  suppressWarnings(
+    mocked_benchmark_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
+      IBOV = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.01, sd = 0.035),
+      SMLL = rnorm(length(unique(toy_preprocessed_features$dates)), mean = -0.01, sd = 0.025)
+    ),  order.by = unique(toy_preprocessed_features$dates)), meta_xts_name = "benchmark")
+  )
+
+  chosen_signals_and_positions <- c(asset_turnover_12m = "long", book_yield = "long",
+                                    dps_yield = "long", eps_yield = "long",
+                                    idio_vol_mrkt_ewma = "short", sharpe_6m = "long")
+
+  mocked_signal_themes_m_df <- expand.grid(
+    tickers = names(mocked_backtest_returns_m_xts@data),
+    dates = unique(toy_preprocessed_features$dates),
+    stringsAsFactors = FALSE
+  ) %>% dplyr::mutate(id = paste0(tickers,"-",dates),
+                      theme = dplyr::case_when(
+                        tickers %in% c("mom_res_12m", "sharpe_6m") ~ "momentum",
+                        tickers %in% c("dy_med_36m", "eps_yield", "book_yield", "asset_turnover_12m", "dps_yield") ~ "value",
+                        tickers %in% c("roe_3m", "low_idio_vol_mrkt_ewma") ~ "defensive"
+                      )
+  ) %>%  dplyr::arrange(id) %>% dplyr::select(id, tickers, dates, theme)
+
+  signal_themes_m_df <- create_meta_dataframe(mocked_signal_themes_m_df, "st_11", type = "groups")
+
+  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 3, rebalancing_months = 6,
+                                                     split_method = "expanding", config_name = "frequentist_ss", active_returns = TRUE,
+                                                     chosen_signals_and_positions = chosen_signals_and_positions
+  ) %>%
+    add_alpha_test_strategy(model_structure = "no_pooled",
+                            signal_significance_threshold = 0.15, p_correction_method = "none",
+                            market_factor_proxy = "IBOV", enable_theme_representativeness = TRUE)
+
+  features_m_df <- create_meta_dataframe(toy_preprocessed_features, "feats_123")
+  target_m_df   <- create_meta_dataframe(toy_preprocessed_targets, "tg_123")
+
+  ss_results <- suppressWarnings(
+    run_ss_backtest(frequentist_ss_config,
+                    signals_m_df = features_m_df,
+                    backtest_returns_m_xts = mocked_backtest_returns_m_xts,
+                    benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
+                    signal_themes_m_df = signal_themes_m_df,
+                    verbose = FALSE)
+  )
+
+  ## Base learners must agree on training_sample_size + validation_sample_size - that
+  ## check is deliberately NOT relaxed - so both carry 4 + 3, as the other meta tests do.
+  ## They are fitted once and reused by both meta runs below, so any stochasticity in
+  ## their own fitting cannot confound the equivalence claim; the meta learner is `ew`
+  ## and therefore deterministic.
+  rf_config <- create_sb_backtest_config(sb_algorithm = "rf", training_sample_size = 4, rebalancing_months = 6,
+                                         target_fwd_name = "fwd_premium_3m", config_name = "rf_101") %>%
+    add_tuning_strategy(tuning_method = "random_search", validation_sample_size = 3, n_iter = 2) %>%
+    add_hyperparameter(hyperparameter = c("mtry", "num.trees", "max.depth", "min.bucket"),
+                       distribution_choice = c("uniform", "uniform", "lognormal", "uniform"),
+                       pars = list(c(min=0.1, max = 0.9), c(min = 100L, max = 500L), c(meanlog = 1L, sdlog = 1L),
+                                   c(min = 1L, max = 10L))
+    )
+
+  glmnet_config <- create_sb_backtest_config(sb_algorithm = "glmnet", training_sample_size = 4, rebalancing_months = 6,
+                                             target_fwd_name = "fwd_premium_3m", config_name = "glmnet_123") %>%
+    add_tuning_strategy(tuning_method = "grid_search", validation_sample_size = 3) %>%
+    add_hyperparameter(hyperparameter = c("alpha", "lambda.min.ratio"), grid = list(c(0, 1), c(0.5, 0.9)))
+
+  set.seed(123)
+  suppressWarnings(
+    rf_results <- run_sb_backtest(
+      target_m_df = target_m_df, features_m_df = features_m_df,
+      config = rf_config, ss_backtest_results = ss_results,
+      parallel = FALSE, verbose = FALSE)
+  )
+
+  suppressWarnings(
+    glmnet_results <- run_sb_backtest(
+      target_m_df = target_m_df, features_m_df = features_m_df,
+      config = glmnet_config, ss_backtest_results = ss_results,
+      parallel = FALSE, verbose = FALSE)
+  )
+
+  meta_learner_config <- create_sb_backtest_config(sb_algorithm = "ew", training_sample_size = 4,
+                                                   target_fwd_name = "fwd_premium_3m",
+                                                   rebalancing_months = 6, config_name = "meta")
+
+  meta_config <- create_sb_metabacktest_config(meta_sb_backtest_config = meta_learner_config,
+                                               features_passthrough = "none",
+                                               config_name = "meta_rf_glmnet_het")
+
+
+  #The flag is a no-op on a homogeneous pool
+  ##################################
+  set.seed(123)
+  suppressWarnings(suppressMessages(
+    res_off <- run_sb_backtest(
+      target_m_df = target_m_df, features_m_df = features_m_df,
+      base_sb_backtest_results_list = list(rf_results, glmnet_results),
+      config = meta_config, parallel = FALSE, verbose = FALSE)
+  ))
+
+  set.seed(123)
+  suppressWarnings(suppressMessages(
+    res_on <- run_sb_backtest(
+      target_m_df = target_m_df, features_m_df = features_m_df,
+      base_sb_backtest_results_list = list(rf_results, glmnet_results),
+      config = meta_config, parallel = FALSE, verbose = FALSE,
+      .allow_heterogeneous_base_features = TRUE)
+  ))
+
+  ### The meta learner's realised out-of-sample predictions
+  expect_identical(
+    res_on@meta_sb_backtest_results@oos_sb_outputs_m_df@data,
+    res_off@meta_sb_backtest_results@oos_sb_outputs_m_df@data
+  )
+
+  ### The meta design matrix that produced them
+  expect_identical(
+    res_on@base_learners_oos_predictions_m_df@data,
+    res_off@base_learners_oos_predictions_m_df@data
+  )
+
+
+  #A heterogeneous pool completes end to end when the flag is ON
+  ##################################
+  ### One learner is made to look as though it was fitted on a different signal set,
+  ### which is the clusters-vs-individual-signals case the relaxation exists for.
+  het_rf_results <- rf_results
+  het_rf_results@sb_backtest_workflow[[length(het_rf_results@sb_backtest_workflow)]]$chosen_signals_and_positions <-
+    c(book_yield = "long", eps_yield = "long")
+
+  ### Still rejected by default
+  expect_error(
+    suppressWarnings(suppressMessages(
+      run_sb_backtest(
+        target_m_df = target_m_df, features_m_df = features_m_df,
+        base_sb_backtest_results_list = list(het_rf_results, glmnet_results),
+        config = meta_config, parallel = FALSE, verbose = FALSE)
+    )),
+    "chosen_signals_and_positions of base objects differ"
+  )
+
+  ### Runs under the relaxation
+  set.seed(123)
+  suppressWarnings(suppressMessages(
+    res_het <- run_sb_backtest(
+      target_m_df = target_m_df, features_m_df = features_m_df,
+      base_sb_backtest_results_list = list(het_rf_results, glmnet_results),
+      config = meta_config, parallel = FALSE, verbose = FALSE,
+      .allow_heterogeneous_base_features = TRUE)
+  ))
+
+  expect_s4_class(res_het, "sb_metabacktest_results")
+
+  ### One prediction column per base learner, keyed by backtest identifier
+  expect_true(
+    all(c(het_rf_results@backtest_identifier, glmnet_results@backtest_identifier) %in%
+          colnames(res_het@base_learners_oos_predictions_m_df@data))
+  )
+
+  ### The meta learner produced predictions over the same ids the base learners scored
+  expect_identical(
+    sort(unique(res_het@base_learners_oos_predictions_m_df@data$id)),
+    sort(unique(het_rf_results@oos_sb_outputs_m_df@data$id))
+  )
+
+})
+
+
