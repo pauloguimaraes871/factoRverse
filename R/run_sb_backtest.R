@@ -360,6 +360,16 @@ setMethod("update_sb_backtest",
               gsm_algorithm <- old_meta_sb_workflow_last_batch$gsm_algorithm
               winsorization_probs <- sort(c(old_meta_sb_workflow_last_batch$lower_quantile_winsorization, old_meta_sb_workflow_last_batch$upper_quantile_winsorization))
 
+              ###Get same heterogeneous-pool relaxation
+              ####An update is a continuation of a decision already taken, not a new one, so
+              ####the relaxation is recovered from the stored run exactly as gsm_algorithm and
+              ####the winsorization bounds are. Asking the caller for it again would mean a
+              ####monthly job that omits it silently turns a running heterogeneous backtest
+              ####into a hard failure. Results written before this field existed carry NULL,
+              ####which isTRUE() reads as FALSE, so every stored homogeneous backtest keeps
+              ####the guard.
+              allow_heterogeneous_base_features <- isTRUE(old_meta_sb_workflow_last_batch$heterogeneous_base_features)
+
             updated_sb_metabacktest_results <- run_sb_backtest(
               ###SB Metabacktest
               features_m_df = features_m_df, target_m_df = target_m_df, config = old_results@sb_metabacktest_config,
@@ -371,6 +381,7 @@ setMethod("update_sb_backtest",
               meta_signal_themes_m_df = meta_signal_themes_m_df, #For RP MVO
               meta_custom_signal_weights_m_df = meta_custom_signal_weights_m_df, meta_custom_signal_universe_metrics_m_df = meta_custom_signal_universe_metrics_m_df, #Custom weights for meta learner
               winsorization_probs = winsorization_probs, gsm_algorithm = gsm_algorithm, verbose = verbose, parallel = parallel, .test_seed = .test_seed,
+              .allow_heterogeneous_base_features = allow_heterogeneous_base_features,
               .update = TRUE, .old_meta_sb_backtest_results = old_results@meta_sb_backtest_results
               )
 
@@ -1227,10 +1238,14 @@ setMethod("run_sb_backtest",
 #' @param parallel Logical. If `TRUE`, runs the backtest and hyperparameter tuning steps in parallel. Default is `TRUE`.
 #' @param .test_seed (Internal) A numeric seed used to control randomness for reproducible testing. Default is `NULL`.
 #' @param .allow_heterogeneous_base_features (Advanced) Logical flag. If `TRUE`, permits base learners fitted on
-#'   different feature sets to be stacked together. Requires `features_passthrough = "none"`, since only then does
-#'   the meta learner ignore `features_m_df` and build its design matrix purely from base predictions joined on `id`;
-#'   all base learners must still score an identical `id` set. Does **not** relax the `features_object_name` or the
-#'   RP/HRP/MVO provenance checks. Default is `FALSE`, which reproduces historical behaviour exactly.
+#'   different feature sets, and on different `features_m_df` objects, to be stacked together. Requires
+#'   `features_passthrough = "none"`, since only then does the meta learner ignore `features_m_df` and build its
+#'   design matrix purely from base predictions joined on `id`; all base learners must still score an identical
+#'   `id` set. Relaxes the `chosen_signals_and_positions` and `features_object_name` checks, and nothing else: the
+#'   RP/HRP/MVO `signal_themes`/`backtest_returns` provenance checks and the target, sample-size and
+#'   testing-window invariants all remain enforced. Note that a mixed run is named after whichever `features_m_df`
+#'   was supplied, so its provenance string records one vintage rather than the pool, and `explain_prediction()`
+#'   is not available on the result. Default is `FALSE`, which reproduces historical behaviour exactly.
 #' @param .update (Internal) Logical flag. If `TRUE`, updates a previously computed meta learner backtest instead of running from scratch. Default is `FALSE`.
 #' @param .old_meta_sb_backtest_results (Internal) A previously computed `sb_backtest_results` object for the meta learner, used only if `.update = TRUE`.
 #'
@@ -1482,6 +1497,15 @@ setMethod("run_sb_backtest",
               config@winsorize_base_predictions
             meta_learner_backtest_results@sb_backtest_workflow[[length(meta_learner_backtest_results@sb_backtest_workflow)]]$normalize_base_predictions[[length(meta_learner_backtest_results@sb_backtest_workflow)]] <-
               config@normalize_base_predictions
+
+            ### Heterogeneous Base Features
+            ### Recorded so the object declares the pool it was built from. This is what
+            ### update_sb_backtest() reads back to continue a heterogeneous run without
+            ### being told again, in the same way it recovers gsm_algorithm and the
+            ### winsorization bounds. Always written, including FALSE, so the field's
+            ### absence means "built before this was recorded" rather than "homogeneous".
+            meta_learner_backtest_results@sb_backtest_workflow[[length(meta_learner_backtest_results@sb_backtest_workflow)]]$heterogeneous_base_features <-
+              .allow_heterogeneous_base_features
 
             ### Type
             meta_learner_backtest_results@sb_backtest_workflow[[length(meta_learner_backtest_results@sb_backtest_workflow)]]$backtest_type <- "meta_learner"

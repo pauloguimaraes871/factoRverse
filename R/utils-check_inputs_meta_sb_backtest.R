@@ -283,12 +283,22 @@ check_inputs_meta_sb_backtest <- function(
 
   ###Between supplied for meta backtest and base learners (and base learners themselves)
   ####in features_m_df object name
-  if (any(sapply(base_sb_backtest_results_list,
-                 function(x){
-                   sb_backtest_workflow_last_batch <- x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]
-                   sb_backtest_workflow_last_batch$features_object_name != features_m_df@meta_dataframe_name
-                 } ))) {
-    stop("features_m_df object is not the same in every base SB base backtest results and/or with the features_m_df being currently supplied.")
+  ####Skipped under the relaxation for the same reason as the check above. A pool whose
+  ####learners were fitted on genuinely different features_m_df objects cannot satisfy
+  ####this: the meta run is handed one features_m_df, so every learner drawn from the
+  ####other one fails the comparison. Since features_passthrough is pinned to "none",
+  ####that object reaches nothing but the provenance string assigned to
+  ####oos_predictions_m_df, so the comparison guards a label rather than a computation.
+  ####What that label then means is the cost of the relaxation, and it is stated in the
+  ####documentation: a mixed run is named after whichever features_m_df was supplied.
+  if (!.allow_heterogeneous_base_features) {
+    if (any(sapply(base_sb_backtest_results_list,
+                   function(x){
+                     sb_backtest_workflow_last_batch <- x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]
+                     sb_backtest_workflow_last_batch$features_object_name != features_m_df@meta_dataframe_name
+                   } ))) {
+      stop("features_m_df object is not the same in every base SB base backtest results and/or with the features_m_df being currently supplied.")
+    }
   }
   ####in target_m_df object name
   if (any(sapply(base_sb_backtest_results_list,
