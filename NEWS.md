@@ -66,7 +66,83 @@
   positively-weighted assets as the eligible set, so no expected-return score is
   derived and none may be supplied alongside them.
 
+* `run_sb_backtest()` (the `sb_metabacktest_config` method) gains
+  `.allow_heterogeneous_base_features`, defaulting to `FALSE`. When `TRUE`, base
+  learners whose `chosen_signals_and_positions` differ may be blended together.
+  This supports research designs that combine learners trained on different
+  representations of the same investable universe, for example heuristic
+  learners fitted on aggregated signal clusters alongside machine-learning
+  learners fitted on the underlying individual signals.
+
+  The relaxation is deliberately narrow. It requires
+  `features_passthrough = "none"`, because only in that configuration does the
+  meta learner ignore `features_m_df` entirely: `consolidate_oos_sb_outputs_m_df()`
+  then builds the meta design matrix purely from the base learners' predictions
+  joined on `id`, so which features each base learner saw is provenance rather
+  than a correctness requirement. With any other `features_passthrough` the meta
+  learner must select pass-through columns from a single `features_m_df` and a
+  heterogeneous pool makes that ill-posed; the function errors rather than
+  resolving it silently against one arbitrary learner's feature set.
+
+  In exchange for the relaxed provenance check, the substantive invariant is
+  asserted explicitly: all base learners must score an identical `id` set. This
+  was previously enforced only incidentally, and with a generic message, inside
+  `consolidate_oos_sb_outputs_m_df()`.
+
+  Two checks are relaxed, and only these two: the `chosen_signals_and_positions`
+  comparison between base learners, and the `features_object_name` comparison
+  between each base learner and the supplied `features_m_df`. Both have to go,
+  because a genuinely mixed pool trips both: the meta run is handed a single
+  `features_m_df`, so every learner drawn from the other object fails the second
+  comparison. Relaxing only the first would permit a pool faked by rewriting a
+  workflow batch and never a real one.
+
+  Still enforced under the flag: the RP/HRP/MVO
+  `signal_themes`/`backtest_returns` provenance checks, and the
+  `target_object_name`, `target_fwd_name`,
+  `training_sample_size + validation_sample_size` and `dates_testing_sample`
+  invariants.
+
+  The cost of relaxing the `features_object_name` comparison is a provenance
+  one, and it is worth stating plainly: `oos_predictions_m_df` is named after
+  whichever `features_m_df` the meta run was given, so a mixed run records one
+  of its vintages rather than the pool. Nothing else reads that object on this
+  path, so the consequence is a label, not a number.
+
+  `.allow_heterogeneous_base_features = FALSE` reproduces previous behaviour
+  exactly; a regression test asserts that turning the flag on for a homogeneous
+  pool leaves both the meta design matrix and the meta learner's realised
+  out-of-sample predictions bit-identical.
+
+  The meta workflow batch now records `heterogeneous_base_features`, so a stored
+  result declares the pool it was built from. `update_sb_backtest()` reads that
+  field back and continues a heterogeneous run without being told again, the same
+  way it already recovers `gsm_algorithm` and the winsorization bounds. An update
+  is a continuation of a decision already taken, not a new one, and requiring the
+  flag every month would mean the month it was forgotten a running book stopped
+  dead. Results written before the field existed carry `NULL`, which is read as
+  `FALSE`, so every stored homogeneous backtest keeps the guard; a run stored as
+  homogeneous still refuses a heterogeneous pool on update.
+
+  Note: `explain_prediction()` on an `sb_metabacktest_results` built from a
+  heterogeneous pool is not supported. It requires every base learner's feature
+  columns to be present in the one supplied `features_m_df`, which no single
+  object can satisfy for such a pool. It fails with an explicit message rather
+  than returning a misleading attribution.
+
 ## Bug fixes
+
+* The `port_metabacktest_config` S4 class is exported again. A code comment
+  inside a validity function was written as `###'custom_weights'`, and `roxygen2`
+  treats any `#`-run followed by an apostrophe as a documentation line, so the
+  comment was parsed as roxygen and swallowed the `@export` tag of the
+  neighbouring class. The class kept its manual page while losing its
+  `exportClasses()` entry, which left `methods::is()`, `new()` and S4 dispatch
+  from other packages unable to see it even though `create_port_metabacktest_config()`
+  was exported normally. The same breakage stopped `devtools::document()`
+  running at all, so `NAMESPACE` and `man/` could not be regenerated; this is why
+  it survived a release. R CMD check validates the committed `man/` rather than
+  rebuilding it, so continuous integration stayed green throughout.
 
 * `create_slsaf_portfolio()` aborted with `Weights do not sum to 1` on some
   configurations and not others, with no economic pattern, at a rate that scaled
