@@ -4177,8 +4177,8 @@ setClass(
       ###wrapped config honest about itself: its own show method reports a NULL score as coming
       ###from SB predictions for every other method, which would be untrue on this path. It also
       ###matches what the stock-level run actually does, since that is invoked with
-      ###'custom_weights' on the projected weights. The wrapped config refuses a score alongside
-      ###'custom_weights', so requiring it here also settles that the meta score must be NULL.
+      ### 'custom_weights' on the projected weights. The wrapped config refuses a score alongside
+      ### 'custom_weights', so requiring it here also settles that the meta score must be NULL.
       if (port_construction_method != "custom_weights") {
         stop("port_construction_method must be 'custom_weights' when type is 'risk_targeted': ",
              "the weight on the risky sleeve comes from the risk-targeting rule rather than from ",
