@@ -1226,6 +1226,11 @@ setMethod("run_sb_backtest",
 #' @param verbose Logical. If `TRUE`, prints progress messages. Default is `TRUE`.
 #' @param parallel Logical. If `TRUE`, runs the backtest and hyperparameter tuning steps in parallel. Default is `TRUE`.
 #' @param .test_seed (Internal) A numeric seed used to control randomness for reproducible testing. Default is `NULL`.
+#' @param .allow_heterogeneous_base_features (Advanced) Logical flag. If `TRUE`, permits base learners fitted on
+#'   different feature sets to be stacked together. Requires `features_passthrough = "none"`, since only then does
+#'   the meta learner ignore `features_m_df` and build its design matrix purely from base predictions joined on `id`;
+#'   all base learners must still score an identical `id` set. Does **not** relax the `features_object_name` or the
+#'   RP/HRP/MVO provenance checks. Default is `FALSE`, which reproduces historical behaviour exactly.
 #' @param .update (Internal) Logical flag. If `TRUE`, updates a previously computed meta learner backtest instead of running from scratch. Default is `FALSE`.
 #' @param .old_meta_sb_backtest_results (Internal) A previously computed `sb_backtest_results` object for the meta learner, used only if `.update = TRUE`.
 #'
@@ -1252,6 +1257,7 @@ setMethod("run_sb_backtest",
                    meta_port_backtest_cohort = NULL, meta_backtest_returns_m_xts = NULL, meta_benchmark_returns_m_xts = NULL, meta_signal_themes_m_df = NULL, #For RP MVO
                    meta_custom_signal_weights_m_df = NULL, meta_custom_signal_universe_metrics_m_df = NULL, #Custom weights for meta learner
                    winsorization_probs = c(0.025, 0.975), gsm_algorithm = "ols", verbose = TRUE, parallel = TRUE, .test_seed = NULL,
+                   .allow_heterogeneous_base_features = FALSE,
                    .update = FALSE, .old_meta_sb_backtest_results = NULL
                    ) {
 
@@ -1317,7 +1323,8 @@ setMethod("run_sb_backtest",
                 #Meta Objects
                 meta_backtest_returns_m_xts = meta_backtest_returns_m_xts, meta_benchmark_returns_m_xts = meta_benchmark_returns_m_xts, meta_signal_themes_m_df = meta_signal_themes_m_df,
                 meta_custom_signal_weights_m_df = meta_custom_signal_weights_m_df, meta_custom_signal_universe_metrics_m_df = meta_custom_signal_universe_metrics_m_df,
-                verbose = verbose
+                verbose = verbose,
+                .allow_heterogeneous_base_features = .allow_heterogeneous_base_features
               )
 
             #######################
@@ -1338,7 +1345,8 @@ setMethod("run_sb_backtest",
               features_passthrough_and_positions <- get_features_positions(
                 base_sb_backtest_results_list = base_sb_backtest_results_list, #Base SB Backtest Results List
                 features_passthrough = config@features_passthrough, #Features to pass through
-                features_m_df = features_m_df #Features meta_dataframe
+                features_m_df = features_m_df, #Features meta_dataframe
+                .allow_heterogeneous_base_features = .allow_heterogeneous_base_features
               )
 
             ###Create oos_predictions_m_df and join with features_m_df according to features_passthrough_and_positions

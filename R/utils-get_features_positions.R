@@ -16,6 +16,10 @@
 #'   at least three key columns (often \code{date}, \code{symbol}, \code{target}) plus
 #'   feature columns. Used primarily for consistency checks and reconstructing any missing
 #'   signals/positions in \code{base_sb_backtest_results_list}.
+#' @param .allow_heterogeneous_base_features Logical; if \code{TRUE} and
+#'   \code{features_passthrough} is \code{"none"}, returns \code{"none"} without
+#'   requiring every base learner to share one set of chosen signals. Defaults to
+#'   \code{FALSE}. See \code{check_inputs_meta_sb_backtest()}.
 #'
 #' @details
 #' \enumerate{
@@ -57,7 +61,21 @@
 #'   )
 #' }
 #'
-get_features_positions <- function(base_sb_backtest_results_list, features_passthrough, features_m_df) {
+get_features_positions <- function(base_sb_backtest_results_list, features_passthrough, features_m_df,
+                                   .allow_heterogeneous_base_features = FALSE) {
+
+  #Short-circuit under the heterogeneous-features relaxation
+  ############################
+  ## With nothing passed through, the reference vector built below is discarded by the
+  ## "none" branch anyway. Validating that every base learner shares one signal set
+  ## would therefore reject a deliberately heterogeneous pool without protecting any
+  ## downstream computation. Gated rather than unconditional so the default path stays
+  ## byte-identical to previous behaviour.
+  if (.allow_heterogeneous_base_features &&
+      length(features_passthrough) == 1 && features_passthrough == "none") {
+    return("none")
+  }
+  ############################
 
   #Get reference chosen_signals_and_positions
   ############################
