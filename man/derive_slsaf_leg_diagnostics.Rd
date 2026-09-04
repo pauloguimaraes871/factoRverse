@@ -32,7 +32,8 @@ A named list of \code{data.frame}s:
 portfolio mass, active weight, weighted and unweighted mean expected return
 score, and share of active risk contribution.}
 \item{leg_budget}{One row per date: the four components of the weight
-decomposition, which sum to 1 by construction.}
+decomposition, which sum to 1 by construction, alongside
+\code{port_weight_total}, the portfolio total taken directly from the weights.}
 \item{leg_sector}{One row per date, leg and group, when a group column exists.}
 \item{leg_liquidity}{One row per date, leg and liquidity classification, when that
 column exists.}

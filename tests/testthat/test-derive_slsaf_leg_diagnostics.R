@@ -105,6 +105,56 @@ test_that("the budget decomposition accounts for the whole portfolio", {
   expect_equal(first$benchmark_coverage, 0.60)
 })
 
+test_that("the budget decomposition accepts every portfolio the constructor accepted", {
+
+  #Regression. port_total is algebraically just sum(weights), but it was recomposed from
+  #three separately accumulated group sums and asserted against its own hardcoded 1e-6,
+  #so its floating-point residual differed from the single sum the constructor checked.
+  #A portfolio that built cleanly could therefore be rejected here, taking every slsaf
+  #plot down with it while the portfolio itself was fine. The numbers below are the ones
+  #a real build shipped: quantised benchmark weights one micro-unit above 1, and the
+  #weights the overlay produced from them.
+  units <- c(40713L, 50026L, 67578L, 96902L, 35123L, 96043L, 100091L, 75268L,
+             72498L, 22890L, 35498L, 32926L, 77561L, 51074L, 84803L, 61007L)
+  weights <- c(0.010815256971524433, 0.020892709090913841, 0, 0.029574363440984644,
+               0.013745975399163644, 0, 0.021667940246693912, 0,
+               0.13062896935633994, 0.081020969356339942, 0.093628969356339936,
+               0.091056969356339945, 0.13569196935633995, 0.10920496935633994,
+               0.14293396935633995, 0.11913796935633994)
+  scores <- c(0.945857, 1.192715, 0.642032, 0.999701, 1.141235, 0.490928, 0.886506,
+              0.413000, 1.974109, 2.140560, 1.618746, 2.135343, 2.817567, 2.076489,
+              2.274912, 2.439392)
+
+  tickers <- c(paste0("S", 1:8), paste0("L", 1:8))
+  universe_m_df <- data.frame(
+    id      = paste0(tickers, "-2020-01-15"),
+    tickers = tickers,
+    dates   = rep(as.Date("2020-01-15"), 16L),
+    weights = weights,
+    exp_ret_score      = scores,
+    exp_ret_score_raw  = scores,
+    ibov_bench_weights = units / 1e6,
+    is_long_candidate  = c(rep(0L, 8), rep(1L, 8)),
+    is_short_candidate = c(rep(1L, 8), rep(0L, 8)),
+    is_eligible        = rep(1, 16L),
+    stringsAsFactors = FALSE
+  )
+
+  #The premise of the regression: this portfolio is one the constructor accepts, so the
+  #diagnostics have no standing to refuse it
+  expect_lte(abs(sum(universe_m_df$weights) - 1), 1e-6)
+
+  expect_no_error(
+    leg_budget <- derive_slsaf_leg_diagnostics(universe_m_df, "ibov")$leg_budget
+  )
+
+  #The displayed decomposition still adds up to the total it decomposes, which is what
+  #the stacked budget plot relies on. This is checked here rather than inside the
+  #function: the two are the same quantity by construction, so asserting it there would
+  #only reintroduce the second accumulation path that caused the disagreement.
+  expect_equal(leg_budget$port_total, sum(universe_m_df$weights), tolerance = 1e-12)
+})
+
 #Composition breakdowns
 test_that("derive_slsaf_leg_diagnostics breaks each leg down by sector and capitalization", {
 

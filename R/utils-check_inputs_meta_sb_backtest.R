@@ -18,6 +18,17 @@
 #' @param meta_backtest_returns_m_xts Optional xts object for meta backtest returns.
 #' @param meta_benchmark_returns_m_xts Optional xts object for meta benchmark returns.
 #' @param verbose A boolean indicating whether to print detailed messages.
+#' @param .allow_heterogeneous_base_features Logical; the relaxation resolved by
+#'   \code{run_sb_backtest()} from \code{config@allow_heterogeneous_base_features}, passed
+#'   in rather than re-read so this function can be exercised directly. If \code{TRUE},
+#'   permits base learners that were fitted on different feature sets, and on different
+#'   \code{features_m_df} objects, to be stacked together: the
+#'   \code{chosen_signals_and_positions} and \code{features_object_name} checks are
+#'   skipped, and an identical \code{id} set across base learners is asserted in their
+#'   place. Requires \code{features_passthrough == "none"}, which the
+#'   \code{sb_metabacktest_config} validity function already enforces at construction and
+#'   which is re-checked here. Defaults to \code{FALSE}, which reproduces the historical
+#'   behaviour exactly.
 #'
 #' @return None. Stops execution if validation checks fail.
 check_inputs_meta_sb_backtest <- function(
@@ -27,7 +38,8 @@ check_inputs_meta_sb_backtest <- function(
     meta_signal_themes_m_df, meta_custom_signal_weights_m_df, meta_custom_signal_universe_metrics_m_df,
     base_backtest_returns_m_xts, base_benchmark_returns_m_xts,
     meta_backtest_returns_m_xts, meta_benchmark_returns_m_xts,
-    verbose = TRUE
+    verbose = TRUE,
+    .allow_heterogeneous_base_features = FALSE
 ) {
 
 
@@ -222,6 +234,72 @@ check_inputs_meta_sb_backtest <- function(
 
   ##########################
 
+  ##Heterogeneous Base Features (opt-in research relaxation)
+  ##########################
+  ###Validate the relaxation itself, and substitute the guarantee it gives up.
+  if (.allow_heterogeneous_base_features) {
+
+    ####Backstop for the pairing the sb_metabacktest_config validity function already
+    ####refuses to construct. It is repeated here because validity runs at construction,
+    ####and a config can still be reached by assigning into a slot of an object that was
+    ####valid when it was built. The relaxation is only well-defined when nothing is
+    ####passed through: with features_passthrough != "none",
+    ####consolidate_oos_sb_outputs_m_df() selects pass-through columns from the single
+    ####supplied features_m_df, so a pool whose learners saw different feature sets makes
+    ####"which learner's features?" ill-posed rather than merely unchecked.
+    if (!(length(config@features_passthrough) == 1 && config@features_passthrough == "none")) {
+      stop("allow_heterogeneous_base_features = TRUE requires features_passthrough = 'none'.")
+    }
+
+    ####What must hold regardless of which features each learner saw: the meta design
+    ####matrix is assembled by joining base predictions on `id`, so every base learner
+    ####must score exactly the same id set. This is enforced downstream in
+    ####consolidate_oos_sb_outputs_m_df(), but it is the substantive requirement the
+    ####relaxed provenance checks were incidentally standing in for, so it is asserted
+    ####here with a message that says what actually went wrong.
+    base_ids_list <- lapply(
+      base_sb_backtest_results_list,
+      function(x) dplyr::pull(x@oos_sb_outputs_m_df@data, id)
+    )
+    if (!all(purrr::map_lgl(base_ids_list, ~ identical(.x, base_ids_list[[1]])))) {
+      stop("All base_sb_backtest_results must share an identical id set when ",
+           "allow_heterogeneous_base_features = TRUE.")
+    }
+
+    ####The allowance must be used. Declaring a heterogeneous pool and then supplying a
+    ####homogeneous one is a misdeclaration, and it is what would otherwise let the
+    ####workflow's heterogeneous_base_features field describe a pool that was never mixed.
+    ####Refusing it is what makes that field true by construction rather than by
+    ####convention.
+    ####
+    ####Tested over both axes the relaxation covers, because a pool can be heterogeneous
+    ####in either one alone. Two learners drawn from a single features_m_df may still
+    ####disagree on chosen_signals_and_positions, and such a pool needs the relaxation
+    ####just as much as a clusters-plus-individual-signals one; requiring two distinct
+    ####feature objects would refuse it for no reason. The test is therefore "would
+    ####either relaxed check have fired", not "are there two feature objects".
+    last_batch_of <- function(x) x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]
+
+    signals_differ <- length(unique(lapply(
+      base_sb_backtest_results_list,
+      function(x) last_batch_of(x)$chosen_signals_and_positions
+    ))) > 1
+
+    features_differ <- any(sapply(
+      base_sb_backtest_results_list,
+      function(x) last_batch_of(x)$features_object_name
+    ) != features_m_df@meta_dataframe_name)
+
+    if (!signals_differ && !features_differ) {
+      stop("allow_heterogeneous_base_features = TRUE but the base learner pool is homogeneous: ",
+           "every learner shares one chosen_signals_and_positions and one features_m_df object, ",
+           "so neither relaxed check would have fired. Set it to FALSE, or supply the mixed pool ",
+           "the configuration was declared for.")
+    }
+
+  }
+  ##########################
+
   ##Base Conformity at SB Level
   ##########################
   if (verbose) cat("Checking conformity of base-level sb objects.\n")
@@ -229,20 +307,35 @@ check_inputs_meta_sb_backtest <- function(
   ###In sb_backtest_config, those objects will be necessarilly equal because backtest will be run with objects from arguments
 
   ###chosen_signals_and_positions
-  get_and_check_chosen_signals_and_positions(
-    base_sb_backtest_results_list = base_sb_backtest_results_list,
-    features_passthrough = config@features_passthrough,
-    features_m_df = features_m_df@data
-  )
+  ###Skipped under the relaxation: this is precisely the check that rejects learners
+  ###fitted on different feature sets. Its return value only feeds features_passthrough,
+  ###which the guard above has already pinned to "none".
+  if (!.allow_heterogeneous_base_features) {
+    get_and_check_chosen_signals_and_positions(
+      base_sb_backtest_results_list = base_sb_backtest_results_list,
+      features_passthrough = config@features_passthrough,
+      features_m_df = features_m_df@data
+    )
+  }
 
   ###Between supplied for meta backtest and base learners (and base learners themselves)
   ####in features_m_df object name
-  if (any(sapply(base_sb_backtest_results_list,
-                 function(x){
-                   sb_backtest_workflow_last_batch <- x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]
-                   sb_backtest_workflow_last_batch$features_object_name != features_m_df@meta_dataframe_name
-                 } ))) {
-    stop("features_m_df object is not the same in every base SB base backtest results and/or with the features_m_df being currently supplied.")
+  ####Skipped under the relaxation for the same reason as the check above. A pool whose
+  ####learners were fitted on genuinely different features_m_df objects cannot satisfy
+  ####this: the meta run is handed one features_m_df, so every learner drawn from the
+  ####other one fails the comparison. Since features_passthrough is pinned to "none",
+  ####that object reaches nothing but the provenance string assigned to
+  ####oos_predictions_m_df, so the comparison guards a label rather than a computation.
+  ####What that label then means is the cost of the relaxation, and it is stated in the
+  ####documentation: a mixed run is named after whichever features_m_df was supplied.
+  if (!.allow_heterogeneous_base_features) {
+    if (any(sapply(base_sb_backtest_results_list,
+                   function(x){
+                     sb_backtest_workflow_last_batch <- x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]
+                     sb_backtest_workflow_last_batch$features_object_name != features_m_df@meta_dataframe_name
+                   } ))) {
+      stop("features_m_df object is not the same in every base SB base backtest results and/or with the features_m_df being currently supplied.")
+    }
   }
   ####in target_m_df object name
   if (any(sapply(base_sb_backtest_results_list,

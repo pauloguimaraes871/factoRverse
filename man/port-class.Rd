@@ -46,7 +46,9 @@ These classes encapsulate various parameters and constraints used in backtesting
 
 \item{\code{group_cov_matrix}}{An object for storing the group covariance matrix (used in MMAF).}
 
-\item{\code{micro}}{An object for storing the micro-level portfolio (used in MMAF).}
+\item{\code{micro}}{A named list of sub-portfolios, filled by any layered method: the
+per-group portfolios under MMAF, and the \code{long} and \code{short} legs under SLSAF. A leg
+with nothing to build is \code{NULL}.}
 
 \item{\code{macro}}{An object for storing the macro-level portfolio (used in MMAF).}
 

@@ -360,6 +360,11 @@ setMethod("update_sb_backtest",
               gsm_algorithm <- old_meta_sb_workflow_last_batch$gsm_algorithm
               winsorization_probs <- sort(c(old_meta_sb_workflow_last_batch$lower_quantile_winsorization, old_meta_sb_workflow_last_batch$upper_quantile_winsorization))
 
+              ###The heterogeneous-pool relaxation needs no recovery here: it lives on
+              ###sb_metabacktest_config, and old_results@sb_metabacktest_config is passed
+              ###straight through below, so an update continues the stored decision by
+              ###construction rather than by remembering to copy a field forward.
+
             updated_sb_metabacktest_results <- run_sb_backtest(
               ###SB Metabacktest
               features_m_df = features_m_df, target_m_df = target_m_df, config = old_results@sb_metabacktest_config,
@@ -1255,6 +1260,16 @@ setMethod("run_sb_backtest",
                    .update = FALSE, .old_meta_sb_backtest_results = NULL
                    ) {
 
+              ###Resolve the heterogeneous-pool relaxation from the configuration
+              ####Read defensively. The slot arrived in 0.9.0, and an sb_metabacktest_config
+              ####serialized by an earlier version has no such slot, which errors on access
+              ####rather than returning a default: R does not backfill a prototype into an
+              ####object that was written before the slot existed. FALSE is the right answer
+              ####for those, since a pool built before the relaxation existed was necessarily
+              ####homogeneous.
+              allow_heterogeneous_base_features <- isTRUE(tryCatch(
+                config@allow_heterogeneous_base_features, error = function(e) FALSE))
+
             ## Initial preparation
             #######################
 
@@ -1317,7 +1332,8 @@ setMethod("run_sb_backtest",
                 #Meta Objects
                 meta_backtest_returns_m_xts = meta_backtest_returns_m_xts, meta_benchmark_returns_m_xts = meta_benchmark_returns_m_xts, meta_signal_themes_m_df = meta_signal_themes_m_df,
                 meta_custom_signal_weights_m_df = meta_custom_signal_weights_m_df, meta_custom_signal_universe_metrics_m_df = meta_custom_signal_universe_metrics_m_df,
-                verbose = verbose
+                verbose = verbose,
+                .allow_heterogeneous_base_features = allow_heterogeneous_base_features
               )
 
             #######################
@@ -1338,7 +1354,8 @@ setMethod("run_sb_backtest",
               features_passthrough_and_positions <- get_features_positions(
                 base_sb_backtest_results_list = base_sb_backtest_results_list, #Base SB Backtest Results List
                 features_passthrough = config@features_passthrough, #Features to pass through
-                features_m_df = features_m_df #Features meta_dataframe
+                features_m_df = features_m_df, #Features meta_dataframe
+                .allow_heterogeneous_base_features = allow_heterogeneous_base_features
               )
 
             ###Create oos_predictions_m_df and join with features_m_df according to features_passthrough_and_positions
@@ -1474,6 +1491,21 @@ setMethod("run_sb_backtest",
               config@winsorize_base_predictions
             meta_learner_backtest_results@sb_backtest_workflow[[length(meta_learner_backtest_results@sb_backtest_workflow)]]$normalize_base_predictions[[length(meta_learner_backtest_results@sb_backtest_workflow)]] <-
               config@normalize_base_predictions
+
+            ### Heterogeneous Base Features
+            ### Provenance only: the decision itself lives on sb_metabacktest_config, which
+            ### travels with the results object, so nothing reads this field back to make a
+            ### choice. Recorded anyway so a workflow batch remains a self-contained account
+            ### of the run, and so a config written before the slot existed still leaves an
+            ### explicit FALSE in the batch. Always written, including FALSE, so an absent
+            ### field means "built before this was recorded" rather than "homogeneous".
+            ###
+            ### The value describes the pool and not merely the permission, because
+            ### check_inputs_meta_sb_backtest() refuses TRUE against a pool on which neither
+            ### relaxed check would have fired. A run recorded TRUE was therefore genuinely
+            ### mixed; the flag cannot be set and left unused.
+            meta_learner_backtest_results@sb_backtest_workflow[[length(meta_learner_backtest_results@sb_backtest_workflow)]]$heterogeneous_base_features <-
+              allow_heterogeneous_base_features
 
             ### Type
             meta_learner_backtest_results@sb_backtest_workflow[[length(meta_learner_backtest_results@sb_backtest_workflow)]]$backtest_type <- "meta_learner"

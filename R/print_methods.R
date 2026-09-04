@@ -684,6 +684,13 @@ setMethod("show", "sb_metabacktest_config",
             cat(sprintf("  features_passthrough: %s\n", object@features_passthrough))
             cat(sprintf("  winsorize_base_predictions: %s\n", object@winsorize_base_predictions))
             cat(sprintf("  normalize_base_predictions: %s\n", object@normalize_base_predictions))
+            ##Read defensively: configs serialized before 0.9.0 have no such slot, and
+            ##printing one should not error. Announced only when on, since it is off for
+            ##every ordinary configuration and a line saying so would be noise.
+            if (isTRUE(tryCatch(object@allow_heterogeneous_base_features,
+                                error = function(e) FALSE))){
+              cat(sprintf("  allow_heterogeneous_base_features: %s\n", TRUE))
+            }
             cat("\n")
 
             cat(crayon::cyan("Meta Learner Backtest Configuration:\n"))

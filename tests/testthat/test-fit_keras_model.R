@@ -377,9 +377,28 @@ test_that("averaging reduces the dispersion of the refit forecast", {
   ### pass/fail signal that belongs in the default suite. Variance of a mean of
   ### k independent draws scales as 1/k, so with k = 5 the ensemble forecast
   ### should be markedly more stable across repetitions than a single network.
+
+  ### Seed the network initialisations. make_training_data() restores the caller's
+  ### RNG state precisely so that seeding the data does not pin them, and nothing
+  ### seeded the TensorFlow generator at all, so the two standard deviations below
+  ### were compared over an unseeded draw and the assertion flipped intermittently.
+  ### Seeding once here leaves the fits distinct from one another while making the
+  ### whole sequence reproducible.
+  tensorflow::set_random_seed(123)
+
   data <- make_training_data()
   new_data <- as.matrix(data$features)
-  n_repetitions <- 5
+
+  ### A seed alone would make the test reproducible without making it informative:
+  ### the sd of 5 values carries 4 degrees of freedom, so even granting the ideal
+  ### 1/k variance reduction the ordering reverses often enough that a fixed seed
+  ### would be pinning a near coin flip rather than the feature. Averaging also only
+  ### cancels initialisation noise, not the signal the networks share from identical
+  ### training data, so the realised separation is smaller than 1/k. More
+  ### repetitions is what buys the comparison its power; the runtime is affordable
+  ### because this test is excluded from CI by the skips above and only ever runs on
+  ### a machine with a configured backend.
+  n_repetitions <- 15
 
   forecast_at_first_asset <- function(n_ensembles) {
     vapply(seq_len(n_repetitions), function(i) {

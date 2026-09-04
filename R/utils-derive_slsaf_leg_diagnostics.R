@@ -35,7 +35,8 @@
 #'     portfolio mass, active weight, weighted and unweighted mean expected return
 #'     score, and share of active risk contribution.}
 #'   \item{leg_budget}{One row per date: the four components of the weight
-#'     decomposition, which sum to 1 by construction.}
+#'     decomposition, which sum to 1 by construction, alongside
+#'     `port_weight_total`, the portfolio total taken directly from the weights.}
 #'   \item{leg_sector}{One row per date, leg and group, when a group column exists.}
 #'   \item{leg_liquidity}{One row per date, leg and liquidity classification, when that
 #'     column exists.}
@@ -181,6 +182,10 @@ derive_slsaf_leg_diagnostics <- function(stock_universe_m_df,
         short_budget       = sum(bench_weight[leg == "Short"]),
         benchmark_coverage = sum(bench_weight[leg == "Long"]) /
           dplyr::if_else(sum(bench_weight) > 1e-12, sum(bench_weight), NA_real_),
+        ## The portfolio total is taken from the weights themselves rather than rebuilt
+        ## from the components below, so the invariant is asserted on the same quantity
+        ## create_slsaf_portfolio() asserted it on
+        port_weight_total  = sum(weights),
         .groups = "drop"
       ) %>%
       ## The three stackable components must account for the whole portfolio
@@ -190,11 +195,23 @@ derive_slsaf_leg_diagnostics <- function(stock_universe_m_df,
       dplyr::arrange(dates) %>%
       as.data.frame()
 
-    ### Guard the identities the plots rely on
-    if (any(abs(leg_budget$port_total - 1) > 1e-6)){
+    ### Guard the identities the plots rely on. The tolerance mirrors the one
+    ### create_slsaf_portfolio() asserts with, since this is the same invariant seen
+    ### later: a portfolio that function accepted must not be refused here.
+    tol_check <- 1e-6
+
+    ### Assert on the weights themselves rather than on port_total. The two are the same
+    ### quantity algebraically, but port_total is accumulated through three separate
+    ### group sums and so carries a different floating-point residual, which is what put
+    ### this function and the constructor on opposite sides of the same boundary for the
+    ### same portfolio. An asset belonging to neither leg needs no separate check: it was
+    ### filtered out above, so its weight is missing from this total too and presents
+    ### here as a shortfall.
+    if (any(abs(leg_budget$port_weight_total - 1) > tol_check)){
       stop("slsaf budget decomposition does not account for the whole portfolio.")
     }
-    if (any(abs(leg_budget$short_underweight - leg_budget$long_active) > 1e-6)){
+
+    if (any(abs(leg_budget$short_underweight - leg_budget$long_active) > tol_check)){
       stop("Released budget and long-leg active weight must coincide.")
     }
 

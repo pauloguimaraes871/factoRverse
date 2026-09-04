@@ -7,7 +7,8 @@
 get_features_positions(
   base_sb_backtest_results_list,
   features_passthrough,
-  features_m_df
+  features_m_df,
+  .allow_heterogeneous_base_features = FALSE
 )
 }
 \arguments{
@@ -25,6 +26,11 @@ features found in the reference set.}
 at least three key columns (often \code{date}, \code{symbol}, \code{target}) plus
 feature columns. Used primarily for consistency checks and reconstructing any missing
 signals/positions in \code{base_sb_backtest_results_list}.}
+
+\item{.allow_heterogeneous_base_features}{Logical; if \code{TRUE} and
+\code{features_passthrough} is \code{"none"}, returns \code{"none"} without
+requiring every base learner to share one set of chosen signals. Defaults to
+\code{FALSE}. See \code{check_inputs_meta_sb_backtest()}.}
 }
 \value{
 A named character vector of positions (e.g., \code{"long"} or \code{"short"}),

@@ -3482,6 +3482,12 @@ setClass(
 #'   Alternatively, if \code{'all'}, all features are passed through. If \code{'none'}, no features are passed through. Default is \code{'none'}.
 #' @slot normalize_base_predictions Logical; if \code{TRUE}, normalizes the base learners' predictions before passing them to the meta learner. Default is \code{TRUE}.
 #' @slot winsorize_base_predictions Logical; if \code{TRUE}, winsorizes the base learners' predictions before passing them to the meta learner. Default is \code{FALSE}.
+#' @slot allow_heterogeneous_base_features Logical; if \code{TRUE}, permits base learners fitted on
+#'   different feature sets, and on different \code{features_m_df} objects, to be stacked together.
+#'   Requires \code{features_passthrough = "none"}, which the validity function enforces, since only
+#'   then does the meta learner ignore \code{features_m_df} and build its design matrix purely from
+#'   the base learners' predictions joined on \code{id}. All base learners must still score an
+#'   identical \code{id} set. Default is \code{FALSE}, which reproduces historical behaviour exactly.
 #' @slot config_name A character string with the name of the configuration
 #'
 #' @section Validity:
@@ -3499,8 +3505,10 @@ setClass(
     features_passthrough = "character",
     normalize_base_predictions = "logical",
     winsorize_base_predictions = "logical",
+    allow_heterogeneous_base_features = "logical",
     config_name = "character"
   ),
+  prototype = methods::prototype(allow_heterogeneous_base_features = FALSE),
   validity = function(object) {
 
     #Check for tuning strat
@@ -3524,6 +3532,25 @@ setClass(
     if (any(object@features_passthrough %in% c("long", "short", "force"))){
       stop ("features_passthrough should just declare which signals from features_m_df should be added to meta learner features.
             Postions will be corrected based on base-level chosen_signals_and_positions.")
+    }
+
+    #Check for allow_heterogeneous_base_features
+    ##The relaxation is only well-defined when nothing is passed through. With
+    ##features_passthrough != "none" the meta learner selects pass-through columns from
+    ##the single supplied features_m_df, so a pool whose learners saw different feature
+    ##sets makes "which learner's features?" ill-posed rather than merely unchecked.
+    ##Enforced here rather than at run time so the combination cannot be constructed at
+    ##all: the pairing is a property of the configuration, and a config that cannot exist
+    ##cannot be stored, reloaded a year later, and only then discovered to be invalid.
+    if (length(object@allow_heterogeneous_base_features) != 1 ||
+        is.na(object@allow_heterogeneous_base_features)){
+      stop("allow_heterogeneous_base_features must be a single non-missing logical.")
+    }
+    if (object@allow_heterogeneous_base_features &&
+        !(length(object@features_passthrough) == 1 && object@features_passthrough == "none")){
+      stop("allow_heterogeneous_base_features = TRUE requires features_passthrough = 'none'. ",
+           "Only then does the meta learner ignore features_m_df entirely and build its ",
+           "design matrix purely from the base learners' predictions joined on id.")
     }
 
     return(TRUE)
@@ -4061,6 +4088,15 @@ setClass(
 #' covariance-based method is combined with an implausibly long sample.
 #'
 #' @slot meta_port_backtest_config A \code{port_backtest_config} describing the meta allocation.
+#' @slot type A character selecting the allocation path, either \code{"multi_port"} or
+#'   \code{"risk_targeted"}. Under \code{"multi_port"} the base portfolios form a cross-section
+#'   scored on a column of \code{\link{port_universe_m_df-class}}; under \code{"risk_targeted"}
+#'   there is no cross-section to rank and one risky sleeve is scaled against a residual sleeve.
+#'   Defaults to \code{"multi_port"}.
+#' @slot risk_target_parameters A \code{\link{risk_target_parameters-class}} object on the
+#'   \code{"risk_targeted"} path, holding the target level, the response exponent, the weight
+#'   bounds and the residual sleeve. \code{NULL} on the \code{"multi_port"} path, where there is
+#'   no sleeve to scale. Defaults to \code{NULL}.
 #' @slot return_basis A character, \code{"net"} or \code{"raw"}, selecting which return basis of the
 #'   base portfolios' statistics feeds the meta universe.
 #' @slot cost_lookback \code{NULL} for an expanding cost average, or a single positive whole number
@@ -4177,8 +4213,8 @@ setClass(
       ###wrapped config honest about itself: its own show method reports a NULL score as coming
       ###from SB predictions for every other method, which would be untrue on this path. It also
       ###matches what the stock-level run actually does, since that is invoked with
-      ###'custom_weights' on the projected weights. The wrapped config refuses a score alongside
-      ###'custom_weights', so requiring it here also settles that the meta score must be NULL.
+      ### 'custom_weights' on the projected weights. The wrapped config refuses a score alongside
+      ### 'custom_weights', so requiring it here also settles that the meta score must be NULL.
       if (port_construction_method != "custom_weights") {
         stop("port_construction_method must be 'custom_weights' when type is 'risk_targeted': ",
              "the weight on the risky sleeve comes from the risk-targeting rule rather than from ",
@@ -4256,7 +4292,9 @@ setClass(
 #' @slot group_col A \code{character} naming the group column of \code{groups} used for macro/group aggregation (used in MMAF and group-level analytics).
 #' @slot mmaf_method An object for storing the MMAF method (used in MMAF).
 #' @slot group_cov_matrix An object for storing the group covariance matrix (used in MMAF).
-#' @slot micro An object for storing the micro-level portfolio (used in MMAF).
+#' @slot micro A named list of sub-portfolios, filled by any layered method: the
+#'   per-group portfolios under MMAF, and the `long` and `short` legs under SLSAF. A leg
+#'   with nothing to build is `NULL`.
 #' @slot macro An object for storing the macro-level portfolio (used in MMAF).
 #' @slot selected_benchmark_port An object for storing the selected benchmark portfolio.
 #' @slot port_stats A one-row \code{data.frame} of portfolio (and, when applicable, group and active/benchmark-relative) analytics for this portfolio.

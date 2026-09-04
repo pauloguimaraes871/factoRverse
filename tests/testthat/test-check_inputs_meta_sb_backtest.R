@@ -876,3 +876,261 @@ test_that("check_inputs_meta_sb_backtest works with wrong combination of base an
 })
 
 
+test_that("heterogeneous base features are allowed only under the explicit relaxation", {
+
+  # Rationale
+  ##############
+  ### Stacking base learners that were fitted on DIFFERENT feature sets is normally
+  ### rejected, because with features_passthrough != "none" the meta learner would have
+  ### to select pass-through columns from a single features_m_df and "which learner's
+  ### features?" is ill-posed.
+  ###
+  ### When features_passthrough == "none" the meta learner never sees features_m_df at
+  ### all: consolidate_oos_sb_outputs_m_df() builds its design matrix purely from the
+  ### base learners' `pred` columns joined on `id`. In that configuration the identity
+  ### of the base feature sets is provenance, not correctness, and the check can be
+  ### relaxed deliberately via .allow_heterogeneous_base_features.
+  ###
+  ### What must still hold is that every base learner scores the SAME id set, since the
+  ### design matrix is assembled by joining on id. These tests pin both the relaxation
+  ### and the guards that replace it.
+
+  #Load objects
+  load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
+
+  set.seed(123)
+
+  #Backtest Returns
+  mocked_backtest_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
+    asset_turnover_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 5, sd = 3.5),
+    book_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1, sd = 5),
+    dps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 15, sd = 0.4),
+    eps_yield = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.0005, sd = 0.3),
+    mom_res_12m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 3.15, sd = 3.5),
+    roe_3m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.1, sd = 2),
+    sharpe_6m = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 2.5, sd = 5),
+    low_idio_vol_mrkt_ewma = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 1.05, sd = 7.5)
+  ), order.by = unique(toy_preprocessed_features$dates)), meta_xts_name = "backtest")
+
+  #Benchmark Returns
+  suppressWarnings(
+    mocked_benchmark_returns_m_xts <- create_meta_xts(xts::as.xts(data.frame(
+      IBOV = rnorm(length(unique(toy_preprocessed_features$dates)), mean = 0.01, sd = 0.035),
+      SMLL = rnorm(length(unique(toy_preprocessed_features$dates)), mean = -0.01, sd = 0.025)
+    ),  order.by = unique(toy_preprocessed_features$dates)), meta_xts_name = "benchmark")
+  )
+
+  chosen_signals_and_positions <- c(asset_turnover_12m = "long", book_yield = "long",
+                                    dps_yield = "long", eps_yield = "long",
+                                    idio_vol_mrkt_ewma = "short", sharpe_6m = "long")
+
+  mocked_signal_themes_m_df <- expand.grid(
+    tickers = names(mocked_backtest_returns_m_xts@data),
+    dates = unique(toy_preprocessed_features$dates),
+    stringsAsFactors = FALSE
+  ) %>% dplyr::mutate(id = paste0(tickers,"-",dates),
+                      theme = dplyr::case_when(
+                        tickers %in% c("mom_res_12m", "sharpe_6m") ~ "momentum",
+                        tickers %in% c("dy_med_36m", "eps_yield", "book_yield", "asset_turnover_12m", "dps_yield") ~ "value",
+                        tickers %in% c("roe_3m", "low_idio_vol_mrkt_ewma") ~ "defensive"
+                      )
+  ) %>%  dplyr::arrange(id) %>% dplyr::select(id, tickers, dates, theme)
+
+  signal_themes_m_df <- create_meta_dataframe(mocked_signal_themes_m_df, "st_11", type = "groups")
+
+  frequentist_ss_config <- create_ss_backtest_config(initial_sample_size = 3, rebalancing_months = 6,
+                                                     split_method = "expanding", config_name = "frequentist_ss", active_returns = TRUE,
+                                                     chosen_signals_and_positions = chosen_signals_and_positions
+  ) %>%
+    add_alpha_test_strategy(model_structure = "no_pooled",
+                            signal_significance_threshold = 0.15, p_correction_method = "none",
+                            market_factor_proxy = "IBOV", enable_theme_representativeness = TRUE)
+
+  features_m_df <- create_meta_dataframe(toy_preprocessed_features, "feats_123")
+  target_m_df   <- create_meta_dataframe(toy_preprocessed_targets, "tg_123")
+
+  ss_results <- suppressWarnings(
+    run_ss_backtest(frequentist_ss_config,
+                    signals_m_df = features_m_df,
+                    backtest_returns_m_xts = mocked_backtest_returns_m_xts,
+                    benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
+                    signal_themes_m_df = signal_themes_m_df,
+                    verbose = FALSE)
+  )
+
+  ew_config <- create_sb_backtest_config(sb_algorithm = "ew", training_sample_size = 4, rebalancing_months = 6,
+                                         target_fwd_name = "fwd_premium_3m", config_name = "ew_123")
+
+  rp_config <- create_sb_backtest_config(sb_algorithm = "rp", training_sample_size = 4, rebalancing_months = 6,
+                                         target_fwd_name = "fwd_premium_3m", config_name = "rp_101") %>%
+    add_cov_est_method(cov_matrix_sample_size = 3, cov_matrix_benchmark = "IBOV")
+
+  suppressWarnings(
+    ew_results <- run_sb_backtest(
+      target_m_df = target_m_df, features_m_df = features_m_df,
+      ss_backtest_results = ss_results, config = ew_config,
+      parallel = FALSE, verbose = FALSE)
+  )
+
+  set.seed(123)
+  suppressWarnings(
+    rp_results <- run_sb_backtest(
+      target_m_df = target_m_df, features_m_df = features_m_df,
+      ss_backtest_results = ss_results, config = rp_config,
+      backtest_returns_m_xts = mocked_backtest_returns_m_xts,
+      signal_themes_m_df = signal_themes_m_df,
+      benchmark_returns_m_xts = mocked_benchmark_returns_m_xts,
+      parallel = FALSE, verbose = FALSE)
+  )
+
+  meta_learner_config <- create_sb_backtest_config(sb_algorithm = "ew", training_sample_size = 4,
+                                                   target_fwd_name = "fwd_premium_3m",
+                                                   chosen_signals_and_positions = "all",
+                                                   rebalancing_months = 6, config_name = "meta")
+
+  ## A heterogeneous pool: one learner saw a different signal set, exactly as a
+  ## clusters-trained learner differs from an individual-signal-trained one.
+  last_batch <- function(x) length(x@sb_backtest_workflow)
+  het_ew_results <- ew_results
+  het_ew_results@sb_backtest_workflow[[last_batch(het_ew_results)]]$chosen_signals_and_positions <-
+    c(book_yield = "long", eps_yield = "long")
+
+  config_none <- create_sb_metabacktest_config(
+    meta_sb_backtest_config = meta_learner_config,
+    features_passthrough = "none",
+    config_name = "meta_het_none"
+  )
+
+  config_all <- create_sb_metabacktest_config(
+    meta_sb_backtest_config = meta_learner_config,
+    features_passthrough = "all",
+    config_name = "meta_het_all"
+  )
+
+  ## Convenience wrapper - only the arguments under test vary
+  run_check <- function(config, base_list, allow) {
+    check_inputs_meta_sb_backtest(
+      config = config,
+      features_m_df = features_m_df, target_m_df = target_m_df,
+      base_sb_backtest_results_list = base_list,
+      base_signal_themes_m_df = NULL,
+      base_custom_signal_weights_m_df = NULL, base_custom_signal_universe_metrics_m_df = NULL,
+      meta_signal_themes_m_df = NULL, meta_custom_signal_weights_m_df = NULL,
+      meta_custom_signal_universe_metrics_m_df = NULL,
+      base_backtest_returns_m_xts = NULL, base_benchmark_returns_m_xts = NULL,
+      meta_backtest_returns_m_xts = NULL, meta_benchmark_returns_m_xts = NULL,
+      verbose = FALSE,
+      .allow_heterogeneous_base_features = allow
+    )
+  }
+
+
+  #Default behaviour is unchanged - a heterogeneous pool is still rejected
+  ##############
+  expect_error(
+    run_check(config_none, list(rp_results, het_ew_results), allow = FALSE),
+    "chosen_signals_and_positions of base objects differ"
+  )
+
+
+  #The relaxation permits it when nothing is passed through
+  ##############
+  expect_no_error(
+    run_check(config_none, list(rp_results, het_ew_results), allow = TRUE)
+  )
+
+
+  #Guard 1 - the relaxation is undefined when features are passed through
+  ##############
+  expect_error(
+    run_check(config_all, list(rp_results, het_ew_results), allow = TRUE),
+    "requires features_passthrough = 'none'"
+  )
+
+
+  #Guard 2 - a mixed pool must still score an identical id set
+  ##############
+  bad_id_results <- het_ew_results
+  bad_id_results@oos_sb_outputs_m_df@data$id[1] <- "an-id-no-other-learner-scored"
+
+  expect_error(
+    run_check(config_none, list(rp_results, bad_id_results), allow = TRUE),
+    "identical id set"
+  )
+
+
+  #The features_object_name check is relaxed too, and only by the flag
+  ##############
+  ### A pool whose learners were genuinely fitted on different features_m_df objects
+  ### cannot satisfy this check: the meta run is handed one features_m_df, so every
+  ### learner drawn from the other one fails the comparison. Relaxing the signal-set
+  ### check alone would therefore permit only a pool faked by rewriting a workflow
+  ### batch, never a real one - which is precisely the gap this pair of expectations
+  ### exists to close. Under features_passthrough = "none" the supplied object reaches
+  ### nothing but the provenance string, so the check guards a label, not a computation.
+  ### Built from the UNMUTATED ew_results, so features_object_name is the only thing that
+  ### differs. Derived from het_ew_results it would carry a rewritten
+  ### chosen_signals_and_positions too, the first check would fire first, and the
+  ### expectations below would pass while proving nothing about the second one.
+  other_features_results <- ew_results
+  other_features_results@sb_backtest_workflow[[last_batch(other_features_results)]]$features_object_name <- "a_different_features_object"
+
+  expect_error(
+    run_check(config_none, list(rp_results, other_features_results), allow = FALSE),
+    "features_m_df object is not the same in every base SB base backtest results"
+  )
+
+  expect_no_error(
+    run_check(config_none, list(rp_results, other_features_results), allow = TRUE)
+  )
+
+
+  #The declaration must match the pool, on either axis
+  ##############
+  ### The flag asserts that the pool IS mixed, not that mixing would be tolerated. Set
+  ### against a pool on which neither relaxed check would have fired, it is a
+  ### misdeclaration, and it is what would otherwise let the workflow record a run as
+  ### heterogeneous when it was not. Refusing it is what makes that field true by
+  ### construction.
+  expect_error(
+    run_check(config_none, list(rp_results, ew_results), allow = TRUE),
+    "the base learner pool is homogeneous"
+  )
+
+  ### ...and the same pool is fine with the flag off, so the refusal is about the
+  ### declaration rather than about the pool.
+  expect_no_error(
+    run_check(config_none, list(rp_results, ew_results), allow = FALSE)
+  )
+
+  ### Either axis alone satisfies it. A pool drawn from a single features_m_df whose
+  ### learners disagree on chosen_signals_and_positions is genuinely heterogeneous and
+  ### genuinely needs the relaxation, so requiring two distinct feature objects would
+  ### refuse it for no reason.
+  expect_no_error(
+    run_check(config_none, list(rp_results, het_ew_results), allow = TRUE)      # signals only
+  )
+  expect_no_error(
+    run_check(config_none, list(rp_results, other_features_results), allow = TRUE)  # object only
+  )
+
+
+  #Scope - the relaxation does NOT disable the RP/HRP/MVO provenance check
+  ##############
+  ### Left enforced on purpose: challenger v7 swaps only ML learners between datasets,
+  ### so every valid_algos member still comes from a single dataset. Mixing THOSE would
+  ### be a different change and should fail loudly until it is separately justified.
+  wrong_themes_rp <- rp_results
+  wrong_themes_rp@sb_backtest_workflow[[last_batch(wrong_themes_rp)]]$signal_themes_object_name <- "wrong_name"
+
+  second_rp <- rp_results
+  second_rp@backtest_identifier <- paste0(second_rp@backtest_identifier, "_2")
+
+  expect_error(
+    run_check(config_none, list(wrong_themes_rp, second_rp, het_ew_results), allow = TRUE),
+    "signal_themes_object_name objects are not the same among the filtered backtest results."
+  )
+
+})
+
+
