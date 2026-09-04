@@ -4088,6 +4088,15 @@ setClass(
 #' covariance-based method is combined with an implausibly long sample.
 #'
 #' @slot meta_port_backtest_config A \code{port_backtest_config} describing the meta allocation.
+#' @slot type A character selecting the allocation path, either \code{"multi_port"} or
+#'   \code{"risk_targeted"}. Under \code{"multi_port"} the base portfolios form a cross-section
+#'   scored on a column of \code{\link{port_universe_m_df-class}}; under \code{"risk_targeted"}
+#'   there is no cross-section to rank and one risky sleeve is scaled against a residual sleeve.
+#'   Defaults to \code{"multi_port"}.
+#' @slot risk_target_parameters A \code{\link{risk_target_parameters-class}} object on the
+#'   \code{"risk_targeted"} path, holding the target level, the response exponent, the weight
+#'   bounds and the residual sleeve. \code{NULL} on the \code{"multi_port"} path, where there is
+#'   no sleeve to scale. Defaults to \code{NULL}.
 #' @slot return_basis A character, \code{"net"} or \code{"raw"}, selecting which return basis of the
 #'   base portfolios' statistics feeds the meta universe.
 #' @slot cost_lookback \code{NULL} for an expanding cost average, or a single positive whole number
