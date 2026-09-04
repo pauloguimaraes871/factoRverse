@@ -87,13 +87,23 @@
 
   The relaxation is deliberately narrow. It requires
   `features_passthrough = "none"`, because only in that configuration does the
-  meta learner ignore `features_m_df` entirely: `consolidate_oos_sb_outputs_m_df()`
-  then builds the meta design matrix purely from the base learners' predictions
-  joined on `id`, so which features each base learner saw is provenance rather
-  than a correctness requirement. With any other `features_passthrough` the meta
-  learner must select pass-through columns from a single `features_m_df` and a
-  heterogeneous pool makes that ill-posed; the function errors rather than
-  resolving it silently against one arbitrary learner's feature set.
+  meta learner stop reading the **feature columns** of `features_m_df`:
+  `consolidate_oos_sb_outputs_m_df()` then builds the meta design matrix purely
+  from the base learners' predictions joined on `id`, so which features each base
+  learner saw is provenance rather than a correctness requirement. With any other
+  `features_passthrough` the meta learner must select pass-through columns from a
+  single `features_m_df` and a heterogeneous pool makes that ill-posed; the
+  function errors rather than resolving it silently against one arbitrary
+  learner's feature set.
+
+  The object itself is not wholly unused even then, and it is worth being precise
+  rather than sweeping: it still supplies the `id` set that consolidation checks
+  the base learners against, it still names the run, and it is still handed to
+  `extract_returns_m_xts()` when a `port_backtest_cohort` is supplied. That last
+  path cannot be reached by a heterogeneous run, since the relaxation requires
+  `features_passthrough = "none"` and the risk-based meta algorithms that would
+  consume those returns are refused at meta level, but the general claim is that
+  the feature columns are ignored, not the object.
 
   In exchange for the relaxed provenance check, the substantive invariant is
   asserted explicitly: all base learners must score an identical `id` set. This
@@ -120,14 +130,25 @@
   of its vintages rather than the pool. Nothing else reads that object on this
   path, so the consequence is a label, not a number.
 
-  `.allow_heterogeneous_base_features = FALSE` reproduces previous behaviour
-  exactly; a regression test asserts that turning the flag on for a homogeneous
-  pool leaves both the meta design matrix and the meta learner's realised
-  out-of-sample predictions bit-identical.
+  The flag is a declaration that the pool **is** mixed, not a permission that may
+  go unused. Setting it against a pool on which neither relaxed check would have
+  fired is refused, naming which. Either axis alone satisfies it: two learners
+  drawn from one `features_m_df` that disagree on
+  `chosen_signals_and_positions` are genuinely heterogeneous and genuinely need
+  the relaxation, so two distinct feature objects are not required.
 
   The meta workflow batch also records `heterogeneous_base_features`, so a
-  workflow batch remains a self-contained account of the run. This is provenance
-  only; nothing reads it back to make a decision.
+  workflow batch remains a self-contained account of the run. Nothing reads it
+  back to make a decision; it is provenance. Because a misdeclaration is refused,
+  the value describes the pool rather than merely the setting.
+
+  `allow_heterogeneous_base_features = FALSE` reproduces previous **predictions
+  and design matrix** exactly. The results object itself is not byte-identical to
+  one built by an earlier version, and could not be: it carries one additional
+  config slot and one additional workflow field. Neither is a number, and neither
+  was ever comparable across runs anyway, since a workflow batch records
+  `timestamps` and `elapsed_time` and so has never hashed equal between two runs
+  of the same configuration.
 
   Because the slot is new, an `sb_metabacktest_config` serialized by an earlier
   version does not carry it, and R does not backfill a prototype into an object

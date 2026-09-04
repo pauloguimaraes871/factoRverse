@@ -123,4 +123,85 @@ test_that("a config serialized before the slot existed still runs as homogeneous
   ### ...and printing such a config must not error either
   expect_output(show(stale_cfg), "SB Metabacktest Configuration")
 
+
+  #It must actually RUN, which is the promise the rest of this only implies
+  ##################################
+  ### Slot access, the accessor and show() are the three reads in package code, but
+  ### checking them one by one is not the same as checking that a stored configuration
+  ### still drives a backtest. This is the backward-compatibility promise itself, so it
+  ### is exercised end to end rather than inferred: a full meta run on the stale config,
+  ### then a monthly update of the result it produced.
+  load(paste(test_path(),"/testdata/","toy_preprocessed_features_and_targets.RData", sep =""))
+
+  build <- function(cutoff){
+    list(
+      features = create_meta_dataframe(
+        toy_preprocessed_features %>%
+          dplyr::select(dplyr::all_of(c("id", "tickers", "dates", "book_yield", "eps_yield"))) %>%
+          dplyr::filter(dates <= as.Date(cutoff)),
+        type = "features", meta_dataframe_name = "signals"),
+      target = create_meta_dataframe(
+        toy_preprocessed_targets %>% dplyr::filter(dates <= as.Date(cutoff)) %>%
+          dplyr::mutate(
+            fwd_return_1m  = dplyr::if_else(dates == as.Date(cutoff), NA_real_, fwd_return_1m),
+            fwd_premium_1m = dplyr::if_else(dates == as.Date(cutoff), NA_real_, fwd_premium_1m)),
+        meta_dataframe_name = "target", type = "target")
+    )
+  }
+
+  base_cfg <- function(nm) create_sb_backtest_config(
+    sb_algorithm = "ols", target_fwd_name = "fwd_premium_1m", training_sample_size = 6,
+    rebalancing_months = 11, config_name = nm,
+    chosen_signals_and_positions = c(book_yield = "long", eps_yield = "long"))
+
+  in_1 <- build("2023-04-15")
+
+  suppressWarnings(suppressMessages({
+    a_1 <- run_sb_backtest(features_m_df = in_1$features, target_m_df = in_1$target,
+                           config = base_cfg("ols_a"), parallel = FALSE, verbose = FALSE)
+    b_1 <- run_sb_backtest(features_m_df = in_1$features, target_m_df = in_1$target,
+                           config = base_cfg("ols_b"), parallel = FALSE, verbose = FALSE)
+  }))
+
+  run_cfg <- create_sb_metabacktest_config(
+    meta_sb_backtest_config = create_sb_backtest_config(
+      sb_algorithm = "ew", training_sample_size = 2, target_fwd_name = "fwd_premium_1m",
+      rebalancing_months = 6, config_name = "meta"),
+    features_passthrough = "none", config_name = "stale_run")
+
+  stale_run_cfg <- run_cfg
+  attributes(stale_run_cfg)$allow_heterogeneous_base_features <- NULL
+
+  suppressWarnings(suppressMessages(
+    res_stale <- run_sb_backtest(features_m_df = in_1$features, target_m_df = in_1$target,
+                                 config = stale_run_cfg,
+                                 base_sb_backtest_results_list = list(a_1, b_1),
+                                 parallel = FALSE, verbose = FALSE)
+  ))
+
+  expect_s4_class(res_stale, "sb_metabacktest_results")
+
+  ### It ran as homogeneous, which is the only correct reading of a config that predates
+  ### the relaxation
+  meta_wf <- res_stale@meta_sb_backtest_results@sb_backtest_workflow
+  expect_false(meta_wf[[length(meta_wf)]]$heterogeneous_base_features)
+
+  ### ...and the result it produced can still be rolled forward a month
+  in_2 <- build("2023-05-15")
+
+  suppressWarnings(suppressMessages({
+    a_2 <- update_sb_backtest(features_m_df = in_2$features, target_m_df = in_2$target,
+                              old_results = a_1, verbose = FALSE)
+    b_2 <- update_sb_backtest(features_m_df = in_2$features, target_m_df = in_2$target,
+                              old_results = b_1, verbose = FALSE)
+    upd_stale <- update_sb_backtest(features_m_df = in_2$features, target_m_df = in_2$target,
+                                    updated_base_sb_backtest_results = list(a_2, b_2),
+                                    old_results = res_stale, parallel = FALSE, verbose = FALSE)
+  }))
+
+  expect_s4_class(upd_stale, "sb_metabacktest_results")
+
+  upd_wf <- upd_stale@meta_sb_backtest_results@sb_backtest_workflow
+  expect_false(upd_wf[[length(upd_wf)]]$heterogeneous_base_features)
+
 })

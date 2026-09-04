@@ -1499,6 +1499,11 @@ setMethod("run_sb_backtest",
             ### of the run, and so a config written before the slot existed still leaves an
             ### explicit FALSE in the batch. Always written, including FALSE, so an absent
             ### field means "built before this was recorded" rather than "homogeneous".
+            ###
+            ### The value describes the pool and not merely the permission, because
+            ### check_inputs_meta_sb_backtest() refuses TRUE against a pool on which neither
+            ### relaxed check would have fired. A run recorded TRUE was therefore genuinely
+            ### mixed; the flag cannot be set and left unused.
             meta_learner_backtest_results@sb_backtest_workflow[[length(meta_learner_backtest_results@sb_backtest_workflow)]]$heterogeneous_base_features <-
               allow_heterogeneous_base_features
 

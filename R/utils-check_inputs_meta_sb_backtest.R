@@ -266,6 +266,37 @@ check_inputs_meta_sb_backtest <- function(
            "allow_heterogeneous_base_features = TRUE.")
     }
 
+    ####The allowance must be used. Declaring a heterogeneous pool and then supplying a
+    ####homogeneous one is a misdeclaration, and it is what would otherwise let the
+    ####workflow's heterogeneous_base_features field describe a pool that was never mixed.
+    ####Refusing it is what makes that field true by construction rather than by
+    ####convention.
+    ####
+    ####Tested over both axes the relaxation covers, because a pool can be heterogeneous
+    ####in either one alone. Two learners drawn from a single features_m_df may still
+    ####disagree on chosen_signals_and_positions, and such a pool needs the relaxation
+    ####just as much as a clusters-plus-individual-signals one; requiring two distinct
+    ####feature objects would refuse it for no reason. The test is therefore "would
+    ####either relaxed check have fired", not "are there two feature objects".
+    last_batch_of <- function(x) x@sb_backtest_workflow[[length(x@sb_backtest_workflow)]]
+
+    signals_differ <- length(unique(lapply(
+      base_sb_backtest_results_list,
+      function(x) last_batch_of(x)$chosen_signals_and_positions
+    ))) > 1
+
+    features_differ <- any(sapply(
+      base_sb_backtest_results_list,
+      function(x) last_batch_of(x)$features_object_name
+    ) != features_m_df@meta_dataframe_name)
+
+    if (!signals_differ && !features_differ) {
+      stop("allow_heterogeneous_base_features = TRUE but the base learner pool is homogeneous: ",
+           "every learner shares one chosen_signals_and_positions and one features_m_df object, ",
+           "so neither relaxed check would have fired. Set it to FALSE, or supply the mixed pool ",
+           "the configuration was declared for.")
+    }
+
   }
   ##########################
 

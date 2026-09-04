@@ -21273,7 +21273,7 @@ test_that("run_sb_backtest does not works with NAs in last target_fwd+ 1 periods
 #####################################
 #HETEROGENEOUS BASE FEATURES
 
-test_that("Metabacktesting with allow_heterogeneous_base_features is a no-op when OFF and runs a mixed pool when ON", {
+test_that("Metabacktesting refuses allow_heterogeneous_base_features on a homogeneous pool and runs a mixed one", {
 
   ## Two claims are pinned here:
   ##   1. Turning the flag ON changes nothing for a pool that did not need it. This is
@@ -21392,8 +21392,30 @@ test_that("Metabacktesting with allow_heterogeneous_base_features is a no-op whe
                                                     allow_heterogeneous_base_features = TRUE)
 
 
-  #The flag is a no-op on a homogeneous pool
+  #The declaration must match the pool
   ##################################
+  ### The flag is a declaration that the pool IS mixed, not a permission that may go
+  ### unused, so setting it against a pool on which neither relaxed check would have
+  ### fired is refused. This is what makes the workflow's heterogeneous_base_features
+  ### field describe the pool rather than merely the setting.
+  ###
+  ### It also means the older form of this test - run a homogeneous pool with the flag
+  ### on and off and assert the results match - is no longer expressible, because the
+  ### "on" half cannot run. Nothing is lost from the reconciliation argument: v7's gate
+  ### compared a flag-OFF run against production, and that path is the default one
+  ### exercised by every other meta test in this file.
+  expect_error(
+    suppressWarnings(suppressMessages(
+      run_sb_backtest(
+        target_m_df = target_m_df, features_m_df = features_m_df,
+        base_sb_backtest_results_list = list(rf_results, glmnet_results),
+        config = meta_config_allow, parallel = FALSE, verbose = FALSE)
+    )),
+    "the base learner pool is homogeneous"
+  )
+
+  ### The same pool runs normally with the flag off, so the refusal above is about the
+  ### declaration and not about the pool being unusable.
   set.seed(123)
   suppressWarnings(suppressMessages(
     res_off <- run_sb_backtest(
@@ -21402,24 +21424,10 @@ test_that("Metabacktesting with allow_heterogeneous_base_features is a no-op whe
       config = meta_config, parallel = FALSE, verbose = FALSE)
   ))
 
-  set.seed(123)
-  suppressWarnings(suppressMessages(
-    res_on <- run_sb_backtest(
-      target_m_df = target_m_df, features_m_df = features_m_df,
-      base_sb_backtest_results_list = list(rf_results, glmnet_results),
-      config = meta_config_allow, parallel = FALSE, verbose = FALSE)
-  ))
-
-  ### The meta learner's realised out-of-sample predictions
-  expect_identical(
-    res_on@meta_sb_backtest_results@oos_sb_outputs_m_df@data,
-    res_off@meta_sb_backtest_results@oos_sb_outputs_m_df@data
-  )
-
-  ### The meta design matrix that produced them
-  expect_identical(
-    res_on@base_learners_oos_predictions_m_df@data,
-    res_off@base_learners_oos_predictions_m_df@data
+  expect_s4_class(res_off, "sb_metabacktest_results")
+  expect_false(
+    res_off@meta_sb_backtest_results@sb_backtest_workflow[[
+      length(res_off@meta_sb_backtest_results@sb_backtest_workflow)]]$heterogeneous_base_features
   )
 
 

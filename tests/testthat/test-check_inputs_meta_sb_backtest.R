@@ -1085,6 +1085,36 @@ test_that("heterogeneous base features are allowed only under the explicit relax
   )
 
 
+  #The declaration must match the pool, on either axis
+  ##############
+  ### The flag asserts that the pool IS mixed, not that mixing would be tolerated. Set
+  ### against a pool on which neither relaxed check would have fired, it is a
+  ### misdeclaration, and it is what would otherwise let the workflow record a run as
+  ### heterogeneous when it was not. Refusing it is what makes that field true by
+  ### construction.
+  expect_error(
+    run_check(config_none, list(rp_results, ew_results), allow = TRUE),
+    "the base learner pool is homogeneous"
+  )
+
+  ### ...and the same pool is fine with the flag off, so the refusal is about the
+  ### declaration rather than about the pool.
+  expect_no_error(
+    run_check(config_none, list(rp_results, ew_results), allow = FALSE)
+  )
+
+  ### Either axis alone satisfies it. A pool drawn from a single features_m_df whose
+  ### learners disagree on chosen_signals_and_positions is genuinely heterogeneous and
+  ### genuinely needs the relaxation, so requiring two distinct feature objects would
+  ### refuse it for no reason.
+  expect_no_error(
+    run_check(config_none, list(rp_results, het_ew_results), allow = TRUE)      # signals only
+  )
+  expect_no_error(
+    run_check(config_none, list(rp_results, other_features_results), allow = TRUE)  # object only
+  )
+
+
   #Scope - the relaxation does NOT disable the RP/HRP/MVO provenance check
   ##############
   ### Left enforced on purpose: challenger v7 swaps only ML learners between datasets,
