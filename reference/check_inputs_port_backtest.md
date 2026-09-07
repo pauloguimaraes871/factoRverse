@@ -51,6 +51,7 @@ check_inputs_port_backtest(
   macro_exp_ret_score_tilt,
   macro_exp_ret_score_tilt_eta,
   macro_linkage,
+  long_port_construction_method = NULL,
   cov_estimation_method,
   cov_matrix_sample_size,
   active_returns,
@@ -287,6 +288,13 @@ check_inputs_port_backtest(
 
   Character. Linkage method for hierarchical clustering in macro-level
   HRP.
+
+- long_port_construction_method:
+
+  Character. Method used to build the long leg when
+  `port_construction_method` is `"slsaf"`. Must be one of `"ew"`,
+  `"sw"`, `"cw"`, `"cs"`, `"rp"`, `"hrp"` or `"mvo"`: a layered method
+  may not itself be nested inside another one.
 
 - cov_estimation_method:
 

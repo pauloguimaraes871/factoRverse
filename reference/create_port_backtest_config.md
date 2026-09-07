@@ -23,6 +23,7 @@ create_port_backtest_config(
   rp_parameters = NULL,
   hrp_parameters = NULL,
   mmaf_parameters = NULL,
+  slsaf_parameters = NULL,
   main_liquidity_metric,
   liquidity_floor_cutoffs = NULL,
   liquidity_constraint_policy = NULL,
@@ -100,8 +101,10 @@ create_port_backtest_config(
   Must be one of "ew" (equal-weight), "sw" (signal-weight), "cw"
   (cap-weight), "cs" (cap-scaled), "rp" (risk parity), "hrp"
   (hierarchical risk parity), "mvo" (mean-variance optimization), or
-  "mmaf" (micro-macro allocation framework). "custom_weights" is not
-  supported through this constructor.
+  "mmaf" (micro-macro allocation framework). "custom_weights" supplies
+  its weights rather than deriving them, so it requires
+  chosen_score_metric_and_position to be NULL and
+  custom_stock_weights_m_df to be passed to run_port_backtest().
 
 - mvo_parameters:
 
@@ -127,6 +130,14 @@ create_port_backtest_config(
   framework portfolios. Only required if `port_construction_method` is
   "mmaf". If missing and port_construction_method is "mmaf", a default
   is created (and `enable_group_representativeness` defaults to `TRUE`).
+
+- slsaf_parameters:
+
+  An object of class `slsaf_parameters` for simulated long-short
+  allocation framework portfolios. Only required if
+  `port_construction_method` is "slsaf". If missing and
+  port_construction_method is "slsaf", a default is created with a
+  signal-weighted long leg.
 
 - main_liquidity_metric:
 

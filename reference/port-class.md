@@ -86,7 +86,9 @@ backtesting portfolios.
 
 - `micro`:
 
-  An object for storing the micro-level portfolio (used in MMAF).
+  A named list of sub-portfolios, filled by any layered method: the
+  per-group portfolios under MMAF, and the `long` and `short` legs under
+  SLSAF. A leg with nothing to build is `NULL`.
 
 - `macro`:
 

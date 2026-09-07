@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">factoRverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.7.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -69,6 +69,10 @@
 <span>  exp_ret_score_tilt_eta <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  linkage <span class="op">=</span> <span class="st">"single"</span>,</span>
 <span>  custom_weights_m_d_ref <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  sub_port_configs <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  bench_weight_tilt_eta <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  badness_tilt_eta <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  max_short_budget <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  mmaf_method <span class="op">=</span> <span class="st">"bottom_up"</span>,</span>
 <span>  <span class="va">top_down_proxy_port_method</span>,</span>
 <span>  <span class="va">mmaf_group_col</span>,</span>
@@ -130,6 +134,9 @@
 
 <dt><code>mmaf</code></dt>
 <dd><p>Micro-Macro Allocation Framework Portfolio</p></dd>
+
+<dt><code>slsaf</code></dt>
+<dd><p>Simulated Long-Short Allocation Framework Portfolio</p></dd>
 
 <dt><code>custom_weights</code></dt>
 <dd><p>User-supplied weights, via <code>custom_weights_m_d_ref</code></p></dd>
@@ -238,6 +245,29 @@ matrix eigenvalues during resampling. Defaults to <code>0</code>.</p></dd>
 
 <dt id="arg-custom-weights-m-d-ref">custom_weights_m_d_ref<a class="anchor" aria-label="anchor" href="#arg-custom-weights-m-d-ref"></a></dt>
 <dd><p>A meta dataframe containing custom user-defined weights. Required when <code>port_construction_method = "custom_weights"</code>. Must contain columns <code>tickers</code>, <code>dates</code>, and <code>weights</code>.</p></dd>
+
+
+<dt id="arg-sub-port-configs">sub_port_configs<a class="anchor" aria-label="anchor" href="#arg-sub-port-configs"></a></dt>
+<dd><p>A named list of <code>sub_port_config</code> objects describing the inner
+portfolios of a layered method. <code>slsaf</code> reads <code>sub_port_configs$long</code>. Each inner call
+is parameterized from its own configuration rather than from the parent method's
+arguments.</p></dd>
+
+
+<dt id="arg-bench-weight-tilt-eta">bench_weight_tilt_eta<a class="anchor" aria-label="anchor" href="#arg-bench-weight-tilt-eta"></a></dt>
+<dd><p>Numeric exponent applied to the benchmark weight in the
+<code>slsaf</code> short-leg score. Defaults to 1, the benchmark-proportional anchor.</p></dd>
+
+
+<dt id="arg-badness-tilt-eta">badness_tilt_eta<a class="anchor" aria-label="anchor" href="#arg-badness-tilt-eta"></a></dt>
+<dd><p>Numeric exponent applied to the badness score in the <code>slsaf</code>
+short leg. Defaults to 1. Higher values concentrate underweight on the worst names
+and give up active budget in exchange.</p></dd>
+
+
+<dt id="arg-max-short-budget">max_short_budget<a class="anchor" aria-label="anchor" href="#arg-max-short-budget"></a></dt>
+<dd><p>Optional numeric in (0, 1]. Ceiling on the <code>slsaf</code> realized
+active budget.</p></dd>
 
 
 <dt id="arg-mmaf-method">mmaf_method<a class="anchor" aria-label="anchor" href="#arg-mmaf-method"></a></dt>

@@ -11,7 +11,7 @@ wide-panel list inputs."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">factoRverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.7.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -56,6 +56,7 @@ wide-panel <code>list</code> inputs.</p>
 <span>  ss_backtest_workflow <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  sb_backtest_workflow <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  port_backtest_workflow <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  port_metabacktest_workflow <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  type <span class="op">=</span> <span class="st">"generic"</span>,</span>
 <span>  <span class="va">...</span></span>
 <span><span class="op">)</span></span>
@@ -102,6 +103,10 @@ wide-panel <code>list</code> inputs.</p>
 
 <dt id="arg-port-backtest-workflow">port_backtest_workflow<a class="anchor" aria-label="anchor" href="#arg-port-backtest-workflow"></a></dt>
 <dd><p>Optional list. Required when <code>type = "stock_universe"</code>.</p></dd>
+
+
+<dt id="arg-port-metabacktest-workflow">port_metabacktest_workflow<a class="anchor" aria-label="anchor" href="#arg-port-metabacktest-workflow"></a></dt>
+<dd><p>Optional list. Required when <code>type = "port_universe"</code>.</p></dd>
 
 
 <dt id="arg-type">type<a class="anchor" aria-label="anchor" href="#arg-type"></a></dt>

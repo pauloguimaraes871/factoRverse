@@ -1,5 +1,397 @@
 # Changelog
 
+## factoRverse 0.9.0
+
+### New features
+
+- Meta portfolio backtesting: allocate across a cohort of
+  already-backtested portfolios, or scale a single portfolio against a
+  passive residual so the combination targets a stated level of risk.
+  Configured through the new `port_metabacktest_config`
+  ([`create_port_metabacktest_config()`](https://pauloguimaraes871.github.io/factoRverse/reference/create_port_metabacktest_config.md)),
+  which wraps an ordinary `port_backtest_config` describing the meta
+  allocation and is dispatched through the existing
+  [`run_port_backtest()`](https://pauloguimaraes871.github.io/factoRverse/reference/run_port_backtest.md)
+  generic alongside a `port_backtest_cohort`.
+
+  A `type` selector chooses between the two paths. Under `"multi_port"`
+  the base portfolios form a cross-section, scored on a column of the
+  new `port_universe_m_df`
+  ([`derive_port_universe_m_df()`](https://pauloguimaraes871.github.io/factoRverse/reference/derive_port_universe_m_df.md)),
+  which carries each base portfolio’s realised and ex-ante statistics
+  along with running cost averages. The methods that carry over to a
+  handful of portfolios are `"ew"`, `"sw"`, `"rp"`, `"hrp"` and `"mvo"`;
+  `"slsaf"` and `"mmaf"` are refused because they are overlays on a
+  stock cross-section, and `"cw"` and `"cs"` because they weight by a
+  liquidity metric a portfolio does not have.
+
+  Under `"risk_targeted"` there is no cross-section to rank. One risky
+  sleeve is scaled against a residual sleeve by
+  `w = s * (target / risk)^p`, clipped to `min_weight` and `max_weight`,
+  with the residual taking the remainder. At `p = 1` this is ordinary
+  risk targeting and at `p = 2` the inverse-variance response of a
+  volatility-managed portfolio. The exposure multiplier `s` comes from
+  [`derive_exposure_signal()`](https://pauloguimaraes871.github.io/factoRverse/reference/derive_exposure_signal.md),
+  which turns a metric into a lean through a trend rule, a ratio to the
+  metric’s own history, or a pass-through. It is deliberately separate
+  from the risk ratio: a constant `s` folds into the target by rescaling
+  it, so only a time-varying signal adds anything, and offering an
+  inverse-of-risk mapping there as well would let the volatility scaling
+  be applied twice without showing up in the output.
+
+  The residual and the target metric have to agree, and nothing errors
+  when they do not. A residual that tracks the benchmark makes tracking
+  error scale linearly toward zero as the sleeve is cut, so
+  `target_metric = "tracking_error"` is valid. A residual that is
+  riskless makes total volatility scale linearly instead, so
+  `"volatility"` is valid. Crossing them does not fail, it stops
+  working: a constant-return residual has a tracking error equal to the
+  benchmark’s own volatility, and blending toward it turns the portfolio
+  into a large underweight of the market and raises tracking error
+  rather than lowering it. Validation checks the residual’s realised
+  tracking error and warns when the pairing looks wrong.
+
+  Both paths produce meta weights that are projected down to individual
+  stocks by
+  [`project_meta_weights_to_stocks()`](https://pauloguimaraes871.github.io/factoRverse/reference/project_meta_weights_to_stocks.md)
+  and run as an ordinary stock-level backtest through
+  `"custom_weights"`, so returns, costs and turnover are the real ones,
+  netted across base portfolios that hold the same names. Results are
+  returned as `port_metabacktest_results`, or
+  `risk_target_metabacktest_results` on the targeted path, both carrying
+  `show` and `plot` methods.
+  [`update_port_backtest()`](https://pauloguimaraes871.github.io/factoRverse/reference/update_port_backtest.md)
+  extends a meta backtest by one month, given a cohort whose base
+  portfolios have themselves been rolled forward.
+
+  Current risk on the targeted path comes from
+  [`estimate_sleeve_risk()`](https://pauloguimaraes871.github.io/factoRverse/reference/estimate_sleeve_risk.md),
+  which defaults to re-estimating a covariance matrix from daily stock
+  returns over a short window and applying the sleeve’s current weights.
+  That describes the portfolio held now, where a rolling window of past
+  monthly portfolio returns describes a chain of past compositions
+  instead, and inheriting the figure from the base backtest’s
+  `port_stats` would use a long window that is also stale between
+  rebalances.
+
+- `port_backtest_config` accepts
+  `port_construction_method = "custom_weights"`, which it previously
+  refused. Supplied weights reach the engine through a weights-based
+  route in
+  [`classify_investment_universe()`](https://pauloguimaraes871.github.io/factoRverse/reference/classify_investment_universe.md),
+  which takes the positively-weighted assets as the eligible set, so no
+  expected-return score is derived and none may be supplied alongside
+  them.
+
+- [`create_sb_metabacktest_config()`](https://pauloguimaraes871.github.io/factoRverse/reference/create_sb_metabacktest_config.md)
+  gains `allow_heterogeneous_base_features`, defaulting to `FALSE`,
+  carried on a new `sb_metabacktest_config` slot of the same name. When
+  `TRUE`, base learners fitted on different feature sets, and on
+  different `features_m_df` objects, may be blended together. This
+  supports research designs that combine learners trained on different
+  representations of the same investable universe, for example heuristic
+  learners fitted on aggregated signal clusters alongside
+  machine-learning learners fitted on the underlying individual signals.
+
+  It is a property of the meta design rather than of one invocation, so
+  it lives on the configuration next to `features_passthrough`, whose
+  value governs whether it is admissible at all. Two things follow from
+  that placement. The pairing is enforced by the class validity
+  function, so a configuration that sets the flag alongside any other
+  `features_passthrough` cannot be constructed rather than merely being
+  rejected once a backtest is already running. And the decision travels
+  inside `sb_metabacktest_results`, so
+  [`update_sb_backtest()`](https://pauloguimaraes871.github.io/factoRverse/reference/update_sb_backtest.md)
+  continues a heterogeneous run by construction, without a new argument
+  and without anything to remember month to month.
+
+  The relaxation is deliberately narrow. It requires
+  `features_passthrough = "none"`, because only in that configuration
+  does the meta learner stop reading the **feature columns** of
+  `features_m_df`:
+  [`consolidate_oos_sb_outputs_m_df()`](https://pauloguimaraes871.github.io/factoRverse/reference/consolidate_oos_sb_outputs_m_df.md)
+  then builds the meta design matrix purely from the base learners’
+  predictions joined on `id`, so which features each base learner saw is
+  provenance rather than a correctness requirement. With any other
+  `features_passthrough` the meta learner must select pass-through
+  columns from a single `features_m_df` and a heterogeneous pool makes
+  that ill-posed; the function errors rather than resolving it silently
+  against one arbitrary learner’s feature set.
+
+  The object itself is not wholly unused even then, and it is worth
+  being precise rather than sweeping: it still supplies the `id` set
+  that consolidation checks the base learners against, it still names
+  the run, and it is still handed to
+  [`extract_returns_m_xts()`](https://pauloguimaraes871.github.io/factoRverse/reference/extract_returns_m_xts.md)
+  when a `port_backtest_cohort` is supplied. That last path cannot be
+  reached by a heterogeneous run, since the relaxation requires
+  `features_passthrough = "none"` and the risk-based meta algorithms
+  that would consume those returns are refused at meta level, but the
+  general claim is that the feature columns are ignored, not the object.
+
+  In exchange for the relaxed provenance check, the substantive
+  invariant is asserted explicitly: all base learners must score an
+  identical `id` set. This was previously enforced only incidentally,
+  and with a generic message, inside
+  [`consolidate_oos_sb_outputs_m_df()`](https://pauloguimaraes871.github.io/factoRverse/reference/consolidate_oos_sb_outputs_m_df.md).
+
+  Two checks are relaxed, and only these two: the
+  `chosen_signals_and_positions` comparison between base learners, and
+  the `features_object_name` comparison between each base learner and
+  the supplied `features_m_df`. Both have to go, because a genuinely
+  mixed pool trips both: the meta run is handed a single
+  `features_m_df`, so every learner drawn from the other object fails
+  the second comparison. Relaxing only the first would permit a pool
+  faked by rewriting a workflow batch and never a real one.
+
+  Still enforced under the flag: the RP/HRP/MVO
+  `signal_themes`/`backtest_returns` provenance checks, and the
+  `target_object_name`, `target_fwd_name`,
+  `training_sample_size + validation_sample_size` and
+  `dates_testing_sample` invariants.
+
+  The cost of relaxing the `features_object_name` comparison is a
+  provenance one, and it is worth stating plainly:
+  `oos_predictions_m_df` is named after whichever `features_m_df` the
+  meta run was given, so a mixed run records one of its vintages rather
+  than the pool. Nothing else reads that object on this path, so the
+  consequence is a label, not a number.
+
+  The flag is a declaration that the pool **is** mixed, not a permission
+  that may go unused. Setting it against a pool on which neither relaxed
+  check would have fired is refused, naming which. Either axis alone
+  satisfies it: two learners drawn from one `features_m_df` that
+  disagree on `chosen_signals_and_positions` are genuinely heterogeneous
+  and genuinely need the relaxation, so two distinct feature objects are
+  not required.
+
+  The meta workflow batch also records `heterogeneous_base_features`, so
+  a workflow batch remains a self-contained account of the run. Nothing
+  reads it back to make a decision; it is provenance. Because a
+  misdeclaration is refused, the value describes the pool rather than
+  merely the setting.
+
+  `allow_heterogeneous_base_features = FALSE` reproduces previous
+  **predictions and design matrix** exactly. The results object itself
+  is not byte-identical to one built by an earlier version, and could
+  not be: it carries one additional config slot and one additional
+  workflow field. Neither is a number, and neither was ever comparable
+  across runs anyway, since a workflow batch records `timestamps` and
+  `elapsed_time` and so has never hashed equal between two runs of the
+  same configuration.
+
+  Because the slot is new, an `sb_metabacktest_config` serialized by an
+  earlier version does not carry it, and R does not backfill a prototype
+  into an object written before a slot existed: both slot access and
+  `validObject()` error on such an object. Every read of the slot in
+  package code therefore goes through a defensive accessor that resolves
+  a missing slot to `FALSE`, which is the correct answer, since a pool
+  built before the relaxation existed was necessarily homogeneous.
+  Stored configurations continue to run and to print.
+
+  Note:
+  [`explain_prediction()`](https://pauloguimaraes871.github.io/factoRverse/reference/explain_prediction.md)
+  on an `sb_metabacktest_results` built from a heterogeneous pool is not
+  supported. It requires every base learner’s feature columns to be
+  present in the one supplied `features_m_df`, which no single object
+  can satisfy for such a pool. It fails with an explicit message rather
+  than returning a misleading attribution.
+
+### Bug fixes
+
+- The `port_metabacktest_config` S4 class is exported again. A code
+  comment inside a validity function was written as
+  `###'custom_weights'`, and `roxygen2` treats any `#`-run followed by
+  an apostrophe as a documentation line, so the comment was parsed as
+  roxygen and swallowed the `@export` tag of the neighbouring class. The
+  class kept its manual page while losing its `exportClasses()` entry,
+  which left [`methods::is()`](https://rdrr.io/r/methods/is.html),
+  `new()` and S4 dispatch from other packages unable to see it even
+  though
+  [`create_port_metabacktest_config()`](https://pauloguimaraes871.github.io/factoRverse/reference/create_port_metabacktest_config.md)
+  was exported normally. The same breakage stopped
+  `devtools::document()` running at all, so `NAMESPACE` and `man/` could
+  not be regenerated; this is why it survived a release. R CMD check
+  validates the committed `man/` rather than rebuilding it, so
+  continuous integration stayed green throughout.
+
+- [`create_slsaf_portfolio()`](https://pauloguimaraes871.github.io/factoRverse/reference/create_slsaf_portfolio.md)
+  aborted with `Weights do not sum to 1` on some configurations and not
+  others, with no economic pattern, at a rate that scaled with the
+  number of rebalance dates rather than with the parameters. Benchmark
+  files are published rounded to six decimal places, so every per-date
+  sum is an exact multiple of `1e-6` and a gap of exactly one quantum is
+  the ordinary case rather than an accident. The repair was gated at the
+  same tolerance the sum-to-one assertion uses, and both comparisons
+  were strict, so such a gap was neither repaired nor reliably accepted:
+  the overlay is self-financing, so `sum(w) = sum(b)` exactly, and the
+  inherited gap landed on the assertion boundary where the
+  floating-point noise of the particular long-leg arithmetic decided
+  whether the build survived. Every gap is now repaired. Which inputs
+  are accepted is unchanged: the renormalization allowance still refuses
+  an input that is further than `2e-3` from 1, and the `1e-4` band still
+  warns.
+
+- [`derive_slsaf_leg_diagnostics()`](https://pauloguimaraes871.github.io/factoRverse/reference/derive_slsaf_leg_diagnostics.md)
+  could refuse a portfolio that had been built successfully, taking
+  every `slsaf` leg plot down with it. It recomposed the portfolio total
+  from three separately accumulated group sums and compared it against
+  its own hardcoded tolerance, so it and the constructor could land on
+  opposite sides of the same boundary for the same portfolio. The
+  invariant is now asserted on `sum(weights)`, and the decomposition is
+  checked against that total at a floating-point tolerance, which still
+  catches an asset belonging to neither leg. `leg_budget` gains
+  `port_weight_total`.
+
+- The `Micro` plot level was offered only when
+  `port_construction_method` was `"mmaf"`, so an `slsaf` portfolio could
+  not reach either of its legs even though it carries both and the
+  dispatch below the gate is already generic. The level is now offered
+  whenever the portfolio carries a populated sub-portfolio, giving
+  `slsaf` users `Micro -> long / short`. Empty legs are not offered,
+  since `slsaf` leaves the short leg empty when every constituent is
+  eligible.
+
+- [`estimate_covariance_matrix()`](https://pauloguimaraes871.github.io/factoRverse/reference/estimate_covariance_matrix.md)
+  sampled `cov_matrix_sample_size + 1` observations whenever more were
+  available, because it indexed from `n - size` inclusive. The window is
+  now exactly the number asked for. This changes every covariance
+  estimate in the package by one observation, so results stored under
+  earlier versions will not reproduce bit for bit, though the economic
+  difference at a 252-day window is negligible.
+
+- [`estimate_covariance_matrix()`](https://pauloguimaraes871.github.io/factoRverse/reference/estimate_covariance_matrix.md)
+  also short-circuits to
+  [`stats::var()`](https://rdrr.io/r/stats/cor.html) when exactly one
+  ticker is passed, and that branch returned before the estimation
+  window was selected. A one-name portfolio was therefore measured over
+  its whole history while the same portfolio holding two names was
+  measured over `cov_matrix_sample_size`, so risk figures from
+  portfolios of different breadth were not comparable. The window is now
+  selected before the branch, and the not-enough-dates guard applies to
+  both paths.
+
+- One covariance window was serving two frequencies in a meta backtest.
+  The meta level counts months, because it allocates over portfolios
+  whose returns are monthly, while the stock level counts trading days
+  when daily returns are supplied. Forwarding the meta number to both
+  meant a value of 36 stood for 36 months at one level and 36 days at
+  the other. `port_metabacktest_config` gains
+  `stock_cov_matrix_sample_size` for the daily side, and
+  [`create_risk_target_parameters()`](https://pauloguimaraes871.github.io/factoRverse/reference/create_risk_target_parameters.md)
+  warns when a window looks written for the wrong frequency, or when a
+  covariance method is supplied to a `vol_source` that never estimates
+  one.
+
+- The stock-level `port_backtest_results` produced by a meta backtest
+  was not a well-formed object of its class: it carried a flat workflow
+  rather than one batch keyed by date, and reported its identifier as
+  `"not_identified"`, so `show()` on the slot failed outright.
+
+- [`create_port_backtest_cohort()`](https://pauloguimaraes871.github.io/factoRverse/reference/create_port_backtest_cohort.md)
+  read `dates_covered` and `dates_backtest` from the last workflow batch
+  of each result. That is correct for a backtest that ran once and wrong
+  for one that has been updated, where the last batch describes only the
+  window that update recomputed. A cohort of updated portfolios claimed
+  a span far shorter than what it held, and
+  [`derive_port_universe_m_df()`](https://pauloguimaraes871.github.io/factoRverse/reference/derive_port_universe_m_df.md)
+  truncated the meta universe to it. The two date grids are now unioned
+  across batches.
+
+## factoRverse 0.8.0
+
+### New features
+
+- New portfolio construction method `"slsaf"`, the Simulated Long-Short
+  Allocation Framework, configured through the new `slsaf_parameters`
+  object
+  ([`create_slsaf_parameters()`](https://pauloguimaraes871.github.io/factoRverse/reference/create_slsaf_parameters.md),
+  [`add_slsaf_parameters()`](https://pauloguimaraes871.github.io/factoRverse/reference/add_slsaf_parameters.md)).
+  It addresses a structural defect of benchmark-relative construction:
+  when a single name carries a large index weight, most methods cannot
+  express a meaningful active position in it, so mega caps are
+  persistently underweighted regardless of how attractive they are.
+
+  The method builds a long-only portfolio as the benchmark plus a
+  self-financing active overlay.
+  [`classify_investment_universe()`](https://pauloguimaraes871.github.io/factoRverse/reference/classify_investment_universe.md)
+  gains `include_benchmark_in_universe`, which splits the universe into
+  a long block (what the eligibility cascade is willing to buy) and a
+  short block (index constituents it rejected, which may only be
+  underweighted). Underweights are graded by conviction and capped by
+  the position actually held, `u_i = min(T * s_i, b_i)`, and the budget
+  they release is spent on the long block. Four properties hold by
+  construction and are asserted before any portfolio is returned: active
+  weights sum to zero, weights sum to one with no renormalization, a
+  rejected constituent is never overweighted nor shorted, and an
+  eligible name is never underweighted.
+
+  Two exponents shape the short leg, and they are not symmetric.
+  `bench_weight_tilt_eta` sets the basis: because the budget is fully
+  spent if and only if the short weights are benchmark-proportional, an
+  exponent of 1 sits exactly on that maximum, which is also the ungraded
+  corner where every rejected constituent is sold in full. It is a basis
+  rather than a budget dial, and no directional claim about it is safe
+  once the second tilt is active. `badness_tilt_eta` then walks the
+  budget-versus-grading frontier away from that anchor, concentrating
+  underweight on the worst names and giving up budget in exchange.
+  Maximum budget and graded underweights are mutually exclusive.
+
+  The short leg is always reconstructed from `exp_ret_score_raw`, never
+  from the scaled score, so a return-predictive scaler such as
+  `1 / idio_vol` is never inverted into “underweight the low-volatility
+  names the most”.
+
+  Because every active weight is expressed against the index position,
+  the benchmark must actually sum to one. Gaps within `2e-3` are
+  renormalized over the covered universe and persisted, so the weights
+  and the statistics reported about them describe the same benchmark;
+  gaps below `1e-4` are treated as rounding and repaired silently, and
+  anything between the two warns. Larger gaps are refused rather than
+  repaired: renormalizing them would inflate every surviving weight
+  enough to measure tracking error against an index that exists nowhere.
+  The refusal is symmetric, since a benchmark summing above one is not
+  an incomplete universe but duplicated or overstated constituents.
+
+  Since eligibility governs what may be bought rather than what may be
+  underweighted, a rule other than the score can push high-scoring
+  constituents into the short block; a liquidity floor strict enough to
+  exclude index heavyweights can turn the method against its own signal.
+  [`create_slsaf_portfolio()`](https://pauloguimaraes871.github.io/factoRverse/reference/create_slsaf_portfolio.md)
+  therefore warns when the underweighted names score better on average
+  than the overweighted ones.
+
+  Nine `slsaf`-specific plots are added to
+  `plot(port_backtest_results)`, along with two
+  [`summary()`](https://rdrr.io/r/base/summary.html) tables, all
+  contrasting the two legs: the weight decomposition, benchmark
+  coverage, leg scores as a series and as a distribution, tracking error
+  attribution, sector and capitalization composition, the
+  per-constituent underweight intensity profile, and the
+  budget-versus-grading view. Per-rebalance diagnostics travel in
+  `port_stats_m_df` as `slsaf_short_budget`, `slsaf_active_budget`,
+  `slsaf_n_long`, `slsaf_n_short` and `slsaf_n_zeroed`, so the
+  endogenous active budget is visible rather than inferred.
+
+  `concentration_constraint_policy` and `turnover_constraint_policy` are
+  rejected for this method: the overlay already determines every active
+  weight, and the turnover buffer gates on `bop_port_weights > 0`, which
+  holds for every constituent not fully sold, so the whole short block
+  would drain into the long block. A `ridge_pen` on an MVO long leg is
+  rejected as well: `target_weights` is joined into the universe only
+  when the top-level ridge penalty is set, which never happens under
+  `slsaf`, and routing a target into the long block is not merely
+  plumbing, since the target is defined over the whole universe while
+  the long block is a strict subset and renormalizing it changes what
+  the penalty shrinks towards.
+
+### Bug fixes
+
+- The `"Stats Summary"` table of `summary(port_backtest_results)`
+  referenced `port_stats_m_df` without it ever being extracted from the
+  object, so the table could never render for any portfolio construction
+  method.
+
 ## factoRverse 0.7.0
 
 ### New features

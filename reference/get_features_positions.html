@@ -11,7 +11,7 @@ Positions labeled "force" are mapped to "long" in the final output.'></head><bod
 
     <a class="navbar-brand me-2" href="../index.html">factoRverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.7.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -49,7 +49,8 @@ Positions labeled <code>"force"</code> are mapped to <code>"long"</code> in the 
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">get_features_positions</span><span class="op">(</span></span>
 <span>  <span class="va">base_sb_backtest_results_list</span>,</span>
 <span>  <span class="va">features_passthrough</span>,</span>
-<span>  <span class="va">features_m_df</span></span>
+<span>  <span class="va">features_m_df</span>,</span>
+<span>  .allow_heterogeneous_base_features <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -76,6 +77,13 @@ features found in the reference set.</p></dd>
 at least three key columns (often <code>date</code>, <code>symbol</code>, <code>target</code>) plus
 feature columns. Used primarily for consistency checks and reconstructing any missing
 signals/positions in <code>base_sb_backtest_results_list</code>.</p></dd>
+
+
+<dt id="arg--allow-heterogeneous-base-features">.allow_heterogeneous_base_features<a class="anchor" aria-label="anchor" href="#arg--allow-heterogeneous-base-features"></a></dt>
+<dd><p>Logical; if <code>TRUE</code> and
+<code>features_passthrough</code> is <code>"none"</code>, returns <code>"none"</code> without
+requiring every base learner to share one set of chosen signals. Defaults to
+<code>FALSE</code>. See <code><a href="check_inputs_meta_sb_backtest.html">check_inputs_meta_sb_backtest()</a></code>.</p></dd>
 
 </dl></div>
     <div class="section level2">

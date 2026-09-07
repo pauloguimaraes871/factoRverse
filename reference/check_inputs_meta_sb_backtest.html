@@ -9,7 +9,7 @@ signal selection, features passthrough, meta dataframes, and xts objects."></hea
 
     <a class="navbar-brand me-2" href="../index.html">factoRverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.7.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -58,7 +58,8 @@ signal selection, features passthrough, meta dataframes, and xts objects.</p>
 <span>  <span class="va">base_benchmark_returns_m_xts</span>,</span>
 <span>  <span class="va">meta_backtest_returns_m_xts</span>,</span>
 <span>  <span class="va">meta_benchmark_returns_m_xts</span>,</span>
-<span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  verbose <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  .allow_heterogeneous_base_features <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -124,6 +125,20 @@ signal selection, features passthrough, meta dataframes, and xts objects.</p>
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
 <dd><p>A boolean indicating whether to print detailed messages.</p></dd>
+
+
+<dt id="arg--allow-heterogeneous-base-features">.allow_heterogeneous_base_features<a class="anchor" aria-label="anchor" href="#arg--allow-heterogeneous-base-features"></a></dt>
+<dd><p>Logical; the relaxation resolved by
+<code><a href="run_sb_backtest.html">run_sb_backtest()</a></code> from <code>config@allow_heterogeneous_base_features</code>, passed
+in rather than re-read so this function can be exercised directly. If <code>TRUE</code>,
+permits base learners that were fitted on different feature sets, and on different
+<code>features_m_df</code> objects, to be stacked together: the
+<code>chosen_signals_and_positions</code> and <code>features_object_name</code> checks are
+skipped, and an identical <code>id</code> set across base learners is asserted in their
+place. Requires <code>features_passthrough == "none"</code>, which the
+<code>sb_metabacktest_config</code> validity function already enforces at construction and
+which is re-checked here. Defaults to <code>FALSE</code>, which reproduces the historical
+behaviour exactly.</p></dd>
 
 </dl></div>
     <div class="section level2">

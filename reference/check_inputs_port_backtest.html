@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">factoRverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.7.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -85,6 +85,7 @@
 <span>  <span class="va">macro_exp_ret_score_tilt</span>,</span>
 <span>  <span class="va">macro_exp_ret_score_tilt_eta</span>,</span>
 <span>  <span class="va">macro_linkage</span>,</span>
+<span>  long_port_construction_method <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  <span class="va">cov_estimation_method</span>,</span>
 <span>  <span class="va">cov_matrix_sample_size</span>,</span>
 <span>  <span class="va">active_returns</span>,</span>
@@ -292,6 +293,13 @@
 
 <dt id="arg-macro-linkage">macro_linkage<a class="anchor" aria-label="anchor" href="#arg-macro-linkage"></a></dt>
 <dd><p>Character. Linkage method for hierarchical clustering in macro-level HRP.</p></dd>
+
+
+<dt id="arg-long-port-construction-method">long_port_construction_method<a class="anchor" aria-label="anchor" href="#arg-long-port-construction-method"></a></dt>
+<dd><p>Character. Method used to build the long leg when
+<code>port_construction_method</code> is <code>"slsaf"</code>. Must be one of <code>"ew"</code>, <code>"sw"</code>,
+<code>"cw"</code>, <code>"cs"</code>, <code>"rp"</code>, <code>"hrp"</code> or <code>"mvo"</code>: a layered method may
+not itself be nested inside another one.</p></dd>
 
 
 <dt id="arg-cov-estimation-method">cov_estimation_method<a class="anchor" aria-label="anchor" href="#arg-cov-estimation-method"></a></dt>

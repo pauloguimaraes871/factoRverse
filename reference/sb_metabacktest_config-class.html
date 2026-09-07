@@ -13,7 +13,7 @@ normalization, winsorization)."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">factoRverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.7.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -67,6 +67,15 @@ Alternatively, if <code>'all'</code>, all features are passed through. If <code>
 
 <dt><code>winsorize_base_predictions</code></dt>
 <dd><p>Logical; if <code>TRUE</code>, winsorizes the base learners' predictions before passing them to the meta learner. Default is <code>FALSE</code>.</p></dd>
+
+
+<dt><code>allow_heterogeneous_base_features</code></dt>
+<dd><p>Logical; if <code>TRUE</code>, permits base learners fitted on
+different feature sets, and on different <code>features_m_df</code> objects, to be stacked together.
+Requires <code>features_passthrough = "none"</code>, which the validity function enforces, since only
+then does the meta learner ignore <code>features_m_df</code> and build its design matrix purely from
+the base learners' predictions joined on <code>id</code>. All base learners must still score an
+identical <code>id</code> set. Default is <code>FALSE</code>, which reproduces historical behaviour exactly.</p></dd>
 
 
 <dt><code>config_name</code></dt>

@@ -18,6 +18,7 @@ create_meta_dataframe(
   ss_backtest_workflow = NULL,
   sb_backtest_workflow = NULL,
   port_backtest_workflow = NULL,
+  port_metabacktest_workflow = NULL,
   type = "generic",
   ...
 )
@@ -66,6 +67,10 @@ create_meta_dataframe(
 - port_backtest_workflow:
 
   Optional list. Required when `type = "stock_universe"`.
+
+- port_metabacktest_workflow:
+
+  Optional list. Required when `type = "port_universe"`.
 
 - type:
 

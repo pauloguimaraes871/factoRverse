@@ -73,6 +73,10 @@ the objects each workflow consumes and produces.
   [`stock_universe_m_df`](https://pauloguimaraes871.github.io/factoRverse/reference/stock_universe_m_df-class.md)
   : stock_universe_m_df-class
 
+- [`port_universe_m_df-class`](https://pauloguimaraes871.github.io/factoRverse/reference/port_universe_m_df-class.md)
+  [`port_universe_m_df`](https://pauloguimaraes871.github.io/factoRverse/reference/port_universe_m_df-class.md)
+  : port_universe_m_df-class
+
 - [`oos_sb_outputs_m_df-class`](https://pauloguimaraes871.github.io/factoRverse/reference/oos_sb_outputs_m_df-class.md)
   [`oos_sb_outputs_m_df`](https://pauloguimaraes871.github.io/factoRverse/reference/oos_sb_outputs_m_df-class.md)
   : oos_sb_outputs_m_df-class
@@ -230,6 +234,15 @@ into a cohort to compare them as a group.
 - [`create_port_backtest_config()`](https://pauloguimaraes871.github.io/factoRverse/reference/create_port_backtest_config.md)
   : Create port_backtest_config Object
 
+- [`create_port_metabacktest_config()`](https://pauloguimaraes871.github.io/factoRverse/reference/create_port_metabacktest_config.md)
+  : Create Port Meta Backtest Configuration
+
+- [`create_risk_target_parameters()`](https://pauloguimaraes871.github.io/factoRverse/reference/create_risk_target_parameters.md)
+  : Create risk_target_parameters
+
+- [`add_risk_target_parameters()`](https://pauloguimaraes871.github.io/factoRverse/reference/add_risk_target_parameters.md)
+  : Add risk_target_parameters to a meta backtest config
+
 - [`run_port_backtest()`](https://pauloguimaraes871.github.io/factoRverse/reference/run_port_backtest.md)
   : Run Portfolio Backtest
 
@@ -244,11 +257,28 @@ into a cohort to compare them as a group.
 - [`create_port_backtest_cohort()`](https://pauloguimaraes871.github.io/factoRverse/reference/create_port_backtest_cohort.md)
   : Create Portfolio Backtest Cohort
 
+- [`create_port_metabacktest_results()`](https://pauloguimaraes871.github.io/factoRverse/reference/create_port_metabacktest_results.md)
+  : Create a port_metabacktest_results Object
+
 - [`port_backtest_config-class`](https://pauloguimaraes871.github.io/factoRverse/reference/port_backtest_config-class.md)
   : Class for Port Backtest Config
 
+- [`port_metabacktest_config-class`](https://pauloguimaraes871.github.io/factoRverse/reference/port_metabacktest_config-class.md)
+  : Class for Port Meta Backtest Config
+
+- [`risk_target_parameters-class`](https://pauloguimaraes871.github.io/factoRverse/reference/risk_target_parameters-class.md)
+  :
+
+  Define the `risk_target_parameters` S4 Class
+
 - [`port_backtest_results-class`](https://pauloguimaraes871.github.io/factoRverse/reference/port_backtest_results-class.md)
   : S4 Class for Portfolio Backtest Results
+
+- [`port_metabacktest_results-class`](https://pauloguimaraes871.github.io/factoRverse/reference/port_metabacktest_results-class.md)
+  : S4 Class for Portfolio Meta Backtest Results
+
+- [`risk_target_metabacktest_results-class`](https://pauloguimaraes871.github.io/factoRverse/reference/risk_target_metabacktest_results-class.md)
+  : S4 Class for Risk-Targeted Meta Backtest Results
 
 - [`port_backtest_cohort-class`](https://pauloguimaraes871.github.io/factoRverse/reference/port_backtest_cohort-class.md)
   : S4 Class for Portfolio Backtest Cohort
@@ -369,6 +399,12 @@ generation.
 - [`derive_stock_universe_m_d_ref()`](https://pauloguimaraes871.github.io/factoRverse/reference/derive_stock_universe_m_d_ref.md)
   : Build Stock Universe with Expected Return Score
 
+- [`derive_port_universe_m_df()`](https://pauloguimaraes871.github.io/factoRverse/reference/derive_port_universe_m_df.md)
+  : Derive a Portfolio Universe from a Backtest Cohort
+
+- [`derive_exposure_signal()`](https://pauloguimaraes871.github.io/factoRverse/reference/derive_exposure_signal.md)
+  : Derive an Exposure Signal From a Metric
+
 - [`calculate_trade_orders()`](https://pauloguimaraes871.github.io/factoRverse/reference/calculate_trade_orders.md)
   : Calculate Trade Orders
 
@@ -399,6 +435,15 @@ generation.
 - [`create_mmaf_parameters()`](https://pauloguimaraes871.github.io/factoRverse/reference/create_mmaf_parameters.md)
   : Create MMAF (Micro Macro Allocation Framework) Parameters
 
+- [`add_slsaf_parameters()`](https://pauloguimaraes871.github.io/factoRverse/reference/add_slsaf_parameters.md)
+  : Add slsaf_parameters to a backtest config
+
+- [`create_slsaf_parameters()`](https://pauloguimaraes871.github.io/factoRverse/reference/create_slsaf_parameters.md)
+  : Create SLSAF (Simulated Long-Short Allocation Framework) Parameters
+
+- [`create_sub_port_config()`](https://pauloguimaraes871.github.io/factoRverse/reference/create_sub_port_config.md)
+  : Create a Sub Portfolio Configuration
+
 - [`port-class`](https://pauloguimaraes871.github.io/factoRverse/reference/port-class.md)
   [`signal_port-class`](https://pauloguimaraes871.github.io/factoRverse/reference/port-class.md)
   [`stock_port-class`](https://pauloguimaraes871.github.io/factoRverse/reference/port-class.md)
@@ -424,8 +469,16 @@ generation.
 
   Define the `mmaf_parameters` S4 Class
 
+- [`sub_port_config-class`](https://pauloguimaraes871.github.io/factoRverse/reference/sub_port_config-class.md)
+  : Sub Portfolio Configuration
+
 - [`mmaf_sub_port_config-class`](https://pauloguimaraes871.github.io/factoRverse/reference/mmaf_sub_port_config-class.md)
   : MMAF Sub Portfolio Configuration
+
+- [`slsaf_parameters-class`](https://pauloguimaraes871.github.io/factoRverse/reference/slsaf_parameters-class.md)
+  :
+
+  Define the `slsaf_parameters` S4 Class
 
 ## Workflow 2: Signal selection (the factor zoo)
 
@@ -727,6 +780,12 @@ factoRverse objects.
 - [`show(`*`<port_backtest_results>`*`)`](https://pauloguimaraes871.github.io/factoRverse/reference/show-port_backtest_results-method.md)
   : Show Port Backtest Results
 
+- [`show(`*`<port_metabacktest_config>`*`)`](https://pauloguimaraes871.github.io/factoRverse/reference/show-port_metabacktest_config-method.md)
+  : Show Method for port_metabacktest_config Class
+
+- [`show(`*`<port_metabacktest_results>`*`)`](https://pauloguimaraes871.github.io/factoRverse/reference/show-port_metabacktest_results-method.md)
+  : Show Method for port_metabacktest_results Class
+
 - [`show(`*`<random_search_strategy>`*`)`](https://pauloguimaraes871.github.io/factoRverse/reference/show-random_search_strategy-method.md)
   :
 
@@ -734,6 +793,12 @@ factoRverse objects.
 
 - [`show(`*`<returns_meta_xts>`*`)`](https://pauloguimaraes871.github.io/factoRverse/reference/show-returns_meta_xts-method.md)
   : Show method for returns_meta_xts
+
+- [`show(`*`<risk_target_metabacktest_results>`*`)`](https://pauloguimaraes871.github.io/factoRverse/reference/show-risk_target_metabacktest_results-method.md)
+  : Show Method for risk_target_metabacktest_results Class
+
+- [`show(`*`<risk_target_parameters>`*`)`](https://pauloguimaraes871.github.io/factoRverse/reference/show-risk_target_parameters-method.md)
+  : Show Risk-Targeting Parameters
 
 - [`show(`*`<rp_parameters>`*`)`](https://pauloguimaraes871.github.io/factoRverse/reference/show-rp_parameters-method.md)
   : Show Risk-Parity Parameters
@@ -755,6 +820,9 @@ factoRverse objects.
 
 - [`show(`*`<signal_universe_m_df>`*`)`](https://pauloguimaraes871.github.io/factoRverse/reference/show-signal_universe_m_df-method.md)
   : Show Method for signal_universe_m_df Class
+
+- [`show(`*`<slsaf_parameters>`*`)`](https://pauloguimaraes871.github.io/factoRverse/reference/show-slsaf_parameters-method.md)
+  : Show SLSAF Parameters
 
 - [`show(`*`<ss_backtest_config>`*`)`](https://pauloguimaraes871.github.io/factoRverse/reference/show-ss_backtest_config-method.md)
   : Show Signal Selection Backtest Config
@@ -834,10 +902,16 @@ factoRverse objects.
 - [`plot(`*`<port_backtest_results>`*`,`*`<ANY>`*`)`](https://pauloguimaraes871.github.io/factoRverse/reference/plot-port_backtest_results-ANY-method.md)
   : Plot Method for port_backtest_results Class
 
+- [`plot(`*`<port_metabacktest_results>`*`,`*`<ANY>`*`)`](https://pauloguimaraes871.github.io/factoRverse/reference/plot-port_metabacktest_results-ANY-method.md)
+  : Plot Method for port_metabacktest_results Class
+
 - [`plot(`*`<random_search_strategy>`*`,`*`<missing>`*`)`](https://pauloguimaraes871.github.io/factoRverse/reference/plot-random_search_strategy-missing-method.md)
   :
 
   Plot Method for `random_search_strategy`
+
+- [`plot(`*`<risk_target_metabacktest_results>`*`,`*`<ANY>`*`)`](https://pauloguimaraes871.github.io/factoRverse/reference/plot-risk_target_metabacktest_results-ANY-method.md)
+  : Plot Method for risk_target_metabacktest_results Class
 
 - [`plot(`*`<sb_backtest_config>`*`,`*`<missing>`*`)`](https://pauloguimaraes871.github.io/factoRverse/reference/plot-sb_backtest_config-missing-method.md)
   :

@@ -40,6 +40,29 @@ update_port_backtest(
   parallel = TRUE,
   .test_seed = NULL
 )
+
+# S4 method for class 'meta_dataframe,meta_dataframe,meta_dataframe,meta_dataframe,port_metabacktest_results'
+update_port_backtest(
+  signals_m_df,
+  fwd_return_m_df,
+  liquidity_m_df,
+  volatility_m_df,
+  old_results,
+  updated_port_backtest_cohort,
+  custom_port_metrics_m_df = NULL,
+  stock_groups_m_df = NULL,
+  benchmark_weights_m_df = NULL,
+  daily_stock_returns_m_xts = NULL,
+  daily_bench_returns_m_xts = NULL,
+  benchmark_returns_m_xts = NULL,
+  custom_stock_metrics_m_df = NULL,
+  vol_m_df = NULL,
+  exposure_m_df = NULL,
+  max_stats_age_months = NULL,
+  verbose = TRUE,
+  parallel = TRUE,
+  .test_seed = NULL
+)
 ```
 
 ## Arguments
@@ -140,6 +163,16 @@ update_port_backtest(
 
   Optional seed for reproducibility when testing.
 
+- updated_port_backtest_cohort:
+
+  A `port_backtest_cohort` whose base portfolios are the one-month
+  continuation of the ones the old meta backtest allocated across.
+
+- custom_port_metrics_m_df, vol_m_df, exposure_m_df,
+  max_stats_age_months:
+
+  Passed through to `run_port_backtest`, as in the original run.
+
 ## Value
 
 An object of class `port_backtest_results` containing the portfolio
@@ -170,3 +203,20 @@ ahead) must be supplied here.
   This method extracts the parameters from the `results` object (of
   class `port_backtest_results`), modifies initial_buffer_period,
   performs the new backtest and then binds results
+
+- `update_port_backtest( signals_m_df = meta_dataframe, fwd_return_m_df = meta_dataframe, liquidity_m_df = meta_dataframe, volatility_m_df = meta_dataframe, old_results = port_metabacktest_results )`:
+  Extends a meta portfolio backtest by one month, from a
+  `port_metabacktest_results` object.
+
+  A meta backtest sits on top of a cohort, so it cannot be rolled
+  forward on its own: the base portfolios have to be extended first and
+  handed back as `updated_port_backtest_cohort`, the same way the base
+  method takes an `updated_sb_backtest_results`. Each base portfolio in
+  that cohort must carry the same `backtest_identifier` as before and
+  cover one further month.
+
+  As in the base method, the recomputation starts at the last date of
+  the old backtest rather than at the new one, so the now-populated
+  forward returns at that date can roll the portfolio forward. The meta
+  weights for that date are recomputed and replace the old ones, and the
+  new date is appended.

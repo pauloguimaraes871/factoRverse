@@ -29,6 +29,17 @@ winsorization).
   Logical; if `TRUE`, winsorizes the base learners' predictions before
   passing them to the meta learner. Default is `FALSE`.
 
+- `allow_heterogeneous_base_features`:
+
+  Logical; if `TRUE`, permits base learners fitted on different feature
+  sets, and on different `features_m_df` objects, to be stacked
+  together. Requires `features_passthrough = "none"`, which the validity
+  function enforces, since only then does the meta learner ignore
+  `features_m_df` and build its design matrix purely from the base
+  learners' predictions joined on `id`. All base learners must still
+  score an identical `id` set. Default is `FALSE`, which reproduces
+  historical behaviour exactly.
+
 - `config_name`:
 
   A character string with the name of the configuration

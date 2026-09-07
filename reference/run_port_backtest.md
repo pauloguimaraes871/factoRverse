@@ -43,6 +43,35 @@ run_port_backtest(
   .old_backtest_port_costs_d_ref = NULL,
   .old_backtest_covered_dates = NULL
 )
+
+# S4 method for class 'meta_dataframe,meta_dataframe,meta_dataframe,meta_dataframe,port_metabacktest_config'
+run_port_backtest(
+  signals_m_df,
+  fwd_return_m_df,
+  liquidity_m_df,
+  volatility_m_df,
+  config,
+  port_backtest_cohort,
+  custom_port_metrics_m_df = NULL,
+  stock_groups_m_df = NULL,
+  benchmark_weights_m_df = NULL,
+  daily_stock_returns_m_xts = NULL,
+  daily_bench_returns_m_xts = NULL,
+  benchmark_returns_m_xts = NULL,
+  custom_stock_metrics_m_df = NULL,
+  vol_m_df = NULL,
+  exposure_m_df = NULL,
+  max_stats_age_months = NULL,
+  winsorization_probs = c(0.025, 0.975),
+  verbose = TRUE,
+  parallel = TRUE,
+  .test_seed = NULL,
+  .update = FALSE,
+  .old_backtest_port_weights_m_d_ref = NULL,
+  .old_backtest_port_returns_m_xts = NULL,
+  .old_backtest_port_costs_d_ref = NULL,
+  .old_backtest_covered_dates = NULL
+)
 ```
 
 ## Arguments
@@ -171,6 +200,35 @@ run_port_backtest(
   (Internal) Dates already covered in the previous backtest (used when
   `.update = TRUE`).
 
+- port_backtest_cohort:
+
+  A `port_backtest_cohort` holding the base portfolios to allocate
+
+- custom_port_metrics_m_df:
+
+  Optional `meta_dataframe` of user-computed per-portfolio metrics,
+  joined into the port universe and available as a meta score. See
+  [`derive_port_universe_m_df()`](https://pauloguimaraes871.github.io/factoRverse/reference/derive_port_universe_m_df.md).
+
+- vol_m_df:
+
+  Optional `meta_dataframe` of supplied risk for the risky sleeve, read
+  when `vol_source` is `"supplied"`. One row per date for the sleeve,
+  carrying a single annualised risk column.
+
+- exposure_m_df:
+
+  Optional `meta_dataframe` carrying the metric the exposure signal is
+  derived from, required when `exposure_method` is anything but
+  `"none"`. It must describe the risky sleeve. across. Its backtests
+  must have been run on the same data objects passed here.
+
+- max_stats_age_months:
+
+  Optional whole number. Age above which carried base statistics raise a
+  warning at meta rebalance dates. `NULL` reports the observed age
+  without a threshold.
+
 ## Value
 
 An object of class `port_backtest_results`, containing:
@@ -202,6 +260,9 @@ An object of class `port_backtest_results`, containing:
 
 - `backtest_identifier`: A character identifier of the form
   `"c__<config>_s__<signals>_f__<fwd_return>"`.
+
+An object of class
+[port_metabacktest_results](https://pauloguimaraes871.github.io/factoRverse/reference/port_metabacktest_results-class.md).
 
 ## Details
 
@@ -347,6 +408,52 @@ are carried forward by `roll_port`.
   supporting fallback logic to ensure a viable investment universe is
   selected in each rebalance date.
 
+- `run_port_backtest( signals_m_df = meta_dataframe, fwd_return_m_df = meta_dataframe, liquidity_m_df = meta_dataframe, volatility_m_df = meta_dataframe, config = port_metabacktest_config )`:
+  Allocate across a cohort of already-backtested portfolios
+
+  Runs a meta-portfolio backtest: at each meta rebalance date, weights
+  are chosen across the base portfolios of a `port_backtest_cohort`
+  using those portfolios' own characteristics, and the resulting
+  allocation is then run as an ordinary stock-level portfolio.
+
+## The two levels
+
+The method works at two levels, and the distinction matters for reading
+the results.
+
+At the **meta level** each base portfolio is an asset. Its
+characteristics are assembled by
+[`derive_port_universe_m_df()`](https://pauloguimaraes871.github.io/factoRverse/reference/derive_port_universe_m_df.md)
+into a
+[port_universe_m_df](https://pauloguimaraes871.github.io/factoRverse/reference/port_universe_m_df-class.md),
+the chosen meta score is turned into an expected-return score by
+[`derive_stock_universe_m_d_ref()`](https://pauloguimaraes871.github.io/factoRverse/reference/derive_stock_universe_m_d_ref.md),
+eligibility is set by
+[`classify_investment_universe()`](https://pauloguimaraes871.github.io/factoRverse/reference/classify_investment_universe.md),
+and weights are set by
+[`set_portfolio_weights()`](https://pauloguimaraes871.github.io/factoRverse/reference/set_portfolio_weights.md).
+Covariance, where the construction method needs it, is estimated from
+the base portfolios' own monthly return series, so
+`cov_matrix_sample_size` counts months here rather than trading days.
+
+At the **stock level** those meta weights are multiplied through each
+base portfolio's own stock weights by
+[`project_meta_weights_to_stocks()`](https://pauloguimaraes871.github.io/factoRverse/reference/project_meta_weights_to_stocks.md),
+and the result is run through the ordinary backtest engine as a
+`custom_weights` portfolio. This is what makes the costs real: base
+portfolios frequently hold the same names, so a meta rebalance nets off
+at stock level and trades far less than the portfolio-level turnover
+would suggest.
+
+## What is knowable when
+
+Meta weights at date `t` are set from statistics the cohort had produced
+by `t`. Base portfolio analytics exist only on base rebalance dates, so
+a meta rebalance may be reading figures formed earlier; that is
+look-ahead safe and reported by `stats_age_months`, and
+[`check_inputs_meta_port_backtest()`](https://pauloguimaraes871.github.io/factoRverse/reference/check_inputs_meta_port_backtest.md)
+warns when it exceeds `max_stats_age_months`.
+
 ## Examples
 
 ``` r
@@ -376,5 +483,25 @@ if (FALSE) { # \dontrun{
   # Alternatively, drive the backtest from a blended signal (run_sb_backtest output):
   # results <- run_port_backtest(signals_m_df, fwd_return_m_df, liquidity_m_df,
   #                              volatility_m_df, config, sb_backtest_results = sb_results)
+} # }
+if (FALSE) { # \dontrun{
+  meta_config <- create_port_metabacktest_config(
+    meta_port_backtest_config = create_port_backtest_config(
+      chosen_score_metric_and_position = c(ann_info_ratio = "long"),
+      eligibility_quantile_range = c(0, 1),
+      initial_buffer_period = 24, rebalancing_months = c(6, 12),
+      selected_benchmark = "ibov", main_liquidity_metric = "mean_volfin_3m",
+      port_construction_method = "sw", config_name = "meta_sw_ir"
+    ),
+    config_name = "meta_sw_ir"
+  )
+
+  meta_results <- run_port_backtest(
+    signals_m_df = signals_m_df, fwd_return_m_df = fwd_return_m_df,
+    liquidity_m_df = liquidity_m_df, volatility_m_df = volatility_m_df,
+    config = meta_config, port_backtest_cohort = port_cohort,
+    benchmark_weights_m_df = benchmark_weights_m_df,
+    benchmark_returns_m_xts = benchmark_returns_m_xts
+  )
 } # }
 ```

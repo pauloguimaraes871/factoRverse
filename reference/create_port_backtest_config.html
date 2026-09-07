@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">factoRverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.7.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -57,6 +57,7 @@
 <span>  rp_parameters <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  hrp_parameters <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  mmaf_parameters <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  slsaf_parameters <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  <span class="va">main_liquidity_metric</span>,</span>
 <span>  liquidity_floor_cutoffs <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  liquidity_constraint_policy <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -121,7 +122,9 @@ If not provided, a default is created using method "sample" and sample size 252;
 <dd><p>A character string representing the portfolio construction method.
 Must be one of "ew" (equal-weight), "sw" (signal-weight), "cw" (cap-weight), "cs" (cap-scaled), "rp" (risk parity),
 "hrp" (hierarchical risk parity), "mvo" (mean-variance optimization), or "mmaf" (micro-macro allocation framework).
-"custom_weights" is not supported through this constructor.</p></dd>
+"custom_weights" supplies its weights rather than deriving them, so it requires
+chosen_score_metric_and_position to be NULL and custom_stock_weights_m_df to be passed to
+run_port_backtest().</p></dd>
 
 
 <dt id="arg-mvo-parameters">mvo_parameters<a class="anchor" aria-label="anchor" href="#arg-mvo-parameters"></a></dt>
@@ -142,6 +145,11 @@ If missing and port_construction_method is "hrp", a default is created.</p></dd>
 <dt id="arg-mmaf-parameters">mmaf_parameters<a class="anchor" aria-label="anchor" href="#arg-mmaf-parameters"></a></dt>
 <dd><p>An object of class <code>mmaf_parameters</code> for micro-macro allocation framework portfolios. Only required if <code>port_construction_method</code> is "mmaf".
 If missing and port_construction_method is "mmaf", a default is created (and <code>enable_group_representativeness</code> defaults to <code>TRUE</code>).</p></dd>
+
+
+<dt id="arg-slsaf-parameters">slsaf_parameters<a class="anchor" aria-label="anchor" href="#arg-slsaf-parameters"></a></dt>
+<dd><p>An object of class <code>slsaf_parameters</code> for simulated long-short allocation framework portfolios. Only required if <code>port_construction_method</code> is "slsaf".
+If missing and port_construction_method is "slsaf", a default is created with a signal-weighted long leg.</p></dd>
 
 
 <dt id="arg-main-liquidity-metric">main_liquidity_metric<a class="anchor" aria-label="anchor" href="#arg-main-liquidity-metric"></a></dt>

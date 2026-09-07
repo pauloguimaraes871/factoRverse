@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">factoRverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.7.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -68,6 +68,35 @@
 <span>  custom_stock_metrics_m_df <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  user_defined_OR_rules_m_df <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  user_defined_AND_rules_m_df <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  winsorization_probs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.025</span>, <span class="fl">0.975</span><span class="op">)</span>,</span>
+<span>  verbose <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  parallel <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  .test_seed <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  .update <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  .old_backtest_port_weights_m_d_ref <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  .old_backtest_port_returns_m_xts <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  .old_backtest_port_costs_d_ref <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  .old_backtest_covered_dates <span class="op">=</span> <span class="cn">NULL</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># S4 method for class 'meta_dataframe,meta_dataframe,meta_dataframe,meta_dataframe,port_metabacktest_config'</span></span>
+<span><span class="fu">run_port_backtest</span><span class="op">(</span></span>
+<span>  <span class="va">signals_m_df</span>,</span>
+<span>  <span class="va">fwd_return_m_df</span>,</span>
+<span>  <span class="va">liquidity_m_df</span>,</span>
+<span>  <span class="va">volatility_m_df</span>,</span>
+<span>  <span class="va">config</span>,</span>
+<span>  <span class="va">port_backtest_cohort</span>,</span>
+<span>  custom_port_metrics_m_df <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  stock_groups_m_df <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  benchmark_weights_m_df <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  daily_stock_returns_m_xts <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  daily_bench_returns_m_xts <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  benchmark_returns_m_xts <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  custom_stock_metrics_m_df <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  vol_m_df <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  exposure_m_df <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  max_stats_age_months <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  winsorization_probs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0.025</span>, <span class="fl">0.975</span><span class="op">)</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  parallel <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -191,6 +220,34 @@
 <dt id="arg--old-backtest-covered-dates">.old_backtest_covered_dates<a class="anchor" aria-label="anchor" href="#arg--old-backtest-covered-dates"></a></dt>
 <dd><p>(Internal) Dates already covered in the previous backtest (used when <code>.update = TRUE</code>).</p></dd>
 
+
+<dt id="arg-port-backtest-cohort">port_backtest_cohort<a class="anchor" aria-label="anchor" href="#arg-port-backtest-cohort"></a></dt>
+<dd><p>A <code>port_backtest_cohort</code> holding the base portfolios to allocate</p></dd>
+
+
+<dt id="arg-custom-port-metrics-m-df">custom_port_metrics_m_df<a class="anchor" aria-label="anchor" href="#arg-custom-port-metrics-m-df"></a></dt>
+<dd><p>Optional <code>meta_dataframe</code> of user-computed per-portfolio metrics,
+joined into the port universe and available as a meta score. See
+<code><a href="derive_port_universe_m_df.html">derive_port_universe_m_df()</a></code>.</p></dd>
+
+
+<dt id="arg-vol-m-df">vol_m_df<a class="anchor" aria-label="anchor" href="#arg-vol-m-df"></a></dt>
+<dd><p>Optional <code>meta_dataframe</code> of supplied risk for the risky sleeve, read when
+<code>vol_source</code> is <code>"supplied"</code>. One row per date for the sleeve, carrying a single
+annualised risk column.</p></dd>
+
+
+<dt id="arg-exposure-m-df">exposure_m_df<a class="anchor" aria-label="anchor" href="#arg-exposure-m-df"></a></dt>
+<dd><p>Optional <code>meta_dataframe</code> carrying the metric the exposure signal is
+derived from, required when <code>exposure_method</code> is anything but <code>"none"</code>. It must describe
+the risky sleeve.
+across. Its backtests must have been run on the same data objects passed here.</p></dd>
+
+
+<dt id="arg-max-stats-age-months">max_stats_age_months<a class="anchor" aria-label="anchor" href="#arg-max-stats-age-months"></a></dt>
+<dd><p>Optional whole number. Age above which carried base statistics raise
+a warning at meta rebalance dates. <code>NULL</code> reports the observed age without a threshold.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -204,7 +261,8 @@
 <li><p><code>final_stock_port</code>: The <code>stock_port</code> object for the last rebalance date (final weights, covariance, RRC, macro/benchmark sub-portfolios).</p></li>
 <li><p><code>port_backtest_workflow</code>: A list tracking workflow metadata, inputs, and date coverage.</p></li>
 <li><p><code>backtest_identifier</code>: A character identifier of the form <code>"c__&lt;config&gt;_s__&lt;signals&gt;_f__&lt;fwd_return&gt;"</code>.</p></li>
-</ul></div>
+</ul><p>An object of class <a href="port_metabacktest_results-class.html">port_metabacktest_results</a>.</p>
+    </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>
     <p>Main entry point for portfolio simulations in the <code>factoRverse</code> ecosystem.
@@ -315,7 +373,39 @@ enter with zero weight, and surviving names are carried forward by <code>roll_po
   config = port_backtest_config
 )</code>: Run Portfolio Backtest with Signal Filtering and Eligibility Rules</p>
 <p>Executes a full pipeline portfolio backtest, from asset/signal classification and eligibility filtering to benchmark construction and weight optimization, based on expected return scores (<code>exp_ret_score</code>) or signal performance. This function is designed to incorporate realistic portfolio constraints and rules—such as turnover, liquidity, group representativeness, and user-defined filters—while also supporting fallback logic to ensure a viable investment universe is selected in each rebalance date.</p></li>
+<li><p><code>run_port_backtest(
+  signals_m_df = meta_dataframe,
+  fwd_return_m_df = meta_dataframe,
+  liquidity_m_df = meta_dataframe,
+  volatility_m_df = meta_dataframe,
+  config = port_metabacktest_config
+)</code>: Allocate across a cohort of already-backtested portfolios</p>
+<p>Runs a meta-portfolio backtest: at each meta rebalance date, weights are chosen across the base
+portfolios of a <code>port_backtest_cohort</code> using those portfolios' own characteristics, and the
+resulting allocation is then run as an ordinary stock-level portfolio.</p></li>
 </ul></div>
+    <div class="section level2">
+    <h2 id="the-two-levels">The two levels<a class="anchor" aria-label="anchor" href="#the-two-levels"></a></h2>
+    <p>The method works at two levels, and the distinction matters for reading the results.</p>
+<p>At the <strong>meta level</strong> each base portfolio is an asset. Its characteristics are assembled by
+<code><a href="derive_port_universe_m_df.html">derive_port_universe_m_df()</a></code> into a <a href="port_universe_m_df-class.html">port_universe_m_df</a>, the chosen meta score is turned
+into an expected-return score by <code><a href="derive_stock_universe_m_d_ref.html">derive_stock_universe_m_d_ref()</a></code>, eligibility is set by
+<code><a href="classify_investment_universe.html">classify_investment_universe()</a></code>, and weights are set by <code><a href="set_portfolio_weights.html">set_portfolio_weights()</a></code>. Covariance,
+where the construction method needs it, is estimated from the base portfolios' own monthly
+return series, so <code>cov_matrix_sample_size</code> counts months here rather than trading days.</p>
+<p>At the <strong>stock level</strong> those meta weights are multiplied through each base portfolio's own stock
+weights by <code><a href="project_meta_weights_to_stocks.html">project_meta_weights_to_stocks()</a></code>, and the result is run through the ordinary
+backtest engine as a <code>custom_weights</code> portfolio. This is what makes the costs real: base
+portfolios frequently hold the same names, so a meta rebalance nets off at stock level and
+trades far less than the portfolio-level turnover would suggest.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="what-is-knowable-when">What is knowable when<a class="anchor" aria-label="anchor" href="#what-is-knowable-when"></a></h2>
+    <p>Meta weights at date <code>t</code> are set from statistics the cohort had produced by <code>t</code>. Base portfolio
+analytics exist only on base rebalance dates, so a meta rebalance may be reading figures formed
+earlier; that is look-ahead safe and reported by <code>stats_age_months</code>, and
+<code><a href="check_inputs_meta_port_backtest.html">check_inputs_meta_port_backtest()</a></code> warns when it exceeds <code>max_stats_age_months</code>.</p>
+    </div>
 
     <div class="section level2">
     <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
@@ -345,6 +435,26 @@ enter with zero weight, and surviving names are carried forward by <code>roll_po
 <span class="r-in"><span>  <span class="co"># Alternatively, drive the backtest from a blended signal (run_sb_backtest output):</span></span></span>
 <span class="r-in"><span>  <span class="co"># results &lt;- run_port_backtest(signals_m_df, fwd_return_m_df, liquidity_m_df,</span></span></span>
 <span class="r-in"><span>  <span class="co">#                              volatility_m_df, config, sb_backtest_results = sb_results)</span></span></span>
+<span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
+<span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
+<span class="r-in"><span>  <span class="va">meta_config</span> <span class="op">&lt;-</span> <span class="fu"><a href="create_port_metabacktest_config.html">create_port_metabacktest_config</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>    meta_port_backtest_config <span class="op">=</span> <span class="fu"><a href="create_port_backtest_config.html">create_port_backtest_config</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>      chosen_score_metric_and_position <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span>ann_info_ratio <span class="op">=</span> <span class="st">"long"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>      eligibility_quantile_range <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">1</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>      initial_buffer_period <span class="op">=</span> <span class="fl">24</span>, rebalancing_months <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">6</span>, <span class="fl">12</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>      selected_benchmark <span class="op">=</span> <span class="st">"ibov"</span>, main_liquidity_metric <span class="op">=</span> <span class="st">"mean_volfin_3m"</span>,</span></span>
+<span class="r-in"><span>      port_construction_method <span class="op">=</span> <span class="st">"sw"</span>, config_name <span class="op">=</span> <span class="st">"meta_sw_ir"</span></span></span>
+<span class="r-in"><span>    <span class="op">)</span>,</span></span>
+<span class="r-in"><span>    config_name <span class="op">=</span> <span class="st">"meta_sw_ir"</span></span></span>
+<span class="r-in"><span>  <span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span>  <span class="va">meta_results</span> <span class="op">&lt;-</span> <span class="fu">run_port_backtest</span><span class="op">(</span></span></span>
+<span class="r-in"><span>    signals_m_df <span class="op">=</span> <span class="va">signals_m_df</span>, fwd_return_m_df <span class="op">=</span> <span class="va">fwd_return_m_df</span>,</span></span>
+<span class="r-in"><span>    liquidity_m_df <span class="op">=</span> <span class="va">liquidity_m_df</span>, volatility_m_df <span class="op">=</span> <span class="va">volatility_m_df</span>,</span></span>
+<span class="r-in"><span>    config <span class="op">=</span> <span class="va">meta_config</span>, port_backtest_cohort <span class="op">=</span> <span class="va">port_cohort</span>,</span></span>
+<span class="r-in"><span>    benchmark_weights_m_df <span class="op">=</span> <span class="va">benchmark_weights_m_df</span>,</span></span>
+<span class="r-in"><span>    benchmark_returns_m_xts <span class="op">=</span> <span class="va">benchmark_returns_m_xts</span></span></span>
+<span class="r-in"><span>  <span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 </code></pre></div>
     </div>

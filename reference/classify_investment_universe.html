@@ -9,7 +9,7 @@ the Only Top Assets Rule, in which case assets are promoted based on their signa
 
     <a class="navbar-brand me-2" href="../index.html">factoRverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.7.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -65,6 +65,8 @@ the <strong>Only Top Assets Rule</strong>, in which case assets are promoted bas
 <span>  ridge_pen <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  user_defined_AND_rules_m_d_ref <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  user_defined_OR_rules_m_d_ref <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  include_benchmark_in_universe <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  custom_weights_m_d_ref <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  asset_object <span class="op">=</span> <span class="st">"stocks"</span>,</span>
 <span>  use_raw_for_eligibility <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
@@ -180,6 +182,30 @@ The rule will be appended to the filter as a regular promotion rule, accumulatin
 <dt id="arg-user-defined-or-rules-m-d-ref">user_defined_OR_rules_m_d_ref<a class="anchor" aria-label="anchor" href="#arg-user-defined-or-rules-m-d-ref"></a></dt>
 <dd><p>Optional. A named list of named data frames containing a column with tickers, columns with metrics to be passed to the final data frame, and a column that describes the filter with the same name as the list element.
 All tickers in the current stock universe must have a unique correspondence in this data frame.</p></dd>
+
+
+<dt id="arg-include-benchmark-in-universe">include_benchmark_in_universe<a class="anchor" aria-label="anchor" href="#arg-include-benchmark-in-universe"></a></dt>
+<dd><p>Logical. If TRUE, every benchmark constituent is
+added to the eligible universe and the universe is split into two conviction blocks:
+<code>is_long_candidate</code> (the outcome of the regular promotion cascade, i.e. what may be
+bought) and <code>is_short_candidate</code> (benchmark constituents the cascade rejected, i.e.
+what may only be underweighted). <code>is_eligible</code> becomes the union of the two. This is
+required by long/short layered methods such as <code>slsaf</code>, which must represent the whole
+benchmark in order to express an underweight. Requires <code>selected_benchmark</code> and
+<code>benchmark_weights_m_d_ref</code>. Defaults to FALSE, leaving eligibility unchanged.</p></dd>
+
+
+<dt id="arg-custom-weights-m-d-ref">custom_weights_m_d_ref<a class="anchor" aria-label="anchor" href="#arg-custom-weights-m-d-ref"></a></dt>
+<dd><p>Optional data frame of user-supplied weights with columns <code>id</code> and
+<code>weights</code>. When provided, eligibility follows the weights directly: every asset with a positive
+weight is eligible and every other asset is not, and the promotion cascade is skipped entirely.
+This is the <code>custom_weights</code> route, where the weights are given rather than derived, so there is
+no expected-return score to rank on and nothing for the quantile, liquidity, turnover or
+concentration rules to act upon. It also makes eligibility agree with
+<code><a href="set_portfolio_weights.html">set_portfolio_weights()</a></code>, which already defines the eligible set for <code>custom_weights</code> as the
+assets carrying a positive weight. An all-<code>NA</code> <code>exp_ret_score</code> column is appended so the
+<code>stock_universe_m_df</code> contract still holds; downstream analytics drop it rather than treat the
+missing values as data. Defaults to NULL, leaving classification unchanged.</p></dd>
 
 
 <dt id="arg-asset-object">asset_object<a class="anchor" aria-label="anchor" href="#arg-asset-object"></a></dt>

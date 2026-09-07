@@ -11,7 +11,8 @@ objects, verifies consistency, and filters features according to
 get_features_positions(
   base_sb_backtest_results_list,
   features_passthrough,
-  features_m_df
+  features_m_df,
+  .allow_heterogeneous_base_features = FALSE
 )
 ```
 
@@ -37,6 +38,13 @@ get_features_positions(
   three key columns (often `date`, `symbol`, `target`) plus feature
   columns. Used primarily for consistency checks and reconstructing any
   missing signals/positions in `base_sb_backtest_results_list`.
+
+- .allow_heterogeneous_base_features:
+
+  Logical; if `TRUE` and `features_passthrough` is `"none"`, returns
+  `"none"` without requiring every base learner to share one set of
+  chosen signals. Defaults to `FALSE`. See
+  [`check_inputs_meta_sb_backtest()`](https://pauloguimaraes871.github.io/factoRverse/reference/check_inputs_meta_sb_backtest.md).
 
 ## Value
 

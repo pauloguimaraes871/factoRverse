@@ -22,7 +22,8 @@ check_inputs_meta_sb_backtest(
   base_benchmark_returns_m_xts,
   meta_backtest_returns_m_xts,
   meta_benchmark_returns_m_xts,
-  verbose = TRUE
+  verbose = TRUE,
+  .allow_heterogeneous_base_features = FALSE
 )
 ```
 
@@ -87,6 +88,21 @@ check_inputs_meta_sb_backtest(
 - verbose:
 
   A boolean indicating whether to print detailed messages.
+
+- .allow_heterogeneous_base_features:
+
+  Logical; the relaxation resolved by
+  [`run_sb_backtest()`](https://pauloguimaraes871.github.io/factoRverse/reference/run_sb_backtest.md)
+  from `config@allow_heterogeneous_base_features`, passed in rather than
+  re-read so this function can be exercised directly. If `TRUE`, permits
+  base learners that were fitted on different feature sets, and on
+  different `features_m_df` objects, to be stacked together: the
+  `chosen_signals_and_positions` and `features_object_name` checks are
+  skipped, and an identical `id` set across base learners is asserted in
+  their place. Requires `features_passthrough == "none"`, which the
+  `sb_metabacktest_config` validity function already enforces at
+  construction and which is re-checked here. Defaults to `FALSE`, which
+  reproduces the historical behaviour exactly.
 
 ## Value
 

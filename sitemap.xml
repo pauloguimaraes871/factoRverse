@@ -19,7 +19,9 @@
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/add_liquidity_floor_cutoffs.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/add_mmaf_parameters.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/add_mvo_parameters.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/add_risk_target_parameters.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/add_rp_parameters.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/add_slsaf_parameters.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/add_transaction_costs_parameters.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/add_tuning_strategy.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/add_turnover_constraint_policy.html</loc></url>
@@ -36,6 +38,7 @@
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/as.list-liquidity_constraint_policy-method.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/as.list-transaction_costs_parameters-method.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/as.list-turnover_constraint_policy-method.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/attach_custom_port_metrics.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/bake.step_impute_sector.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/bake.step_winsorize.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/bayesian_adjustment.html</loc></url>
@@ -44,6 +47,7 @@
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/bayesian_opt_strategy-class.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/bench_regression_fit.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/beta_bench.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/build_slsaf_plot_m_dfs.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/cagr.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/calculate_eval_metrics.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/calculate_group_covariance_matrix.html</loc></url>
@@ -53,6 +57,7 @@
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/calculate_trade_orders.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/calculate_transaction_costs.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/check_consistent_dates.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/check_inputs_meta_port_backtest.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/check_inputs_meta_sb_backtest.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/check_inputs_port_backtest.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/check_inputs_sb_backtest.html</loc></url>
@@ -70,6 +75,8 @@
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/compute_sector_map.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/compute_sector_map_across.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/compute_sector_wise.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/compute_short_leg_scores.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/compute_short_leg_underweights.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/compute_window.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/concentration_constraint_policy-class.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/consolidate_backtest_results.html</loc></url>
@@ -104,15 +111,21 @@
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/create_performance_m_df.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/create_port_backtest_cohort.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/create_port_backtest_config.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/create_port_metabacktest_config.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/create_port_metabacktest_results.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/create_resampled_mvo_portfolio.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/create_risk_parity_portfolio.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/create_risk_target_parameters.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/create_rp_parameters.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/create_sb_backtest_config.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/create_sb_metabacktest_config.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/create_sb_metabacktest_results.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/create_se_benchmarks.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/create_signal_weighted_portfolio.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/create_slsaf_parameters.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/create_slsaf_portfolio.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/create_ss_backtest_config.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/create_sub_port_config.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/create_target_m_df.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/create_tickers_catalog.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/create_transaction_costs_parameters.html</loc></url>
@@ -121,13 +134,18 @@
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/decompose_feature_importance.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/define_signal_eligibility.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/derive_adapted_custom_signal_universe_m_df.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/derive_exposure_signal.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/derive_informative_priors_from_data.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/derive_port_universe_m_df.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/derive_signal_universe_m_df.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/derive_slsaf_leg_diagnostics.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/derive_stock_universe_m_d_ref.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/display_eligibility_criteria.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/display_valid_custom_objectives.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/dofuture.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/estimate_covariance_matrix.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/estimate_sleeve_risk.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/expand_sub_port_config.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/explain_prediction.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/explain_prediction_inner.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/extract_returns_m_xts.html</loc></url>
@@ -180,7 +198,9 @@
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/lookup_catalog.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/map_recipe_timewise.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/merge_and_rescale_weights.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/message_meta_score_basis.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/meta_dataframe-class.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/meta_score_basis_table.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/meta_xts-class.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/metrics_meta_xts-class.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/min_track_record.html</loc></url>
@@ -198,7 +218,9 @@
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/plot-port_backtest_cohort-ANY-method.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/plot-port_backtest_config-missing-method.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/plot-port_backtest_results-ANY-method.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/plot-port_metabacktest_results-ANY-method.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/plot-random_search_strategy-missing-method.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/plot-risk_target_metabacktest_results-ANY-method.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/plot-sb_backtest_config-missing-method.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/plot-sb_backtest_results-ANY-method.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/plot-sb_metabacktest_results-ANY-method.html</loc></url>
@@ -211,6 +233,9 @@
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/port_backtest_cohort-class.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/port_backtest_config-class.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/port_backtest_results-class.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/port_metabacktest_config-class.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/port_metabacktest_results-class.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/port_universe_m_df-class.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/predict-keras_ensemble-method.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/predict-sb_backtest_results-method.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/predict-sb_model-method.html</loc></url>
@@ -223,6 +248,7 @@
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/priors_m_df-class.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/prob_sharpe_ratio.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/process_micro_portfolios.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/project_meta_weights_to_stocks.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/random_search_strategy-class.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/raw_features_m_df-class.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/read_tickers_catalog.html</loc></url>
@@ -231,6 +257,9 @@
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/required_pkgs.step_winsorize.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/res_mom.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/returns_meta_xts-class.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/risk_target_metabacktest_results-class.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/risk_target_parameters-class.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/risk_to_weight.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/roll_fwd_port_weights.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/roll_port.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/rp_parameters-class.html</loc></url>
@@ -274,8 +303,12 @@
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/show-port_backtest_cohort-method.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/show-port_backtest_config-method.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/show-port_backtest_results-method.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/show-port_metabacktest_config-method.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/show-port_metabacktest_results-method.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/show-random_search_strategy-method.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/show-returns_meta_xts-method.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/show-risk_target_metabacktest_results-method.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/show-risk_target_parameters-method.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/show-rp_parameters-method.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/show-sb_backtest_config-method.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/show-sb_backtest_results-method.html</loc></url>
@@ -283,6 +316,7 @@
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/show-sb_metabacktest_results-method.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/show-sb_model-method.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/show-signal_universe_m_df-method.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/show-slsaf_parameters-method.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/show-ss_backtest_config-method.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/show-ss_backtest_results-method.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/show-tickers_catalog-method.html</loc></url>
@@ -295,6 +329,7 @@
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/signal_universe_m_df-class.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/signals_m_df-class.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/skew.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/slsaf_parameters-class.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/ss_backtest_config-class.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/ss_backtest_results-class.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/step_impute_sector.html</loc></url>
@@ -302,6 +337,7 @@
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/step_winsorize.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/step_winsorize_new.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/stock_universe_m_df-class.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/sub_port_config-class.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/sum_top_n.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/summarize_lmer_model.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/summarize_performance.html</loc></url>
@@ -338,6 +374,8 @@
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/validate_liquidity_floor_cutoffs.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/validate_port_construction_methods.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/validate_returns_bench.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/validate_slsaf_parameters.html</loc></url>
+<url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/validate_sub_port_config.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/validate_transaction_costs_parameters.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/validate_turnover_constraint_policy.html</loc></url>
 <url><loc>https://pauloguimaraes871.github.io/factoRverse/reference/weights_m_df-class.html</loc></url>

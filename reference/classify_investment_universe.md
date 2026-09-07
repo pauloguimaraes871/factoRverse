@@ -30,6 +30,8 @@ classify_investment_universe(
   ridge_pen = NULL,
   user_defined_AND_rules_m_d_ref = NULL,
   user_defined_OR_rules_m_d_ref = NULL,
+  include_benchmark_in_universe = FALSE,
+  custom_weights_m_d_ref = NULL,
   asset_object = "stocks",
   use_raw_for_eligibility = FALSE,
   verbose = TRUE
@@ -207,6 +209,36 @@ classify_investment_universe(
   and a column that describes the filter with the same name as the list
   element. All tickers in the current stock universe must have a unique
   correspondence in this data frame.
+
+- include_benchmark_in_universe:
+
+  Logical. If TRUE, every benchmark constituent is added to the eligible
+  universe and the universe is split into two conviction blocks:
+  `is_long_candidate` (the outcome of the regular promotion cascade,
+  i.e. what may be bought) and `is_short_candidate` (benchmark
+  constituents the cascade rejected, i.e. what may only be
+  underweighted). `is_eligible` becomes the union of the two. This is
+  required by long/short layered methods such as `slsaf`, which must
+  represent the whole benchmark in order to express an underweight.
+  Requires `selected_benchmark` and `benchmark_weights_m_d_ref`.
+  Defaults to FALSE, leaving eligibility unchanged.
+
+- custom_weights_m_d_ref:
+
+  Optional data frame of user-supplied weights with columns `id` and
+  `weights`. When provided, eligibility follows the weights directly:
+  every asset with a positive weight is eligible and every other asset
+  is not, and the promotion cascade is skipped entirely. This is the
+  `custom_weights` route, where the weights are given rather than
+  derived, so there is no expected-return score to rank on and nothing
+  for the quantile, liquidity, turnover or concentration rules to act
+  upon. It also makes eligibility agree with
+  [`set_portfolio_weights()`](https://pauloguimaraes871.github.io/factoRverse/reference/set_portfolio_weights.md),
+  which already defines the eligible set for `custom_weights` as the
+  assets carrying a positive weight. An all-`NA` `exp_ret_score` column
+  is appended so the `stock_universe_m_df` contract still holds;
+  downstream analytics drop it rather than treat the missing values as
+  data. Defaults to NULL, leaving classification unchanged.
 
 - asset_object:
 

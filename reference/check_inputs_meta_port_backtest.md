@@ -1,0 +1,125 @@
+# Validate Meta Portfolio Backtest Inputs
+
+Checks a
+[`port_metabacktest_config-class`](https://pauloguimaraes871.github.io/factoRverse/reference/port_metabacktest_config-class.md),
+the
+[`port_backtest_cohort-class`](https://pauloguimaraes871.github.io/factoRverse/reference/port_backtest_cohort-class.md)
+it will allocate across, the
+[`port_universe_m_df-class`](https://pauloguimaraes871.github.io/factoRverse/reference/port_universe_m_df-class.md)
+derived from that cohort, and the base data objects, both individually
+and for mutual consistency.
+
+## Usage
+
+``` r
+check_inputs_meta_port_backtest(
+  config,
+  port_backtest_cohort,
+  port_universe_m_df,
+  signals_m_df,
+  fwd_return_m_df,
+  liquidity_m_df,
+  volatility_m_df,
+  benchmark_weights_m_df = NULL,
+  benchmark_returns_m_xts = NULL,
+  daily_stock_returns_m_xts = NULL,
+  daily_bench_returns_m_xts = NULL,
+  stock_groups_m_df = NULL,
+  max_stats_age_months = NULL,
+  verbose = TRUE
+)
+```
+
+## Arguments
+
+- config:
+
+  A `port_metabacktest_config`.
+
+- port_backtest_cohort:
+
+  The `port_backtest_cohort` holding the base portfolios.
+
+- port_universe_m_df:
+
+  The `port_universe_m_df` derived from that cohort.
+
+- signals_m_df, fwd_return_m_df, liquidity_m_df, volatility_m_df:
+
+  The base data objects, which must be the ones the cohort's backtests
+  were run on.
+
+- benchmark_weights_m_df, benchmark_returns_m_xts:
+
+  Optional benchmark objects.
+
+- daily_stock_returns_m_xts, daily_bench_returns_m_xts:
+
+  Optional daily return objects.
+
+- stock_groups_m_df:
+
+  Optional groups object.
+
+- max_stats_age_months:
+
+  Optional positive whole number. Age above which carried statistics
+  raise a warning at meta rebalance dates. `NULL` (default) reports
+  without a threshold.
+
+- verbose:
+
+  Logical, default `TRUE`.
+
+## Value
+
+Invisibly, a list with the resolved `meta_rebalance_dates` and the
+observed `max_stats_age_months`. Called for its validation side effects.
+
+## Why the universe is an argument rather than derived here
+
+The universe-dependent checks are the substantive ones: whether the meta
+score names a real column, whether it is populated, and how stale the
+statistics behind it are. Deriving the universe inside this function
+would duplicate work the caller has to do anyway, so it is passed in.
+[`derive_port_universe_m_df`](https://pauloguimaraes871.github.io/factoRverse/reference/derive_port_universe_m_df.md)
+carries its own validation of the cohort, and runs first; this function
+assumes only that it returned successfully.
+
+## What is checked
+
+- classes of every supplied object;
+
+- the cohort holds at least two base portfolios, since a meta allocation
+  needs something to allocate across. Exactly two is supported: signal
+  weighting over a pair is ordinal rather than proportional, which is
+  reported as a warning and not refused, since a two-portfolio
+  allocation such as a risky and a defensive sleeve is a normal use;
+
+- the meta score names a column of the universe, is not entirely
+  missing, and is present at every meta rebalance date;
+
+- the meta rebalance schedule falls inside the dates the cohort covers,
+  and the meta buffer clears the base one;
+
+- the benchmark agrees between config and cohort;
+
+- every base data object is the one the cohort was built from, matched
+  by name the same way
+  [`extract_returns_m_xts`](https://pauloguimaraes871.github.io/factoRverse/reference/extract_returns_m_xts.md)
+  matches them.
+
+## Statistics staleness never blocks
+
+Base portfolio statistics exist only on base rebalance dates, so a meta
+rebalance date may be using figures formed months earlier. That is
+look-ahead safe and sometimes unavoidable, and the right tolerance
+depends on how often the base portfolios rebalance, so it is reported as
+a warning and never as an error. Supplying `max_stats_age_months` sets
+the threshold above which the warning fires; leaving it `NULL` reports
+the observed maximum without judging it.
+
+## See also
+
+[`derive_port_universe_m_df`](https://pauloguimaraes871.github.io/factoRverse/reference/derive_port_universe_m_df.md),
+[`create_port_metabacktest_config`](https://pauloguimaraes871.github.io/factoRverse/reference/create_port_metabacktest_config.md)

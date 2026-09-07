@@ -26,6 +26,7 @@ create_sb_metabacktest_config(
   config_name = "not_identified",
   normalize_base_predictions = TRUE,
   winsorize_base_predictions = TRUE,
+  allow_heterogeneous_base_features = FALSE,
   ...
 )
 ```
@@ -57,6 +58,31 @@ create_sb_metabacktest_config(
 - winsorize_base_predictions:
 
   A logical value indicating whether to winsorize the base predictions.
+
+- allow_heterogeneous_base_features:
+
+  Logical. If `TRUE`, permits base learners fitted on different feature
+  sets, and on different `features_m_df` objects, to be stacked
+  together, for research designs that combine learners trained on
+  different representations of the same investable universe. Requires
+  `features_passthrough = "none"`; the validity function refuses any
+  other pairing, since only on that path does the meta learner stop
+  reading the feature columns of `features_m_df` and build its design
+  matrix purely from the base learners' predictions joined on `id`. All
+  base learners must still score an identical `id` set.
+
+  It is a declaration that the pool **is** mixed, not a permission that
+  may go unused: a pool on which neither relaxed check would have fired
+  is refused. Either axis alone satisfies it, so two learners drawn from
+  one `features_m_df` that disagree on `chosen_signals_and_positions`
+  qualify.
+
+  Note that a mixed run is named after whichever `features_m_df` was
+  supplied, so its provenance string records one vintage rather than the
+  pool, and
+  [`explain_prediction()`](https://pauloguimaraes871.github.io/factoRverse/reference/explain_prediction.md)
+  is unavailable on the result. Defaults to `FALSE`, which reproduces
+  historical predictions exactly.
 
 ## Value
 

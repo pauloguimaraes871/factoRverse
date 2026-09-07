@@ -60,10 +60,10 @@ portfolios.
 - `port_construction_method`:
 
   A character string representing the type of portfolio. Must be one of
-  'ew', 'sw', 'cw', 'cs', 'rp', 'hrp', 'mvo' or 'mmaf' ('custom_weights'
-  is not supported for this config). For signal portfolios, 'cw' and
-  'cs' are not applicable. For signal portfolios, this is inferred based
-  on sb_algorithm.
+  'ew', 'sw', 'cw', 'cs', 'rp', 'hrp', 'mvo', 'mmaf', 'slsaf' or
+  'custom_weights'. For signal portfolios, 'cw' and 'cs' are not
+  applicable. For signal portfolios, this is inferred based on
+  sb_algorithm.
 
 - `mvo_parameters`:
 
@@ -84,6 +84,11 @@ portfolios.
 
   An object of class `mmaf_parameters` representing the parameters for
   the MMAF method. This is only relevant for 'mmaf'.
+
+- `slsaf_parameters`:
+
+  An object of class `slsaf_parameters` representing the parameters for
+  the SLSAF method. This is only relevant for 'slsaf'.
 
 - `main_liquidity_metric`:
 

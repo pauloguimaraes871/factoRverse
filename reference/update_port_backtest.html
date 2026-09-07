@@ -11,7 +11,7 @@ new dates. This function is useful when you want to add new dates to an existing
 
     <a class="navbar-brand me-2" href="../index.html">factoRverse</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.7.0</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.9.0</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -74,6 +74,29 @@ new dates. This function is useful when you want to add new dates to an existing
 <span>  custom_stock_metrics_m_df <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  user_defined_OR_rules_m_df <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  user_defined_AND_rules_m_df <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  verbose <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  parallel <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  .test_seed <span class="op">=</span> <span class="cn">NULL</span></span>
+<span><span class="op">)</span></span>
+<span></span>
+<span><span class="co"># S4 method for class 'meta_dataframe,meta_dataframe,meta_dataframe,meta_dataframe,port_metabacktest_results'</span></span>
+<span><span class="fu">update_port_backtest</span><span class="op">(</span></span>
+<span>  <span class="va">signals_m_df</span>,</span>
+<span>  <span class="va">fwd_return_m_df</span>,</span>
+<span>  <span class="va">liquidity_m_df</span>,</span>
+<span>  <span class="va">volatility_m_df</span>,</span>
+<span>  <span class="va">old_results</span>,</span>
+<span>  <span class="va">updated_port_backtest_cohort</span>,</span>
+<span>  custom_port_metrics_m_df <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  stock_groups_m_df <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  benchmark_weights_m_df <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  daily_stock_returns_m_xts <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  daily_bench_returns_m_xts <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  benchmark_returns_m_xts <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  custom_stock_metrics_m_df <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  vol_m_df <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  exposure_m_df <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  max_stats_age_months <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  parallel <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  .test_seed <span class="op">=</span> <span class="cn">NULL</span></span>
@@ -167,6 +190,16 @@ new dates. This function is useful when you want to add new dates to an existing
 <dt id="arg--test-seed">.test_seed<a class="anchor" aria-label="anchor" href="#arg--test-seed"></a></dt>
 <dd><p>Optional seed for reproducibility when testing.</p></dd>
 
+
+<dt id="arg-updated-port-backtest-cohort">updated_port_backtest_cohort<a class="anchor" aria-label="anchor" href="#arg-updated-port-backtest-cohort"></a></dt>
+<dd><p>A <code>port_backtest_cohort</code> whose base portfolios are the
+one-month continuation of the ones the old meta backtest allocated across.</p></dd>
+
+
+<dt id="arg-custom-port-metrics-m-df-vol-m-df-exposure-m-df-max-stats-age-months">custom_port_metrics_m_df, vol_m_df, exposure_m_df, max_stats_age_months<a class="anchor" aria-label="anchor" href="#arg-custom-port-metrics-m-df-vol-m-df-exposure-m-df-max-stats-age-months"></a></dt>
+<dd><p>Passed through to
+<code>run_port_backtest</code>, as in the original run.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
@@ -194,6 +227,23 @@ backtest was driven by an <code>sb_backtest_results</code>/<code>sb_metabacktest
 )</code>: Updates a portfolio backtest using based on a <code>port_backtest_results</code> object.</p>
 <p>This method extracts the parameters from the <code>results</code> object (of class <code>port_backtest_results</code>), modifies initial_buffer_period, performs the
 new backtest and then binds results</p></li>
+<li><p><code>update_port_backtest(
+  signals_m_df = meta_dataframe,
+  fwd_return_m_df = meta_dataframe,
+  liquidity_m_df = meta_dataframe,
+  volatility_m_df = meta_dataframe,
+  old_results = port_metabacktest_results
+)</code>: Extends a meta portfolio backtest by one month, from a
+<code>port_metabacktest_results</code> object.</p>
+<p>A meta backtest sits on top of a cohort, so it cannot be rolled forward on its own: the base
+portfolios have to be extended first and handed back as <code>updated_port_backtest_cohort</code>,
+the same way the base method takes an <code>updated_sb_backtest_results</code>. Each base portfolio
+in that cohort must carry the same <code>backtest_identifier</code> as before and cover one further
+month.</p>
+<p>As in the base method, the recomputation starts at the last date of the old backtest rather
+than at the new one, so the now-populated forward returns at that date can roll the portfolio
+forward. The meta weights for that date are recomputed and replace the old ones, and the new
+date is appended.</p></li>
 </ul></div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
