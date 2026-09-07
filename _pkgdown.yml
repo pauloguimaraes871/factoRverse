@@ -340,6 +340,7 @@ reference:
   - apply_stocks_pre_eligibility
   - apply_turnover_cap_rule
   - bench_regression_fit
+  - build_slsaf_plot_m_dfs
   - calculate_group_covariance_matrix
   - calculate_port_metrics
   - calculate_port_returns
@@ -352,6 +353,8 @@ reference:
   - classify_stocks_pre_eligibility
   - clean_returns_sample
   - compute_agg_macro_objects
+  - compute_short_leg_scores
+  - compute_short_leg_underweights
   - consolidate_backtest_results
   - consolidate_generic_meta_dataframes
   - consolidate_generic_meta_xts
@@ -364,11 +367,14 @@ reference:
   - create_risk_parity_portfolio
   - create_sb_metabacktest_results
   - create_signal_weighted_portfolio
+  - create_slsaf_portfolio
   - define_signal_eligibility
   - derive_adapted_custom_signal_universe_m_df
   - derive_informative_priors_from_data
   - derive_signal_universe_m_df
+  - derive_slsaf_leg_diagnostics
   - estimate_covariance_matrix
+  - expand_sub_port_config
   - extract_returns_m_xts
   - fit_bayesian_hierarchical_model
   - fit_frequentist_hierarchical_model
@@ -397,3 +403,5 @@ reference:
   - translate_metrics
   - undummy_sector_features
   - validate_returns_bench
+  - validate_slsaf_parameters
+  - validate_sub_port_config
